@@ -197,6 +197,15 @@ Not planned: dual local/cloud execution.
 
 ---
 
+## Contributing
+
+Contributions are welcome — see [`CONTRIBUTING.md`](CONTRIBUTING.md). A one-time
+[Contributor License Agreement](CLA.md) is required before your first pull request can be
+merged; it keeps the project's licensing options open while leaving you the copyright to your
+work.
+
+---
+
 ## Licence
 
 Apache-2.0. Built on [DuckDB](https://duckdb.org), [DuckLake](https://ducklake.select), and
