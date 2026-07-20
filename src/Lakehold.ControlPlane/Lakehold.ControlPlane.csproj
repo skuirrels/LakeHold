@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>Lakehold control plane: tenants, catalogs, saved queries, and query history.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="DuckDB.EFCoreProvider" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../Lakehold.Engine/Lakehold.Engine.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,386 @@
+:host {
+  display: block;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.workbench {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+/* Top bar */
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 0 16px;
+  height: 52px;
+  flex-shrink: 0;
+  background: var(--surface-1);
+  border-bottom: 1px solid var(--border);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.mark {
+  color: var(--accent);
+  font-size: 15px;
+}
+
+.selectors {
+  display: flex;
+  gap: 14px;
+}
+
+.field {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  color: var(--text-faint);
+}
+
+.field select {
+  background: var(--surface-3);
+  color: var(--text);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  padding: 5px 9px;
+  font-size: 13px;
+  font-family: var(--mono);
+}
+
+.maintenance {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-left: auto;
+}
+
+.maint-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-faint);
+  margin-right: 2px;
+}
+
+/* Layout */
+
+.body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.sidebar {
+  width: 270px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-1);
+  border-right: 1px solid var(--border);
+  min-height: 0;
+}
+
+.sidebar-head {
+  padding: 10px 14px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.sidebar lh-catalog-explorer {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+/* Editor */
+
+.editor-pane {
+  display: flex;
+  flex-direction: column;
+  height: 38%;
+  min-height: 150px;
+  border-bottom: 1px solid var(--border);
+}
+
+.editor-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 14px;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.summary {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-family: var(--mono);
+}
+
+.warn-tag {
+  color: var(--warn);
+  border-color: var(--warn);
+}
+
+.editor {
+  flex: 1;
+  width: 100%;
+  resize: none;
+  border: none;
+  padding: 14px 16px;
+  background: var(--surface-0);
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 13px;
+  line-height: 1.65;
+  tab-size: 4;
+}
+
+.editor:focus {
+  outline: none;
+}
+
+/* Output */
+
+.output-pane {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--surface-0);
+}
+
+.tabs {
+  display: flex;
+  gap: 2px;
+  padding: 0 10px;
+  flex-shrink: 0;
+  background: var(--surface-1);
+  border-bottom: 1px solid var(--border);
+}
+
+.tab {
+  padding: 8px 14px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-faint);
+  border-bottom: 2px solid transparent;
+}
+
+.tab:hover {
+  color: var(--text-muted);
+}
+
+.tab.active {
+  color: var(--text);
+  border-bottom-color: var(--accent);
+}
+
+.output-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.output-body lh-result-grid {
+  flex: 1;
+  min-height: 0;
+}
+
+.placeholder {
+  padding: 20px;
+  color: var(--text-faint);
+  font-size: 13px;
+  margin: 0;
+}
+
+/* Banners */
+
+.banner {
+  margin: 10px 12px;
+  padding: 10px 13px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+.error-banner {
+  background: rgba(240, 97, 109, 0.1);
+  border: 1px solid rgba(240, 97, 109, 0.4);
+  color: #ffb3b9;
+}
+
+.error-banner strong {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--error);
+}
+
+.error-banner pre {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 12px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* A dry-run result is neither success nor failure — it is a decision point, so it reads as a
+   warning rather than a confirmation. */
+.dry-banner {
+  background: rgba(240, 167, 66, 0.1);
+  border: 1px solid rgba(240, 167, 66, 0.45);
+  color: #ffd9a3;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  font-family: var(--mono);
+  font-size: 12px;
+}
+
+.dry-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.dry-actions strong {
+  color: var(--warn);
+  font-family: var(--sans);
+}
+
+.btn-danger {
+  background: var(--error);
+  border-color: var(--error);
+  color: #2b0508;
+  font-weight: 600;
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: #ff7f89;
+  border-color: #ff7f89;
+}
+
+.ok-banner {
+  background: rgba(78, 201, 165, 0.1);
+  border: 1px solid rgba(78, 201, 165, 0.4);
+  color: var(--ok);
+  font-family: var(--mono);
+  font-size: 12px;
+}
+
+/* History */
+
+.history {
+  list-style: none;
+  margin: 0;
+  padding: 6px;
+}
+
+.history-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  width: 100%;
+  padding: 7px 10px;
+  border-radius: var(--radius-sm);
+  text-align: left;
+}
+
+.history-row:hover {
+  background: var(--surface-2);
+}
+
+.status {
+  color: var(--ok);
+  font-size: 9px;
+  flex-shrink: 0;
+}
+
+.status.failed {
+  color: var(--error);
+}
+
+.history-sql {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.history-meta {
+  font-size: 11px;
+  color: var(--text-faint);
+  font-family: var(--mono);
+  flex-shrink: 0;
+}
+
+/* Snapshots */
+
+.snapshots {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.snapshots th {
+  text-align: left;
+  padding: 8px 14px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-faint);
+  border-bottom: 1px solid var(--border);
+}
+
+.snapshots td {
+  padding: 6px 14px;
+  border-bottom: 1px solid var(--border);
+  font-family: var(--mono);
+}
+
+.snippet {
+  color: var(--info);
+}
+
+@media (max-width: 900px) {
+  .sidebar {
+    display: none;
+  }
+
+  .maintenance {
+    display: none;
+  }
+}

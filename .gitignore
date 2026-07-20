@@ -1,0 +1,23 @@
+# Build output
+bin/
+obj/
+dist/
+artifacts/
+
+# Node
+node_modules/
+.npm-cache/
+.angular/
+
+# Lakehold local state: catalogs, Parquet data, control-plane database
+.lakehold/
+
+# IDE / OS
+.vs/
+.vscode/
+.idea/
+*.user
+.DS_Store
+
+# Agent tooling
+.claude/

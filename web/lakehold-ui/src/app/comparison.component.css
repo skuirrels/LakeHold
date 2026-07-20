@@ -1,0 +1,392 @@
+:host {
+  display: block;
+  height: 100vh;
+  overflow-y: auto;
+}
+
+.page {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 0 28px 80px;
+}
+
+/* Screen-reader-only caption: the table needs one for accessibility, but it would be redundant
+   noise next to the visible heading. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Nav */
+
+.nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 0;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 650;
+  color: var(--text);
+  text-decoration: none;
+}
+
+.mark {
+  color: var(--accent);
+}
+
+.nav-links {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.nav-links a {
+  color: var(--text-muted);
+  text-decoration: none;
+  font-size: 14px;
+}
+
+.nav-links a:hover {
+  color: var(--text);
+}
+
+.nav-links a.btn {
+  text-decoration: none;
+}
+
+.nav-links a.btn-primary {
+  color: #241c05;
+}
+
+/* Hero */
+
+.hero {
+  padding: 56px 0 44px;
+  text-align: center;
+}
+
+.eyebrow {
+  display: inline-block;
+  font-size: 12px;
+  font-family: var(--mono);
+  color: var(--accent);
+  padding: 5px 13px;
+  border: 1px solid rgba(255, 200, 87, 0.3);
+  border-radius: 999px;
+  background: rgba(255, 200, 87, 0.06);
+}
+
+h1 {
+  font-size: clamp(2rem, 5vw, 3.2rem);
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  margin: 22px 0 18px;
+  font-weight: 700;
+}
+
+.lede {
+  max-width: 660px;
+  margin: 0 auto;
+  font-size: 16px;
+  line-height: 1.65;
+  color: var(--text-muted);
+}
+
+/* Matrix */
+
+.matrix {
+  margin-top: 12px;
+}
+
+/* Legend. Sits above the table rather than below it: a colour key discovered after you have
+   already read the grid has not done its job. */
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 20px;
+  margin-bottom: 14px;
+  padding: 12px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-1);
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+
+.legend-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.key {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.swatch.good {
+  background: var(--ok);
+}
+
+.swatch.weak {
+  background: var(--warn);
+}
+
+.swatch.neutral {
+  background: var(--text-faint);
+}
+
+.key-note {
+  color: var(--text-faint);
+  font-style: italic;
+}
+
+/* The table is wide by nature; it scrolls inside its own container so the page body never does. */
+.table-scroll {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-1);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  min-width: 860px;
+}
+
+thead th {
+  position: sticky;
+  top: 0;
+  background: var(--surface-2);
+  padding: 13px 16px;
+  text-align: left;
+  font-size: 13px;
+  font-weight: 650;
+  border-bottom: 1px solid var(--border-strong);
+  white-space: nowrap;
+}
+
+thead th.us {
+  color: var(--accent);
+}
+
+tbody th.dim {
+  text-align: left;
+  font-weight: 500;
+  color: var(--text-muted);
+  padding: 11px 16px;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--border);
+}
+
+tbody td {
+  padding: 11px 16px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-muted);
+  vertical-align: top;
+}
+
+/* Our column is tinted for the whole height so the eye can track it across a wide table. */
+.us {
+  background: rgba(255, 200, 87, 0.05);
+}
+
+tbody td.us {
+  color: var(--text);
+}
+
+tbody tr:hover td,
+tbody tr:hover th.dim {
+  background: var(--surface-2);
+}
+
+tbody tr:hover td.us {
+  background: rgba(255, 200, 87, 0.09);
+}
+
+/* Qualified with `tbody td` to outrank the base cell colour (0,2,0) and the `.us` tint override.
+   Unqualified `.v-good` (0,1,0) loses to both, which silently suppressed every tone marker —
+   including the amber ones in our own column, which are the whole point of the page. */
+tbody td.v-good {
+  color: var(--ok);
+}
+
+tbody td.v-weak {
+  color: var(--warn);
+}
+
+.note {
+  margin: 12px 2px 0;
+  font-size: 12px;
+  color: var(--text-faint);
+}
+
+/* Head-to-head */
+
+.head2head {
+  margin-top: 64px;
+}
+
+h2 {
+  font-size: 24px;
+  letter-spacing: -0.02em;
+  margin: 0 0 10px;
+}
+
+.summary {
+  color: var(--text-muted);
+  font-size: 14px;
+  line-height: 1.65;
+  margin: 0 0 22px;
+  max-width: 780px;
+}
+
+.cols {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 16px;
+}
+
+.col {
+  padding: 22px;
+  border-radius: var(--radius);
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+}
+
+.col h3 {
+  font-size: 15px;
+  margin: 0 0 14px;
+}
+
+.col ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.col li {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-muted);
+  margin-bottom: 9px;
+}
+
+.win {
+  border-color: rgba(78, 201, 165, 0.35);
+}
+
+.win h3 {
+  color: var(--ok);
+}
+
+.lose h3 {
+  color: var(--text-muted);
+}
+
+/* Objection */
+
+.objection {
+  margin-top: 72px;
+  padding: 28px;
+  border-radius: var(--radius);
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+}
+
+.objection p,
+.objection li {
+  color: var(--text-muted);
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.objection ul {
+  padding-left: 20px;
+}
+
+.objection li {
+  margin-bottom: 10px;
+}
+
+.objection strong {
+  color: var(--text);
+}
+
+.honest {
+  margin-bottom: 0;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+  color: var(--text-faint) !important;
+}
+
+/* CTA + footer */
+
+.cta {
+  margin-top: 72px;
+  text-align: center;
+}
+
+.cta p {
+  color: var(--text-muted);
+  margin: 0 0 22px;
+  font-size: 14px;
+}
+
+.lg {
+  padding: 11px 22px;
+  font-size: 14px;
+  text-decoration: none;
+}
+
+.foot {
+  margin-top: 72px;
+  padding-top: 26px;
+  border-top: 1px solid var(--border);
+  text-align: center;
+}
+
+.foot p {
+  font-size: 13px;
+  color: var(--text-faint);
+  margin: 0;
+}
+
+.foot .domain {
+  margin-bottom: 10px;
+  font-family: var(--mono);
+  font-size: 14px;
+}
+
+.foot .domain a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.foot a {
+  color: var(--info);
+}

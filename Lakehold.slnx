@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Lakehold.Api/Lakehold.Api.csproj" />
+    <Project Path="src/Lakehold.AppHost/Lakehold.AppHost.csproj" />
+    <Project Path="src/Lakehold.ControlPlane/Lakehold.ControlPlane.csproj" />
+    <Project Path="src/Lakehold.Engine/Lakehold.Engine.csproj" />
+    <Project Path="src/Lakehold.ServiceDefaults/Lakehold.ServiceDefaults.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Lakehold.Engine.Tests/Lakehold.Engine.Tests.csproj" />
+  </Folder>
+</Solution>

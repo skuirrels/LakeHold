@@ -1,0 +1,173 @@
+<div class="workbench">
+  <header class="topbar">
+    <div class="brand">
+      <span class="mark">◆</span>
+      <span class="name">Lakehold</span>
+    </div>
+
+    <div class="selectors">
+      <label class="field">
+        <span>Workspace</span>
+        <select [value]="tenantSlug() ?? ''" (change)="selectTenant($any($event.target).value)">
+          @for (tenant of tenants(); track tenant.slug) {
+            <option [value]="tenant.slug">{{ tenant.displayName }}</option>
+          }
+        </select>
+      </label>
+
+      <label class="field">
+        <span>Catalog</span>
+        <select [value]="catalogName() ?? ''" (change)="selectCatalog($any($event.target).value)">
+          @for (catalog of catalogs(); track catalog.name) {
+            <option [value]="catalog.name">{{ catalog.name }}</option>
+          }
+        </select>
+      </label>
+    </div>
+
+    <div class="maintenance">
+      <span class="maint-label">Maintenance</span>
+      <button class="btn" type="button" title="Write inlined commits out as Parquet"
+              (click)="runMaintenance('flush')">Flush</button>
+      <button class="btn" type="button" title="Merge small Parquet files"
+              (click)="runMaintenance('compact')">Compact</button>
+      <button class="btn" type="button" title="Export catalog metadata to Parquet beside the data"
+              (click)="runMaintenance('backup')">Backup</button>
+      <button class="btn" type="button" title="Drop snapshots older than 7 days"
+              (click)="runMaintenance('expire')">Expire</button>
+      <button class="btn" type="button" title="Delete data files no longer referenced by any snapshot"
+              (click)="runMaintenance('cleanup')">Cleanup</button>
+    </div>
+  </header>
+
+  <div class="body">
+    <aside class="sidebar">
+      <div class="sidebar-head">Catalog</div>
+      <lh-catalog-explorer
+        [schemas]="schemas()"
+        [loading]="schemasLoading()"
+        (insertSql)="insertSql($event)" />
+    </aside>
+
+    <main class="main">
+      <section class="editor-pane">
+        <div class="editor-toolbar">
+          <button class="btn btn-primary" type="button" [disabled]="running() || !ready()" (click)="run()">
+            {{ running() ? 'Running…' : 'Run' }}
+            <span class="kbd">⌘⏎</span>
+          </button>
+          @if (summary(); as text) {
+            <span class="summary">{{ text }}</span>
+          }
+          @if (result()?.truncated) {
+            <span class="tag warn-tag">Row limit reached — showing a prefix of the result</span>
+          }
+        </div>
+
+        <textarea
+          class="editor"
+          spellcheck="false"
+          autocomplete="off"
+          autocapitalize="off"
+          aria-label="SQL editor"
+          [value]="sql()"
+          (input)="sql.set($any($event.target).value)"
+          (keydown)="onEditorKeydown($event)"></textarea>
+      </section>
+
+      <section class="output-pane">
+        <div class="tabs">
+          <button type="button" class="tab" [class.active]="tab() === 'results'" (click)="showTab('results')">
+            Results
+          </button>
+          <button type="button" class="tab" [class.active]="tab() === 'history'" (click)="showTab('history')">
+            History
+          </button>
+          <button type="button" class="tab" [class.active]="tab() === 'snapshots'" (click)="showTab('snapshots')">
+            Snapshots
+          </button>
+        </div>
+
+        <div class="output-body">
+          @if (error(); as message) {
+            <div class="banner error-banner">
+              <strong>Query failed</strong>
+              <pre>{{ message }}</pre>
+            </div>
+          }
+
+          @if (notice(); as message) {
+            <div class="banner" [class.ok-banner]="!pendingApply()" [class.dry-banner]="pendingApply()">
+              <span>{{ message }}</span>
+              @if (pendingApply()) {
+                <span class="dry-actions">
+                  <strong>Dry run — nothing was changed.</strong>
+                  <button class="btn btn-danger" type="button" (click)="confirmApply()">Apply for real</button>
+                  <button class="btn" type="button" (click)="cancelApply()">Cancel</button>
+                </span>
+              }
+            </div>
+          }
+
+          @switch (tab()) {
+            @case ('results') {
+              @if (result()) {
+                <lh-result-grid [result]="result()" />
+              } @else if (!error()) {
+                <p class="placeholder">Run a statement to see results.</p>
+              }
+            }
+
+            @case ('history') {
+              @if (history().length === 0) {
+                <p class="placeholder">No queries yet.</p>
+              } @else {
+                <ul class="history">
+                  @for (run of history(); track run.id) {
+                    <li>
+                      <button type="button" class="history-row" (click)="replay(run)">
+                        <span class="status" [class.failed]="!run.succeeded">{{ run.succeeded ? '●' : '▲' }}</span>
+                        <span class="history-sql">{{ run.sql }}</span>
+                        <span class="history-meta">
+                          {{ run.rowCount }} rows · {{ run.elapsedMilliseconds.toFixed(0) }} ms ·
+                          {{ formatTime(run.startedUtc) }}
+                        </span>
+                      </button>
+                    </li>
+                  }
+                </ul>
+              }
+            }
+
+            @case ('snapshots') {
+              @if (snapshots().length === 0) {
+                <p class="placeholder">No snapshots recorded.</p>
+              } @else {
+                <table class="snapshots">
+                  <thead>
+                    <tr>
+                      <th scope="col">Snapshot</th>
+                      <th scope="col">Committed</th>
+                      <th scope="col">Schema version</th>
+                      <th scope="col">Time travel</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (snapshot of snapshots(); track snapshot.snapshotId) {
+                      <tr>
+                        <td>{{ snapshot.snapshotId }}</td>
+                        <td>{{ formatTime(snapshot.committedAt) }}</td>
+                        <td>{{ snapshot.schemaVersion }}</td>
+                        <td class="snippet">AT (VERSION =&gt; {{ snapshot.snapshotId }})</td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              }
+            }
+          }
+        </div>
+      </section>
+    </main>
+  </div>
+</div>

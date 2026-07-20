@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <!-- CA1707: underscore-separated test names are the convention and read better than camelCase
+         sentences. CA1001: xunit owns fixture lifetime through IAsyncLifetime. -->
+    <NoWarn>$(NoWarn);CA1707;CA1001</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+    <PackageReference Include="Xunit.SkippableFact" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/Lakehold.Engine/Lakehold.Engine.csproj" />
+  </ItemGroup>
+
+</Project>

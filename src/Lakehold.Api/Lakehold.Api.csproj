@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <Description>Lakehold HTTP API.</Description>
+    <UserSecretsId>lakehold-api</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
+    <PackageReference Include="Quartz.Extensions.Hosting" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../Lakehold.ControlPlane/Lakehold.ControlPlane.csproj" />
+    <ProjectReference Include="../Lakehold.ServiceDefaults/Lakehold.ServiceDefaults.csproj" />
+  </ItemGroup>
+
+</Project>

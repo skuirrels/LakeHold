@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>Lakehold data plane: per-tenant DuckDB compute sessions over a DuckLake catalog.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="DuckDB.EFCoreProvider" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Options" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Lakehold.Engine.Tests" />
+  </ItemGroup>
+
+</Project>

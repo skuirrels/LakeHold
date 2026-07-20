@@ -1,0 +1,118 @@
+<div class="page">
+  <header class="nav">
+    <a class="brand" routerLink="/"><span class="mark">◆</span> Lakehold</a>
+    <nav class="nav-links">
+      <a routerLink="/">Home</a>
+      <a class="btn btn-primary" routerLink="/workbench">Open workbench →</a>
+    </nav>
+  </header>
+
+  <section class="hero">
+    <span class="eyebrow">Comparison</span>
+    <h1>How Lakehold compares</h1>
+    <p class="lede">
+      Lakehold is not the right choice for everyone. This page says plainly where each alternative
+      wins, because a comparison that only flatters us is marketing, not engineering — and you would
+      find out the truth in week three anyway.
+    </p>
+  </section>
+
+  <section class="matrix">
+    <div class="legend" role="note">
+      <span class="legend-label">Colour key</span>
+      <span class="key"><i class="swatch good"></i> Strength on this axis</span>
+      <span class="key"><i class="swatch weak"></i> Limitation on this axis</span>
+      <span class="key"><i class="swatch neutral"></i> Depends what you want</span>
+      <span class="key-note">Judged for the reader, not for us — the same rule applies to every column.</span>
+    </div>
+
+    <div class="table-scroll">
+      <table>
+        <caption class="sr-only">Feature comparison across Lakehold, MotherDuck, ClickHouse, and cloud warehouses</caption>
+        <thead>
+          <tr>
+            <th scope="col" class="dim">&nbsp;</th>
+            <th scope="col" class="us">Lakehold</th>
+            <th scope="col">MotherDuck</th>
+            <th scope="col">ClickHouse</th>
+            <th scope="col">Snowflake / Databricks</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (row of rows; track row.dimension) {
+            <tr>
+              <th scope="row" class="dim">{{ row.dimension }}</th>
+              <td class="us" [class]="'v-' + row.lakehold.tone">{{ row.lakehold.text }}</td>
+              <td [class]="'v-' + row.motherduck.tone">{{ row.motherduck.text }}</td>
+              <td [class]="'v-' + row.clickhouse.tone">{{ row.clickhouse.text }}</td>
+              <td [class]="'v-' + row.cloud.tone">{{ row.cloud.text }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    <p class="note">
+      Pricing and tiers checked July 2026 and they move constantly — treat the cost row as a shape,
+      not a quote. Verify against each vendor before you budget.
+    </p>
+  </section>
+
+  @for (h of headToHead; track h.name) {
+    <section class="head2head">
+      <h2>vs {{ h.name }}</h2>
+      <p class="summary">{{ h.summary }}</p>
+      <div class="cols">
+        <article class="col win">
+          <h3>Choose Lakehold when</h3>
+          <ul>
+            @for (point of h.chooseUs; track point) {
+              <li>{{ point }}</li>
+            }
+          </ul>
+        </article>
+        <article class="col lose">
+          <h3>Choose {{ h.name }} when</h3>
+          <ul>
+            @for (point of h.chooseThem; track point) {
+              <li>{{ point }}</li>
+            }
+          </ul>
+        </article>
+      </div>
+    </section>
+  }
+
+  <section class="objection">
+    <h2>“Why not just use DuckDB?”</h2>
+    <p>
+      Often you should. DuckDB in a script, reading Parquet from a bucket, is an excellent answer and
+      costs nothing to run. Lakehold only starts earning its place when you need things a library
+      cannot give you:
+    </p>
+    <ul>
+      <li><strong>More than one person.</strong> DuckDB is a library, not a service — there is no shared endpoint, no auth, no query history.</li>
+      <li><strong>More than one tenant.</strong> Isolation has to live somewhere. Here it is the per-tenant session and what is attached to it.</li>
+      <li><strong>Transactions and time travel.</strong> That is DuckLake, and someone has to own the catalog, the snapshots, and the compaction schedule.</li>
+      <li><strong>An operator.</strong> Flush, compact, expire, and cleanup are real jobs with real consequences. Lakehold makes them buttons with dry-run defaults instead of folklore.</li>
+    </ul>
+    <p class="honest">
+      If none of those apply, use DuckDB directly and come back when they do. Lakehold is built on it
+      either way, so nothing you write is wasted.
+    </p>
+  </section>
+
+  <section class="cta">
+    <h2>See it for yourself</h2>
+    <p>The workbench ships with a seeded catalog — 250,000 events, queryable immediately.</p>
+    <a class="btn btn-primary lg" routerLink="/workbench">Open the workbench</a>
+  </section>
+
+  <footer class="foot">
+    <p class="domain"><a href="https://lakehold.dev">lakehold.dev</a></p>
+    <p>
+      Built on <a href="https://duckdb.org" target="_blank" rel="noopener">DuckDB</a>,
+      <a href="https://ducklake.select" target="_blank" rel="noopener">DuckLake</a>, .NET 10, and Angular.
+      Apache-2.0.
+    </p>
+  </footer>
+</div>
