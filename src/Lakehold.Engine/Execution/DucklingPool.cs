@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Lakehold.Engine.Catalog;
 using Lakehold.Engine.Configuration;
+using Lakehold.Engine.Telemetry;
 
 namespace Lakehold.Engine.Execution;
 
@@ -19,10 +20,17 @@ namespace Lakehold.Engine.Execution;
 /// </remarks>
 public sealed class DucklingPool : IAsyncDisposable
 {
+    // The idle sweep is throttled to at most once per this interval, capped below the idle timeout so
+    // a short timeout still evicts promptly. Bounds the sweep's cost under load without letting an
+    // aged-out session linger meaningfully longer than the timeout it configured.
+    private static readonly TimeSpan SweepFloor = TimeSpan.FromSeconds(5);
+
     private readonly ConcurrentDictionary<string, Lazy<Task<Duckling>>> _sessions = new(StringComparer.Ordinal);
     private readonly LakehouseOptions _options;
     private readonly ILogger<DucklingPool> _logger;
     private readonly ILoggerFactory _loggerFactory;
+    private readonly TimeSpan _sweepInterval;
+    private long _lastSweepTicks;
     private bool _disposed;
 
     public DucklingPool(
@@ -35,6 +43,7 @@ public sealed class DucklingPool : IAsyncDisposable
         _options = options.Value;
         _loggerFactory = loggerFactory;
         _logger = loggerFactory.CreateLogger<DucklingPool>();
+        _sweepInterval = _options.IdleTimeout < SweepFloor ? _options.IdleTimeout : SweepFloor;
     }
 
     /// <summary>
@@ -53,6 +62,15 @@ public sealed class DucklingPool : IAsyncDisposable
         ObjectDisposedException.ThrowIf(_disposed, this);
 
         await EvictIdleAsync().ConfigureAwait(false);
+
+        // Recorded before GetOrAdd so a miss is attributed to the caller that actually pays the
+        // start-up, rather than to whichever request happened to arrive while it was still starting.
+        var hit = _sessions.ContainsKey(catalog.CatalogName);
+        LakeholdTelemetry.PoolRequests.Add(
+            1,
+            new KeyValuePair<string, object?>(
+                LakeholdTelemetry.ResultKey,
+                hit ? LakeholdTelemetry.ResultHit : LakeholdTelemetry.ResultMiss));
 
         var entry = _sessions.GetOrAdd(
             catalog.CatalogName,
@@ -83,10 +101,17 @@ public sealed class DucklingPool : IAsyncDisposable
     ///     Evicts the session for a catalog, if one is warm. Call after a catalog's configuration
     ///     changes so the next query reattaches with the new settings.
     /// </summary>
+    /// <remarks>
+    ///     Callers that resolve catalogs through the control plane must also drop the cached
+    ///     descriptor, or the replacement session is started from the stale configuration this
+    ///     eviction was meant to discard. <c>LakehouseService.ForgetCatalogAsync</c> pairs the two.
+    /// </remarks>
     public async Task EvictAsync(string catalogName)
     {
         if (_sessions.TryRemove(catalogName, out var entry))
         {
+            LakeholdTelemetry.SessionEvictions.Add(
+                1, new KeyValuePair<string, object?>(LakeholdTelemetry.ReasonKey, "explicit"));
             await DisposeEntryAsync(entry).ConfigureAwait(false);
         }
     }
@@ -97,6 +122,29 @@ public sealed class DucklingPool : IAsyncDisposable
     private async Task EvictIdleAsync()
     {
         var now = DateTimeOffset.UtcNow;
+
+        // Skip the scan while a recent sweep still covers us: it allocates a candidate list and walks
+        // every warm session, which is wasted work on the query hot path when nothing has aged out.
+        // Never skip when already over the ceiling, so an overflowing pool is trimmed on the same
+        // request that pushed it over rather than one sweep interval later.
+        var last = Interlocked.Read(ref _lastSweepTicks);
+        var overflowing = _sessions.Count > _options.MaxWarmSessions;
+
+        if (now.UtcTicks - last < _sweepInterval.Ticks && !overflowing)
+        {
+            return;
+        }
+
+        // Claim the sweep window. Without this, every caller that arrived after the interval elapsed
+        // would pass the check above before any of them stamped, and all of them would sweep — a
+        // thundering herd that reinstates per-query the allocation this throttle exists to remove.
+        // Losing the race means another thread is already sweeping, so there is nothing left to do
+        // unless we are over the ceiling, where trimming promptly outweighs a duplicated pass.
+        if (Interlocked.CompareExchange(ref _lastSweepTicks, now.UtcTicks, last) != last && !overflowing)
+        {
+            return;
+        }
+
         var candidates = new List<(string Name, Lazy<Task<Duckling>> Entry, DateTimeOffset LastUsed)>();
 
         foreach (var (name, entry) in _sessions)
@@ -114,6 +162,8 @@ public sealed class DucklingPool : IAsyncDisposable
         {
             if (now - lastUsed > _options.IdleTimeout && _sessions.TryRemove(name, out var removed))
             {
+                LakeholdTelemetry.SessionEvictions.Add(
+                    1, new KeyValuePair<string, object?>(LakeholdTelemetry.ReasonKey, "idle"));
                 EngineLog.DucklingEvictedIdle(_logger, name);
                 await DisposeEntryAsync(removed).ConfigureAwait(false);
             }
@@ -130,6 +180,8 @@ public sealed class DucklingPool : IAsyncDisposable
         {
             if (_sessions.TryRemove(name, out var removed))
             {
+                LakeholdTelemetry.SessionEvictions.Add(
+                    1, new KeyValuePair<string, object?>(LakeholdTelemetry.ReasonKey, "overflow"));
                 EngineLog.DucklingEvictedOverflow(_logger, name);
                 await DisposeEntryAsync(removed).ConfigureAwait(false);
             }

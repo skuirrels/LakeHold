@@ -359,7 +359,12 @@ h1 {
   text-decoration: underline;
 }
 
-.foot a,
-.landing a {
+/* Buttons are excluded deliberately. This blanket link colour outspecifies .btn-primary once
+   Angular adds its scoping attributes, which painted the hero CTA's text link-blue on the amber
+   fill — unreadable. Exempting .btn here fixes every button-styled anchor at once, rather than
+   re-declaring the colour at ever-higher specificity per button, which is how the nav link had
+   already worked around it. */
+.foot a:not(.btn),
+.landing a:not(.btn) {
   color: var(--info);
 }

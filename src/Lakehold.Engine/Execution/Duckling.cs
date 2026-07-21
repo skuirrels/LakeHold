@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Diagnostics;
 using System.Globalization;
 using System.Numerics;
 using DuckDB.EFCoreProvider.Extensions;
@@ -7,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Lakehold.Engine.Catalog;
 using Lakehold.Engine.Configuration;
+using Lakehold.Engine.Telemetry;
 
 namespace Lakehold.Engine.Execution;
 
@@ -145,6 +147,13 @@ public sealed class Duckling : IAsyncDisposable
                 });
             });
 
+        // A cold start is the pool's whole reason to exist, so it is measured on its own rather than
+        // buried inside the first query that happened to pay for it.
+        using var activity = LakeholdTelemetry.Source.StartActivity("lakehold.session.start");
+        activity?.SetTag(LakeholdTelemetry.CatalogKey, catalog.CatalogName);
+        activity?.SetTag(LakeholdTelemetry.MetadataKindKey, catalog.MetadataKind.ToString());
+        var startedAt = TimeProvider.System.GetTimestamp();
+
         var context = new LakeContext(builder.Options);
         try
         {
@@ -152,11 +161,22 @@ public sealed class Duckling : IAsyncDisposable
             // misconfigured catalog surfaces as a start-up failure the pool can refuse to cache.
             await context.Database.OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
 
+            LakeholdTelemetry.SessionStartDuration.Record(
+                TimeProvider.System.GetElapsedTime(startedAt).TotalSeconds,
+                new KeyValuePair<string, object?>(LakeholdTelemetry.OutcomeKey, LakeholdTelemetry.OutcomeSuccess));
+            LakeholdTelemetry.WarmSessions.Add(1);
+
             EngineLog.DucklingStarted(logger, catalog.CatalogName, catalog.MetadataKind, catalog.ReadOnly);
             return new Duckling(context, catalog, options, logger);
         }
-        catch
+        catch (Exception ex)
         {
+            LakeholdTelemetry.SessionStartDuration.Record(
+                TimeProvider.System.GetElapsedTime(startedAt).TotalSeconds,
+                new KeyValuePair<string, object?>(LakeholdTelemetry.OutcomeKey, LakeholdTelemetry.OutcomeError));
+            activity?.AddException(ex);
+            activity?.SetStatus(ActivityStatusCode.Error);
+
             await context.DisposeAsync().ConfigureAwait(false);
             throw;
         }
@@ -175,7 +195,7 @@ public sealed class Duckling : IAsyncDisposable
         timeout.CancelAfter(_options.StatementTimeout);
         var token = timeout.Token;
 
-        await _gate.WaitAsync(token).ConfigureAwait(false);
+        await WaitForGateAsync(token).ConfigureAwait(false);
         try
         {
             return await ExecuteUnguardedAsync(sql, token).ConfigureAwait(false);
@@ -184,6 +204,22 @@ public sealed class Duckling : IAsyncDisposable
         {
             _gate.Release();
         }
+    }
+
+    /// <summary>
+    ///     Takes the session gate, recording how long the caller queued for it.
+    /// </summary>
+    /// <remarks>
+    ///     Queue time is measured separately from execution because the two have opposite remedies:
+    ///     a slow statement wants a better query or more memory, while a queued one wants a node of
+    ///     its own or a read replica. Summed into request duration they are indistinguishable.
+    /// </remarks>
+    private async Task WaitForGateAsync(CancellationToken cancellationToken)
+    {
+        var queuedAt = TimeProvider.System.GetTimestamp();
+        await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        LakeholdTelemetry.SessionQueueDuration.Record(
+            TimeProvider.System.GetElapsedTime(queuedAt).TotalSeconds);
     }
 
     /// <summary>
@@ -258,7 +294,7 @@ public sealed class Duckling : IAsyncDisposable
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
-        await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        await WaitForGateAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             LastUsedUtc = DateTimeOffset.UtcNow;
@@ -269,6 +305,11 @@ public sealed class Duckling : IAsyncDisposable
             _gate.Release();
         }
     }
+
+    /// <summary>The largest integer a JavaScript number represents exactly: 2^53 - 1.</summary>
+    private const long MaxSafeInteger = 9_007_199_254_740_991;
+
+    private static bool IsJsSafe(long value) => value is >= -MaxSafeInteger and <= MaxSafeInteger;
 
     /// <summary>
     ///     Projects a provider-materialised value into a shape that survives JSON serialisation.
@@ -283,7 +324,16 @@ public sealed class Duckling : IAsyncDisposable
     private static object? ToWireValue(object? value) => value switch
     {
         null => null,
-        decimal or long or ulong or BigInteger => Convert.ToString(value, CultureInfo.InvariantCulture),
+
+        // An integer within JavaScript's safe range crosses the wire as a JSON number: the browser
+        // parses it losslessly, so stringifying it would only spend an allocation the grid discards.
+        // Past 2^53 a JSON number would be silently rounded, so those — and every decimal, whose
+        // precision a double cannot hold, and every BigInteger, which is wide by definition — are
+        // transported as strings and formatted client-side. Returning the boxed value unchanged for
+        // the common small-integer case reuses the box the provider already allocated.
+        long l => IsJsSafe(l) ? value : l.ToString(CultureInfo.InvariantCulture),
+        ulong ul => ul <= (ulong)MaxSafeInteger ? value : ul.ToString(CultureInfo.InvariantCulture),
+        decimal or BigInteger => Convert.ToString(value, CultureInfo.InvariantCulture),
         DateTime dt => dt.ToString("O", CultureInfo.InvariantCulture),
         DateTimeOffset dto => dto.ToString("O", CultureInfo.InvariantCulture),
         DateOnly d => d.ToString("O", CultureInfo.InvariantCulture),
@@ -321,6 +371,10 @@ public sealed class Duckling : IAsyncDisposable
         _disposed = true;
         await _context.DisposeAsync().ConfigureAwait(false);
         _gate.Dispose();
+
+        // Paired with the increment on a successful start, so the gauge tracks live sessions however
+        // they end — idle eviction, overflow, explicit eviction, or node shutdown.
+        LakeholdTelemetry.WarmSessions.Add(-1);
         EngineLog.DucklingStopped(_logger, Catalog.CatalogName);
     }
 }

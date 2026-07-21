@@ -1,0 +1,50 @@
+# Normalize line endings so the checkout is consistent across platforms rather than depending on
+# each contributor's core.autocrlf. Text files are stored as LF in the repository; Git converts to
+# the platform default on checkout where a file is not pinned below.
+* text=auto
+
+# Source and config: LF everywhere, including on Windows checkouts. These files are read by
+# cross-platform toolchains (dotnet, node) that are happy with LF, and pinning them stops an editor
+# on one OS from rewriting every line when it saves.
+*.cs        text eol=lf
+*.csproj    text eol=lf
+*.slnx      text eol=lf
+*.props     text eol=lf
+*.targets   text eol=lf
+*.config    text eol=lf
+
+*.ts        text eol=lf
+*.tsx       text eol=lf
+*.js        text eol=lf
+*.mjs       text eol=lf
+*.cjs       text eol=lf
+*.html      text eol=lf
+*.css       text eol=lf
+*.scss      text eol=lf
+
+*.json      text eol=lf
+*.jsonc     text eol=lf
+*.yml       text eol=lf
+*.yaml      text eol=lf
+*.md        text eol=lf
+*.txt       text eol=lf
+*.sh        text eol=lf
+*.gitignore text eol=lf
+
+# Windows-only scripts must keep CRLF, or cmd/PowerShell can misparse them.
+*.cmd       text eol=crlf
+*.bat       text eol=crlf
+*.ps1       text eol=crlf
+
+# Binaries: never touched by line-ending or diff machinery.
+*.png       binary
+*.jpg       binary
+*.jpeg      binary
+*.gif       binary
+*.ico       binary
+*.woff      binary
+*.woff2     binary
+*.ttf       binary
+*.parquet   binary
+*.duckdb    binary
+*.ducklake  binary

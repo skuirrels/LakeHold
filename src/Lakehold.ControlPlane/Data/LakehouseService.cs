@@ -1,7 +1,9 @@
+using System.Diagnostics;
 using Microsoft.EntityFrameworkCore;
 using Lakehold.ControlPlane.Model;
 using Lakehold.Engine.Catalog;
 using Lakehold.Engine.Configuration;
+using Lakehold.Engine.Telemetry;
 using Microsoft.Extensions.Options;
 using Lakehold.Engine.Execution;
 
@@ -17,10 +19,12 @@ public sealed class CatalogNotFoundException(string message) : Exception(message
 public sealed class LakehouseService(
     ControlPlaneContext context,
     DucklingPool pool,
+    CatalogCache catalogs,
     IOptions<LakehouseOptions> options)
 {
     private readonly ControlPlaneContext _context = context;
     private readonly DucklingPool _pool = pool;
+    private readonly CatalogCache _catalogs = catalogs;
     private readonly LakehouseOptions _options = options.Value;
 
     /// <summary>
@@ -38,6 +42,14 @@ public sealed class LakehouseService(
         string sql,
         CancellationToken cancellationToken)
     {
+        // The span carries tenant and catalog; the metrics deliberately do not. Per-tenant time
+        // series would blow a metrics backend's cardinality budget on a multi-tenant node, and a slow
+        // tenant is still findable through the trace.
+        using var activity = LakeholdTelemetry.Source.StartActivity("lakehold.query");
+        activity?.SetTag(LakeholdTelemetry.TenantKey, tenantSlug);
+        activity?.SetTag(LakeholdTelemetry.CatalogKey, catalogName);
+        var startedAt = TimeProvider.System.GetTimestamp();
+
         var (duckling, tenantId) = await ResolveAsync(tenantSlug, catalogName, cancellationToken).ConfigureAwait(false);
 
         var run = new QueryRun
@@ -56,12 +68,26 @@ public sealed class LakehouseService(
             run.RowCount = result.Rows.Count;
             run.ElapsedMilliseconds = result.Elapsed.TotalMilliseconds;
 
+            RecordQuery(activity, startedAt, LakeholdTelemetry.OutcomeSuccess);
+            activity?.SetTag(LakeholdTelemetry.RowsKey, result.Rows.Count);
+            activity?.SetTag(LakeholdTelemetry.TruncatedKey, result.Truncated);
+            LakeholdTelemetry.QueryRows.Record(result.Rows.Count);
+
+            if (result.Truncated)
+            {
+                LakeholdTelemetry.QueriesTruncated.Add(1);
+            }
+
             return result;
         }
         catch (Exception ex)
         {
             run.Succeeded = false;
             run.Error = ex.Message;
+
+            RecordQuery(activity, startedAt, LakeholdTelemetry.OutcomeError);
+            activity?.AddException(ex);
+            activity?.SetStatus(ActivityStatusCode.Error);
             throw;
         }
         finally
@@ -83,6 +109,16 @@ public sealed class LakehouseService(
                 // Losing an audit row is preferable to losing the query result or the real error.
             }
         }
+    }
+
+    /// <summary>Records a statement's duration against its outcome, and stamps the span to match.</summary>
+    private static void RecordQuery(Activity? activity, long startedAt, string outcome)
+    {
+        LakeholdTelemetry.QueryDuration.Record(
+            TimeProvider.System.GetElapsedTime(startedAt).TotalSeconds,
+            new KeyValuePair<string, object?>(LakeholdTelemetry.OutcomeKey, outcome));
+
+        activity?.SetTag(LakeholdTelemetry.OutcomeKey, outcome);
     }
 
     /// <summary>Returns the schema tree of a tenant's catalog.</summary>
@@ -114,6 +150,44 @@ public sealed class LakehouseService(
     ///     recoverable, so the safe path is the default one.
     /// </param>
     public async Task<MaintenanceResult> RunMaintenanceAsync(
+        string tenantSlug,
+        string catalogName,
+        string operation,
+        bool apply,
+        CancellationToken cancellationToken)
+    {
+        using var activity = LakeholdTelemetry.Source.StartActivity("lakehold.maintenance");
+        activity?.SetTag(LakeholdTelemetry.TenantKey, tenantSlug);
+        activity?.SetTag(LakeholdTelemetry.CatalogKey, catalogName);
+        activity?.SetTag(LakeholdTelemetry.OperationKey, operation);
+        activity?.SetTag(LakeholdTelemetry.DryRunKey, !apply);
+        var startedAt = TimeProvider.System.GetTimestamp();
+
+        try
+        {
+            var result = await RunMaintenanceCoreAsync(tenantSlug, catalogName, operation, apply, cancellationToken)
+                .ConfigureAwait(false);
+
+            RecordMaintenance(startedAt, operation, apply, LakeholdTelemetry.OutcomeSuccess);
+            return result;
+        }
+        catch (Exception ex)
+        {
+            RecordMaintenance(startedAt, operation, apply, LakeholdTelemetry.OutcomeError);
+            activity?.AddException(ex);
+            activity?.SetStatus(ActivityStatusCode.Error);
+            throw;
+        }
+    }
+
+    private static void RecordMaintenance(long startedAt, string operation, bool apply, string outcome)
+        => LakeholdTelemetry.MaintenanceDuration.Record(
+            TimeProvider.System.GetElapsedTime(startedAt).TotalSeconds,
+            new KeyValuePair<string, object?>(LakeholdTelemetry.OperationKey, operation),
+            new KeyValuePair<string, object?>(LakeholdTelemetry.DryRunKey, !apply),
+            new KeyValuePair<string, object?>(LakeholdTelemetry.OutcomeKey, outcome));
+
+    private async Task<MaintenanceResult> RunMaintenanceCoreAsync(
         string tenantSlug,
         string catalogName,
         string operation,
@@ -169,6 +243,12 @@ public sealed class LakehouseService(
             .TryAcquireAsync(duckling, operation, nodeId, leaseDuration, cancellationToken)
             .ConfigureAwait(false);
 
+        LakeholdTelemetry.MaintenanceLeaseAttempts.Add(
+            1,
+            new KeyValuePair<string, object?>(LakeholdTelemetry.OperationKey, operation),
+            new KeyValuePair<string, object?>(
+                LakeholdTelemetry.ResultKey, acquired ? "acquired" : "held_elsewhere"));
+
         if (!acquired)
         {
             return null;
@@ -209,43 +289,162 @@ public sealed class LakehouseService(
         string targetMetadataPath,
         CancellationToken cancellationToken)
     {
-        var catalog = await ResolveCatalogAsync(tenantSlug, catalogName, cancellationToken).ConfigureAwait(false);
+        var resolved = await ResolveCatalogAsync(tenantSlug, catalogName, cancellationToken).ConfigureAwait(false);
 
         return await CatalogRestore
-            .RestoreAsync(_options, catalogName, generation, targetMetadataPath, catalog.DataPath, cancellationToken)
+            .RestoreAsync(_options, catalogName, generation, targetMetadataPath, resolved.Descriptor.DataPath, cancellationToken)
             .ConfigureAwait(false);
     }
 
-    private async Task<LakeCatalog> ResolveCatalogAsync(
+    /// <summary>
+    ///     Writes a verified, reader-agnostic eject bundle of a tenant's catalog.
+    /// </summary>
+    /// <param name="includeHistory">
+    ///     Whether to also copy the metadata catalog so snapshots and time travel survive the export.
+    /// </param>
+    /// <remarks>
+    ///     Runs under the session gate like backup, so no write can land mid-export and the
+    ///     attestation describes one consistent snapshot of the catalog.
+    /// </remarks>
+    public async Task<CatalogEjectResult> EjectAsync(
+        string tenantSlug,
+        string catalogName,
+        bool includeHistory,
+        CancellationToken cancellationToken)
+    {
+        var (duckling, _) = await ResolveAsync(tenantSlug, catalogName, cancellationToken).ConfigureAwait(false);
+
+        return await CatalogEject
+            .RunAsync(duckling, _options, includeHistory, cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    /// <summary>Lists eject bundles for a tenant's catalog, newest first.</summary>
+    public async Task<IReadOnlyList<EjectBundle>> ListEjectsAsync(
         string tenantSlug,
         string catalogName,
         CancellationToken cancellationToken)
-        => await _context.Catalogs
+    {
+        // Same isolation rule as backups: resolve through the tenant first, so bundles cannot be
+        // enumerated by guessing another tenant's catalog name.
+        _ = await ResolveCatalogAsync(tenantSlug, catalogName, cancellationToken).ConfigureAwait(false);
+        return CatalogEject.ListBundles(_options, catalogName);
+    }
+
+    /// <summary>Returns the newest snapshot id of a tenant's catalog, or null when it has none.</summary>
+    public async Task<long?> GetLatestSnapshotAsync(
+        string tenantSlug,
+        string catalogName,
+        CancellationToken cancellationToken)
+    {
+        var (duckling, _) = await ResolveAsync(tenantSlug, catalogName, cancellationToken).ConfigureAwait(false);
+        return await ChangeFeed.LatestSnapshotAsync(duckling, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>Lists the base tables a change subscription can watch in a tenant's catalog.</summary>
+    public async Task<IReadOnlyList<(string Schema, string Table)>> ListChangeTablesAsync(
+        string tenantSlug,
+        string catalogName,
+        CancellationToken cancellationToken)
+    {
+        var (duckling, _) = await ResolveAsync(tenantSlug, catalogName, cancellationToken).ConfigureAwait(false);
+        return await ChangeFeed.ListTablesAsync(duckling, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    ///     Reads a table's row-level changes over an inclusive snapshot range — the pull half of the
+    ///     change-data-capture surface, and the fidelity backstop when a webhook payload truncates.
+    /// </summary>
+    public async Task<ChangeFeedPage> GetChangesAsync(
+        string tenantSlug,
+        string catalogName,
+        string schema,
+        string table,
+        long fromSnapshot,
+        long toSnapshot,
+        int maxRows,
+        CancellationToken cancellationToken)
+    {
+        var (duckling, _) = await ResolveAsync(tenantSlug, catalogName, cancellationToken).ConfigureAwait(false);
+
+        return await ChangeFeed
+            .ReadAsync(duckling, schema, table, fromSnapshot, toSnapshot, maxRows, cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    /// <summary>
+    ///     Drops every piece of cached state derived from a catalog's stored configuration, so the
+    ///     next query re-reads the record and reattaches the session. Call this from any path that
+    ///     changes a catalog's configuration.
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///         Two layers cache a catalog and both are keyed by catalog name: the resolved descriptor
+    ///         in <see cref="CatalogCache"/>, and the warm session in <see cref="DucklingPool"/> whose
+    ///         DuckDB instance already has the catalog attached. Dropping only one is not enough —
+    ///         keeping the descriptor replays the old configuration into a fresh session, and keeping
+    ///         the session runs the old attachment under a fresh descriptor. Neither failure raises
+    ///         anything: the configuration change simply never takes effect, which is why the two
+    ///         invalidations live behind one call rather than being left to each caller to pair up.
+    ///     </para>
+    ///     <para>
+    ///         Order matters. The descriptor is dropped first because
+    ///         <see cref="DucklingPool.GetOrStartAsync"/> keys sessions by catalog name and returns an
+    ///         existing one regardless of the descriptor passed in: evicting first would let a
+    ///         concurrent query resolve from the still-stale cache and start a replacement session on
+    ///         the old configuration, which then outlives this call. Dropping the descriptor first
+    ///         leaves only a transient window in which an in-flight query finishes against the old
+    ///         session, after which everything is consistent.
+    ///     </para>
+    /// </remarks>
+    /// <param name="catalogName">The catalog whose cached state should be discarded.</param>
+    public async Task ForgetCatalogAsync(string catalogName)
+    {
+        _catalogs.Invalidate(catalogName);
+        await _pool.EvictAsync(catalogName).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    ///     Resolves a tenant's catalog, reading the control plane only on a cache miss.
+    /// </summary>
+    /// <remarks>
+    ///     Tenant isolation is enforced here: an entry is cached only after a query that matches both
+    ///     the tenant slug and the catalog name succeeds, so a cache hit is proof the caller owns the
+    ///     catalog exactly as a fresh read would be.
+    /// </remarks>
+    private async Task<ResolvedCatalog> ResolveCatalogAsync(
+        string tenantSlug,
+        string catalogName,
+        CancellationToken cancellationToken)
+    {
+        if (_catalogs.TryGet(tenantSlug, catalogName, out var cached))
+        {
+            return cached;
+        }
+
+        var catalog = await _context.Catalogs
             .AsNoTracking()
             .Include(c => c.Tenant)
             .FirstOrDefaultAsync(c => c.Tenant.Slug == tenantSlug && c.Name == catalogName, cancellationToken)
             .ConfigureAwait(false)
             ?? throw new CatalogNotFoundException($"Catalog '{catalogName}' was not found for tenant '{tenantSlug}'.");
 
+        var resolved = new ResolvedCatalog(catalog.ToDescriptor(), catalog.TenantId);
+        _catalogs.Set(tenantSlug, catalogName, resolved);
+        return resolved;
+    }
+
     private async Task<(Duckling Duckling, int TenantId)> ResolveAsync(
         string tenantSlug,
         string catalogName,
         CancellationToken cancellationToken)
     {
-        var catalog = await _context.Catalogs
-            .AsNoTracking()
-            .Include(c => c.Tenant)
-            .FirstOrDefaultAsync(
-                c => c.Tenant.Slug == tenantSlug && c.Name == catalogName,
-                cancellationToken)
-            .ConfigureAwait(false)
-            ?? throw new CatalogNotFoundException(
-                $"Catalog '{catalogName}' was not found for tenant '{tenantSlug}'.");
+        var resolved = await ResolveCatalogAsync(tenantSlug, catalogName, cancellationToken).ConfigureAwait(false);
 
         var duckling = await _pool
-            .GetOrStartAsync(catalog.ToDescriptor(), configure: null, cancellationToken)
+            .GetOrStartAsync(resolved.Descriptor, configure: null, cancellationToken)
             .ConfigureAwait(false);
 
-        return (duckling, catalog.TenantId);
+        return (duckling, resolved.TenantId);
     }
 }

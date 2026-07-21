@@ -12,13 +12,16 @@ import { QueryResponse } from './models';
              affected-row count, so this reports completion rather than inventing a number. -->
         <div class="empty">Statement completed. No rows returned.</div>
       } @else {
+        <!-- Read the per-column alignment once per render rather than re-invoking the computed in
+             every header and body cell, which on a full result is tens of thousands of calls. -->
+        @let align = alignRight();
         <div class="grid-scroll">
           <table>
             <thead>
               <tr>
                 <th class="gutter" scope="col">#</th>
                 @for (column of data.columns; track column.name; let i = $index) {
-                  <th scope="col" [class.numeric]="alignRight()[i]">
+                  <th scope="col" [class.numeric]="align[i]">
                     <span class="col-name">{{ column.name }}</span>
                     <span class="col-type">{{ column.dataType }}</span>
                   </th>
@@ -30,7 +33,7 @@ import { QueryResponse } from './models';
                 <tr>
                   <td class="gutter">{{ r + 1 }}</td>
                   @for (cell of row; track $index; let i = $index) {
-                    <td [class.numeric]="alignRight()[i]" [class.null]="cell === null">
+                    <td [class.numeric]="align[i]" [class.null]="cell === null">
                       {{ render(cell) }}
                     </td>
                   }

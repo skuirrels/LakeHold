@@ -94,6 +94,75 @@ public sealed class SavedQuery
 }
 
 /// <summary>
+///     An outbound change-data-capture subscription: a webhook fired whenever a catalog commits
+///     snapshots that changed a subscribed table.
+/// </summary>
+/// <remarks>
+///     <para>
+///         The delivery cursor is <see cref="LastDeliveredSnapshot"/> — everything up to and
+///         including it has been delivered. The dispatcher reads the next window from the cursor
+///         plus one, so a change is delivered at least once and never re-delivered after a
+///         successful post. Delivery is at-least-once, not exactly-once: a crash between the post
+///         and the cursor write re-sends the window, which consumers must tolerate (the payload's
+///         snapshot ids make deduplication cheap).
+///     </para>
+///     <para>
+///         <see cref="Secret"/> signs payloads so the receiver can authenticate them. It is stored
+///         here because the dispatcher must read it on every delivery, but it must never appear in
+///         an API response or a log — the DTO layer omits it deliberately.
+///     </para>
+/// </remarks>
+public sealed class ChangeSubscription
+{
+    public int Id { get; set; }
+
+    public int TenantId { get; set; }
+
+    /// <summary>Catalog whose changes are watched.</summary>
+    public required string CatalogName { get; set; }
+
+    /// <summary>
+    ///     Table to watch, or null to watch every base table in the catalog.
+    /// </summary>
+    public string? TableName { get; set; }
+
+    /// <summary>Schema of <see cref="TableName"/>. Defaults to <c>main</c>.</summary>
+    public string SchemaName { get; set; } = "main";
+
+    /// <summary>Endpoint the signed change payload is posted to.</summary>
+    public required string EndpointUrl { get; set; }
+
+    /// <summary>
+    ///     Shared secret used to HMAC-sign each delivery. Never returned by the API and never
+    ///     logged.
+    /// </summary>
+    public required string Secret { get; set; }
+
+    /// <summary>Whether the dispatcher considers this subscription at all.</summary>
+    public bool Active { get; set; } = true;
+
+    /// <summary>
+    ///     Highest snapshot id whose changes have been successfully delivered. Initialised to the
+    ///     catalog's latest snapshot at creation, so a new subscription starts from "now" rather
+    ///     than replaying the catalog's entire history into an unsuspecting endpoint.
+    /// </summary>
+    public long LastDeliveredSnapshot { get; set; }
+
+    /// <summary>Consecutive delivery failures, reset on success. Drives observability, not retry.</summary>
+    public int ConsecutiveFailures { get; set; }
+
+    /// <summary>When the last delivery attempt happened, successful or not.</summary>
+    public DateTimeOffset? LastAttemptUtc { get; set; }
+
+    /// <summary>Failure message from the last attempt, cleared on success.</summary>
+    public string? LastError { get; set; }
+
+    public DateTimeOffset CreatedUtc { get; set; }
+
+    public Tenant Tenant { get; set; } = null!;
+}
+
+/// <summary>
 ///     One executed statement. Doubles as the audit log and as the source for the UI's history
 ///     panel, so it records both the outcome and the failure reason.
 /// </summary>

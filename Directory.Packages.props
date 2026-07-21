@@ -27,6 +27,9 @@
     <PackageVersion Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.17.0" />
     <PackageVersion Include="OpenTelemetry.Extensions.Hosting" Version="1.17.0" />
     <PackageVersion Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.17.0" />
+    <!-- The EF Core instrumentation has only ever shipped as a prerelease; 1.17.0-beta.1 is the
+         current build of the same 1.17.0 line as the stable instrumentation packages above. -->
+    <PackageVersion Include="OpenTelemetry.Instrumentation.EntityFrameworkCore" Version="1.17.0-beta.1" />
     <PackageVersion Include="OpenTelemetry.Instrumentation.Http" Version="1.17.0" />
     <PackageVersion Include="OpenTelemetry.Instrumentation.Runtime" Version="1.17.0" />
   </ItemGroup>
@@ -38,6 +41,14 @@
          GHSA-v5pm-xwqc-g5wc (high). Transitive pinning is enabled, so this reaches the
          restore graph. -->
     <PackageVersion Include="Microsoft.OpenApi" Version="2.11.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Local development configuration. Loads .env into the process environment before the host
+         reads configuration, so compose credentials and the integration-test gates live in one
+         gitignored file rather than in each developer's shell profile. Development only: real
+         deployments use the platform's own environment or secret store. -->
+    <PackageVersion Include="DotNetEnv" Version="3.2.0" />
   </ItemGroup>
 
   <ItemGroup>

@@ -1,0 +1,181 @@
+# The whole Lakehold development stack.
+#
+#   docker compose up          # start everything
+#   docker compose down -v     # stop and discard the data
+#
+#   Workbench       http://localhost:5399     <- the website
+#   API             http://localhost:5200
+#   Traces          http://localhost:16686
+#   MinIO console   http://localhost:59001
+#
+# The api and ui services run from stock SDK images with the source bind-mounted, so there are no
+# Dockerfiles to keep in step with the projects and `dotnet watch` / `ng serve` still hot-reload on
+# save. Slower to start than running them on the host; the trade is that `docker compose up` is the
+# single command that gives you a working product.
+#
+# To run those two on the host instead — a faster inner loop — start only the backing services:
+#
+#   docker compose up -d postgres minio minio-bucket jaeger
+#   dotnet run --project src/Lakehold.Api
+#   npm start --prefix web/lakehold-ui
+#
+# PostgreSQL and MinIO are also what the gated integration suites need; `dotnet test` skips them when
+# they are not up. Ports are deliberately non-default (55439, 59000) so nothing collides with a
+# PostgreSQL or MinIO you already run locally.
+#
+# Ports, users, and database names are written here with inline defaults rather than pulled from
+# .env: they are configuration, not secrets, and belong in source control where everyone gets the
+# same values. Only the passwords are substituted from .env, which compose reads automatically. The
+# ${VAR:-default} form keeps every one of them overridable without editing this file.
+
+name: lakehold-dev
+
+services:
+  # The API. Runs `dotnet watch` against the bind-mounted source, so a save rebuilds in place.
+  api:
+    image: mcr.microsoft.com/dotnet/sdk:10.0
+    container_name: lakehold-api
+    working_dir: /src
+    command: dotnet watch run --project src/Lakehold.Api --non-interactive --no-launch-profile
+    environment:
+      # 0.0.0.0, not localhost: a server bound to loopback inside a container is unreachable through
+      # the published port, and presents as a refused connection rather than an error.
+      ASPNETCORE_URLS: http://0.0.0.0:5200
+      ASPNETCORE_ENVIRONMENT: Development
+      DOTNET_USE_POLLING_FILE_WATCHER: "true"
+      # Container-internal hostnames. The appsettings values point at localhost, which in here would
+      # mean this container rather than the collector.
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4317
+      OTEL_SERVICE_NAME: lakehold-api
+    ports:
+      - "${API_PORT:-5200}:5200"
+    volumes:
+      - .:/src
+      # Named volumes keep build output, the NuGet cache, and lakehouse state out of the bind mount,
+      # so the container never fights the host's own obj/bin (different RIDs) and restore is not
+      # repeated on every start.
+      - nuget-cache:/root/.nuget/packages
+      - api-state:/src/src/Lakehold.Api/.lakehold
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:5200/api/tenants || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 60s
+
+  # The Angular dev server — this is the website.
+  ui:
+    image: node:24-alpine
+    container_name: lakehold-ui
+    working_dir: /app
+    # node_modules is a named volume so the host's macOS-built native binaries never shadow the
+    # Linux ones; npm ci installs into the container's own tree.
+    command: sh -c "npm ci --no-audit --no-fund && npm start -- --host 0.0.0.0 --port 5399 --poll 2000"
+    environment:
+      # Read by proxy.conf.mjs. Nothing sets this on the host, so there it falls back to localhost.
+      NG_API_URL: http://api:5200
+    ports:
+      - "${UI_PORT:-5399}:5399"
+    volumes:
+      - ./web/lakehold-ui:/app
+      - ui-node-modules:/app/node_modules
+    depends_on:
+      api:
+        condition: service_healthy
+
+  # Metadata catalog for multi-writer / HA deployments. A local DuckDB file cannot be opened by two
+  # nodes at once, so this is the only configuration where the maintenance lease does anything.
+  postgres:
+    image: postgres:17-alpine
+    container_name: lakehold-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-lakehold}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-lakehold}
+      POSTGRES_DB: ${POSTGRES_DB:-lakeholdmeta}
+    ports:
+      - "${POSTGRES_PORT:-55439}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      # pg_isready reports the socket is accepting connections, which is what the tests wait on.
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-lakehold} -d ${POSTGRES_DB:-lakeholdmeta}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  # Bring-your-own-bucket is the product's headline claim, so the backup and eject paths are tested
+  # against a real S3 API rather than a local directory. Object stores differ in ways the type system
+  # hides: no directories to enumerate, no delete, and paths that are not Path-shaped.
+  minio:
+    image: minio/minio:latest
+    container_name: lakehold-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-lakehold}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-lakehold123}
+    ports:
+      - "${MINIO_PORT:-59000}:9000"       # S3 API
+      - "${MINIO_CONSOLE_PORT:-59001}:9001" # web console
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  # Creates the test bucket. This is not optional convenience: ObjectStoreBackupTests writes to
+  # s3://<bucket>/… and never creates the bucket itself, so without this the S3 tests fail against a
+  # running MinIO rather than skipping cleanly — the most confusing of the three possible outcomes.
+  minio-bucket:
+    image: minio/mc:latest
+    container_name: lakehold-minio-bucket
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 '${MINIO_ROOT_USER:-lakehold}' '${MINIO_ROOT_PASSWORD:-lakehold123}' &&
+      mc mb --ignore-existing local/'${LAKEHOLD_TEST_S3_BUCKET:-lakehold-test}' &&
+      echo 'bucket ${LAKEHOLD_TEST_S3_BUCKET:-lakehold-test} ready'
+      "
+    restart: "no"
+
+  # Somewhere for traces and metrics to go. The API emits OpenTelemetry but only enables the OTLP
+  # exporter when OTEL_EXPORTER_OTLP_ENDPOINT is set, so this is inert until .env points at it —
+  # which is also why nothing breaks when this service is not running.
+  #
+  # This replaces the trace view that came with the Aspire dashboard. It is the piece worth keeping:
+  # HTTP instrumentation can say a request took 400 ms, and only a trace shows whether that was
+  # DuckDB executing, a cold session attaching, or a statement queued behind another on the same
+  # tenant's gate.
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: lakehold-jaeger
+    restart: unless-stopped
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+    ports:
+      - "${JAEGER_UI_PORT:-16686}:16686"   # trace UI
+      - "${OTLP_GRPC_PORT:-4317}:4317"     # OTLP/gRPC, what the API exports to
+      - "${OTLP_HTTP_PORT:-4318}:4318"     # OTLP/HTTP
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:16686"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+volumes:
+  postgres-data:
+  minio-data:
+  nuget-cache:
+  api-state:
+  ui-node-modules:

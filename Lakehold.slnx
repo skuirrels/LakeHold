@@ -8,5 +8,6 @@
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Lakehold.Engine.Tests/Lakehold.Engine.Tests.csproj" />
+    <Project Path="tests/Lakehold.Api.Tests/Lakehold.Api.Tests.csproj" />
   </Folder>
 </Solution>

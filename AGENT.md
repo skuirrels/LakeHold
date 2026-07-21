@@ -11,7 +11,7 @@ integration.
 
 - Backend: .NET 10, ASP.NET Core minimal APIs, EF Core 10, DuckDB.EFCoreProvider.
 - Frontend: Angular 22 with TypeScript 6 and npm.
-- Orchestration: .NET Aspire.
+- Local orchestration: Docker Compose for backing services; the API and dev server run on the host.
 - Local durable state: `.lakehold/` below the API project unless configuration overrides it.
 - Package versions are managed centrally in `Directory.Packages.props`; project files should not
   add versions to individual `PackageReference` items.
@@ -19,15 +19,19 @@ integration.
 ## Repository map
 
 - `src/Lakehold.Engine`: data plane, Duckling sessions, dynamic SQL execution, catalog browsing,
-  and DuckLake maintenance.
+  DuckLake maintenance, verified eject bundles (`CatalogEject`), and the change feed (`ChangeFeed`).
+  `MetadataExporter` holds the metadata-table copy shared by backup and eject.
 - `src/Lakehold.ControlPlane`: modelled EF Core state for tenants, catalogs, saved queries, and
   query/audit history.
-- `src/Lakehold.Api`: HTTP contracts, minimal-API endpoints, configuration, and demo seeding.
-- `src/Lakehold.AppHost`: Aspire composition for the API and Angular development server.
+- `src/Lakehold.Api`: HTTP contracts, minimal-API endpoints, configuration, demo seeding, and the
+  CDC webhook dispatcher under `Cdc/`.
+- `src/Lakehold.AppHost`: legacy Aspire composition. Retained but no longer the documented way to
+  run the product — `compose.yaml` plus the two host processes is. Do not add to it.
 - `src/Lakehold.ServiceDefaults`: health, resilience, service discovery, and telemetry defaults.
 - `web/lakehold-ui`: Angular workbench, catalog explorer, result grid, and landing page.
 - `docs/ARCHITECTURE.md`: architectural rationale and current product boundaries.
-- `docs/EXIT-PATH.md`: verified open-format exit procedure and Parquet caveats.
+- `docs/EXIT-PATH.md`: verified open-format exit procedure and Parquet caveats. Eject automates that
+  procedure; keep the two consistent.
 - `docs/PROVIDER-FEEDBACK.md`: provider capabilities and why the data plane uses its dynamic API.
 
 ## Architectural invariants
@@ -67,6 +71,20 @@ Preserve these unless the task explicitly changes the architecture and updates i
     credential reaches a catalog record, an options object, or a log.
 14. The maintenance lease belongs in the `lakehold` schema, not `public`. It must not collide with a
     DuckLake migration, and it must not be swept into a catalog backup.
+15. Eject exports data by re-materialising each table through the catalog
+    (`COPY (SELECT * FROM table) TO …`), never by copying the data path. Only the former applies
+    merge-on-read deletes, collapses superseded update rows, includes inlined data, and drops the
+    `_ducklake_internal_*` columns. Eject is read-only: it must not mutate the catalog, so it works
+    on a read-only share and needs no flush first.
+16. An eject bundle's manifest is written last and only after every table's re-read row count matches
+    the catalog's. A verification failure must abort before the manifest exists — an unverified
+    bundle must never be able to present itself as complete, exactly as with a backup generation.
+17. The eject signing key and a subscription's webhook secret are secrets. The key comes from
+    configuration and is never written to a manifest, response, or log; the subscription secret is
+    persisted only because signing requires it, and must never appear in any DTO or log.
+18. CDC delivery is at-least-once with a resumable cursor. Windows advance one snapshot at a time and
+    `LastDeliveredSnapshot` moves only after a 2xx, so a failing consumer replays rather than skips.
+    `ducklake_table_changes` is inclusive at both ends, so the next window opens at `L + 1`.
 
 ## Open-format guarantee
 
@@ -106,6 +124,30 @@ the runtime behavior consistent whenever maintenance or storage semantics change
 
 ## Local and generated files
 
+Configuration is split by whether a value is a secret, and new settings must follow it:
+
+- **`appsettings*.json`** — application configuration, including the OpenTelemetry endpoint and
+  service name. OpenTelemetry reads its standard `OTEL_*` keys from `IConfiguration`, so they work as
+  plain top-level settings and need no environment variable.
+- **`compose.yaml`** — service ports, users, and database names, written as inline
+  `${VAR:-default}` defaults so they stay overridable without living in `.env`.
+- **`.env`** — secrets only, and gitignored. It is loaded by the API in `Program.cs` before the host
+  is built, by the test suite through a module initializer, and by compose for substitution.
+
+`.env.example` is the checked-in template and the place to document a new secret. Never commit a
+`.env`, and never move a real credential into `.env.example`. Adding a non-secret setting to `.env`
+is the common mistake: if every developer would set it identically, it belongs in source control.
+
+`compose.yaml` runs the whole stack: the API and Angular dev server from stock SDK images with the
+source bind-mounted, plus PostgreSQL, MinIO (and the bucket creation the S3 tests depend on), and a
+trace viewer. `docker compose up` then serves the website at <http://localhost:5399>; the API is on
+`:5200`. Running the two app services on the host works identically — start the backing services
+only and use `dotnet run` / `npm start`.
+
+The dev server's proxy target comes from `NG_API_URL` (`web/lakehold-ui/proxy.conf.mjs`), falling
+back to `localhost:5200`. It has to stay dynamic: inside a container `localhost` is the UI container,
+so a hard-coded target proxies to nothing and every API call fails with a 500.
+
 Do not edit or commit build output, dependency caches, IDE state, or runtime lakehouse data:
 
 - `bin/`, `obj/`, `dist/`, `node_modules/`, `.angular/`, `.npm-cache/`
@@ -117,7 +159,7 @@ unless the user explicitly authorises that operation and the impact is understoo
 
 ## Build, run, and verification
 
-Requirements are the .NET 10 SDK and Node.js 20 or newer.
+Requirements are Docker, the .NET 10 SDK, and Node.js 20 or newer.
 
 ```bash
 # Restore and build all backend projects
@@ -129,10 +171,11 @@ npm ci --prefix web/lakehold-ui
 # Production frontend compilation
 npm run build --prefix web/lakehold-ui
 
-# Run the complete local product with Aspire
-aspire run --project src/Lakehold.AppHost
+# Backing services: PostgreSQL, MinIO, and a trace viewer
+cp .env.example .env
+docker compose up -d
 
-# Or run the halves separately: API on :5200, UI on :5399
+# The product itself, on the host: API on :5200, UI on :5399
 dotnet run --project src/Lakehold.Api
 npm start --prefix web/lakehold-ui
 ```

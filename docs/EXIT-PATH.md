@@ -267,7 +267,58 @@ bill arrives.
 your table" is not — deletions and liveness live in the catalog, and that distinction is worth
 understanding *before* you need it.
 
+## The short version: eject
+
+Everything below this section is the manual procedure and the reasoning behind it. It is worth
+reading once, because understanding *why* each step exists is what stops you skipping one. But you no
+longer have to execute it by hand, and you should not:
+
+```bash
+curl -X POST localhost:5200/api/tenants/demo/catalogs/analytics/eject \
+     -H 'Content-Type: application/json' -d '{"includeHistory":true}'
+```
+
+An eject performs the whole checklist as one verified operation. Critically, it does **not** copy the
+data path — it re-materialises each table through the catalog with `COPY (SELECT * FROM table) TO …`,
+which is what makes the output correct:
+
+| Hazard | Why a file copy gets it wrong | What eject does |
+|---|---|---|
+| Merge-on-read deletes | `*-delete.parquet` sidecars are only understood by DuckLake, so deleted rows come back | `SELECT` applies them; the output has no sidecar |
+| Updated rows | Superseded versions remain in the data files, so rows duplicate | `SELECT` returns only live rows |
+| Inlined commits | Recent small writes are in the catalog, not in Parquet | `SELECT` merges inlined and file data |
+| Mixed schemas | Files from `UPDATE` carry `_ducklake_internal_*` columns | Output carries exactly the table's columns |
+| Per-table globbing | One recursive glob across tables silently misaligns columns | One file per table, one directory per schema |
+
+The bundle is then **verified before it is declared complete**: every written file is counted back
+through the plain Parquet reader and compared against the catalog's own count, and any disagreement
+aborts the eject *before* `MANIFEST.json` is written. That inverts the usual failure mode — an
+interrupted or incorrect export cannot present itself as a finished one, exactly as a backup
+generation without its manifest is refused by restore.
+
+The manifest records per-table row counts and SHA-256 digests, so step 6 below ("verify row counts")
+is machine-checkable after the fact, by anyone, without Lakehold:
+
+```bash
+duckdb -c "SELECT count(*) FROM read_parquet('…/data/main/events.parquet')"
+sha256sum …/data/main/events.parquet     # compare against MANIFEST.json
+```
+
+Set `Lakehouse:EjectSigningKey` and the manifest also carries an HMAC-SHA256 signature over those
+counts and digests, so the attestation is tamper-evident and not merely present. Verifying it needs
+only the shared key and the documented field order — no Lakehold, no .NET.
+
+`includeHistory: true` additionally copies the metadata catalog into `catalog/`, which is what
+preserves snapshots and time travel. The data half is reader-agnostic without it; **history is not**.
+
+Because an eject only reads, it never mutates the catalog and works against a read-only share. Unlike
+a raw copy of the data path it does not need a flush first, because `SELECT` already merges inlined
+rows.
+
 ## Full migration checklist
+
+Do this by hand only if you are migrating *without* Lakehold running — otherwise run an eject, which
+performs and verifies every step.
 
 1. **Back up the catalog** — the Backup button. This covers PostgreSQL metadata as well as local
    files, and restores either into a plain DuckDB file.
@@ -283,4 +334,5 @@ understanding *before* you need it.
 6. **Verify row counts** per table between the source catalog and the copied Parquet before
    decommissioning anything.
 
-Step 6 is not ceremony. Do it while the old system still runs.
+Step 6 is not ceremony. Do it while the old system still runs. An eject does it for you and records
+the result; by hand, it is the step people skip and the one that costs them.

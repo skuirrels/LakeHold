@@ -82,6 +82,20 @@ export class ComparisonComponent {
       cloud: { text: 'Yes, mature', tone: 'good' },
     },
     {
+      dimension: 'Verified, signed export',
+      lakehold: { text: 'One call — row-count attested and signed', tone: 'good' },
+      motherduck: { text: 'Manual export; nothing attests it', tone: 'weak' },
+      clickhouse: { text: 'Manual export', tone: 'weak' },
+      cloud: { text: 'Manual unload; nothing attests it', tone: 'weak' },
+    },
+    {
+      dimension: 'Change data capture',
+      lakehold: { text: 'Built in — typed feed + signed webhooks', tone: 'good' },
+      motherduck: { text: 'Limited; not exposed directly', tone: 'weak' },
+      clickhouse: { text: 'Kafka engine or external tooling', tone: 'neutral' },
+      cloud: { text: 'Yes — CDF / streams, mature', tone: 'good' },
+    },
+    {
       dimension: 'Maintenance control',
       lakehold: { text: 'Explicit, dry-run by default', tone: 'neutral' },
       motherduck: { text: 'Automatic, not exposed', tone: 'neutral' },
