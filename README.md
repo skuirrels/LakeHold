@@ -30,6 +30,11 @@ stores tables as ordinary Parquet files and metadata as ordinary SQL.
 | Elastic scale-out | ✅ | Bounded by node size |
 | Zero operations | ✅ | You run it |
 | Dual execution | ✅ | Not replicated |
+| Accounts, SSO, permissions | ✅ | ❌ **none yet — run it on a trusted network** |
+
+Catalog isolation is structural — a session can only reference the catalog attached to it — but
+nothing yet decides *which* tenant a caller is, so treat that as an engine guarantee rather than a
+product one until authentication lands. It leads the roadmap for that reason.
 
 The trade is deliberate: **elasticity and zero-ops for control, openness, and .NET integration.**
 Full analysis, including where MotherDuck is the better choice, in
@@ -251,6 +256,54 @@ Worth knowing:
 
 ---
 
+## Power BI, Tableau, and psql, with no connector to install
+
+Lakehold speaks the PostgreSQL wire protocol, so every BI tool that already speaks Postgres connects
+to a catalog with no `.mez` file, driver, or plugin involved. It is off by default — it opens a
+database port — and enabling it without a password refuses to start.
+
+```jsonc
+{
+  "Lakehold": {
+    "PgWire": {
+      "Enabled": true,
+      "Port": 5433,
+      "MaxRows": 0                 // 0 = unbounded; rows stream to the socket
+    }
+  }
+}
+```
+
+```bash
+# Lakehold__PgWire__Password lives in .env
+psql "host=localhost port=5433 dbname=analytics user=demo"
+```
+
+The mapping is the part to remember: **user is the tenant, database is the catalog.**
+
+| Postgres | Lakehold |
+|---|---|
+| `Username=demo` | tenant slug |
+| `Database=analytics` | catalog name |
+
+Worth knowing:
+
+- **The 10,000-row ceiling does not apply here.** It bounds a JSON response that has to be built in
+  memory before it is sent; a wire connection encodes each row and writes it, so results stream
+  instead. Handing a BI tool a silent prefix of a table would be worse than a slow query.
+- **Every statement goes through the same seam as an HTTP query**, so it resolves the same tenant
+  check, queues on the same session gate, and lands in the same query history — including the
+  introspection statements a BI tool sends on its own initiative.
+- **No session state survives between statements.** Temporary tables and `SET` values do not persist,
+  because each statement resolves a fresh session. Invisible to BI traffic, not to `psql` users.
+- **Bound parameters are refused**, not guessed at, and `BEGIN`/`COMMIT` are acknowledged rather than
+  executed. Both are honest stubs — see [`docs/POSTGRES-WIRE.md`](docs/POSTGRES-WIRE.md).
+- **Authentication is a single shared password** and there is no TLS. Terminate TLS in front of the
+  port or keep it on a trusted network. Real per-user identity is the roadmap item above this one.
+- **Power BI itself has not been driven against it yet.** The tests drive Npgsql — the driver Power
+  BI's connector is built on — through a real catalog, which is the closest proof available without
+  a Windows host in the loop, but it is not the same claim.
+
 ## Backup, restore, and scheduling
 
 The metadata catalog is the one part of a DuckLake deployment that is not already an open format, so
@@ -355,14 +408,19 @@ Working today: SQL IDE with catalog explorer and result grid, query history and 
 listing for time travel, maintenance operations (flush, compact, expire, cleanup — destructive ones
 dry-run by default, with explicit confirmation), scheduled maintenance with multi-node leasing,
 catalog backup and restore for both local-file and PostgreSQL metadata, **verified and signed eject
-bundles**, **CDC via a typed pull API and signed outbound webhooks**, read-only cross-catalog attach,
-multi-tenant catalogs, demo seeding.
+bundles**, **CDC via a typed pull API and signed outbound webhooks**, **a PostgreSQL wire endpoint so
+BI tools connect with no connector**, read-only cross-catalog attach, multi-tenant catalogs, demo
+seeding.
 
-Next: Postgres wire-protocol endpoint (unlocks Tableau, Power BI, Metabase, DBeaver in one stroke),
-MCP server for AI agents, read-only share links.
+Next: authentication and tenant identity (the API has none today — see
+[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)), an Iceberg REST Catalog endpoint so Spark, Trino, and
+Snowflake read Lakehold tables live with no export, a `Lakehold.Client` package whose typed change
+stream turns the CDC feed into `ChangeEvent<T>` in your own model, MCP server for AI agents,
+read-only share links.
 
-Later: embedded Duckling — the same lakehouse running in-process in a .NET app and graduating to the
-server unchanged.
+Later: continuous exit attestation — the verified eject running on a schedule, so "you can leave" is
+a signed and dated artifact rather than an on-demand call. And embedded Duckling — the same lakehouse
+running in-process in a .NET app and graduating to the server unchanged.
 
 Not planned: dual local/cloud execution.
 

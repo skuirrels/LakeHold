@@ -44,6 +44,12 @@
   color: var(--text);
 }
 
+.nav-links a.icon-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .nav-links a.btn {
   text-decoration: none;
 }
@@ -173,6 +179,7 @@ h1 {
 
 .proof,
 .whatsnew,
+.roadmap,
 .compare {
   margin-top: 84px;
 }
@@ -206,6 +213,17 @@ h1 {
   letter-spacing: 0.06em;
   color: var(--accent);
   padding-top: 3px;
+}
+
+/* Planned work reuses the changelog entry, so the tag colour is the only thing distinguishing it
+   from something that already ships. Accent is reserved for shipped: an amber tag on a roadmap
+   item reads as an announcement, which is the confusion this section exists to avoid. */
+.entry.planned {
+  border-style: dashed;
+}
+
+.entry.planned .tag {
+  color: var(--text-faint);
 }
 
 .entry-body {

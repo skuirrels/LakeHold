@@ -4,6 +4,7 @@ using Lakehold.Api;
 using Lakehold.Api.Cdc;
 using Lakehold.Api.Endpoints;
 using Lakehold.Api.Health;
+using Lakehold.Api.PgWire;
 using Lakehold.Api.Scheduling;
 using Lakehold.ControlPlane.Data;
 using Lakehold.Engine.Configuration;
@@ -78,6 +79,26 @@ builder.Services.AddHttpClient(ChangeFeedDispatcher.HttpClientName);
 if (builder.Configuration.GetSection(CdcOptions.SectionName).Get<CdcOptions>()?.Enabled ?? true)
 {
     builder.Services.AddHostedService<ChangeFeedDispatcher>();
+}
+
+// PostgreSQL wire endpoint: lets Power BI, Tableau, Metabase, and psql connect to a tenant catalog
+// with no connector to install, because they already speak this protocol. See docs/POSTGRES-WIRE.md.
+builder.Services.Configure<PgWireOptions>(builder.Configuration.GetSection(PgWireOptions.SectionName));
+var pgWire = builder.Configuration.GetSection(PgWireOptions.SectionName).Get<PgWireOptions>() ?? new PgWireOptions();
+if (pgWire.Enabled)
+{
+    // Fail closed. This opens a database port onto every catalog the node serves, so starting it
+    // without a password has to be an explicit decision rather than the consequence of an
+    // unset configuration key.
+    if (pgWire.Password.Length == 0 && !pgWire.AllowAnonymous)
+    {
+        throw new InvalidOperationException(
+            "Lakehold:PgWire is enabled but no password is configured. Set Lakehold__PgWire__Password "
+            + "in .env, or set Lakehold:PgWire:AllowAnonymous to true to accept unauthenticated "
+            + "connections deliberately.");
+    }
+
+    builder.Services.AddHostedService<PgWireServer>();
 }
 
 // The Angular dev server is a separate origin; the browser will not call the API without this.

@@ -20,6 +20,18 @@ import { RouterLink } from '@angular/router';
         </div>
         <nav class="nav-links">
           <a routerLink="/compare">Compare</a>
+          <a
+            class="icon-link"
+            href="https://github.com/skuirrels/LakeHold"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Lakehold on GitHub"
+            title="Lakehold on GitHub"
+          >
+            <svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+              <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.42 7.42 0 0 1 2-.27c.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z" />
+            </svg>
+          </a>
           <a class="btn btn-primary" routerLink="/workbench">Open workbench →</a>
         </nav>
       </header>
@@ -85,6 +97,28 @@ import { RouterLink } from '@angular/router';
         </ol>
       </section>
 
+      <section class="roadmap">
+        <h2 class="section-title">What's next</h2>
+        <p class="section-sub">
+          Stated as plainly as the shipped list, including the one that has to come first.
+        </p>
+
+        <ol class="changelog">
+          @for (entry of roadmap; track entry.title) {
+            <li class="entry planned">
+              <span class="tag">{{ entry.tag }}</span>
+              <div class="entry-body">
+                <h3>{{ entry.title }}</h3>
+                <p>{{ entry.body }}</p>
+                @if (entry.caveat) {
+                  <p class="caveat"><strong>Honestly:</strong> {{ entry.caveat }}</p>
+                }
+              </div>
+            </li>
+          }
+        </ol>
+      </section>
+
       <section class="compare">
         <h2 class="section-title">Where we win, and where we don't</h2>
         <p class="section-sub">
@@ -100,6 +134,7 @@ import { RouterLink } from '@angular/router';
               <li>Procurement wants a provable exit, not a clause promising one.</li>
               <li>Your stack is .NET and you want EF Core and analytics on one model.</li>
               <li>You want change data capture without running Debezium and Kafka.</li>
+              <li>You want Power BI or Tableau pointed at it with no connector to install.</li>
               <li>You would rather pay for a VM than per-second compute.</li>
               <li>You need explicit control over compaction, retention, and snapshots.</li>
             </ul>
@@ -107,6 +142,7 @@ import { RouterLink } from '@angular/router';
           <div class="col lose">
             <h3>Choose MotherDuck when</h3>
             <ul>
+              <li>You need accounts, SSO, and per-user permissions today.</li>
               <li>You want zero operations and no infrastructure to own.</li>
               <li>You need elastic scale-out beyond a single node.</li>
               <li>Hybrid local-and-cloud dual execution matters to you.</li>
@@ -170,6 +206,13 @@ export class LandingComponent {
         'A copy of the data path is not an eject. Deletes are merge-on-read sidecars only DuckLake understands, so copying files resurrects deleted rows and duplicates updated ones — which is exactly why this exists.',
     },
     {
+      tag: 'Compatibility',
+      title: 'Power BI and Tableau connect, with no connector to install',
+      body: 'Lakehold speaks the PostgreSQL wire protocol, so every BI tool that already speaks Postgres connects to a catalog directly — no .mez file, driver, or plugin. The user is the tenant and the database is the catalog, and every statement resolves through the same tenant check, session gate, and query history as an HTTP query, so BI traffic is visible in the history for the first time. The 10,000-row ceiling does not apply: rows are encoded straight to the socket rather than materialised, so a result streams instead of being silently truncated.',
+      caveat:
+        'Off by default, and enabling it without a password refuses to start. Authentication is one shared secret and there is no TLS yet, so terminate TLS in front of the port or keep it on a trusted network. Power BI itself has not been driven against it — the tests drive Npgsql, which its connector is built on.',
+    },
+    {
       tag: 'Integration',
       title: 'Change data capture, with nothing extra to run',
       body: 'DuckLake already records what each snapshot changed, so Lakehold exposes it directly: a typed pull API for change pages, and outbound webhooks fired per new snapshot and signed with HMAC-SHA256 over a timestamped base. Updates arrive as a paired pre-image and post-image sharing a row id, so you can take net effect or diff them. No Debezium, no Kafka, no second pipeline.',
@@ -202,6 +245,42 @@ export class LandingComponent {
       body: 'Flush, backup, and compact run on cron schedules you control, with recent runs and their timings readable over the API. Where a catalog can genuinely be shared between nodes, a lease stops every node running the same sweep.',
       caveat:
         'Snapshot expiry and orphan cleanup are deliberately not scheduled. They are irreversible, so they stay manual and dry-run by default.',
+    },
+  ];
+
+  /**
+   * Planned work, in dependency order rather than excitement order. Authentication leads because
+   * the three items under it are all externally reachable surfaces, and shipping any of them onto
+   * an unauthenticated API widens the exposure rather than the product.
+   */
+  protected readonly roadmap = [
+    {
+      tag: 'First',
+      title: 'Authentication and tenant identity',
+      body: 'Isolation between catalogs is structural today — a session can only reference what is attached to it, and no submitted SQL changes that. What does not exist yet is the layer deciding which tenant a caller is: identity is currently the tenant segment of the URL.',
+      caveat:
+        'So anyone who can reach the API is every tenant. Run Lakehold on a trusted network until this lands, and treat the isolation guarantee as an engine property rather than a product one.',
+    },
+    {
+      tag: 'Interop',
+      title: 'An Iceberg REST endpoint, so other engines read you live',
+      body: 'Eject proves the data is portable, but it is a batch artifact. Serving the Iceberg REST Catalog protocol would let Spark, Trino, Snowflake, or DuckDB attach to a Lakehold catalog directly and read it live, with no export step and the same per-tenant boundary the query path already enforces.',
+      caveat:
+        'DuckLake’s Iceberg support is a copy between formats, not this — the translation is ours to write, and whether merge-on-read delete sidecars map cleanly onto Iceberg deletes is unverified. That test comes before the promise.',
+    },
+    {
+      tag: '.NET',
+      title: 'A client package with a typed change stream',
+      body: 'The EF Core model already describes both your application and your lake. A Lakehold client would make that installable: migrations that define lake tables, results deserialised into your own entity types, and the change feed surfaced as ChangeEvent<T> with pre-image and post-image already paired into Before and After.',
+      caveat:
+        'Today there is no client package — the .NET story is a property of the architecture and the provider, not something you can add to a csproj yet.',
+    },
+    {
+      tag: 'Assurance',
+      title: 'Continuous exit attestation',
+      body: 'Eject proves the exit path when someone calls it. On a schedule, it would prove it continuously: as of this snapshot, every table re-materialised, row counts verified against the catalog, read back with no DuckLake extension loaded — kept as a signed, dated artifact instead of an on-demand call.',
+      caveat:
+        'The value is in it failing loudly. An attestation that has gone stale relative to the newest snapshot has to read as a warning, or silence stops meaning verified.',
     },
   ];
 

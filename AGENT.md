@@ -23,8 +23,8 @@ integration.
   `MetadataExporter` holds the metadata-table copy shared by backup and eject.
 - `src/Lakehold.ControlPlane`: modelled EF Core state for tenants, catalogs, saved queries, and
   query/audit history.
-- `src/Lakehold.Api`: HTTP contracts, minimal-API endpoints, configuration, demo seeding, and the
-  CDC webhook dispatcher under `Cdc/`.
+- `src/Lakehold.Api`: HTTP contracts, minimal-API endpoints, configuration, demo seeding, the
+  CDC webhook dispatcher under `Cdc/`, and the PostgreSQL wire endpoint under `PgWire/`.
 - `src/Lakehold.AppHost`: legacy Aspire composition. Retained but no longer the documented way to
   run the product — `compose.yaml` plus the two host processes is. Do not add to it.
 - `src/Lakehold.ServiceDefaults`: health, resilience, service discovery, and telemetry defaults.
@@ -33,6 +33,8 @@ integration.
 - `docs/EXIT-PATH.md`: verified open-format exit procedure and Parquet caveats. Eject automates that
   procedure; keep the two consistent.
 - `docs/PROVIDER-FEEDBACK.md`: provider capabilities and why the data plane uses its dynamic API.
+- `docs/POSTGRES-WIRE.md`: the wire protocol surface, its connection model, and what is
+  deliberately unimplemented. Update it with the endpoint.
 
 ## Architectural invariants
 
@@ -52,7 +54,11 @@ Preserve these unless the task explicitly changes the architecture and updates i
    maintenance access must remain serialised through the session gate.
 6. Query results are streamed and capped by `LakehouseOptions.MaxRowsPerResult`. Preserve
    cancellation, statement timeouts, and early termination so large results are not fully
-   materialised before truncation.
+   materialised before truncation. The cap belongs to paths that *materialise* a result — it bounds
+   a JSON response built in memory before it is sent. `Duckling.StreamQueryAsync`, which the wire
+   endpoint uses, honours the same purpose by construction and so does not apply it: rows are encoded
+   to the socket and forgotten. Do not add the cap back to a streaming path, and do not remove it
+   from a materialising one.
 7. Catalog and extension identifiers cannot always be parameterised. Validate and quote them with
    `SqlIdentifier`; parameterise ordinary values wherever the underlying API permits it.
 8. Object-store credentials belong in provider connection configuration. Never persist them in a
