@@ -1,28 +1,15 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="Lakehold">
   <!--
-    Rubber duck, facing left, sized for a 16px favicon.
+    Lakehold mark: three level waves — a lake, held. No duck.
 
-    Built from overlapping primitives (two ellipses + a tail wedge) that share one fill, rather than
-    a single clever path. A hand-tuned path is where concave notches creep in, and at 16px a notch
-    reads as a dent in a blob rather than as a shape. Circles cannot go wrong.
-
-    Head and body deliberately overlap by ~2 units so the union has no seam or waist.
+    An opaque rounded tile in the brand yellow carries three identical, evenly spaced waves in the
+    darkest surface colour. Equal amplitude (not tapering) reads as calm water rather than a signal
+    meter, and the dark-on-yellow contrast holds on both light and dark browser tab bars. The waves
+    are drawn as explicit quadratic segments (each Q starts where the last ended) rather than a
+    smooth-reflection T chain, which rendered a seam in the middle wave on some engines.
   -->
-  <g fill-rule="evenodd">
-    <!-- Tail: an upswept wedge at the right. Drawn first so the body ellipse covers its root. -->
-    <path fill="#ffc857" d="M20 17.5 L30.5 12 L27.5 23 Z" />
-
-    <!-- Body. -->
-    <ellipse fill="#ffc857" cx="16.5" cy="21" rx="10.5" ry="7.5" />
-
-    <!-- Head. -->
-    <circle fill="#ffc857" cx="11.5" cy="10.5" r="6.5" />
-
-    <!-- Bill, pointing left. Orange is the only second hue: at 16px it is the single cue that
-         resolves the yellow mass into a duck rather than a chick or a generic bird. -->
-    <path fill="#f5883c" d="M6.2 8.9c-2.6.2-4.6 1.3-4.5 2.5.1 1.2 2.3 2 4.9 1.8 .9-.1 1.7-.3 2.4-.5 .6-.2 .4-3.4-.2-3.6-.8-.2-1.7-.3-2.6-.2z" />
-
-    <!-- Eye, in the app's darkest surface colour so it holds on light and dark tab bars. -->
-    <circle fill="#0b0f14" cx="10.2" cy="9.2" r="1.6" />
-  </g>
+  <rect width="32" height="32" rx="7" fill="#ffc857"/>
+  <path d="M6 10.5 Q8.5 8.3 11 10.5 Q13.5 12.7 16 10.5 Q18.5 8.3 21 10.5 Q23.5 12.7 26 10.5" stroke="#0b0f14" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+  <path d="M6 16 Q8.5 13.8 11 16 Q13.5 18.2 16 16 Q18.5 13.8 21 16 Q23.5 18.2 26 16" stroke="#0b0f14" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+  <path d="M6 21.5 Q8.5 19.3 11 21.5 Q13.5 23.7 16 21.5 Q18.5 19.3 21 21.5 Q23.5 23.7 26 21.5" stroke="#0b0f14" stroke-width="2.4" fill="none" stroke-linecap="round"/>
 </svg>

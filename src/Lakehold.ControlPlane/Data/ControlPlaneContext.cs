@@ -33,6 +33,8 @@ public sealed class ControlPlaneContext(DbContextOptions<ControlPlaneContext> op
 
     public DbSet<QueryRun> QueryRuns => Set<QueryRun>();
 
+    public DbSet<ChangeSubscription> ChangeSubscriptions => Set<ChangeSubscription>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         ArgumentNullException.ThrowIfNull(modelBuilder);
@@ -76,6 +78,30 @@ public sealed class ControlPlaneContext(DbContextOptions<ControlPlaneContext> op
             entity.HasOne(q => q.Tenant)
                 .WithMany()
                 .HasForeignKey(q => q.TenantId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ChangeSubscription>(entity =>
+        {
+            entity.HasKey(s => s.Id);
+            entity.Property(s => s.Id).UseAutoIncrement();
+            entity.Property(s => s.CatalogName).HasMaxLength(63);
+            entity.Property(s => s.SchemaName).HasMaxLength(63);
+            entity.Property(s => s.TableName).HasMaxLength(63);
+            entity.Property(s => s.EndpointUrl).HasMaxLength(2048);
+
+            // The secret column is sized, not encrypted: the control-plane file carries catalog
+            // records of equal sensitivity, and at-rest protection is the deployment's disk story.
+            // What the code guarantees is narrower and absolute — it never leaves via API or log.
+            entity.Property(s => s.Secret).HasMaxLength(256);
+            entity.Property(s => s.LastError).HasMaxLength(4000);
+
+            // The dispatcher sweeps active subscriptions per catalog on every poll.
+            entity.HasIndex(s => new { s.TenantId, s.CatalogName });
+
+            entity.HasOne(s => s.Tenant)
+                .WithMany()
+                .HasForeignKey(s => s.TenantId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
 

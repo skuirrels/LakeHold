@@ -82,7 +82,7 @@ engineering:
 
 | MotherDuck advantage | Reality for Lakehold |
 |---|---|
-| Zero operations | You run it. We ship Aspire + containers, but you own uptime. |
+| Zero operations | You run it. We ship containers and compose, but you own uptime. |
 | Elastic scale-out | Bounded by node size. Read replicas help reads; writes are single-writer. |
 | Dual execution (local ↔ cloud hybrid) | Genuinely novel and patent-adjacent. Not replicated. |
 | Managed ingestion connectors | We ship file/object ingestion. No hosted Fivetran-alikes. |
@@ -172,38 +172,161 @@ Established by running DuckDB 1.5.3 + DuckLake, not read from documentation:
    change feeds between snapshots for free. MotherDuck does not expose this as directly.
 5. **Time travel** via `ducklake_snapshots` and `AT (VERSION => n)`.
 
-## Feature parity matrix
+Established later, on DuckDB 1.5.4, while building eject and CDC:
 
-| Capability | MotherDuck | Lakehold | Notes |
-|---|---|---|---|
-| Serverless DuckDB SQL | ✅ | ✅ | Ducklings |
-| Per-tenant isolation | ✅ hypertenancy | ✅ | Session-scoped attachment |
-| Web SQL IDE | ✅ | ✅ | Monaco-based |
-| Catalog explorer | ✅ | ✅ | |
-| Open table format | ✅ DuckLake | ✅ DuckLake | Same format |
-| Time travel | ✅ | ✅ | `ducklake_snapshots` |
-| CDC / change feeds | ⚠️ limited | ✅ | `ducklake_table_changes` |
-| Table maintenance | ✅ automatic | ✅ explicit, dry-run by default | We expose the knobs |
-| Cross-catalog / shared reads | ✅ | ✅ | Read-only `AlsoAttach` |
-| Query external files (S3/Parquet/CSV) | ✅ | ✅ | `httpfs` |
-| Self-hosting | ❌ | ✅ | **Primary differentiator** |
-| BYO bucket | ⚠️ paid tier | ✅ default | |
-| .NET / EF Core integration | ❌ | ✅ | **Primary differentiator** |
-| Dual execution (local+cloud) | ✅ | ❌ | Not replicated |
-| Managed ingestion (Flights) | ✅ | 🛠️ roadmap | |
-| AI / MCP server | ✅ | 🛠️ roadmap | MCP server is a natural fit |
-| Data sharing | ✅ | ⚠️ partial | Read-only attach works; no share UI yet |
-| Postgres wire endpoint | ✅ | 🛠️ roadmap | Unlocks all BI tools |
+6. **`ducklake_table_changes` is inclusive at both ends.** A range of `[2, 4]` includes snapshot 2's
+   own changes; `[3, 4]` does not. So a poller resuming after snapshot `L` must open the next window
+   at `L + 1`, and the change feed's shape is `snapshot_id, rowid, change_type` followed by the
+   table's own columns. An update is *two* rows — `update_preimage` and `update_postimage` sharing a
+   `rowid` — not one row with before/after columns.
+7. **A range whose END predates a table's creation raises**, while a range whose *start* predates it
+   is fine and simply yields nothing until the table exists. The dispatcher never trips this because
+   its end bound is always the latest snapshot, but a caller passing arbitrary bounds can.
+8. **`COPY (SELECT * FROM table)` is the correct exit primitive.** It applies merge-on-read deletes,
+   collapses superseded update rows, includes data still inlined in the metadata catalog, and emits
+   none of the `_ducklake_internal_*` columns — verified by reading the result on a connection where
+   the `ducklake` extension was never loaded. Copying the data path's files directly does none of
+   these things, which is why the naive glob in `docs/EXIT-PATH.md` is documented as wrong.
 
-Legend: ✅ shipped · ⚠️ partial or gated · 🛠️ roadmap · ❌ not planned
+## Competitive landscape
+
+Lakehold's category is "self-hostable open-format lakehouse." That places it against three groups
+of competitors, and the honest positioning differs for each.
+
+- **MotherDuck** — the closest peer: same engine (DuckDB), same table format (DuckLake), opposite
+  hosting model. Every argument against it is a hosting/integration argument, never a capability
+  one. It is years ahead on UI polish, managed ingestion, and dual local↔cloud execution.
+- **Managed lakehouse incumbents — Databricks, Snowflake.** Enormously more capable engines with
+  elastic scale-out, mature governance (Unity Catalog, Horizon), marketplaces, and AI features
+  (Genie, Cortex). Neither is self-hostable: Snowflake has no on-prem story, and Databricks keeps a
+  vendor-hosted control plane even when compute runs in your VPC. Both have moved toward open
+  formats (Delta/UniForm, Iceberg via Polaris), which *weakens* the "open format" moat but not the
+  "runs entirely in your environment" or ".NET-native" ones.
+- **Self-hostable open stacks — Dremio, and the DIY Iceberg assembly** (Trino/Spark + a REST
+  catalog such as Nessie, Polaris, or Lakekeeper + a BI layer such as Superset). These share
+  Lakehold's self-host + open-format ground, so differentiation here is *operational simplicity*
+  (one .NET service and a DuckDB file vs. a JVM cluster and a separate catalog service), single-node
+  efficiency, and the .NET/EF Core model integration none of them offer. Dremio Community is the
+  sharpest direct competitor: self-hostable, Iceberg-based, catalog branching via Nessie, a web UI,
+  and Arrow Flight — but JVM-heavy, cluster-oriented, and not application-integrated.
+- **Self-host OLAP alternatives — ClickHouse, StarRocks, Apache Doris.** Extremely fast and
+  self-hostable, but built on their own storage engines (MergeTree, etc.), not an open lakehouse
+  table catalog. They can *read* Iceberg/Delta externally, but the durable table format is
+  proprietary to the engine — the opposite of Lakehold's "every byte is Parquet you can read without
+  us" guarantee. Relevant as raw-speed alternatives, not as open-format lakehouses.
+
+## Feature / capability matrix
+
+| Capability | MotherDuck | Databricks | Snowflake | Dremio (self-host) | DIY Iceberg stack | Lakehold |
+|---|---|---|---|---|---|---|
+| Runs entirely in your infra / air-gapped | ❌ | ❌ hosted control plane | ❌ | ✅ | ✅ | ✅ |
+| BYO object store as default | ⚠️ paid | ⚠️ | ❌ | ✅ | ✅ | ✅ |
+| Open table format, readable without the vendor | ✅ DuckLake | ⚠️ Delta/UniForm | ⚠️ Iceberg | ✅ Iceberg | ✅ Iceberg | ✅ DuckLake/Parquet |
+| No proprietary metadata catalog required to read | ✅ | ❌ Unity | ❌ Polaris/Horizon | ⚠️ Nessie | ⚠️ REST catalog | ✅ plain SQL catalog |
+| Verified, attested exit path as a product feature | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ **unique** |
+| Serverless-feel / auto-suspend compute | ✅ | ✅ | ✅ | ⚠️ | ❌ | ✅ Ducklings idle-evict |
+| Elastic scale-out (multi-node) | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ single-writer node |
+| Per-tenant isolation as a product primitive | ✅ hypertenancy | ✅ | ✅ | ⚠️ projects | ❌ DIY | ✅ session attachment |
+| Web SQL IDE | ✅ mature | ✅ | ✅ | ✅ | ❌ add Superset | ✅ Monaco, focused |
+| Catalog explorer | ✅ | ✅ | ✅ | ✅ | ⚠️ | ✅ |
+| Time travel / snapshots | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| CDC / change feeds | ⚠️ limited | ✅ CDF | ✅ streams | ⚠️ | ⚠️ | ✅ typed feed + webhooks |
+| CDC without a separate pipeline (no Debezium/Kafka) | ⚠️ | ❌ | ❌ | ❌ | ❌ | ✅ **unique** |
+| Catalog branching (git-style) | ❌ | ⚠️ | ❌ | ✅ Nessie | ✅ Nessie | 🛠️ roadmap |
+| Table maintenance controls | ✅ automatic | ✅ auto | ✅ auto | ✅ | ⚠️ manual | ✅ explicit, dry-run default |
+| Query external files (S3/Parquet/CSV) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ `httpfs` |
+| Data sharing | ✅ | ✅ Delta Sharing | ✅ mature | ✅ | ⚠️ | ⚠️ read-only attach, no UI |
+| Postgres / BI wire protocol | ✅ | ✅ JDBC | ✅ | ✅ Flight/JDBC | ✅ Trino JDBC | 🛠️ roadmap |
+| Managed ingestion connectors | ✅ Flights | ✅ | ✅ | ⚠️ | ❌ | 🛠️ roadmap |
+| AI / MCP / assistant | ✅ | ✅ Genie | ✅ Cortex | ⚠️ | ❌ | 🛠️ roadmap |
+| Row / column-level security | ✅ | ✅ | ✅ | ✅ | ⚠️ | 🛠️ later |
+| Dual local↔cloud hybrid execution | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| .NET / EF Core model integration | ❌ | ❌ | ⚠️ connector only | ❌ | ❌ | ✅ **unique** |
+| Cost model | per-sec compute | DBU credits | credits | node + support | node + ops | VM + bucket |
+| Open source / self-managed licence | ❌ | ⚠️ UC OSS only | ❌ | ⚠️ Community ed. | ✅ | ✅ |
+
+Legend: ✅ shipped/strong · ⚠️ partial, gated, or connector-only · 🛠️ roadmap · ❌ not available
+
+**Reading the matrix.** No competitor holds *all three* of {runs entirely in your infra, table data
+readable with no vendor catalog, .NET/EF Core model integration}. MotherDuck matches the format and
+the serverless feel but not the hosting or .NET story. Dremio and the DIY stack match the hosting
+and openness but not the operational simplicity or .NET story. The incumbents dominate on scale and
+governance but fail the hosting and .NET tests outright. The defensible wedge is the *intersection*,
+not any single row.
+
+## Differentiators built on that intersection
+
+Two of the three capabilities identified as defensible USPs are now shipped. Both lean on the
+intersection above — neither is copyable by a competitor without abandoning their own model, because
+a hosted vendor **is** the lock-in it would have to prove an exit from, and a JVM lakehouse cannot
+offer a typed .NET change stream.
+
+### 1. Verified eject bundles — shipped
+
+A one-call, reader-agnostic export that turns the tested exit path into an auditable artifact rather
+than a procedure someone has to follow correctly under pressure.
+
+The hard part is that a naive copy of the data path is **wrong**. DuckLake deletes are merge-on-read
+sidecars, updates leave superseded rows in place, and small commits may be inlined into the metadata
+catalog and never written to Parquet at all. So an eject does not copy files — it re-materialises
+each table *through* the catalog with `COPY (SELECT * FROM table) TO …`, which applies deletions and
+updates, includes inlined rows, and drops the internal `_ducklake_internal_*` columns.
+
+Each written file is then counted back through the plain Parquet reader and compared against the
+catalog's own count. Any disagreement aborts the eject **before** a manifest is written, so an
+unverified bundle can never present itself as complete. The manifest records per-table row counts and
+SHA-256 digests and, when `EjectSigningKey` is set, an HMAC-SHA256 signature over exactly those
+facts — making the attestation tamper-evident rather than merely present.
+
+Because it only reads, an eject never mutates the catalog and works against a read-only share. It
+does not need a flush first, unlike a raw copy of the data path.
+
+- **Engine**: `Lakehold.Engine/Catalog/CatalogEject.cs`, `MetadataExporter.cs`
+- **API**: `POST /api/tenants/{tenant}/catalogs/{catalog}/eject`, `GET …/ejects`
+- **Verified**: exported Parquet reads back correctly on a connection where the `ducklake` extension
+  was never loaded; digests and the HMAC recompute independently outside .NET entirely.
+
+### 2. Debezium-free CDC — shipped
+
+DuckLake already records what each snapshot changed. Lakehold turns that into two subscribe-able
+surfaces without a second pipeline: a **pull** API returning typed change pages, and **push**
+webhooks fired per new snapshot.
+
+`ducklake_table_changes(catalog, schema, table, start, end)` is inclusive at both ends — verified on
+DuckDB 1.5.4 — so a consumer that has processed through snapshot `L` reads the next window from
+`L + 1` and no change is delivered twice. Updates arrive as a paired `update_preimage` /
+`update_postimage` sharing a `rowid`, so a consumer can take net effect or diff the two.
+
+Deliveries advance **one snapshot at a time**, and the cursor moves only after a 2xx. That makes the
+contract at-least-once with a resumable cursor: a crashed or failing consumer replays from where it
+stopped rather than skipping a window. Payloads are HMAC-SHA256 signed (`X-Lakehold-Signature`,
+GitHub/Stripe-style) with a timestamped signing base, so a receiver can reject both forgeries and
+replays. A failing endpoint backs off exponentially rather than retrying every poll.
+
+The row cap is deliberate: a webhook is a *notification with the common case inlined*, not a bulk
+transfer channel. A window larger than the cap sets `truncated` and the consumer pulls the remainder
+from the changes API — one large backfill cannot wedge every consumer behind it.
+
+- **Engine**: `Lakehold.Engine/Catalog/ChangeFeed.cs`
+- **Control plane**: `ChangeSubscription` (secret stored for signing, never returned or logged)
+- **API**: `GET …/changes`, `GET|POST …/subscriptions`, `DELETE …/subscriptions/{id}`
+
+### 3. Embedded Duckling — not built
+
+Package the Duckling/`LakeContext` path as a library so a .NET app runs a single-tenant lakehouse
+in-process (edge, desktop, air-gapped appliance, integration tests), then points identical code at a
+Lakehold server with no query changes. This is the self-hostable answer to MotherDuck's dual
+local↔cloud execution, and it is only possible because the data plane is already a model-less .NET
+`DbContext` rather than a JVM cluster. Would need to keep the isolation boundary structural
+(invariant 4) and the writer serialised (invariant 5) in-process.
 
 ## Roadmap
 
-**Now** — SQL IDE, catalog explorer, query history, tenant/catalog CRUD, maintenance operations.
+**Now** — SQL IDE, catalog explorer, query history, tenant/catalog CRUD, maintenance operations,
+verified eject bundles, CDC pull API and signed webhooks.
 
 **Next** — Postgres wire-protocol endpoint (the single highest-leverage item: it unlocks Tableau,
-Power BI, Metabase, and DBeaver in one stroke), MCP server for AI agents, scheduled maintenance,
-read-only share links.
+Power BI, Metabase, and DBeaver in one stroke), MCP server for AI agents, read-only share links.
 
-**Later** — read replicas for concurrent readers, managed ingestion connectors, semantic layer
-generated from the EF Core model, row/column-level security.
+**Later** — embedded Duckling, read replicas for concurrent readers, managed ingestion connectors,
+semantic layer generated from the EF Core model, row/column-level security.

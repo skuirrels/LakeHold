@@ -6,6 +6,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="DotNetEnv" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
     <PackageReference Include="Quartz.Extensions.Hosting" />
   </ItemGroup>
@@ -13,6 +14,10 @@
   <ItemGroup>
     <ProjectReference Include="../Lakehold.ControlPlane/Lakehold.ControlPlane.csproj" />
     <ProjectReference Include="../Lakehold.ServiceDefaults/Lakehold.ServiceDefaults.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Lakehold.Api.Tests" />
   </ItemGroup>
 
 </Project>

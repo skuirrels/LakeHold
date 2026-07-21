@@ -24,7 +24,8 @@ stores tables as ordinary Parquet files and metadata as ordinary SQL.
 | Format | DuckLake | DuckLake (same) |
 | .NET / EF Core | — | **First-class, one model for app and lake** |
 | Time travel | ✅ | ✅ |
-| CDC / change feeds | Limited | **`ducklake_table_changes`** |
+| CDC / change feeds | Limited | **Typed pull API + signed webhooks, no Debezium or Kafka** |
+| Provable exit | — | **Verified, signed eject bundles** |
 | Maintenance controls | Automatic, hidden | **Explicit: flush, compact, expire, cleanup — dry-run by default** |
 | Elastic scale-out | ✅ | Bounded by node size |
 | Zero operations | ✅ | You run it |
@@ -38,25 +39,47 @@ Full analysis, including where MotherDuck is the better choice, in
 
 ## Quick start
 
-Requirements: .NET 10 SDK, Node 20+.
+Requirements: Docker. (The .NET 10 SDK and Node 20+ only if you want to run the app on the host.)
 
 ```bash
-# Everything, orchestrated, with the Aspire dashboard
-aspire run --project src/Lakehold.AppHost
+cp .env.example .env
+docker compose up
 ```
 
-Or run the two halves separately:
+# → Open <http://localhost:5399>
+
+That is the website. Everything else is optional detail.
+
+| | URL |
+|---|---|
+| **Workbench — the website** | **<http://localhost:5399>** |
+| API | <http://localhost:5200> |
+| Traces | <http://localhost:16686> |
+| MinIO console | <http://localhost:59001> |
+
+The first run takes a few minutes — it restores NuGet packages and runs `npm ci` inside the
+containers — and seeds a `demo` workspace with an `analytics` catalog of 250,000 events and 5,000
+customers, so the workbench is usable the moment it loads. Later starts are fast, and source is
+bind-mounted so saving a file hot-reloads in place.
 
 ```bash
-# Terminal 1 — API on :5200, seeds a demo catalog on first run
-dotnet run --project src/Lakehold.Api
-
-# Terminal 2 — UI on :5399, proxies /api to the API on :5200
-cd web/lakehold-ui && npm start
+docker compose down -v    # stop and discard the data
 ```
 
-Open <http://localhost:5399>. The first run seeds a `demo` workspace with an `analytics` catalog
-containing 250,000 events and 5,000 customers, so the workbench is immediately usable.
+### Running the app on the host instead
+
+A faster inner loop, if you have the SDK and Node installed. Start only the backing services, then
+the two halves:
+
+```bash
+docker compose up -d postgres minio minio-bucket jaeger
+
+dotnet run --project src/Lakehold.Api      # API on :5200
+npm start --prefix web/lakehold-ui         # website on :5399
+```
+
+Same URLs either way. The dev server proxies `/api` to `NG_API_URL`, which compose sets to the API
+container and which falls back to `localhost:5200` when nothing sets it.
 
 ---
 
@@ -91,7 +114,7 @@ that changed between provider 1.12.0 and 1.13.0.
 | `Lakehold.Engine` | Duckling sessions, catalog introspection, maintenance |
 | `Lakehold.ControlPlane` | EF Core model: tenants, catalogs, saved queries, audit |
 | `Lakehold.Api` | Minimal-API HTTP surface |
-| `Lakehold.AppHost` | Aspire orchestration |
+| `Lakehold.ServiceDefaults` | Health, resilience, and OpenTelemetry defaults |
 | `web/lakehold-ui` | Angular 22 workbench and landing page |
 
 ---
@@ -113,6 +136,118 @@ One caveat worth knowing: **DuckLake inlines small commits into the metadata cat
 writing Parquet immediately.** A two-row insert produces no data files. Run the **Flush**
 maintenance operation (or `ducklake_flush_inlined_data`) to force them out. Lakehold surfaces this
 as a first-class control precisely because the guarantee depends on it.
+
+---
+
+## Eject: the exit path as one call
+
+The glob above is the *quick* demonstration. It is also, on its own, **not a safe migration**:
+DuckLake deletes are merge-on-read sidecars, updates leave superseded rows in place, and inlined
+commits are not in Parquet at all. Copy those files and you resurrect deleted rows and duplicate
+updated ones.
+
+An **eject** does it correctly, in one call:
+
+```bash
+curl -X POST localhost:5200/api/tenants/demo/catalogs/analytics/eject \
+     -H 'Content-Type: application/json' -d '{"includeHistory":true}'
+```
+
+It re-materialises every table *through* the catalog, so deletions and updates are applied, inlined
+rows are included, and DuckLake's internal columns are gone. The result is ordinary Parquet:
+
+```
+ejects/analytics/20260720T230438Z/
+├── MANIFEST.json                       # attestation, written last
+├── data/main/events.parquet            # clean, reader-agnostic
+├── data/main/customers.parquet
+└── catalog/ducklake_*.parquet          # history, when includeHistory
+```
+
+Every file is counted back through the plain Parquet reader and compared to the catalog's own count.
+**A mismatch aborts the eject before the manifest is written**, so a bundle that claims to be
+complete has been verified rather than merely finished. The manifest carries per-table row counts and
+SHA-256 digests, and an HMAC signature when a key is configured:
+
+```jsonc
+{
+  "Lakehouse": {
+    "EjectRoot": "./.lakehold/ejects",       // sibling of the data root, like backups
+    "EjectSigningKey": ""                    // set to sign manifests; a secret, never logged
+  }
+}
+```
+
+Verify a bundle with no Lakehold and no .NET in the loop:
+
+```bash
+duckdb -c "SELECT count(*) FROM read_parquet('…/data/main/events.parquet')"
+sha256sum …/data/main/events.parquet     # compare against MANIFEST.json
+```
+
+Because it only reads, an eject never mutates the catalog and works on a read-only share.
+
+---
+
+## Change data capture, without a pipeline
+
+DuckLake already records what each snapshot changed, so Lakehold exposes it directly rather than
+asking you to run Debezium and Kafka to get it back out. Two surfaces, same source.
+
+**Pull** — typed change pages:
+
+```bash
+curl "localhost:5200/api/tenants/demo/catalogs/analytics/changes?table=events&fromSnapshot=5"
+```
+
+```jsonc
+{
+  "fromSnapshot": 5, "toSnapshot": 9, "truncated": false,
+  "changes": [
+    { "snapshotId": 6, "rowId": 0, "changeType": "insert",           "row": { "id": 1, "status": "new" } },
+    { "snapshotId": 8, "rowId": 3, "changeType": "update_preimage",  "row": { "id": 4, "status": "new" } },
+    { "snapshotId": 8, "rowId": 3, "changeType": "update_postimage", "row": { "id": 4, "status": "shipped" } }
+  ]
+}
+```
+
+**Push** — a signed webhook per new snapshot:
+
+```bash
+curl -X POST localhost:5200/api/tenants/demo/catalogs/analytics/subscriptions \
+     -H 'Content-Type: application/json' \
+     -d '{"endpointUrl":"https://example.com/hook","secret":"at-least-16-characters"}'
+```
+
+```jsonc
+{
+  "Lakehold": {
+    "Cdc": {
+      "Enabled": true,
+      "PollInterval": "00:00:15",      // upper bound on delivery latency
+      "MaxChangesPerTable": 1000,      // beyond this, payload sets truncated and you pull the rest
+      "DeliveryTimeout": "00:00:30",
+      "MaxBackoff": "00:30:00"         // a dead endpoint costs one request per cap, not per poll
+    }
+  }
+}
+```
+
+Worth knowing:
+
+- **The range is inclusive at both ends.** A consumer through snapshot `L` reads from `L + 1`.
+  Verified on DuckDB 1.5.4 — getting this wrong duplicates or drops a window.
+- **An update is two rows**, `update_preimage` and `update_postimage` sharing a `rowId`. Take net
+  effect, or diff them.
+- **Delivery is at-least-once with a resumable cursor.** Windows advance one snapshot at a time and
+  the cursor moves only after a 2xx, so a failing consumer replays rather than skips. Make your
+  handler idempotent on `(snapshotId, rowId, changeType)`.
+- **Payloads are HMAC-SHA256 signed** over a timestamped base — `X-Lakehold-Signature`,
+  `X-Lakehold-Timestamp`, `X-Lakehold-Delivery`. Verify both the signature and the timestamp's
+  freshness to reject replays. The secret is stored to sign with and is never returned by the API or
+  written to a log.
+- **Every node dispatches.** Duplicate notification is possible in a cluster; the receiver has to
+  tolerate it anyway. Set `Enabled: false` on all but one node if that is unacceptable.
 
 ---
 
@@ -167,18 +302,50 @@ dotnet test Lakehold.slnx     # integration tests skip unless their service is c
 
 The backup tests run against real services rather than mocks, because the failures they guard
 against — object stores having no directories, PostgreSQL attaching nothing queryable behind the
-catalog — are invisible to the type system:
+catalog — are invisible to the type system. Bring them up with compose:
 
 ```bash
-docker run -d -e POSTGRES_PASSWORD=lakehold -e POSTGRES_USER=lakehold \
-  -e POSTGRES_DB=lakeholdmeta -p 55439:5432 postgres:17
-export LAKEHOLD_TEST_POSTGRES="dbname=lakeholdmeta host=localhost port=55439 user=lakehold password=lakehold"
+cp .env.example .env      # first time only
+docker compose up -d      # PostgreSQL + MinIO, and creates the test bucket
+dotnet test Lakehold.slnx # 0 skipped
 
-docker run -d -p 59000:9000 -e MINIO_ROOT_USER=lakehold \
-  -e MINIO_ROOT_PASSWORD=lakehold123 minio/minio server /data
-export LAKEHOLD_TEST_S3_ENDPOINT=http://localhost:59000 LAKEHOLD_TEST_S3_KEY=lakehold \
-       LAKEHOLD_TEST_S3_SECRET=lakehold123 LAKEHOLD_TEST_S3_BUCKET=lakehold-test
+docker compose down -v    # stop and discard the data
 ```
+
+`compose.yaml` also creates the `lakehold-test` bucket, which the S3 tests need and do not create
+themselves; without it they fail against a running MinIO rather than skipping cleanly.
+
+### Configuration
+
+Configuration lives in source control. Secrets live in `.env`. The dividing line is whether the
+value would be identical for every developer:
+
+| Kind | Where | Examples |
+|---|---|---|
+| Application settings | `src/Lakehold.Api/appsettings*.json` | telemetry endpoint, CDC and maintenance schedules, row ceilings |
+| Service ports, users, database names | `compose.yaml` (inline defaults) | `55439`, `59000`, `lakehold`, `lakeholdmeta` |
+| **Secrets** | **`.env`** *(gitignored)* | service passwords, S3 keys, the eject signing key |
+
+Keeping `.env` short is the point: the smaller it is, the easier it is to see that everything in it
+genuinely had to stay out of the repository. [`.env.example`](.env.example) is the checked-in
+template — `cp .env.example .env`.
+
+`.env` is loaded automatically by the API at start-up, by the test suite, and by compose for
+variable substitution, so nothing needs exporting into your shell — which also means the IDE test
+runner sees the same configuration as the terminal.
+
+Three properties worth knowing:
+
+- **Real environment variables always win.** Loading never overwrites a value already set, so a
+  container variable or CI secret is never shadowed by a stale local file.
+- **A missing `.env` is a no-op.** Deployments configure through their platform's environment or
+  secret store; nothing depends on a file in source control.
+- **The integration-test variables stay in `.env` even where they are not secret.** The tests read
+  the process environment directly rather than `IConfiguration`, and an endpoint only means anything
+  next to the credential it authenticates with.
+
+Use the .NET double-underscore separator for nested keys in the environment —
+`Lakehouse__EjectSigningKey` binds to `Lakehouse:EjectSigningKey`.
 
 ---
 
@@ -187,11 +354,15 @@ export LAKEHOLD_TEST_S3_ENDPOINT=http://localhost:59000 LAKEHOLD_TEST_S3_KEY=lak
 Working today: SQL IDE with catalog explorer and result grid, query history and audit, snapshot
 listing for time travel, maintenance operations (flush, compact, expire, cleanup — destructive ones
 dry-run by default, with explicit confirmation), scheduled maintenance with multi-node leasing,
-catalog backup and restore for both local-file and PostgreSQL metadata, read-only cross-catalog
-attach, multi-tenant catalogs, demo seeding.
+catalog backup and restore for both local-file and PostgreSQL metadata, **verified and signed eject
+bundles**, **CDC via a typed pull API and signed outbound webhooks**, read-only cross-catalog attach,
+multi-tenant catalogs, demo seeding.
 
 Next: Postgres wire-protocol endpoint (unlocks Tableau, Power BI, Metabase, DBeaver in one stroke),
 MCP server for AI agents, read-only share links.
+
+Later: embedded Duckling — the same lakehouse running in-process in a .NET app and graduating to the
+server unchanged.
 
 Not planned: dual local/cloud execution.
 

@@ -31,6 +31,30 @@ internal static class DemoData
 
         await context.Database.EnsureCreatedAsync().ConfigureAwait(false);
 
+        // EnsureCreated does nothing on an existing database, so tables added to the model after a
+        // deployment's first run are created here — additively, never touching existing user state.
+        //
+        // A failure here must not stop the API from starting. The tables this adds belong to newer,
+        // optional features; the query service, catalogs, and history all predate them and work
+        // without them. Taking the whole node down over an unavailable feature table would turn a
+        // degraded upgrade into an outage — and this runs on every start, so it would be a permanent
+        // one. Logged as an error because it does need fixing.
+        try
+        {
+            var added = await AdditiveSchema.EnsureModelTablesAsync(context, CancellationToken.None).ConfigureAwait(false);
+            if (added > 0)
+            {
+                logger.LogInformation("Created {Count} control-plane table(s) added since this database was initialised", added);
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(
+                ex,
+                "Could not add control-plane tables introduced since this database was initialised. " +
+                "Features backed by those tables will be unavailable until this is resolved.");
+        }
+
         if (await context.Tenants.AnyAsync(t => t.Slug == TenantSlug).ConfigureAwait(false))
         {
             return;

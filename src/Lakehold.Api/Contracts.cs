@@ -90,3 +90,97 @@ public sealed record ScheduledRunDto(
     double ElapsedMilliseconds,
     bool Succeeded,
     string Detail);
+
+/// <summary>Request to write a verified eject bundle.</summary>
+/// <param name="IncludeHistory">
+///     Whether to also copy the metadata catalog so snapshots and time travel survive the export.
+///     The data half is reader-agnostic without it; history requires the catalog.
+/// </param>
+public sealed record EjectRequest(bool IncludeHistory = false);
+
+/// <summary>Outcome of an eject.</summary>
+/// <param name="Verified">
+///     True when every table's independent re-read matched the catalog's row count. Always true on
+///     success — a mismatch fails the request instead.
+/// </param>
+/// <param name="DigestDeferred">
+///     True when per-file digests were skipped because the bundle is on an object store.
+/// </param>
+public sealed record EjectResponse(
+    string Location,
+    int TableCount,
+    long TotalRows,
+    bool Verified,
+    bool DigestDeferred,
+    bool IsSigned,
+    bool IncludesHistory);
+
+/// <summary>An attested table inside an eject bundle.</summary>
+public sealed record EjectedTableDto(
+    string Schema,
+    string Table,
+    long RowCount,
+    string? Sha256,
+    long? Bytes);
+
+/// <summary>An eject bundle available on disk.</summary>
+/// <param name="Complete">False when the bundle has no manifest — it died partway and is untrusted.</param>
+public sealed record EjectBundleDto(
+    string Bundle,
+    DateTimeOffset? CreatedUtc,
+    long? SnapshotId,
+    bool IncludesHistory,
+    bool IsSigned,
+    bool Complete,
+    IReadOnlyList<EjectedTableDto> Tables);
+
+/// <summary>A page of row-level changes from the pull CDC surface.</summary>
+public sealed record ChangePageDto(
+    string Schema,
+    string Table,
+    long FromSnapshot,
+    long ToSnapshot,
+    bool Truncated,
+    IReadOnlyList<ChangeDto> Changes);
+
+/// <summary>One row-level change.</summary>
+/// <param name="ChangeType">
+///     <c>insert</c>, <c>delete</c>, <c>update_preimage</c>, or <c>update_postimage</c>.
+/// </param>
+public sealed record ChangeDto(
+    long SnapshotId,
+    long RowId,
+    string ChangeType,
+    IReadOnlyDictionary<string, object?> Row);
+
+/// <summary>Request to create a change subscription.</summary>
+/// <param name="EndpointUrl">HTTP or HTTPS endpoint the signed payloads are posted to.</param>
+/// <param name="Secret">
+///     Shared secret used to HMAC-sign every delivery. Write-only: it is never returned by any
+///     endpoint after creation.
+/// </param>
+/// <param name="Table">Table to watch, or null to watch every base table in the catalog.</param>
+/// <param name="Schema">Schema of <paramref name="Table"/>. Defaults to <c>main</c>.</param>
+public sealed record CreateSubscriptionRequest(
+    string EndpointUrl,
+    string Secret,
+    string? Table = null,
+    string Schema = "main");
+
+/// <summary>A change subscription, as returned by the API.</summary>
+/// <remarks>
+///     Deliberately omits the signing secret: it is write-only. Delivery state is included because a
+///     subscription you cannot observe is a subscription you do not trust.
+/// </remarks>
+public sealed record SubscriptionDto(
+    int Id,
+    string Catalog,
+    string Schema,
+    string? Table,
+    string EndpointUrl,
+    bool Active,
+    long LastDeliveredSnapshot,
+    int ConsecutiveFailures,
+    DateTimeOffset? LastAttemptUtc,
+    string? LastError,
+    DateTimeOffset CreatedUtc);

@@ -214,6 +214,25 @@ export class CatalogExplorerComponent {
   private readonly open = signal(new Set<string>());
 
   /**
+   * A lowercased search index over the current catalog, rebuilt only when the schema tree changes.
+   *
+   * The filter runs on every keystroke, so lowercasing every table and column name inside it made
+   * each keystroke cost O(tables × columns) string allocations — wrong for the wide catalogs this
+   * targets. Precomputing the lowercased forms here moves that cost off the keystroke path; the
+   * filter then only scans the prepared strings.
+   */
+  private readonly searchIndex = computed(() =>
+    this.schemas().map((schema) => ({
+      schema,
+      tables: schema.tables.map((table) => ({
+        table,
+        nameLower: table.name.toLowerCase(),
+        columnsLower: table.columns.map((column) => column.name.toLowerCase()),
+      })),
+    })),
+  );
+
+  /**
    * Schemas narrowed by the filter.
    *
    * A table matches on its own name or on any column name, so searching for a column finds the
@@ -225,16 +244,18 @@ export class CatalogExplorerComponent {
       return this.schemas();
     }
 
-    return this.schemas()
-      .map((schema) => ({
-        ...schema,
-        tables: schema.tables.filter(
-          (table) =>
-            table.name.toLowerCase().includes(term) ||
-            table.columns.some((column) => column.name.toLowerCase().includes(term)),
-        ),
-      }))
-      .filter((schema) => schema.tables.length > 0);
+    const narrowed: Schema[] = [];
+    for (const entry of this.searchIndex()) {
+      const tables = entry.tables
+        .filter((t) => t.nameLower.includes(term) || t.columnsLower.some((c) => c.includes(term)))
+        .map((t) => t.table);
+
+      if (tables.length > 0) {
+        narrowed.push({ ...entry.schema, tables });
+      }
+    }
+
+    return narrowed;
   });
 
   protected isOpen(key: string): boolean {

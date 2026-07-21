@@ -2,6 +2,8 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 using Lakehold.Api.Scheduling;
 using Lakehold.ControlPlane.Data;
+using Lakehold.ControlPlane.Model;
+using Lakehold.Engine.Catalog;
 
 namespace Lakehold.Api.Endpoints;
 
@@ -38,6 +40,24 @@ public static class LakehouseEndpoints
 
         tenants.MapPost("/{tenantSlug}/catalogs/{catalogName}/backups/restore", RestoreBackupAsync)
             .WithSummary("Rebuilds a catalog from a backup into a new metadata file.");
+
+        tenants.MapPost("/{tenantSlug}/catalogs/{catalogName}/eject", EjectAsync)
+            .WithSummary("Writes a verified, reader-agnostic eject bundle of the catalog.");
+
+        tenants.MapGet("/{tenantSlug}/catalogs/{catalogName}/ejects", ListEjectsAsync)
+            .WithSummary("Lists eject bundles, newest first.");
+
+        tenants.MapGet("/{tenantSlug}/catalogs/{catalogName}/changes", GetChangesAsync)
+            .WithSummary("Reads a table's row-level changes over an inclusive snapshot range.");
+
+        tenants.MapGet("/{tenantSlug}/catalogs/{catalogName}/subscriptions", ListSubscriptionsAsync)
+            .WithSummary("Lists the catalog's change subscriptions.");
+
+        tenants.MapPost("/{tenantSlug}/catalogs/{catalogName}/subscriptions", CreateSubscriptionAsync)
+            .WithSummary("Creates a webhook subscription to the catalog's change feed.");
+
+        tenants.MapDelete("/{tenantSlug}/catalogs/{catalogName}/subscriptions/{id:int}", DeleteSubscriptionAsync)
+            .WithSummary("Deletes a change subscription.");
 
         app.MapGet("/api/maintenance/schedule", GetScheduledRuns)
             .WithTags("Lakehouse")
@@ -249,6 +269,275 @@ public static class LakehouseEndpoints
             return TypedResults.BadRequest(ex.Message);
         }
     }
+
+    private static async Task<Results<Ok<EjectResponse>, NotFound<string>, BadRequest<string>>> EjectAsync(
+        string tenantSlug,
+        string catalogName,
+        EjectRequest? request,
+        LakehouseService lakehouse,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var result = await lakehouse
+                .EjectAsync(tenantSlug, catalogName, request?.IncludeHistory ?? false, cancellationToken)
+                .ConfigureAwait(false);
+
+            return TypedResults.Ok(new EjectResponse(
+                result.Location,
+                result.TableCount,
+                result.TotalRows,
+                result.Verified,
+                result.DigestDeferred,
+                result.IsSigned,
+                result.IncludesHistory));
+        }
+        catch (CatalogNotFoundException ex)
+        {
+            return TypedResults.NotFound(ex.Message);
+        }
+        catch (DuckDB.NET.Data.DuckDBException ex)
+        {
+            // A storage-level refusal — an unwritable eject root, a missing bucket permission — is
+            // the caller's deployment to fix. A verification mismatch, by contrast, is an
+            // InvalidOperationException and deliberately NOT caught here: it means the export cannot
+            // be trusted, which is a server fault worth a 500 and an operator's attention.
+            return TypedResults.BadRequest(ex.Message);
+        }
+    }
+
+    private static async Task<Results<Ok<IReadOnlyList<EjectBundleDto>>, NotFound<string>>> ListEjectsAsync(
+        string tenantSlug,
+        string catalogName,
+        LakehouseService lakehouse,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var bundles = await lakehouse
+                .ListEjectsAsync(tenantSlug, catalogName, cancellationToken)
+                .ConfigureAwait(false);
+
+            return TypedResults.Ok<IReadOnlyList<EjectBundleDto>>(
+            [
+                .. bundles.Select(b => new EjectBundleDto(
+                    b.Bundle,
+                    b.Manifest?.CreatedUtc,
+                    b.Manifest?.SnapshotId,
+                    b.Manifest?.IncludesHistory ?? false,
+                    b.Manifest?.Signature is not null,
+                    b.IsComplete,
+                    [
+                        .. (b.Manifest?.DataTables ?? []).Select(t =>
+                            new EjectedTableDto(t.Schema, t.Table, t.RowCount, t.Sha256, t.Bytes)),
+                    ])),
+            ]);
+        }
+        catch (CatalogNotFoundException ex)
+        {
+            return TypedResults.NotFound(ex.Message);
+        }
+    }
+
+    private static async Task<Results<Ok<ChangePageDto>, NotFound<string>, BadRequest<string>>> GetChangesAsync(
+        string tenantSlug,
+        string catalogName,
+        string table,
+        long fromSnapshot,
+        LakehouseService lakehouse,
+        CancellationToken cancellationToken,
+        string schema = "main",
+        long? toSnapshot = null,
+        int limit = 1000)
+    {
+        try
+        {
+            // An open-ended read goes to the newest snapshot, so a consumer can poll with only a
+            // cursor and no second round trip to discover the range's end.
+            var to = toSnapshot
+                ?? await lakehouse.GetLatestSnapshotAsync(tenantSlug, catalogName, cancellationToken).ConfigureAwait(false)
+                ?? 0;
+
+            var page = await lakehouse
+                .GetChangesAsync(
+                    tenantSlug, catalogName, schema, table, fromSnapshot, to,
+                    Math.Clamp(limit, 1, 10_000), cancellationToken)
+                .ConfigureAwait(false);
+
+            return TypedResults.Ok(new ChangePageDto(
+                page.Schema,
+                page.Table,
+                page.FromSnapshot,
+                page.ToSnapshot,
+                page.Truncated,
+                [
+                    .. page.Changes.Select(c => new ChangeDto(
+                        c.SnapshotId, c.RowId, ChangeTypeName(c.Change), c.Row)),
+                ]));
+        }
+        catch (CatalogNotFoundException ex)
+        {
+            return TypedResults.NotFound(ex.Message);
+        }
+        catch (ArgumentException ex)
+        {
+            return TypedResults.BadRequest(ex.Message);
+        }
+        catch (DuckDB.NET.Data.DuckDBException ex)
+        {
+            // e.g. an unknown table, or a range whose end predates the table's creation. The engine
+            // names the problem precisely; forward it.
+            return TypedResults.BadRequest(ex.Message);
+        }
+    }
+
+    private static async Task<Results<Ok<IReadOnlyList<SubscriptionDto>>, NotFound<string>>> ListSubscriptionsAsync(
+        string tenantSlug,
+        string catalogName,
+        ControlPlaneContext context,
+        CancellationToken cancellationToken)
+    {
+        if (!await TenantOwnsCatalogAsync(context, tenantSlug, catalogName, cancellationToken).ConfigureAwait(false))
+        {
+            return TypedResults.NotFound($"Catalog '{catalogName}' was not found for tenant '{tenantSlug}'.");
+        }
+
+        var subscriptions = await context.ChangeSubscriptions
+            .AsNoTracking()
+            .Where(s => s.Tenant.Slug == tenantSlug && s.CatalogName == catalogName)
+            .OrderBy(s => s.Id)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        return TypedResults.Ok<IReadOnlyList<SubscriptionDto>>([.. subscriptions.Select(ToDto)]);
+    }
+
+    private static async Task<Results<Created<SubscriptionDto>, NotFound<string>, BadRequest<string>>> CreateSubscriptionAsync(
+        string tenantSlug,
+        string catalogName,
+        CreateSubscriptionRequest request,
+        ControlPlaneContext context,
+        LakehouseService lakehouse,
+        CancellationToken cancellationToken)
+    {
+        if (request is null
+            || !Uri.TryCreate(request.EndpointUrl, UriKind.Absolute, out var endpoint)
+            || (endpoint.Scheme != Uri.UriSchemeHttp && endpoint.Scheme != Uri.UriSchemeHttps))
+        {
+            return TypedResults.BadRequest("An absolute http or https endpoint URL is required.");
+        }
+
+        // The model's column ceilings are enforced here because DuckDB does not enforce VARCHAR
+        // lengths — without this, an oversized value would silently store and only surface later.
+        if (request.EndpointUrl.Length > 2048)
+        {
+            return TypedResults.BadRequest("The endpoint URL must be at most 2048 characters.");
+        }
+
+        // A short secret makes the HMAC decorative. 16 characters is the floor, not a recommendation.
+        if (string.IsNullOrWhiteSpace(request.Secret) || request.Secret.Length is < 16 or > 256)
+        {
+            return TypedResults.BadRequest("A signing secret of 16 to 256 characters is required.");
+        }
+
+        if (!SqlIdentifier.IsValid(request.Schema)
+            || (request.Table is not null && !SqlIdentifier.IsValid(request.Table)))
+        {
+            return TypedResults.BadRequest("Schema and table must be bare SQL identifiers.");
+        }
+
+        var catalog = await context.Catalogs
+            .AsNoTracking()
+            .Include(c => c.Tenant)
+            .FirstOrDefaultAsync(c => c.Tenant.Slug == tenantSlug && c.Name == catalogName, cancellationToken)
+            .ConfigureAwait(false);
+        if (catalog is null)
+        {
+            return TypedResults.NotFound($"Catalog '{catalogName}' was not found for tenant '{tenantSlug}'.");
+        }
+
+        // Start the cursor at the catalog's newest snapshot: a new subscription means "tell me what
+        // changes from now on", not "replay this catalog's entire history into my endpoint".
+        var latest = await lakehouse
+            .GetLatestSnapshotAsync(tenantSlug, catalogName, cancellationToken)
+            .ConfigureAwait(false) ?? 0;
+
+        var subscription = new ChangeSubscription
+        {
+            TenantId = catalog.TenantId,
+            CatalogName = catalogName,
+            SchemaName = request.Schema,
+            TableName = request.Table,
+            EndpointUrl = request.EndpointUrl,
+            Secret = request.Secret,
+            LastDeliveredSnapshot = latest,
+            CreatedUtc = DateTimeOffset.UtcNow,
+        };
+
+        context.ChangeSubscriptions.Add(subscription);
+        await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+        return TypedResults.Created(
+            $"/api/tenants/{tenantSlug}/catalogs/{catalogName}/subscriptions/{subscription.Id}",
+            ToDto(subscription));
+    }
+
+    private static async Task<Results<NoContent, NotFound<string>>> DeleteSubscriptionAsync(
+        string tenantSlug,
+        string catalogName,
+        int id,
+        ControlPlaneContext context,
+        CancellationToken cancellationToken)
+    {
+        // Scoped to the tenant and catalog from the route, so a subscription id alone cannot reach
+        // across the isolation boundary.
+        var subscription = await context.ChangeSubscriptions
+            .FirstOrDefaultAsync(
+                s => s.Id == id && s.Tenant.Slug == tenantSlug && s.CatalogName == catalogName,
+                cancellationToken)
+            .ConfigureAwait(false);
+        if (subscription is null)
+        {
+            return TypedResults.NotFound($"Subscription {id} was not found for '{tenantSlug}/{catalogName}'.");
+        }
+
+        context.ChangeSubscriptions.Remove(subscription);
+        await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+        return TypedResults.NoContent();
+    }
+
+    private static Task<bool> TenantOwnsCatalogAsync(
+        ControlPlaneContext context,
+        string tenantSlug,
+        string catalogName,
+        CancellationToken cancellationToken)
+        => context.Catalogs
+            .AsNoTracking()
+            .AnyAsync(c => c.Tenant.Slug == tenantSlug && c.Name == catalogName, cancellationToken);
+
+    /// <summary>Projects a subscription for the API, deliberately omitting the signing secret.</summary>
+    private static SubscriptionDto ToDto(ChangeSubscription s) => new(
+        s.Id,
+        s.CatalogName,
+        s.SchemaName,
+        s.TableName,
+        s.EndpointUrl,
+        s.Active,
+        s.LastDeliveredSnapshot,
+        s.ConsecutiveFailures,
+        s.LastAttemptUtc,
+        s.LastError,
+        s.CreatedUtc);
+
+    private static string ChangeTypeName(ChangeType change) => change switch
+    {
+        ChangeType.Insert => "insert",
+        ChangeType.Delete => "delete",
+        ChangeType.UpdatePreimage => "update_preimage",
+        ChangeType.UpdatePostimage => "update_postimage",
+        _ => "unknown",
+    };
 
     private static Ok<IReadOnlyList<ScheduledRunDto>> GetScheduledRuns(ScheduledRunLog log)
         => TypedResults.Ok<IReadOnlyList<ScheduledRunDto>>(

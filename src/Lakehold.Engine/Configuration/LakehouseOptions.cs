@@ -36,6 +36,36 @@ public sealed class LakehouseOptions
     public int BackupRetainCount { get; set; } = 7;
 
     /// <summary>
+    ///     Root under which verified eject bundles are written.
+    /// </summary>
+    /// <remarks>
+    ///     A <em>sibling</em> of <see cref="DataRoot"/> for the same reason as <see cref="BackupRoot"/>:
+    ///     an eject bundle is a fresh, reader-agnostic copy of the data, and anything DuckLake finds
+    ///     under the data path that its catalog does not reference is a candidate for orphan cleanup.
+    ///     A bundle nested under the data path would delete itself.
+    /// </remarks>
+    public string EjectRoot { get; set; } = "./.lakehold/ejects";
+
+    /// <summary>
+    ///     Optional signing key for eject manifests, resolved from configuration so it never appears
+    ///     in a catalog record, an options dump, or a log.
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///         When set, an eject manifest carries an HMAC-SHA256 signature over its canonical form.
+    ///         That makes the attestation tamper-evident: a party holding the same key can prove the
+    ///         per-table row counts and per-file digests were produced by this deployment and have not
+    ///         been altered since. Unset leaves the bundle unsigned but still digest-attested.
+    ///     </para>
+    ///     <para>
+    ///         This is a secret. It is read from configuration (environment or a secret store) exactly
+    ///         like an object-store credential, and Lakehold never writes it back out — not to the
+    ///         manifest, not to a response, not to a log.
+    ///     </para>
+    /// </remarks>
+    public string? EjectSigningKey { get; set; }
+
+    /// <summary>
     ///     DuckDB extensions loaded into every compute session, in order.
     /// </summary>
     public IList<string> Extensions { get; } = ["ducklake", "httpfs", "json", "parquet"];

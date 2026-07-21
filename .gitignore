@@ -12,6 +12,12 @@ node_modules/
 # Lakehold local state: catalogs, Parquet data, control-plane database
 .lakehold/
 
+# Local environment. Holds development credentials for the compose services, so it is ignored and
+# .env.example is the checked-in template. Never commit .env.
+.env
+.env.*
+!.env.example
+
 # IDE / OS
 .vs/
 .vscode/
@@ -21,3 +27,6 @@ node_modules/
 
 # Agent tooling
 .claude/
+
+# Aspire CLI local state: records which AppHost this machine last ran.
+.aspire/

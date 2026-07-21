@@ -23,12 +23,22 @@
   border-bottom: 1px solid var(--border);
 }
 
+/* The brand is the way back to the marketing site, so it is an anchor rather than a label. Colour
+   is pinned to --text: it is a link, but styling it like body copy keeps the chrome quiet, and
+   inheriting the default link blue would read as an error state next to the amber mark. */
 .brand {
   display: flex;
   align-items: center;
   gap: 8px;
   font-weight: 650;
   letter-spacing: -0.01em;
+  color: var(--text);
+  text-decoration: none;
+}
+
+.brand:hover .name {
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
 .mark {
