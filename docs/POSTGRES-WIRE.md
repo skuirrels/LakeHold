@@ -68,7 +68,7 @@ Implemented:
 | `PasswordMessage` | → | |
 | `ParameterStatus` | ← | `server_version`, `client_encoding`, `DateStyle`, `TimeZone`, … |
 | `BackendKeyData`, `ReadyForQuery` | ← | |
-| `Query` (simple) | → | The body is passed to the engine unchanged; it is not split on `;` |
+| `Query` (simple) | → | Split into statements; each answered with its own result set |
 | `Parse`, `Bind`, `Describe`, `Execute`, `Sync`, `Close`, `Flush` | → | Extended query protocol |
 | `RowDescription`, `DataRow`, `CommandComplete`, `EmptyQueryResponse` | ← | |
 | `ParseComplete`, `BindComplete`, `NoData`, `ParameterDescription`, `PortalSuspended` | ← | |
@@ -236,17 +236,63 @@ to recognise array types — does not exist in DuckDB's `pg_proc` either.
 So the failure is not a subtle incompatibility to be chased through a driver's logs. It is one
 missing column's worth of data, and it stops every full-type-loading client at connection time.
 
-### What would fix it
+### What the handshake actually sends
 
-The shim already intercepts a small number of statements. Extending it to recognise the type-loading
-query and answer with a synthetic catalogue — one row per OID this endpoint actually emits, with a
-non-null `typreceive` and matching `pg_proc` entries — would close it without touching DuckDB.
+Captured from a live connection rather than reasoned about, by reading the statements the endpoint
+recorded in query history while a type-loading client connected. The load arrives as **four
+statements in a single simple-query message**:
 
-That is a bigger shim than the one this document argues for elsewhere, and the tension is worth
-stating rather than hiding: intercepting a real query is exactly what "the shim is a last resort" was
-meant to avoid. The justification is that this particular query is not a user's query and never
-returns user data. It is a driver handshake, its shape is fixed by the driver, and the alternative is
-that the largest BI tool in the market cannot connect at all.
+1. `SELECT version()`
+2. the type catalogue — a nested query over `pg_type`, `pg_class`, `pg_proc`, `pg_range`, `pg_namespace`
+3. composite type fields, over `pg_attribute`
+4. enum labels, over `pg_enum`
+
+Two corrections to what this document previously said, both of which matter:
+
+- **Multi-statement support is the first blocker, not the type catalogue.** A server that runs the
+  body as one statement answers with one result set where the client expects four, and the
+  connection dies during handshake with `Received backend message ReadyForQuery while expecting
+  RowDescriptionMessage`. That is now fixed — see below.
+- **The modern loader uses `LEFT JOIN pg_proc`, not an inner join.** The NULL `typreceive` finding
+  above is real but is not fatal to it; it is fatal to older Npgsql versions that inner-join, which
+  is what Power BI is likely to bundle.
+
+### Fixed: multi-statement simple queries
+
+`PgStatementSplitter` splits a simple-query body into statements, answering each with its own result
+set and sending one `ReadyForQuery` at the end, as the protocol requires. A failing statement
+abandons the rest of the message, as PostgreSQL does.
+
+The split is lexical, not a parse: it skips string literals, quoted identifiers, dollar-quoted
+bodies, and both comment styles, purely to know when a semicolon is *inside* something. Nothing about
+a statement's meaning is inspected, so this does not become the SQL-parsing security boundary that
+invariant 4 rules out. It also fixes `psql` users sending several statements at once, which was
+broken for the same reason.
+
+### Still open: the catalogue itself
+
+Getting a type-loading client all the way through needs three more things, each established by
+experiment and each with a known remedy:
+
+| Obstacle | Established by | Remedy |
+|---|---|---|
+| `pg_range` does not exist in DuckDB | `Catalog Error: Table with name pg_range does not exist!` | Supply it as an empty CTE prefixed to the statement — a CTE shadows a table name, so the client's own query then runs against DuckDB's real `pg_type` |
+| 22 of 39 types have a NULL `oid` | `SELECT oid, typname FROM pg_type` | Filter them out: a type with no OID cannot be named on this wire |
+| `pg_namespace.oid` does not match `pg_type.typnamespace` inside a DuckLake session | The client's inner join returned **0 rows** in-session but 17 from the CLI | Derive the namespace from `pg_type` itself so the join is self-consistent wherever the session points |
+
+With all three applied the catalogue query returns the right 17 rows — `pg_catalog|20|int8|b`, and so
+on — and the client gets further into `LoadBackendTypes` before failing on a NULL where it wants a
+non-nullable string. That last one is unresolved.
+
+**None of this is in the shipped code.** The mechanism was built, measured, and then reverted rather
+than left half-finished: it rewrites any statement mentioning `pg_type`, including a user's own, and
+until it carries a client all the way through it would be a behaviour change with no benefit. The
+findings are recorded here so the work resumes from them instead of rediscovering them.
+
+The tension worth restating: this is a bigger shim than "a last resort" implies. The justification is
+that these statements are a driver handshake rather than a user's query and return no user data — but
+if finishing it means growing a synthetic catalogue that must track DuckDB's, that trade should be
+re-examined rather than assumed.
 
 ### Status by client
 

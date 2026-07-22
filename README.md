@@ -262,11 +262,11 @@ Lakehold speaks the PostgreSQL wire protocol, so a client that already speaks Po
 catalog with no `.mez` file, driver, or plugin involved. It is off by default — it opens a database
 port — and enabling it without a password refuses to start.
 
-> **Power BI does not connect yet.** Its bundled Npgsql loads the server's type catalogue at
-> connection time, and DuckDB's `pg_catalog.pg_type` leaves `typreceive` NULL for all 39 types, so
-> the driver's own join returns nothing. `psql`, DBeaver's PostgreSQL driver, and Npgsql with
-> `NoTypeLoading` work today. The measurement, and the shim that would fix it, are in
-> [`docs/POSTGRES-WIRE.md`](docs/POSTGRES-WIRE.md).
+> **Power BI does not connect yet.** A client that loads the server's type catalogue on connect
+> sends four statements in one message and expects four result sets back. Multi-statement messages
+> now work; the catalogue those statements read still does not line up with DuckDB's. `psql`,
+> DBeaver's PostgreSQL driver, and Npgsql with `NoTypeLoading` work today. What was measured, what
+> remains, and the three known remedies are in [`docs/POSTGRES-WIRE.md`](docs/POSTGRES-WIRE.md).
 
 ```jsonc
 {
