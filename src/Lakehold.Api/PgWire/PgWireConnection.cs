@@ -107,7 +107,31 @@ internal sealed class PgWireConnection(
 
                 // The simple query protocol carries no format negotiation and is text by definition.
                 _binaryResults = false;
-                await RunStatementAsync(sql, cancellationToken).ConfigureAwait(false);
+
+                // One message may carry several statements, each answered with its own result set,
+                // and only one ReadyForQuery at the end. Npgsql's type-catalogue load arrives this
+                // way — four statements in one message — so treating the body as a single statement
+                // desynchronises the client on its second expected result.
+                var statements = PgStatementSplitter.Split(sql);
+
+                if (statements.Count == 0)
+                {
+                    _writer.Reset();
+                    _writer.Begin(PgBackend.EmptyQueryResponse).End();
+                    await FlushAsync(cancellationToken).ConfigureAwait(false);
+                }
+
+                foreach (var statement in statements)
+                {
+                    // A failed statement abandons the rest of the message, as Postgres does: the
+                    // client resynchronises on ReadyForQuery and the remaining statements are not
+                    // executed against a state the failure may have invalidated.
+                    if (!await RunStatementAsync(statement, cancellationToken).ConfigureAwait(false))
+                    {
+                        break;
+                    }
+                }
+
                 await SendReadyAsync(cancellationToken).ConfigureAwait(false);
                 break;
             }
@@ -233,7 +257,8 @@ internal sealed class PgWireConnection(
     }
 
     /// <summary>Executes one statement, writing its result to the socket as rows arrive.</summary>
-    private async Task RunStatementAsync(string sql, CancellationToken cancellationToken)
+    /// <returns>True when the statement completed; false when an error was reported.</returns>
+    private async Task<bool> RunStatementAsync(string sql, CancellationToken cancellationToken)
     {
         var trimmed = sql.Trim().TrimEnd(';').Trim();
 
@@ -242,7 +267,7 @@ internal sealed class PgWireConnection(
             _writer.Reset();
             _writer.Begin(PgBackend.EmptyQueryResponse).End();
             await FlushAsync(cancellationToken).ConfigureAwait(false);
-            return;
+            return true;
         }
 
         if (PgCatalogShim.TryAnswer(trimmed, out var canned))
@@ -258,7 +283,7 @@ internal sealed class PgWireConnection(
 
             _describePending = false;
             await WriteCannedAsync(canned, cancellationToken).ConfigureAwait(false);
-            return;
+            return true;
         }
 
         try
@@ -297,6 +322,7 @@ internal sealed class PgWireConnection(
                 cancellationToken).ConfigureAwait(false);
 
             await WriteCommandCompleteAsync(trimmed, columnCount, rows, cancellationToken).ConfigureAwait(false);
+            return true;
         }
         catch (CatalogNotFoundException ex)
         {
@@ -318,6 +344,8 @@ internal sealed class PgWireConnection(
             await SendErrorAsync("57014", "Statement cancelled or timed out.", cancellationToken)
                 .ConfigureAwait(false);
         }
+
+        return false;
     }
 
     /// <summary>Type OIDs of the result being streamed, kept so DataRow encodes to match.</summary>
