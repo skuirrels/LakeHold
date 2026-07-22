@@ -1,0 +1,93 @@
+# Lakehold, production.
+#
+#   docker compose -f compose.production.yaml up -d --build
+#   → http://localhost:8080
+#
+# This is a different thing from compose.yaml, which is the development stack: stock SDK images with
+# the source bind-mounted and a file watcher. Nothing here mounts source, runs a watcher, or contains
+# a compiler. The images hold published output and nothing else.
+#
+# Named compose.production.yaml to sit beside compose.yaml rather than replace it, because the
+# development stack is the one people use daily and should keep the default filename.
+#
+# What this file deliberately does not include: PostgreSQL and MinIO. Lakehold defaults to local-file
+# catalog metadata and a local data path, so neither is required to run. A deployment that wants
+# PostgreSQL-backed metadata or object storage points configuration at whatever it already runs —
+# managed, clustered, or backed up on someone else's schedule — rather than at a single-container
+# database this file would imply is production-grade.
+
+name: lakehold
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: src/Lakehold.Api/Dockerfile
+    image: lakehold/api:${LAKEHOLD_TAG:-latest}
+    restart: unless-stopped
+
+    # Not published. The browser reaches the API through the website's own origin, so the only way
+    # in is the port below, and the API is not exposed to the host network at all. Publish
+    # "${API_PORT:-5200}:5200" if a client outside the compose network needs it directly.
+    expose:
+      - "5200"
+
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      Lakehouse__StateRoot: /var/lib/lakehold
+
+      # Off by default in Production; set explicitly here so the intent is visible rather than
+      # inherited. A production node must not invent a demo tenant holding 250,000 rows.
+      Lakehold__SeedDemoData: "false"
+
+      # Telemetry goes wherever the deployment collects it. Unset means no exporter.
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+      OTEL_SERVICE_NAME: lakehold-api
+
+      # Secrets come from the environment, never from the image or this file. Compose reads .env for
+      # substitution; a real deployment supplies them through its own secret store.
+      Lakehouse__EjectSigningKey: ${LAKEHOLD_EJECT_SIGNING_KEY:-}
+      Lakehold__PgWire__Enabled: ${LAKEHOLD_PGWIRE_ENABLED:-false}
+      Lakehold__PgWire__Password: ${LAKEHOLD_PGWIRE_PASSWORD:-}
+
+    volumes:
+      # The catalog database, Parquet, backups, and eject bundles. This volume is the deployment's
+      # durable state: everything else in this file is replaceable by rebuilding.
+      - lakehold-state:/var/lib/lakehold
+
+    # A query is memory-hungry by design and DuckDB will use what it is given. Bounding the container
+    # keeps one runaway statement from taking the host down with it; LakehouseOptions.MemoryLimit
+    # should be set below this so DuckDB refuses before the kernel does.
+    deploy:
+      resources:
+        limits:
+          memory: ${LAKEHOLD_API_MEMORY:-4g}
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  web:
+    build:
+      context: .
+      dockerfile: web/lakehold-ui/Dockerfile
+    image: lakehold/web:${LAKEHOLD_TAG:-latest}
+    restart: unless-stopped
+
+    ports:
+      - "${LAKEHOLD_PORT:-8080}:8080"
+
+    depends_on:
+      api:
+        condition: service_healthy
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  lakehold-state:

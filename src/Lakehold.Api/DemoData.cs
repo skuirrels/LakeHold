@@ -24,7 +24,21 @@ internal static class DemoData
     private const string TenantSlug = "demo";
     private const string CatalogName = "analytics";
 
-    public static async Task EnsureSeededAsync(IServiceProvider services, string stateRoot, ILogger logger)
+    /// <param name="seedDemoData">
+    ///     Whether to create the demo tenant and its 250,000-row catalog when no demo tenant exists.
+    /// </param>
+    /// <remarks>
+    ///     Schema initialisation and demo seeding are separated deliberately. The first is required
+    ///     on every node including production — it is what creates tables added since a database was
+    ///     initialised. The second must not run in production: a deployment that quietly grows a
+    ///     `demo` tenant holding a quarter of a million rows has invented user state nobody asked
+    ///     for, in a product whose own guidance is to treat existing state as sacred.
+    /// </remarks>
+    public static async Task EnsureSeededAsync(
+        IServiceProvider services,
+        string stateRoot,
+        ILogger logger,
+        bool seedDemoData)
     {
         await using var scope = services.CreateAsyncScope();
         var context = scope.ServiceProvider.GetRequiredService<ControlPlaneContext>();
@@ -53,6 +67,11 @@ internal static class DemoData
                 ex,
                 "Could not add control-plane tables introduced since this database was initialised. " +
                 "Features backed by those tables will be unavailable until this is resolved.");
+        }
+
+        if (!seedDemoData)
+        {
+            return;
         }
 
         if (await context.Tenants.AnyAsync(t => t.Slug == TenantSlug).ConfigureAwait(false))

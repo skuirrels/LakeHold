@@ -71,6 +71,46 @@ bind-mounted so saving a file hot-reloads in place.
 docker compose down -v    # stop and discard the data
 ```
 
+### Running it in production
+
+`compose.yaml` above is the **development** stack: stock SDK images, your source bind-mounted, and a
+file watcher. It is not a deployment. `compose.production.yaml` is:
+
+```bash
+docker compose -f compose.production.yaml up -d --build
+```
+
+→ the website on <http://localhost:8080>
+
+| | Development (`compose.yaml`) | Production (`compose.production.yaml`) |
+|---|---|---|
+| Images | .NET SDK + Node, ~1 GB each | Published output only — 416 MB API, 63 MB web |
+| Source | Bind-mounted, hot reloads | Not present in the image |
+| Runs as | root | Non-root (`app`, `nginx`) |
+| Website | Angular dev server | Built bundle behind nginx |
+| API port | Published on `:5200` | **Not published** — reached through the site's own origin |
+| Demo data | Seeded on first run | Never |
+| State | Named volume | Named volume, `/var/lib/lakehold` |
+
+Worth knowing:
+
+- **The API is not exposed to the host.** nginx serves the site and proxies `/api` on the same
+  origin, which removes CORS from the deployment and leaves one published port. Publish the API
+  yourself if something outside the compose network needs it.
+- **Demo seeding is off.** `Lakehold:SeedDemoData` defaults to the environment, so a production node
+  never invents a `demo` tenant holding 250,000 rows. Schema initialisation still runs — that is
+  what creates tables added since a database was first initialised.
+- **Nothing else is in the file.** No PostgreSQL, no MinIO: Lakehold defaults to local-file metadata
+  and a local data path, so neither is required. Point configuration at whatever you already run
+  rather than at a single-container database this stack would imply was production-grade.
+- **The image is architecture-pruned.** Publishing for the target RID drops the Windows and macOS
+  DuckDB natives that a portable publish would ship — 940 MB down to 416 MB — and `TARGETARCH`
+  keeps it correct on arm64 hosts.
+- **One gap to know about:** there is no API for creating tenants or catalogs yet, so an empty
+  production deployment has no supported way to add the first one. Until that lands, seed a catalog
+  in a development stack and carry the state volume across, or enable `Lakehold__SeedDemoData` once
+  and edit from there.
+
 ### Running the app on the host instead
 
 A faster inner loop, if you have the SDK and Node installed. Start only the backing services, then
