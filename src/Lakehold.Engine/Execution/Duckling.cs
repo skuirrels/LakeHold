@@ -207,6 +207,103 @@ public sealed class Duckling : IAsyncDisposable
     }
 
     /// <summary>
+    ///     Executes a statement and hands each row to <paramref name="onRow"/> as the provider
+    ///     yields it, without materialising the result.
+    /// </summary>
+    /// <param name="sql">The statement to execute.</param>
+    /// <param name="onColumns">
+    ///     Invoked once, before the first row, with the result's column schema. A wire protocol has
+    ///     to describe the row shape before it can send rows, so this cannot be deferred to the end.
+    /// </param>
+    /// <param name="onRow">
+    ///     Invoked per row. The span is the provider's own buffer and is only valid for the duration
+    ///     of the call — a consumer that needs to retain a row must copy it.
+    /// </param>
+    /// <param name="maxRows">Row ceiling, or zero for unbounded.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The number of rows handed to <paramref name="onRow"/>.</returns>
+    /// <remarks>
+    ///     <para>
+    ///         This deliberately does not apply <see cref="LakehouseOptions.MaxRowsPerResult"/>. That
+    ///         ceiling exists because <see cref="ExecuteUnguardedAsync"/> builds a list that a JSON
+    ///         response is serialised from, so an unbounded result would be held in memory in full
+    ///         before any of it was sent. Streaming has no such moment: a row is encoded, written,
+    ///         and forgotten. The invariant's purpose — never materialise an unbounded result — is
+    ///         honoured here by construction rather than by truncation.
+    ///     </para>
+    ///     <para>
+    ///         Truncating instead would be the worse failure. A caller that receives a silent prefix
+    ///         of a result reports a confidently wrong number, whereas a slow query is merely slow.
+    ///         Callers that want a ceiling anyway pass one; the statement timeout, cancellation, and
+    ///         early termination all behave exactly as they do on the materialising path.
+    ///     </para>
+    /// </remarks>
+    public async Task<long> StreamQueryAsync(
+        string sql,
+        Func<IReadOnlyList<StreamColumn>, CancellationToken, Task> onColumns,
+        RowHandler onRow,
+        int maxRows,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(sql);
+        ArgumentNullException.ThrowIfNull(onColumns);
+        ArgumentNullException.ThrowIfNull(onRow);
+        ObjectDisposedException.ThrowIf(_disposed, this);
+
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeout.CancelAfter(_options.StatementTimeout);
+        var token = timeout.Token;
+
+        await WaitForGateAsync(token).ConfigureAwait(false);
+        try
+        {
+            LastUsedUtc = DateTimeOffset.UtcNow;
+
+            await using var dynamic = await _context.Database
+                .SqlQueryDynamicRawAsync(sql, token)
+                .ConfigureAwait(false);
+
+            var columns = dynamic.Columns
+                .Select(c => new StreamColumn(c.Name, c.DuckDBTypeName, c.ClrType))
+                .ToArray();
+
+            await onColumns(columns, token).ConfigureAwait(false);
+
+            var count = 0L;
+            await foreach (var row in dynamic.ReadRowsAsync(token).ConfigureAwait(false))
+            {
+                if (maxRows > 0 && count >= maxRows)
+                {
+                    break;
+                }
+
+                await onRow(row, token).ConfigureAwait(false);
+                count++;
+            }
+
+            // Stamped again on the way out. A stream can run for as long as the statement timeout
+            // allows, and leaving the timestamp at the moment the scan started would have the pool
+            // judge a session that has been busy throughout as though it had been idle that whole
+            // time — which, on a deployment whose idle timeout is shorter than its statement
+            // timeout, is an eviction of a session still in use.
+            LastUsedUtc = DateTimeOffset.UtcNow;
+            return count;
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
+
+    /// <summary>
+    ///     Receives one streamed row. Declared as a named delegate because a
+    ///     <see cref="ReadOnlyMemory{T}"/> parameter cannot be expressed through
+    ///     <see cref="Func{T1, T2, TResult}"/> without boxing the row into an array first, which is
+    ///     the allocation streaming exists to avoid.
+    /// </summary>
+    public delegate Task RowHandler(ReadOnlyMemory<object?> row, CancellationToken cancellationToken);
+
+    /// <summary>
     ///     Takes the session gate, recording how long the caller queued for it.
     /// </summary>
     /// <remarks>

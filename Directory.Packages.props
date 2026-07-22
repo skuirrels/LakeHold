@@ -67,6 +67,10 @@
          PostgreSQL or S3 endpoint. Without dynamic skip they would either fail on a machine with no
          Docker or pass silently having asserted nothing — both worse than reporting "skipped". -->
     <PackageVersion Include="Xunit.SkippableFact" Version="1.5.61" />
+    <!-- The PostgreSQL wire endpoint is tested through Npgsql rather than a hand-rolled client:
+         Power BI's PostgreSQL connector is built on it, so this exercises the message sequence a
+         real BI tool sends rather than the one we assumed it would. -->
+    <PackageVersion Include="Npgsql" Version="10.0.3" />
   </ItemGroup>
 
   <ItemGroup>

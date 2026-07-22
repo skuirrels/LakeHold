@@ -61,6 +61,13 @@ export class ComparisonComponent {
       cloud: { text: 'Their account, or external tables', tone: 'weak' },
     },
     {
+      dimension: 'Accounts, SSO, permissions',
+      lakehold: { text: 'None yet — next on the roadmap', tone: 'weak' },
+      motherduck: { text: 'Accounts, SSO, org roles', tone: 'good' },
+      clickhouse: { text: 'Users, roles, row policies', tone: 'good' },
+      cloud: { text: 'Mature RBAC, SSO, lineage', tone: 'good' },
+    },
+    {
       dimension: 'Table format',
       lakehold: { text: 'DuckLake \u2014 plain Parquet + SQL catalog', tone: 'good' },
       motherduck: { text: 'DuckLake \u2014 same open format', tone: 'good' },
@@ -73,6 +80,13 @@ export class ComparisonComponent {
       motherduck: { text: 'Yes, DuckLake is open', tone: 'good' },
       clickhouse: { text: 'Export required', tone: 'weak' },
       cloud: { text: 'Yes, via Iceberg / Delta readers', tone: 'good' },
+    },
+    {
+      dimension: 'Other engines read it live',
+      lakehold: { text: 'Eject or export today; Iceberg REST planned', tone: 'weak' },
+      motherduck: { text: 'Through their service, not direct', tone: 'weak' },
+      clickhouse: { text: 'Its own protocols; export for others', tone: 'weak' },
+      cloud: { text: 'Yes — via their catalog endpoints', tone: 'good' },
     },
     {
       dimension: 'Time travel',
@@ -96,6 +110,13 @@ export class ComparisonComponent {
       cloud: { text: 'Yes — CDF / streams, mature', tone: 'good' },
     },
     {
+      dimension: 'BI tools (Power BI, Tableau)',
+      lakehold: { text: 'Postgres wire protocol, no connector needed', tone: 'good' },
+      motherduck: { text: 'Postgres endpoint; connector for older tools', tone: 'good' },
+      clickhouse: { text: 'Native connectors and JDBC/ODBC', tone: 'good' },
+      cloud: { text: 'First-class connectors everywhere', tone: 'good' },
+    },
+    {
       dimension: 'Maintenance control',
       lakehold: { text: 'Explicit, dry-run by default', tone: 'neutral' },
       motherduck: { text: 'Automatic, not exposed', tone: 'neutral' },
@@ -104,7 +125,7 @@ export class ComparisonComponent {
     },
     {
       dimension: '.NET / EF Core',
-      lakehold: { text: 'First-class \u2014 one model for app and lake', tone: 'good' },
+      lakehold: { text: 'One model for app and lake; client package pending', tone: 'good' },
       motherduck: { text: 'Community drivers; Python/JS first', tone: 'weak' },
       clickhouse: { text: 'Solid ADO.NET client, no ORM story', tone: 'neutral' },
       cloud: { text: 'JDBC/ODBC; .NET is second-class', tone: 'weak' },
@@ -159,6 +180,7 @@ export class ComparisonComponent {
         'A predictable VM bill beats per-second billing for your workload.',
       ],
       chooseThem: [
+        'You need accounts, SSO, and per-user permissions today — Lakehold has no authentication yet, so it belongs on a trusted network until that lands.',
         'You want zero operations and nothing to run.',
         'You need to scale past a single node without re-architecting.',
         'Hybrid local-and-cloud dual execution is valuable to you — it is genuinely clever and we have not replicated it.',

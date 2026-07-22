@@ -10,6 +10,17 @@ namespace Lakehold.Engine.Execution;
 /// </param>
 public sealed record ResultColumn(string Name, string DataType, string ClrType);
 
+/// <summary>A column in a streamed query result.</summary>
+/// <param name="Name">Column name as returned by the engine.</param>
+/// <param name="DataType">DuckDB type name.</param>
+/// <param name="ClrType">
+///     The CLR type itself, not its name. A streaming consumer has to declare each column's type to
+///     its client <em>before</em> the first row arrives — a wire protocol sends a row description up
+///     front — so it needs the type it can dispatch on rather than a string it would have to parse
+///     back.
+/// </param>
+public sealed record StreamColumn(string Name, string DataType, Type ClrType);
+
 /// <summary>A materialised query result.</summary>
 public sealed class QueryResult
 {

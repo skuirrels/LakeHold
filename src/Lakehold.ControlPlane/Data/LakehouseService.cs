@@ -111,6 +111,84 @@ public sealed class LakehouseService(
         }
     }
 
+    /// <summary>
+    ///     Executes <paramref name="sql"/> against a tenant's catalog and streams the result to the
+    ///     caller row by row, recording the run exactly as <see cref="ExecuteAsync"/> does.
+    /// </summary>
+    /// <remarks>
+    ///     The wire-protocol endpoint enters the engine here rather than beside it, so a BI client's
+    ///     statements resolve their catalog through the same tenant check, queue on the same session
+    ///     gate, and land in the same query history as anything submitted over HTTP. A second entry
+    ///     point into <see cref="DucklingPool"/> would have had to re-derive all three.
+    /// </remarks>
+    public async Task<long> StreamAsync(
+        string tenantSlug,
+        string catalogName,
+        string sql,
+        Func<IReadOnlyList<StreamColumn>, CancellationToken, Task> onColumns,
+        Duckling.RowHandler onRow,
+        int maxRows,
+        CancellationToken cancellationToken)
+    {
+        using var activity = LakeholdTelemetry.Source.StartActivity("lakehold.query");
+        activity?.SetTag(LakeholdTelemetry.TenantKey, tenantSlug);
+        activity?.SetTag(LakeholdTelemetry.CatalogKey, catalogName);
+        var startedAt = TimeProvider.System.GetTimestamp();
+
+        var (duckling, tenantId) = await ResolveAsync(tenantSlug, catalogName, cancellationToken).ConfigureAwait(false);
+
+        var run = new QueryRun
+        {
+            TenantId = tenantId,
+            CatalogName = catalogName,
+            Sql = sql,
+            StartedUtc = DateTimeOffset.UtcNow,
+        };
+
+        try
+        {
+            var rows = await duckling
+                .StreamQueryAsync(sql, onColumns, onRow, maxRows, cancellationToken)
+                .ConfigureAwait(false);
+
+            run.Succeeded = true;
+            run.RowCount = (int)Math.Min(rows, int.MaxValue);
+            run.ElapsedMilliseconds = TimeProvider.System.GetElapsedTime(startedAt).TotalMilliseconds;
+
+            RecordQuery(activity, startedAt, LakeholdTelemetry.OutcomeSuccess);
+            activity?.SetTag(LakeholdTelemetry.RowsKey, rows);
+            LakeholdTelemetry.QueryRows.Record(rows);
+
+            return rows;
+        }
+        catch (Exception ex)
+        {
+            run.Succeeded = false;
+            run.Error = ex.Message;
+
+            RecordQuery(activity, startedAt, LakeholdTelemetry.OutcomeError);
+            activity?.AddException(ex);
+            activity?.SetStatus(ActivityStatusCode.Error);
+            throw;
+        }
+        finally
+        {
+            try
+            {
+                run.ElapsedMilliseconds = run.ElapsedMilliseconds is 0
+                    ? (DateTimeOffset.UtcNow - run.StartedUtc).TotalMilliseconds
+                    : run.ElapsedMilliseconds;
+
+                _context.QueryRuns.Add(run);
+                await _context.SaveChangesAsync(CancellationToken.None).ConfigureAwait(false);
+            }
+            catch (DbUpdateException)
+            {
+                // Same trade as the materialising path: losing an audit row beats losing the error.
+            }
+        }
+    }
+
     /// <summary>Records a statement's duration against its outcome, and stamps the span to match.</summary>
     private static void RecordQuery(Activity? activity, long startedAt, string outcome)
     {
