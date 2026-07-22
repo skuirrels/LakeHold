@@ -35,6 +35,9 @@ integration.
 - `docs/PROVIDER-FEEDBACK.md`: provider capabilities and why the data plane uses its dynamic API.
 - `docs/POSTGRES-WIRE.md`: the wire protocol surface, its connection model, and what is
   deliberately unimplemented. Update it with the endpoint.
+- `docs/AUTHENTICATION.md`: the phased plan for API authentication, worked one step at a time.
+  The API has none today — tenant identity is a URL segment. Read it before adding any surface that
+  resolves a tenant.
 
 ## Architectural invariants
 

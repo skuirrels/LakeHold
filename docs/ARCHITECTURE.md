@@ -459,7 +459,9 @@ anyone who can reach the API is every tenant.
 
 Invariant 4 is not violated by this: isolation between attached catalogs is structural and holds.
 What is missing is the layer that decides *which* tenant a caller is, and that layer is a
-prerequisite rather than a parallel workstream. Serving an Iceberg REST endpoint or a client SDK on
+prerequisite rather than a parallel workstream. The plan for it — tokens first, then read-only
+capability by attachment, then OIDC, then roles — is specified in
+[`AUTHENTICATION.md`](AUTHENTICATION.md). Serving an Iceberg REST endpoint or a client SDK on
 top of an unauthenticated API widens the exposure rather than the moat.
 
 ## Roadmap
