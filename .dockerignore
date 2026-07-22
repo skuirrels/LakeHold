@@ -1,0 +1,20 @@
+# Build output, dependency caches, and IDE state: none of it belongs in a build context, and the
+# host's copies are built for the wrong runtime identifier anyway.
+**/bin/
+**/obj/
+**/dist/
+**/node_modules/
+**/.angular/
+**/.npm-cache/
+.idea/
+.vscode/
+.DS_Store
+
+# Runtime lakehouse state. Copying a developer's catalogs and Parquet into an image would ship their
+# data to whoever runs it.
+**/.lakehold/
+
+# Secrets. .env is gitignored, but a build context is not git.
+.env
+
+.git/

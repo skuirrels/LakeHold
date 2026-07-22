@@ -132,6 +132,10 @@ app.MapLakehouseEndpoints();
 
 app.LogMaintenanceSchedule();
 
-await DemoData.EnsureSeededAsync(app.Services, stateRoot, app.Logger).ConfigureAwait(false);
+// Schema initialisation always runs; the demo catalog only where it was asked for. Defaulting to
+// the environment rather than to true means a production image seeds nothing unless told to, and a
+// developer's compose stack is still self-demonstrating on first run.
+var seedDemoData = builder.Configuration.GetValue("Lakehold:SeedDemoData", app.Environment.IsDevelopment());
+await DemoData.EnsureSeededAsync(app.Services, stateRoot, app.Logger, seedDemoData).ConfigureAwait(false);
 
 await app.RunAsync().ConfigureAwait(false);

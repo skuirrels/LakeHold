@@ -147,7 +147,9 @@ Configuration is split by whether a value is a secret, and new settings must fol
 `.env`, and never move a real credential into `.env.example`. Adding a non-secret setting to `.env`
 is the common mistake: if every developer would set it identically, it belongs in source control.
 
-`compose.yaml` runs the whole stack: the API and Angular dev server from stock SDK images with the
+`compose.production.yaml` is the deployment stack: published images, non-root, no source, no watcher,
+the API unpublished behind nginx, and demo seeding off. `compose.yaml` runs the whole *development*
+stack: the API and Angular dev server from stock SDK images with the
 source bind-mounted, plus PostgreSQL, MinIO (and the bucket creation the S3 tests depend on), and a
 trace viewer. `docker compose up` then serves the website at <http://localhost:5399>; the API is on
 `:5200`. Running the two app services on the host works identically — start the backing services
