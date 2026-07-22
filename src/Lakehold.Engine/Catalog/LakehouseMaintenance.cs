@@ -100,7 +100,8 @@ public static class LakehouseMaintenance
 
                 return $"flushed {rows.ToString(CultureInfo.InvariantCulture)} inlined row(s) to Parquet";
             },
-            cancellationToken);
+            cancellationToken,
+            commitMessage: "lakehold maintenance: flush inlined data");
 
     /// <summary>
     ///     Merges adjacent small Parquet files into larger ones. Small-file proliferation is the
@@ -121,7 +122,8 @@ public static class LakehouseMaintenance
                 var created = results.Sum(r => r.FilesCreated);
                 return $"merged {processed} file(s) into {created}";
             },
-            cancellationToken);
+            cancellationToken,
+            commitMessage: "lakehold maintenance: compact adjacent files");
 
     /// <summary>
     ///     Drops snapshots older than <paramref name="olderThan"/>, bounding time-travel history and
@@ -173,19 +175,27 @@ public static class LakehouseMaintenance
             },
             cancellationToken);
 
+    /// <param name="commitMessage">
+    ///     Label for the snapshot the operation commits, or null for an operation that commits
+    ///     nothing. Only flush and compaction write: backup exports, and expiry and cleanup remove
+    ///     snapshots and files rather than adding one to label.
+    /// </param>
     private static async Task<MaintenanceResult> RunAsync(
         Duckling duckling,
         string operation,
         bool dryRun,
         Func<Duckling, CancellationToken, Task<string>> action,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        string? commitMessage = null)
     {
         ArgumentNullException.ThrowIfNull(duckling);
 
         var startedAt = TimeProvider.System.GetTimestamp();
-        var detail = await duckling
-            .InvokeAsync(ct => action(duckling, ct), cancellationToken)
-            .ConfigureAwait(false);
+        var detail = commitMessage is null
+            ? await duckling.InvokeAsync(ct => action(duckling, ct), cancellationToken).ConfigureAwait(false)
+            : await duckling
+                .InvokeLabelledAsync(commitMessage, ct => action(duckling, ct), cancellationToken)
+                .ConfigureAwait(false);
 
         return new MaintenanceResult(operation, detail, TimeProvider.System.GetElapsedTime(startedAt), dryRun);
     }

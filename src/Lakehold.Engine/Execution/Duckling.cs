@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Data;
 using System.Diagnostics;
 using System.Globalization;
 using System.Numerics;
@@ -100,19 +101,16 @@ public sealed class Duckling : IAsyncDisposable
             {
                 duckDb.MemoryLimit(options.MemoryLimit);
 
+                // Both resource limits are set the same way as of provider 1.14.0. This used to run
+                // `SET threads` through ConfigureConnection, which also meant competing with the
+                // caller's configure callback for the same hook — the one an object-store secret
+                // needs.
+                duckDb.Threads(options.Threads);
+
                 foreach (var extension in options.Extensions)
                 {
                     duckDb.LoadExtension(SqlIdentifier.ValidateExtension(extension));
                 }
-
-                // The provider has no thread-count setter, and threads must be set before the
-                // catalog is attached, so it goes through the connection initializer.
-                duckDb.ConfigureConnection(connection =>
-                {
-                    using var command = connection.CreateCommand();
-                    command.CommandText = $"SET threads = {options.Threads.ToString(CultureInfo.InvariantCulture)}";
-                    command.ExecuteNonQuery();
-                });
 
                 configure?.Invoke(duckDb);
 
@@ -126,7 +124,16 @@ public sealed class Duckling : IAsyncDisposable
                     // enabling cross-catalog joins without widening write access.
                     foreach (var extra in catalog.AdditionalCatalogs)
                     {
-                        lake.AlsoAttach(extra.CatalogName, extra.MetadataSource, readOnly: true);
+                        // Read-only in both branches, and the provider enforces it: writing through
+                        // a share fails in the engine, not only by convention here.
+                        if (extra.MetadataKind == CatalogMetadataKind.LocalFile)
+                        {
+                            lake.AlsoAttach(extra.CatalogName, extra.MetadataSource, readOnly: true);
+                        }
+                        else
+                        {
+                            lake.AlsoAttachNamedSecret(extra.CatalogName, extra.MetadataSource, readOnly: true);
+                        }
                     }
                 }
 
@@ -184,7 +191,8 @@ public sealed class Duckling : IAsyncDisposable
 
     /// <summary>
     ///     Executes a statement and materialises up to
-    ///     <see cref="LakehouseOptions.MaxRowsPerResult"/> rows.
+    ///     <see cref="LakehouseOptions.MaxRowsPerResult"/> rows, or — for a statement whose outcome
+    ///     is a count rather than rows — reports the number of rows it changed.
     /// </summary>
     public async Task<QueryResult> ExecuteQueryAsync(string sql, CancellationToken cancellationToken)
     {
@@ -198,7 +206,9 @@ public sealed class Duckling : IAsyncDisposable
         await WaitForGateAsync(token).ConfigureAwait(false);
         try
         {
-            return await ExecuteUnguardedAsync(sql, token).ConfigureAwait(false);
+            return StatementVerb.ReportsAffectedRows(sql)
+                ? await ExecuteNonQueryUnguardedAsync(sql, token).ConfigureAwait(false)
+                : await ExecuteUnguardedAsync(sql, token).ConfigureAwait(false);
         }
         finally
         {
@@ -381,6 +391,58 @@ public sealed class Duckling : IAsyncDisposable
         };
     }
 
+    /// <summary>
+    ///     Executes a statement as a non-query and reports how many rows it changed, without taking
+    ///     the session gate.
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///         The provider's dynamic path cannot report this. DuckDB.NET's data reader exposes
+    ///         <c>RecordsAffected == -1</c>, so a DML statement run through
+    ///         <c>SqlQueryDynamicRawAsync</c> comes back with no columns and no rows — identical to a
+    ///         statement that returned nothing — and every successful insert was reported as
+    ///         "0 rows". <c>ExecuteNonQuery</c> on the same connection does report the count, so the
+    ///         count is reachable; it is only the dynamic API that lacks it.
+    ///     </para>
+    ///     <para>
+    ///         The command is built on the context's own connection rather than sent through
+    ///         <c>ExecuteSqlRawAsync</c>, and that is not a stylistic preference. EF parses its raw
+    ///         SQL as a composite format string, so a brace anywhere in the statement is read as a
+    ///         placeholder: <c>INSERT INTO s VALUES (1, {'a': 1})</c> — an ordinary DuckDB struct
+    ///         literal — fails with <c>FormatException</c> before it reaches the engine. Doubling the
+    ///         braces would work today and corrupt the statement the moment EF stopped formatting.
+    ///         This is EF's own connection and EF's own command, not a second connection stack.
+    ///     </para>
+    /// </remarks>
+    private async Task<QueryResult> ExecuteNonQueryUnguardedAsync(string sql, CancellationToken cancellationToken)
+    {
+        LastUsedUtc = DateTimeOffset.UtcNow;
+        var startedAt = TimeProvider.System.GetTimestamp();
+
+        var connection = _context.Database.GetDbConnection();
+        if (connection.State is not ConnectionState.Open)
+        {
+            // Sessions open their connection at start-up and hold it, so this is a repair rather
+            // than a normal path. It is never closed here: closing would drop the attached catalog.
+            await _context.Database.OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        await using var command = connection.CreateCommand();
+        command.CommandText = sql;
+        var affected = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+
+        LastUsedUtc = DateTimeOffset.UtcNow;
+
+        return new QueryResult
+        {
+            Columns = [],
+            Rows = [],
+            Truncated = false,
+            RowsAffected = affected,
+            Elapsed = TimeProvider.System.GetElapsedTime(startedAt),
+        };
+    }
+
     /// <summary>Runs <paramref name="action"/> under this session's exclusive gate.</summary>
     /// <remarks>
     ///     Maintenance shares the gate with queries because both run on the same non-thread-safe
@@ -402,6 +464,61 @@ public sealed class Duckling : IAsyncDisposable
             _gate.Release();
         }
     }
+
+    /// <summary>
+    ///     Runs <paramref name="action"/> under this session's exclusive gate, inside a transaction
+    ///     whose DuckLake snapshot is labelled with <paramref name="commitMessage"/>.
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///         A snapshot list is only self-documenting if the entries say what made them. Everything
+    ///         Lakehold commits on its own initiative — flush, compaction — used to land as an
+    ///         unlabelled snapshot beside the tenant's own writes, so the history could show what
+    ///         changed but never why.
+    ///     </para>
+    ///     <para>
+    ///         The message belongs to one transaction, which is why it is set here rather than held
+    ///         as session state: the provider refuses the call outside a transaction precisely so a
+    ///         message cannot leak onto a later, unrelated write. An operation that changes nothing
+    ///         commits no snapshot, so a no-op maintenance run leaves no labelled entry behind.
+    ///     </para>
+    /// </remarks>
+    internal async Task<T> InvokeLabelledAsync<T>(
+        string commitMessage,
+        Func<CancellationToken, Task<T>> action,
+        CancellationToken cancellationToken)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+
+        await WaitForGateAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            LastUsedUtc = DateTimeOffset.UtcNow;
+
+            await using var transaction = await _context.Database
+                .BeginTransactionAsync(cancellationToken)
+                .ConfigureAwait(false);
+
+            var result = await action(cancellationToken).ConfigureAwait(false);
+
+            await Maintenance
+                .SetCommitMessageAsync(CommitAuthor, commitMessage, extraInfo: null, cancellationToken)
+                .ConfigureAwait(false);
+
+            await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+            return result;
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
+
+    /// <summary>
+    ///     Author recorded on snapshots Lakehold commits on its own initiative, so maintenance is
+    ///     distinguishable from a tenant's own writes in the snapshot list.
+    /// </summary>
+    private const string CommitAuthor = "lakehold";
 
     /// <summary>The largest integer a JavaScript number represents exactly: 2^53 - 1.</summary>
     private const long MaxSafeInteger = 9_007_199_254_740_991;

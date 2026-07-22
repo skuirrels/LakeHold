@@ -52,9 +52,18 @@ Preserve these unless the task explicitly changes the architecture and updates i
    raw `DuckDBConnection` stack without a demonstrated provider gap.
 4. A `Duckling` is the tenant isolation and compute unit. Isolation comes from which catalog is
    attached to a session. Do not treat parsing, filtering, or rewriting submitted SQL as the
-   security boundary.
+   security boundary. `StatementVerb` reads a statement's leading keyword only to choose how its
+   outcome is *reported* — counted DML (`INSERT`/`UPDATE`/`DELETE`/`MERGE` without `RETURNING`) runs
+   as a non-query because the provider's dynamic path has no affected-row count. A statement it does
+   not recognise must always fall back to the ordinary streaming path, never be refused, and user SQL
+   must never go through EF's raw-SQL formatting, which reads braces in struct and map literals as
+   format placeholders.
 5. A Duckling owns a non-thread-safe `DbContext` and a single-writer DuckDB instance. Query and
-   maintenance access must remain serialised through the session gate.
+   maintenance access must remain serialised through the session gate. The gate is now a Lakehold
+   choice rather than a provider constraint — reads scale when each concurrent operation owns a
+   separate context and connection, measured in `docs/PROVIDER-FEEDBACK.md` — but it stays until a
+   per-tenant read pool exists to replace it. Any such pool is for PostgreSQL metadata: the provider
+   documents a DuckDB metadata file as a single-client profile.
 6. Query results are streamed and capped by `LakehouseOptions.MaxRowsPerResult`. Preserve
    cancellation, statement timeouts, and early termination so large results are not fully
    materialised before truncation. The cap belongs to paths that *materialise* a result — it bounds
@@ -67,17 +76,21 @@ Preserve these unless the task explicitly changes the architecture and updates i
 8. Object-store credentials belong in provider connection configuration. Never persist them in a
    catalog, options object, response, source file, or log.
 9. Read-only additional catalogs must remain read-only. Do not widen write access to implement
-   sharing or cross-catalog queries.
+   sharing or cross-catalog queries. A share is attached by path or by secret name according to its
+   `AttachedCatalog.MetadataKind`, exactly as the primary catalog is.
 10. Snapshot expiry and old-file cleanup are destructive and must remain dry-run by default with an
-    explicit apply/confirmation path. Flush and compaction are non-destructive maintenance.
+    explicit apply/confirmation path. Flush and compaction are non-destructive maintenance, and are
+    the only operations that commit: they run inside a transaction labelled `lakehold maintenance: …`
+    so platform-initiated snapshots stay distinguishable from a tenant's own writes.
 11. Catalog backups live under `BackupRoot`, a sibling of the data root and never a child of it.
     Anything under the data path that the catalog does not reference is a candidate for DuckLake's
     orphan cleanup, so a nested backup deletes itself once it ages.
 12. Restore never overwrites an existing catalog, and never restores a generation with no manifest.
     An interrupted export missing `ducklake_delete_file` would silently reinstate deleted rows.
-13. Remote metadata is addressed by DuckDB secret name, never by connection string. The provider
-    rejects a non-file metadata path, and the secret is created in connection configuration so no
-    credential reaches a catalog record, an options object, or a log.
+13. Remote metadata is addressed by DuckDB secret name, never by connection string — for the primary
+    catalog and for shares alike. The provider rejects a non-file metadata path, and the secret is
+    created in connection configuration so no credential reaches a catalog record, an options object,
+    or a log.
 14. The maintenance lease belongs in the `lakehold` schema, not `public`. It must not collide with a
     DuckLake migration, and it must not be swept into a catalog backup.
 15. Eject exports data by re-materialising each table through the catalog

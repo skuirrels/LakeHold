@@ -16,8 +16,20 @@ public enum CatalogMetadataKind
 ///     A read-only catalog mounted alongside a tenant's own.
 /// </summary>
 /// <param name="CatalogName">Alias the catalog is attached as, and referenced by in SQL.</param>
-/// <param name="MetadataSource">Path to the catalog's DuckLake metadata.</param>
-public sealed record AttachedCatalog(string CatalogName, string MetadataSource);
+/// <param name="MetadataSource">
+///     File path for <see cref="CatalogMetadataKind.LocalFile"/>, or the name of the DuckLake profile
+///     secret for <see cref="CatalogMetadataKind.Postgres"/>. As with the primary catalog, a remote
+///     share is addressed by secret name so no credential reaches this record.
+/// </param>
+/// <param name="MetadataKind">
+///     Where the share's metadata lives. A PostgreSQL-backed share needs provider 1.14.0's
+///     <c>AlsoAttachNamedSecret</c>; before that, only local-file shares could be attached, which
+///     excluded exactly the HA deployments most likely to want one.
+/// </param>
+public sealed record AttachedCatalog(
+    string CatalogName,
+    string MetadataSource,
+    CatalogMetadataKind MetadataKind = CatalogMetadataKind.LocalFile);
 
 /// <summary>
 ///     Everything the engine needs to attach one tenant's lakehouse catalog.

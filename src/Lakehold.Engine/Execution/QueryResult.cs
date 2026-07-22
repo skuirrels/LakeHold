@@ -36,6 +36,18 @@ public sealed class QueryResult
     /// </summary>
     public required bool Truncated { get; init; }
 
+    /// <summary>
+    ///     Rows the statement changed, for a statement whose outcome is a count rather than a result
+    ///     set; null for everything else.
+    /// </summary>
+    /// <remarks>
+    ///     Null and zero mean different things. Null is "this statement does not report a count" —
+    ///     a <c>SELECT</c>, a <c>CALL</c>, DDL — while zero is a DML statement that genuinely matched
+    ///     nothing. Collapsing the two would put every successful insert back to reporting "no rows",
+    ///     which is the reason the distinction exists at all.
+    /// </remarks>
+    public long? RowsAffected { get; init; }
+
     /// <summary>Server-side execution time.</summary>
     public required TimeSpan Elapsed { get; init; }
 }

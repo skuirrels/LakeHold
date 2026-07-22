@@ -162,6 +162,12 @@ public static class LakeholdTelemetry
     /// <summary>Whether the result hit the row ceiling.</summary>
     public const string TruncatedKey = "lakehold.truncated";
 
+    /// <summary>
+    ///     Rows a DML statement changed. Set only when the statement reports a count, so a span
+    ///     without it is a statement that returned rows rather than one that changed none.
+    /// </summary>
+    public const string RowsAffectedKey = "lakehold.rows_affected";
+
     /// <summary>Where the catalog's metadata lives.</summary>
     public const string MetadataKindKey = "lakehold.metadata_kind";
 

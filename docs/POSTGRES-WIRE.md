@@ -168,6 +168,31 @@ The endpoint instead defers the `Describe` reply until `Execute` produces the co
 `RowDescription` exactly where the protocol's own ordering requires it. Clients batch
 `Parse`/`Bind`/`Describe`/`Execute`/`Sync` and then read, so the deferral is invisible on the wire.
 
+### Command tags carry the affected-row count
+
+A client learns what a write did from the completion tag: `INSERT 0 12`, `UPDATE 7`, `DELETE 3`.
+Npgsql turns that number into the value `ExecuteNonQuery` returns, so it is not decoration.
+
+The endpoint used to send `INSERT 0 0` for every successful write, because the provider's dynamic
+path cannot report a count — DuckDB.NET's reader exposes `RecordsAffected == -1`, so a DML statement
+streams back with no columns and no rows and is indistinguishable from a statement that returned
+nothing. `ExecuteNonQuery` on the same connection *does* report the count, so a statement whose
+leading keyword is `INSERT`, `UPDATE`, `DELETE`, or `MERGE` — and which carries no `RETURNING` — takes
+the materialising path (`Duckling.ExecuteQueryAsync`), which executes it as a non-query and reports
+what it changed.
+
+Two boundaries are worth stating, because the classification looks like SQL parsing and is not:
+
+- **It is a reporting choice, never a security one.** Isolation is still which catalog is attached to
+  the session (invariant 4). Nothing here filters, rewrites, or authorises a statement, and a
+  statement the classifier does not recognise — a CTE-led write, say — simply streams as before and
+  reports no count. The unrecognised case loses a number; it cannot lose a result.
+- **User SQL is not put through EF's raw-SQL formatting.** `ExecuteSqlRawAsync` parses its statement
+  as a composite format string, so `INSERT INTO s VALUES (1, {'a': 1})` — an ordinary DuckDB struct
+  literal — fails with `FormatException` before reaching the engine. The non-query path builds a
+  command on the context's own connection instead, and `A_write_carrying_braces_reaches_the_engine_intact`
+  is the regression guard.
+
 ## Row streaming, and why the cap does not apply here
 
 `LakehouseOptions.MaxRowsPerResult` (default 10,000) exists because the HTTP path materialises rows

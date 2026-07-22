@@ -12,11 +12,17 @@ public sealed record ColumnDto(string Name, string DataType, string ClrType);
 /// <param name="Rows">Rows aligned to <paramref name="Columns"/> by ordinal.</param>
 /// <param name="Truncated">Whether the row ceiling cut the result short.</param>
 /// <param name="ElapsedMilliseconds">Server-side execution time.</param>
+/// <param name="RowsAffected">
+///     Rows changed by a statement whose outcome is a count — <c>INSERT</c>, <c>UPDATE</c>,
+///     <c>DELETE</c>, <c>MERGE</c> — and null for anything else. Null and zero differ: null means the
+///     statement does not report a count, zero means a DML statement matched nothing.
+/// </param>
 public sealed record QueryResponse(
     IReadOnlyList<ColumnDto> Columns,
     IReadOnlyList<object?[]> Rows,
     bool Truncated,
-    double ElapsedMilliseconds);
+    double ElapsedMilliseconds,
+    long? RowsAffected);
 
 /// <summary>A tenant, as returned by the API.</summary>
 public sealed record TenantDto(string Slug, string DisplayName, IReadOnlyList<CatalogDto> Catalogs);

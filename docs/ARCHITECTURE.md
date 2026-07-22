@@ -128,13 +128,13 @@ provider:
 │  tokens, audit          │   │  schema introspection,    │
 │                         │   │  maintenance jobs         │
 └─────────────────────────┘   └───────────────────────────┘
-        both on DuckDB.EFCoreProvider 1.13.0
+        both on DuckDB.EFCoreProvider 1.14.0
 ```
 
 ### Both planes, one provider
 
 The split is by *model*, not by dependency. Both planes run on
-[`DuckDB.EFCoreProvider`](https://github.com/skuirrels/DuckDB.EFCoreProvider) 1.13.0:
+[`DuckDB.EFCoreProvider`](https://github.com/skuirrels/DuckDB.EFCoreProvider) 1.14.0:
 
 - **Control plane** — a known EF model with migrations, relationships, and change tracking. Native
   DuckDB storage, because it needs sequences and `RETURNING`, which DuckLake does not provide.

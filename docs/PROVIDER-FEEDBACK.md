@@ -1,32 +1,50 @@
 # Feedback for DuckDB.EFCoreProvider
 
 Findings from building Lakehold on
-[`DuckDB.EFCoreProvider`](https://github.com/skuirrels/DuckDB.EFCoreProvider). Everything below was
-reproduced against the shipped NuGet package, not inferred from documentation.
+[`DuckDB.EFCoreProvider`](https://github.com/skuirrels/DuckDB.EFCoreProvider). Behaviour claims were
+reproduced against the shipped NuGet package rather than inferred; the few that rest on the
+provider's own documentation say so and quote it, which is the distinction gap 8 below was retracted
+for missing.
 
-**Status: 1.13.0 closed seven of the eight gaps raised against 1.12.0. The eighth is withdrawn —
-it was a bad recommendation.** Lakehold's data plane has moved off raw `DuckDB.NET` and onto the
-provider as a result.
+**Current: Lakehold runs 1.14.0.** Of the twelve numbered items: six closed, two withdrawn on the
+evidence by this side, one declined — correctly, with the fix landing here instead — and three still
+open. Three further asks (`Threads`, `AlsoAttachNamedSecret`, `SetCommitMessageAsync`) were delivered
+in 1.14.0 and are all in use.
 
-A later round of findings, from building the PostgreSQL wire endpoint against 1.13.0, is in
-[Findings from the wire endpoint](#findings-from-the-wire-endpoint). It includes one **correction to
-this document's own assumptions** and one capability that turns out to be better than it was given
-credit for.
+The data plane has moved off raw `DuckDB.NET` and onto the provider entirely, and nothing outstanding
+blocks a workload. The two capabilities that would have justified keeping a second stack — a truthful
+write count and concurrent reads — both turned out to be reachable through the provider's own context
+and connection.
+
+The document is ordered by *round*, because the reasoning is the part worth keeping and it only makes
+sense in the order it happened. The table below is the shortcut.
+
+### Status of everything raised
+
+| # | Item | Status | Since |
+|---|---|---|---|
+| 1 | No untyped result path | ✅ Closed | 1.13.0 — `SqlQueryDynamicRawAsync` serves every query in Lakehold |
+| 2 | No DuckLake maintenance API | ✅ Closed | 1.13.0 — `Database.DuckLake()` drives all four maintenance operations |
+| 3 | Time travel not expressible in LINQ | ✅ Closed | 1.13.0 — `AsOfSnapshot` / `AsOfTimestamp`, table- and catalog-scoped |
+| 4 | One DuckLake catalog per context | ✅ Closed | 1.13.0 — `AlsoAttach(...)`; secret-backed shares followed in 1.14.0 |
+| 5 | DuckLake scaffolding missing | ✅ Closed | 1.13.0 — local-metadata scaffolding with catalog filtering |
+| 6 | Nested/wide type contract undocumented | ✅ Closed | 1.13.0 — nested values preserved; mapping contracts documented |
+| 7 | `UseAutoIncrement` namespace | 🚫 **Withdrawn** | Breaking change, and the friction is load-bearing — [why](#gap-7--useautoincrement-namespace-do-not-move-it) |
+| 8 | No read-scaling guidance | 🚫 **Retracted** | The guidance was already in the provider's docs — [why](#1-read-scaling--the-gap-was-ours) |
+| 9 | No precision, scale, or nullability on columns | ⬜ **Open** | Wire protocol sends `-1` type modifiers — [detail](#gap-9--column-metadata-carries-no-precision-scale-or-nullability) |
+| 10 | Cannot learn a result's shape without executing | ⬜ **Open** | Worked around by deferring `Describe` — [detail](#gap-10--no-way-to-learn-a-results-shape-without-executing-it) |
+| 11 | No affected-row count on the dynamic path | ⛔ **Declined** | Correctly: the count is DuckDB.NET's to expose — [detail](#4-affected-row-counts--declined-correctly-and-the-workaround-has-a-trap) |
+| 12 | Raw SQL is parsed as a format string | ⬜ **Open** | Found while resolving 11 — [detail](#gap-12--raw-sql-is-parsed-as-a-format-string) |
+
+[Round four](#round-four--provider-response-and-what-changed-here) covers the provider's reply to all
+of it, including what each 1.14.0 API was measured to do before Lakehold adopted it.
+[What is still open](#what-is-still-open) is the short list at the end.
 
 ---
 
-## Verification against 1.13.0
+## Round one — verification against 1.13.0
 
-| # | Gap (raised against 1.12.0) | Status | Verified by |
-|---|---|---|---|
-| 1 | No untyped result path | ✅ Closed | `SqlQueryDynamicRawAsync` serves every query in Lakehold |
-| 2 | No DuckLake maintenance API | ✅ Closed | `Database.DuckLake()` drives all four maintenance operations |
-| 3 | Time travel not expressible in LINQ | ✅ Closed | `AsOfSnapshot` / `AsOfTimestamp` present, table- and catalog-scoped |
-| 4 | One DuckLake catalog per context | ✅ Closed | `AlsoAttach(...)` wired into `CatalogDescriptor` |
-| 5 | DuckLake scaffolding missing | ✅ Closed | Local-metadata scaffolding with catalog filtering |
-| 6 | Nested/wide type contract undocumented | ✅ Closed | Nested values preserved; mapping contracts documented |
-| 7 | `UseAutoIncrement` namespace | 🚫 **Withdrawn** | Breaking change; the friction is load-bearing (see below) |
-| 8 | No read-scaling guidance | ⚠️ Unverified | Documentation item; not checkable from the assembly |
+The eight gaps in rows 1–8 were raised against 1.12.0 and checked against 1.13.0 as shipped.
 
 ### What the closures actually delivered
 
@@ -67,7 +85,11 @@ contracts is the right call. Conflating them is exactly the mistake a consumer m
 
 ---
 
-## Withdrawn
+## Withdrawn by this side
+
+Two items were raised and then withdrawn on the evidence, one per round. Both are kept rather than
+deleted: a request that turned out to be wrong is more useful to the next reader than a clean list,
+and in both cases the reasoning is the part that transfers.
 
 ### Gap 7 — `UseAutoIncrement` namespace: **do not move it**
 
@@ -124,49 +146,53 @@ rejection message says "must use a client-assigned value" without naming the API
 excellent migrations message names `Database.EnsureCreated()` explicitly. Naming
 `ValueGeneratedNever()` or `HasValueGenerator(...)` there would make the two consistent.
 
----
+### Gap 8 — read-scaling guidance: **retracted**
 
-## Outstanding
-
-### Gap 8 — read-scaling guidance
-
-Cannot be verified from the assembly. The ask stands: `DUCKLAKE.md` documents single-writer but not
-that *readers* scale out by attaching the same catalog read-only, so the natural reading is still
-"DuckDB does not scale for reads," which is untrue for DuckLake. Lakehold continues to serialise
-per tenant session and would relax that given a documented pattern.
+Raised as "cannot be verified from the assembly, so the ask stands." That was the mistake: an item
+that cannot be checked from the artefact under test should have been checked against the source
+documentation before being filed, and the guidance was already there. See
+[round four](#1-read-scaling--the-gap-was-ours). What the round did produce is a measurement Lakehold
+needed anyway, and a change it may now make.
 
 ---
 
-## New observations from 1.13.0
+## Round two — observations from migrating to 1.13.0
 
-Minor, found while migrating. None are blocking.
+Minor, found while migrating; none were blocking. **Four of the five are closed in 1.14.0 and in use;
+the fifth was declined, correctly.** They are kept in their original form, with the outcome marked,
+because a request and its answer are only informative together.
 
-1. **No thread-count setter.** `DuckDBDbContextOptionsBuilder` exposes `MemoryLimit(...)` but no
-   `Threads(...)`, so Lakehold sets `SET threads` through `ConfigureConnection`. Given memory is
-   configurable, threads is the obvious companion — both are per-session resource limits and a
-   multi-tenant host wants to bound both.
+1. ✅ **Closed in 1.14.0.** *No thread-count setter.* `DuckDBDbContextOptionsBuilder` exposes
+   `MemoryLimit(...)` but no `Threads(...)`, so Lakehold sets `SET threads` through
+   `ConfigureConnection`. Given memory is configurable, threads is the obvious companion — both are
+   per-session resource limits and a multi-tenant host wants to bound both.
 
-2. **`AlsoAttach` is local-metadata only.** The signature takes a `metadataPath`, so a PostgreSQL-
-   backed share cannot be attached alongside a primary catalog. Sensible as a first cut, but
-   multi-tenant deployments that use PostgreSQL metadata for HA are exactly the ones most likely to
-   want shares.
+2. ✅ **Closed in 1.14.0.** *`AlsoAttach` is local-metadata only.* The signature takes a
+   `metadataPath`, so a PostgreSQL-backed share cannot be attached alongside a primary catalog.
+   Sensible as a first cut, but multi-tenant deployments that use PostgreSQL metadata for HA are
+   exactly the ones most likely to want shares.
 
-3. **No affected-row count on the dynamic path.** `DuckDBDynamicQueryResult` exposes columns and
+3. ⛔ **Declined**, and resolved on this side — see
+   [item 4 of round four](#4-affected-row-counts--declined-correctly-and-the-workaround-has-a-trap).
+   *No affected-row count on the dynamic path.* `DuckDBDynamicQueryResult` exposes columns and
    rows but no `RecordsAffected`, so DML through the dynamic API reports "no rows returned" rather
    than "N rows affected". A nullable `RecordsAffected` would let an IDE report DML honestly.
 
-4. **`DuckLakeSnapshot.Changes` is typed as `IReadOnlyDictionary<string, IReadOnlyList<string>>`** —
-   a real improvement over the raw MAP, which serialised as a type name. Worth noting that
+4. ✅ **Closed in 1.14.0**, in a better form than asked for. *`DuckLakeSnapshot.Changes` is typed as
+   `IReadOnlyDictionary<string, IReadOnlyList<string>>`* — a real improvement over the raw MAP, which
+   serialised as a type name. Worth noting that
    `CommitMessage` is null for provider-initiated commits; `ducklake_set_commit_message` exists but
    has no facade method. A `WithCommitMessage(...)` on the write path would make the snapshot list
    self-documenting, which is most of the value of having one.
 
-5. **`UseDuckLake(metadataPath, ...)` rejects any non-file metadata path.** Passing a PostgreSQL
-   target throws `ArgumentException: DuckLake local metadata sources must be file paths`, pointing
-   at "a named-secret profile on a caller-initialized connection". That is the right design — it is
-   what keeps the credential out of the options object — but it is only discoverable by hitting the
-   exception, because `UseLocalMetadata` is the only metadata method whose name appears in
-   IntelliSense next to a path parameter.
+5. ✅ **Closed.** The 1.14.0 IntelliSense XML and packaged README both carry the
+   `METADATA_PARAMETERS` example below, so the round trip through DuckLake's own documentation is no
+   longer needed. *`UseDuckLake(metadataPath, ...)` rejects any non-file metadata path.* Passing a
+   PostgreSQL target throws `ArgumentException: DuckLake local metadata sources must be file paths`,
+   pointing at "a named-secret profile on a caller-initialized connection". That is the right
+   design — it is what keeps the credential out of the options object — but it is only discoverable
+   by hitting the exception, because `UseLocalMetadata` is the only metadata method whose name
+   appears in IntelliSense next to a path parameter.
 
    Two small changes would remove the trap entirely:
 
@@ -192,13 +218,13 @@ Minor, found while migrating. None are blocking.
 
 ---
 
-## Findings from the wire endpoint
+## Round three — findings from the wire endpoint
 
 Lakehold now serves the PostgreSQL frontend/backend protocol (`docs/POSTGRES-WIRE.md`), which put a
 different kind of load on the dynamic path than the HTTP API does: it needs a result's *shape* before
 its rows, a type description precise enough for a client to parse values, and statements arriving
 from a driver rather than from a person. All of the following was reproduced against 1.13.0 as
-shipped.
+shipped and still holds on 1.14.0.
 
 ### Correction — parameterised dynamic queries already exist
 
@@ -242,6 +268,8 @@ right now the only way to answer it is to build the experiment.
 
 ### Gap 9 — column metadata carries no precision, scale, or nullability
 
+**Status: open.** Unchanged in 1.14.0; the wire endpoint still sends `-1` type modifiers.
+
 `DuckDBDynamicColumn` exposes `Ordinal`, `Name`, `DuckDBTypeName`, and `ClrType`. For a wire protocol
 that is not quite enough: `RowDescription` declares a *type modifier* per column, which for
 `DECIMAL(18,4)` is how a client learns the precision and scale, and nullability decides whether a
@@ -258,6 +286,10 @@ has a second consumer already — mapping nested types onto anything other than 
 needs the children, and today they are only reachable by inspecting the CLR values that come back.
 
 ### Gap 10 — no way to learn a result's shape without executing it
+
+**Status: open, and worked around.** Deferring the `Describe` reply until `Execute` produces columns
+is sound and invisible to clients, so this is a design smell rather than a blocker — but the second
+half of it, `ParameterTypes`, becomes load-bearing the moment bound parameters are implemented.
 
 The protocol asks for a row description at `Describe`, which arrives *before* `Execute`. The shape of
 arbitrary SQL is only knowable by running it, and the two available workarounds are both bad:
@@ -283,6 +315,12 @@ Once they are supported, that message needs real types and there is nowhere to g
 
 ### Gap 11 — `RecordsAffected` (reinforcing observation 3 above)
 
+**Status: declined, and resolved on this side.** The provider was right to refuse it, the count is
+reachable through `ExecuteNonQuery`, and the wire endpoint now completes writes with a real tag. The
+reasoning is in
+[item 4 of round four](#4-affected-row-counts--declined-correctly-and-the-workaround-has-a-trap);
+what remains is an upstream DuckDB.NET ask, not a provider one.
+
 Already recorded from the HTTP path; the wire endpoint hits it independently and harder. Postgres
 completes a statement with a tag carrying the affected count — `INSERT 0 12`, `UPDATE 7`,
 `DELETE 3` — and clients parse it. With no affected-row count on the dynamic path, Lakehold reports
@@ -305,7 +343,8 @@ result shape. Lakehold's data plane is now a model-less `DbContext` over `UseDuc
 deleted.
 
 What remains true is the narrower claim: **EF Core's change tracker, model cache, and LINQ pipeline
-are not on the path for arbitrary SQL — and 1.13.0 lets you skip them without leaving the provider.**
+are not on the path for arbitrary SQL — and 1.13.0 onward lets you skip them without leaving the
+provider.**
 That is the right place for the boundary, and it is worth stating in the provider's own README,
 because "can I serve analytics queries through this?" is the first question an adopter in this space
 will ask. As of 1.13.0 the answer is yes.
@@ -324,3 +363,234 @@ streaming results with no ceiling straight to a socket. It needed no second stac
 raw `DuckDB.NET` — the three gaps above are refinements of an API that already carried the workload,
 not blockers against it. An answer of "yes, you can serve analytics traffic through this" now covers
 BI tools as well as browsers.
+
+---
+
+## Round four — provider response, and what changed here
+
+The provider replied to rounds one to three: it accepted the generic-API and discoverability items,
+added three APIs in 1.14.0, declined one, and corrected one of this document's claims. Everything
+below was measured against the shipped package rather than taken on either side's word, because half
+the point of the exercise is that assertions about a dependency should be reproducible.
+
+**1.14.0 shipped, and Lakehold is on it.** All three accepted APIs are present and all three are now
+in use, each verified against the shipped package before adoption:
+
+| API | Measured | Where it lands |
+|---|---|---|
+| `Threads(int)` | Configured session reports `threads = 3`, an unconfigured one `14` | Replaced the `SET threads` hack in `Duckling.StartAsync` |
+| `AlsoAttachNamedSecret(...)` | Cross-catalog read returns 3; a write is refused by the engine — *"Cannot execute statement of type INSERT on database "share" which is attached in read-only mode"* | `AttachedCatalog` gained a metadata kind; secret-backed shares now attach |
+| `SetCommitMessageAsync(...)` | Snapshot 4 carries `maintenance: flush`; called outside a transaction it throws, as documented | Flush and compaction commit labelled snapshots |
+
+One behaviour was worth confirming before adopting the third: a maintenance run that changes nothing
+adds no snapshot (`before=5 afterNoOpFlush=5 afterCompact=5`), so labelling does not turn a scheduled
+sweep into a stream of empty history entries.
+
+### 1. Read scaling — the gap was ours
+
+> The current 1.13 source documentation already explicitly described scaling reads with separate
+> read-only `DbContext`/connection instances.
+
+Accepted, and gap 8 is retracted above. The item was filed on the strength of what could not be seen
+in the assembly, which is not evidence of absence in a *documentation* item. The guidance is in the
+1.14.0 packaged README, so the failure mode is gone for the next adopter — but the process error was
+on this side.
+
+The permission that came with it is the useful part:
+
+> Lakehold may relax its read gate where each concurrent operation owns a separate context and
+> connection and the metadata backend supports concurrent readers.
+
+Measured, on local-file metadata — the backend least likely to tolerate it, and the one this
+deployment defaults to. Four read-only contexts, each with its own connection, scanning a 300,000-row
+table concurrently:
+
+```
+C: reader 0: ok (42858)    C: reader 2: ok (42857)
+C: reader 1: ok (42857)    C: reader 3: ok (42857)
+```
+
+And again with a separate read-write context committing throughout:
+
+```
+D: reader 0..2: ok         D: writer: 20 commits ok
+```
+
+No reader failed, no reader blocked, and the writer's commits did not disturb them. **Invariant 5's
+gate is therefore a Lakehold choice rather than a provider constraint.**
+
+One correction to that measurement, though, from the 1.14.0 README itself:
+
+> PostgreSQL metadata supports multiple local or remote clients, while a DuckDB metadata file is a
+> single-client profile.
+
+So the local-file run above worked *outside* the documented contract rather than because of it, and
+it should not be read as a licence to build on. A read pool must be gated on the metadata backend:
+PostgreSQL metadata is where the provider says concurrent clients are supported, and that is the
+configuration to relax first. The permission stands, but with the provider's boundary rather than
+this test's.
+
+Relaxing it is a per-tenant read pool: N read-only contexts per session, each with its own memory
+budget, plus read/write routing and eviction. That is a change with its own design and its own tests,
+so it is recorded here as the next step rather than smuggled into this pass. What has changed is that
+it is now known to be available, which it was not before.
+
+### 2. Threads — the caveat is right, and does not bind this topology
+
+> DuckDB treats this as database-instance configuration, not a genuinely independent per-session
+> tenant limit. A shared in-process database instance therefore cannot provide different thread
+> ceilings for different tenants.
+
+Correct as stated, and worth knowing. It reads as a warning that Lakehold's per-tenant thread limit
+may be an illusion, so it was worth measuring whether a Duckling is a shared instance. It is not —
+two contexts on `Data Source=:memory:`:
+
+```
+A: context B cannot see context A's table (separate instances)
+A: threads in A = 3, in B = 14
+```
+
+A distinct DuckDB instance per context, and `SET threads` confined to the one it was set on. A
+Duckling is one context and one connection, so its thread ceiling is real and a tenant cannot raise
+another's. The caveat binds a host that shares one instance across tenants; this one does not, and
+`Threads(...)` has replaced the `ConfigureConnection` call that used to set it — which also removes a
+latent hazard: the thread setting and a caller's object-store secret were competing for the same
+connection hook.
+
+### 3. Additional attachments — closed
+
+`AlsoAttachNamedSecret(...)` closes observation 2, and Lakehold now uses it: `AttachedCatalog`
+carries a metadata kind, exactly as the primary catalog does, so an extra catalog is a local path
+or a secret name. Rule 13 holds unchanged for shares — a credential still never reaches a catalog
+record, an options object, or a log.
+
+Worth recording that the read-only promise is the provider's, not a convention on this side. A write
+through a secret-backed share is refused by the engine, which is what makes invariant 9 testable
+rather than aspirational.
+
+### 4. Affected-row counts — declined, correctly, and the workaround has a trap
+
+> The provider cannot truthfully manufacture a value without parsing SQL, interpreting result-column
+> names, or executing the command twice. Those would all be incorrect provider behaviour.
+
+Agreed without reservation. A provider that sniffed verbs would be wrong for every consumer that
+disagreed with its guesses, and the honest `-1` is better than a plausible fabrication. The right fix
+is the named one — `RecordsAffected` on the DuckDB.NET reader — and there is a datapoint for it:
+**`ExecuteNonQuery` on the same connection already returns the count.**
+
+```
+B: INSERT 3 -> 3 affected    B: UPDATE 2 -> 2    B: DELETE 1 -> 1
+```
+
+So the number exists one layer below the reader that reports `-1`. That is a smaller upstream ask
+than it looked: not a new capability, a surfaced one.
+
+**The recommended workaround does not survive arbitrary SQL, though.** `ExecuteSqlRawAsync` parses
+its statement as a composite format string, so a brace is read as a placeholder:
+
+```
+INSERT INTO s VALUES (1, {'a': 1, 'b': 'x'}, MAP {'k': 7})
+→ FormatException: Input string was not in a correct format.
+  Failure to parse near offset 26. Expected an ASCII digit.
+```
+
+That is an ordinary DuckDB struct and map literal, and it never reaches the engine. Doubling the
+braces does work — but only while EF keeps formatting, and the day it stops, the doubled braces
+become part of the statement and corrupt it silently. So for a consumer serving *user-authored* SQL
+the guidance needs one more clause: run it as a non-query on a caller-owned command, not through
+`ExecuteSqlRawAsync`. Filed as gap 12 below.
+
+**What Lakehold did.** A statement whose leading keyword is `INSERT`, `UPDATE`, `DELETE`, or `MERGE`,
+and which carries no `RETURNING`, now executes as a non-query on the session's own connection and
+reports what it changed (`StatementVerb`, `Duckling.ExecuteNonQueryUnguardedAsync`). The wire
+endpoint completes with `INSERT 0 3` rather than `INSERT 0 0`, and the workbench says "3 rows
+affected" rather than "0 rows".
+
+The classification is deliberately kept where it belongs. Lakehold is a SQL front end and already
+owes its clients a command tag naming the verb, so the keyword is something it must know anyway; a
+provider owes nobody that. It is a reporting choice and not a security one — isolation is still which
+catalog is attached (invariant 4) — and a statement it fails to recognise, such as a CTE-led write,
+streams exactly as before and reports no count. Losing a number is recoverable; losing a result set
+is not, which is why `RETURNING` is excluded rather than assumed away.
+
+### 5. Commit messages — closed, and the ambient version was rightly refused
+
+> Commit metadata belongs to a specific active transaction and should not leak into later writes.
+
+That is a better answer than the request. `WithCommitMessage(...)` as ambient state would attach the
+last message set to whatever wrote next, which on a multi-tenant host with a shared maintenance path
+is a snapshot list that is worse than the empty one — confidently mislabelled rather than blank.
+Lakehold's use for `SetCommitMessageAsync(...)` is maintenance, and it is now wired up: flush and
+compaction run inside a transaction whose snapshot is labelled `lakehold maintenance: …`, so the
+history distinguishes what the platform did from what the tenant did. Backup is not labelled, because
+it exports rather than commits, and expiry and cleanup remove snapshots rather than adding one to
+name.
+
+The transaction requirement is the design working. `SetCommitMessageAsync` outside a transaction
+throws — *"requires an active transaction so the metadata is attached to one DuckLake snapshot"* —
+which is the failure the ambient version would have made silent.
+
+### 6. Metadata-path discoverability — closed
+
+The exception now names `UseNamedSecret(...)`, and the documented `TYPE ducklake` example carries the
+profile shape. The clarification that the shown fields describe that profile rather than every
+DuckLake secret is worth keeping in the doc, since the example is the thing an adopter will copy.
+
+### Gap 12 — raw SQL is parsed as a format string
+
+**Status: open.** 1.14.0 adds no non-query on the dynamic path, which is the shape a fix would take.
+
+Not a DuckLake or DuckDB issue and not, strictly, the provider's own behaviour — it is EF's raw-SQL
+path — but it lands on any provider consumer that forwards user-authored SQL, and it is invisible
+until a struct literal shows up in production. The measurement is in item 4 above.
+
+Two things would defuse it:
+
+- **Say so where the workaround is recommended.** Any documentation that points a consumer at
+  `ExecuteSqlRawAsync` for DML counts should say the statement is format-parsed and is therefore
+  unsuitable for SQL the consumer did not author.
+- **Offer a non-query on the dynamic path.** `SqlQueryDynamicRawAsync` is documented as the place
+  arbitrary SQL goes, and it treats the text as SQL rather than as a format string. An
+  `ExecuteDynamicRawAsync` returning the engine's own affected count would put writes on the same
+  footing as reads, use `ExecuteNonQuery` under the hood, and require no verb sniffing anywhere —
+  the caller chooses the method, which is exactly the choice a provider is entitled to make the
+  caller make.
+
+### Where this leaves the dependency
+
+Nothing in this round changed the architectural conclusion, and one thing strengthened it. The two
+capabilities that would have justified a second stack — a truthful write count and concurrent reads —
+turned out to be reachable through the provider's own context and connection. The count needed one
+method the provider deliberately does not wrap, and the reads need only separate contexts, which is
+what its documentation said all along.
+
+---
+
+## What is still open
+
+Three provider-side items, none blocking, in the order they would pay off:
+
+1. **Gap 12 — a non-query on the dynamic path.** The smallest of the three and the one with a
+   consumer waiting: it would let Lakehold delete its verb classification entirely, because the
+   caller would choose the method instead of the code guessing from a keyword.
+2. **Gap 9 — structured column metadata.** Precision, scale, nullability, and child types. Without
+   it a wire protocol either lies about `DECIMAL(18,4)` or string-parses a type name, and nested
+   types stay renderable but not mappable.
+3. **Gap 10 — prepare without executing.** Its `ParameterTypes` half turns from a design smell into
+   a blocker the moment bound parameters land in the wire endpoint, because
+   `ParameterDescription` then needs real types and there is nowhere to get them.
+
+One upstream, in DuckDB.NET rather than the provider: **`RecordsAffected` on the data reader.** The
+number already exists — `ExecuteNonQuery` returns it — so this is surfacing a value, not inventing
+one, and it would close gap 11 properly rather than by workaround.
+
+And two on this side, recorded here because both were unblocked by answers in round four rather than
+by anything Lakehold discovered on its own:
+
+- **A per-tenant read pool**, on PostgreSQL metadata first. Reads scale with a context and connection
+  each, but the provider documents a DuckDB metadata file as single-client, so the local-file
+  measurement above is not the licence it looks like. Invariant 5's session gate is now a Lakehold
+  choice, and replacing it is a design with its own tests rather than a flag to flip.
+- **Bound parameters in the wire endpoint.** The parameterised dynamic overload has been there all
+  along; refusing `Bind` values is this side's gap, and it is what gap 10's `ParameterTypes` half is
+  waiting on.

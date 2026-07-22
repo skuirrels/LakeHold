@@ -59,8 +59,17 @@ export class WorkbenchComponent {
       return null;
     }
 
-    const rows = `${data.rows.length} row${data.rows.length === 1 ? '' : 's'}`;
     const time = `${data.elapsedMilliseconds.toFixed(1)} ms`;
+
+    // A statement that changed rows reports what it changed. Reporting "0 rows" for a successful
+    // insert is what the affected-row count exists to stop, so it takes precedence over the
+    // returned-row count, which is zero by definition here.
+    if (data.rowsAffected !== null && data.rowsAffected !== undefined) {
+      const affected = `${data.rowsAffected} row${data.rowsAffected === 1 ? '' : 's'} affected`;
+      return `${affected} · ${time}`;
+    }
+
+    const rows = `${data.rows.length} row${data.rows.length === 1 ? '' : 's'}`;
     return data.truncated ? `${rows} (truncated) · ${time}` : `${rows} · ${time}`;
   });
 

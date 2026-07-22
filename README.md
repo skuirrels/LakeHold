@@ -109,7 +109,9 @@ Worth knowing:
 - **One gap to know about:** there is no API for creating tenants or catalogs yet, so an empty
   production deployment has no supported way to add the first one. Until that lands, seed a catalog
   in a development stack and carry the state volume across, or enable `Lakehold__SeedDemoData` once
-  and edit from there.
+  and edit from there. The endpoints are specified in
+  [`docs/AUTHENTICATION.md`](docs/AUTHENTICATION.md) — provisioning and authentication have to land
+  together, because creating a tenant is the one operation with no tenant to be scoped to.
 
 ### Running the app on the host instead
 
@@ -181,6 +183,10 @@ One caveat worth knowing: **DuckLake inlines small commits into the metadata cat
 writing Parquet immediately.** A two-row insert produces no data files. Run the **Flush**
 maintenance operation (or `ducklake_flush_inlined_data`) to force them out. Lakehold surfaces this
 as a first-class control precisely because the guarantee depends on it.
+
+Flush and compaction commit their snapshots with a `lakehold maintenance: …` message, so the snapshot
+history distinguishes what the platform did from what you did. A run that changes nothing commits
+nothing, so scheduled maintenance leaves no empty entries behind.
 
 ---
 
@@ -363,6 +369,9 @@ Worth knowing:
 - **Every statement goes through the same seam as an HTTP query**, so it resolves the same tenant
   check, queues on the same session gate, and lands in the same query history — including the
   introspection statements a BI tool sends on its own initiative.
+- **Writes complete with a real count.** `INSERT 0 12`, `UPDATE 7`, `DELETE 3` — the number a driver
+  hands back from `ExecuteNonQuery`. The provider's dynamic path cannot report one, so counted DML
+  runs as a non-query; see [`docs/POSTGRES-WIRE.md`](docs/POSTGRES-WIRE.md).
 - **No session state survives between statements.** Temporary tables and `SET` values do not persist,
   because each statement resolves a fresh session. Invisible to BI traffic, not to `psql` users.
 - **Bound parameters are refused**, not guessed at, and `BEGIN`/`COMMIT` are acknowledged rather than

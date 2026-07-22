@@ -34,6 +34,12 @@ export interface QueryResponse {
   rows: Row[];
   truncated: boolean;
   elapsedMilliseconds: number;
+  /**
+   * Rows changed by an `INSERT`, `UPDATE`, `DELETE`, or `MERGE`; null for anything else. Null and
+   * zero differ: null is "this statement does not report a count", zero is a DML statement that
+   * matched nothing.
+   */
+  rowsAffected: number | null;
 }
 
 export interface SchemaColumn {

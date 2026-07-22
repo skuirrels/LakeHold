@@ -189,6 +189,71 @@ public sealed class PgWireEndpointTests : IAsyncLifetime
     }
 
     /// <summary>
+    ///     A client learns what a write did from the command tag — <c>INSERT 0 12</c>, <c>UPDATE 7</c>
+    ///     — and Npgsql parses it into the value <c>ExecuteNonQuery</c> returns. The endpoint used to
+    ///     complete every write as <c>INSERT 0 0</c>, so a driver was told a successful insert had
+    ///     changed nothing.
+    /// </summary>
+    [Fact]
+    public async Task Writes_complete_with_the_count_a_driver_parses()
+    {
+        await using var connection = new NpgsqlConnection(ConnectionString);
+        await connection.OpenAsync();
+
+        await using (var insert = new NpgsqlCommand(
+            "INSERT INTO events VALUES (4, 'delta', 4.5, true), (5, 'epsilon', 5.5, false)", connection))
+        {
+            Assert.Equal(2, await insert.ExecuteNonQueryAsync());
+        }
+
+        await using (var update = new NpgsqlCommand("UPDATE events SET name = 'delta2' WHERE id = 4", connection))
+        {
+            Assert.Equal(1, await update.ExecuteNonQueryAsync());
+        }
+
+        await using (var delete = new NpgsqlCommand("DELETE FROM events WHERE id = 5", connection))
+        {
+            Assert.Equal(1, await delete.ExecuteNonQueryAsync());
+        }
+
+        // A write that matches nothing is a truthful zero, not the old indistinguishable one.
+        await using (var missed = new NpgsqlCommand("DELETE FROM events WHERE id = 999", connection))
+        {
+            Assert.Equal(0, await missed.ExecuteNonQueryAsync());
+        }
+
+        await using var count = new NpgsqlCommand("SELECT count(*) FROM events", connection);
+        Assert.Equal(4L, Convert.ToInt64(await count.ExecuteScalarAsync(), System.Globalization.CultureInfo.InvariantCulture));
+    }
+
+    /// <summary>
+    ///     A DuckDB struct or map literal contains braces, which EF Core's raw-SQL path reads as
+    ///     format placeholders. Counting a write must not put user SQL through that formatting, and a
+    ///     BI tool sending a struct literal is the case that would have found it in production.
+    /// </summary>
+    [Fact]
+    public async Task A_write_carrying_braces_reaches_the_engine_intact()
+    {
+        await using var connection = new NpgsqlConnection(ConnectionString);
+        await connection.OpenAsync();
+
+        await using (var create = new NpgsqlCommand(
+            "CREATE TABLE payloads (id BIGINT, body STRUCT(a INTEGER, b VARCHAR))", connection))
+        {
+            await create.ExecuteNonQueryAsync();
+        }
+
+        await using (var insert = new NpgsqlCommand(
+            "INSERT INTO payloads VALUES (1, {'a': 1, 'b': 'x'})", connection))
+        {
+            Assert.Equal(1, await insert.ExecuteNonQueryAsync());
+        }
+
+        await using var read = new NpgsqlCommand("SELECT body.a FROM payloads", connection);
+        Assert.Equal(1, Convert.ToInt32(await read.ExecuteScalarAsync(), System.Globalization.CultureInfo.InvariantCulture));
+    }
+
+    /// <summary>
     ///     The row ceiling that bounds the JSON path must not bound this one: a BI tool given a
     ///     silent prefix of a table reports a confidently wrong number.
     /// </summary>

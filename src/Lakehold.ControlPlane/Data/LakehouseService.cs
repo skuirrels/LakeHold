@@ -71,6 +71,12 @@ public sealed class LakehouseService(
             RecordQuery(activity, startedAt, LakeholdTelemetry.OutcomeSuccess);
             activity?.SetTag(LakeholdTelemetry.RowsKey, result.Rows.Count);
             activity?.SetTag(LakeholdTelemetry.TruncatedKey, result.Truncated);
+
+            if (result.RowsAffected is { } affected)
+            {
+                activity?.SetTag(LakeholdTelemetry.RowsAffectedKey, affected);
+            }
+
             LakeholdTelemetry.QueryRows.Record(result.Rows.Count);
 
             if (result.Truncated)
