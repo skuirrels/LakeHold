@@ -346,6 +346,28 @@ internal sealed class PgWireConnection(
             await using var scope = scopeFactory.CreateAsyncScope();
             var lakehouse = scope.ServiceProvider.GetRequiredService<LakehouseService>();
 
+            // A statement whose outcome is a count, not rows. Postgres completes it with that count
+            // in the tag — `INSERT 0 12` — and clients parse it, so it takes the materialising path,
+            // which reports the count the streaming path cannot obtain.
+            if (StatementVerb.ReportsAffectedRows(trimmed))
+            {
+                var executed = await lakehouse
+                    .ExecuteAsync(_tenant, _catalog, trimmed, cancellationToken)
+                    .ConfigureAwait(false);
+
+                if (_describePending)
+                {
+                    _writer.Reset();
+                    _writer.Begin(PgBackend.NoData).End();
+                    await FlushAsync(cancellationToken).ConfigureAwait(false);
+                    _describePending = false;
+                }
+
+                await WriteCommandCompleteAsync(trimmed, 0, executed.RowsAffected ?? 0, cancellationToken)
+                    .ConfigureAwait(false);
+                return true;
+            }
+
             var columnCount = 0;
             var rows = await lakehouse.StreamAsync(
                 _tenant,
@@ -508,7 +530,7 @@ internal sealed class PgWireConnection(
         CancellationToken cancellationToken)
     {
         var count = rows.ToString(CultureInfo.InvariantCulture);
-        var verb = FirstWord(sql);
+        var verb = StatementVerb.Of(sql);
 
         // A statement returning columns completes as SELECT n whatever its verb — DuckDB answers
         // DESCRIBE, SHOW, and CALL with result sets, and a client that asked for rows and is told
@@ -520,6 +542,7 @@ internal sealed class PgWireConnection(
                 "INSERT" => $"INSERT 0 {count}",
                 "UPDATE" => $"UPDATE {count}",
                 "DELETE" => $"DELETE {count}",
+                "MERGE" => $"MERGE {count}",
                 "COPY" => $"COPY {count}",
                 "" => "SELECT 0",
                 _ => verb,
@@ -530,14 +553,6 @@ internal sealed class PgWireConnection(
         // tail happened to fit under the buffer.
         _writer.Begin(PgBackend.CommandComplete).String(tag).End();
         await FlushAsync(cancellationToken).ConfigureAwait(false);
-    }
-
-    private static string FirstWord(string sql)
-    {
-        var span = sql.AsSpan().TrimStart();
-        var end = span.IndexOfAny(' ', '\t', '\n');
-        var word = end < 0 ? span : span[..end];
-        return word.ToString().ToUpperInvariant();
     }
 
     /// <summary>Reads the startup packet and authenticates, or closes the connection.</summary>

@@ -99,10 +99,23 @@ New control-plane entity, alongside `Tenant` and `LakeCatalog` in
 `src/Lakehold.ControlPlane/Model/Entities.cs`:
 
 ```csharp
+public enum TokenScope
+{
+    /// <summary>Acts as one tenant. The overwhelming majority of tokens.</summary>
+    Tenant,
+
+    /// <summary>Provisions tenants and catalogs. Cannot itself query data — see below.</summary>
+    Instance,
+}
+
 public sealed class ApiToken
 {
     public int Id { get; set; }
-    public int TenantId { get; set; }
+
+    public TokenScope Scope { get; set; }
+
+    /// <summary>Null for an instance-scoped token, which belongs to no tenant.</summary>
+    public int? TenantId { get; set; }
 
     /// <summary>Human-facing label. Not a secret and not an identifier.</summary>
     public required string Name { get; set; }
@@ -119,7 +132,7 @@ public sealed class ApiToken
     public DateTimeOffset? RevokedUtc { get; set; }
     public DateTimeOffset? LastUsedUtc { get; set; }
 
-    public Tenant Tenant { get; set; } = null!;
+    public Tenant? Tenant { get; set; }
 }
 ```
 
@@ -130,10 +143,13 @@ assuming it.
 ### Token format
 
 ```
-lkh_<tenant-slug>_<43 chars base64url>      // 32 random bytes
+lkh_<tenant-slug>_<43 chars base64url>      // tenant-scoped; 32 random bytes
+lkh_admin_<43 chars base64url>              // instance-scoped
 ```
 
-- **The prefix is `lkh_<tenant>_`** and is stored in the clear. It makes the row findable with an
+- **The prefix is `lkh_<tenant>_`, or `lkh_admin_`,** and is stored in the clear. A tenant slug of
+  `admin` must therefore be reserved, or a tenant could be created whose tokens are indistinguishable
+  from instance-scoped ones at a glance. Reject it at tenant creation. It makes the row findable with an
   indexed lookup instead of hashing against every row, and it makes a leaked token identifiable in a
   log or a paste without being usable.
 - **The secret is 32 bytes from `RandomNumberGenerator`.**
@@ -163,15 +179,78 @@ One place, so there is one thing to get right:
 4. `LastUsedUtc` is updated opportunistically, not on the request path. A write per request would put
    the control plane in front of every query for a field nobody reads in real time.
 
+### Provisioning: the one thing that cannot be tenant-scoped
+
+Creating a tenant is the operation with no tenant to be scoped to, and it is not hypothetical: with
+demo seeding correctly disabled in production, a fresh deployment starts empty and there is currently
+**no API for creating a tenant or a catalog at all**. Authentication and provisioning have to be
+designed together, because the first token a deployment issues is the one that has nowhere to belong.
+
+Hence `TokenScope.Instance`. The important decision is what that scope may *do*:
+
+> **An instance-scoped token provisions. It does not query.**
+
+It can create, list, and delete tenants and catalogs, and mint tenant-scoped tokens. It cannot
+execute a statement, read a catalog, run maintenance, or eject. Those all require a tenant-scoped
+token, so the property that makes the whole design work — *the credential names the tenant whose data
+is reachable* — holds for every path that touches data.
+
+The obvious objection is that an instance token can mint itself a tenant token and read anything.
+True, and it is the right trade rather than a hole:
+
+- **Escalation leaves a record.** Minting a token is an auditable, revocable event with a name and a
+  timestamp. Silent data access through an admin credential is neither.
+- **The blast radius of a leak differs.** A stolen instance token is a provisioning problem someone
+  can see in the token list; a stolen all-powerful token is an undetectable data breach.
+- **It keeps one rule instead of two.** Every data path checks tenant scope. There is no "unless the
+  caller is an admin" branch in `LakehouseService`, which is exactly the kind of exception that is
+  correct when written and wrong two refactors later.
+
+The cost is one extra step for an operator doing something by hand, which is the correct place to
+put the friction.
+
+### Provisioning endpoints
+
+These do not exist yet, and this spec is where they get their shape:
+
+```
+POST   /api/tenants                        → instance scope; creates a tenant
+GET    /api/tenants                        → instance scope; tenant scope sees only its own
+DELETE /api/tenants/{tenant}               → instance scope
+POST   /api/tenants/{tenant}/catalogs      → instance scope
+DELETE /api/tenants/{tenant}/catalogs/{c}  → instance scope
+```
+
+`GET /api/tenants` is the one that already exists and is currently unauthenticated — it lists every
+tenant on the node. Under this model a tenant-scoped token sees exactly one entry and an
+instance-scoped token sees all of them.
+
+Deleting a tenant or catalog needs the same care as destructive maintenance (invariant 10): it must
+not remove data as a side effect of removing a record. Deleting a catalog record should detach it and
+leave the DuckLake metadata and Parquet in place, with removal of the data itself a separate,
+explicit operation. A `DELETE` that silently destroys a lakehouse is not a control-plane operation.
+
 ### Bootstrap
 
 The chicken-and-egg problem, and it must be answered before the first line of code: if the API needs
 a token, where does the first one come from?
 
-- On first start with **no tokens in the database**, the API mints one for the demo tenant, writes it
-  to the log **once**, and never again. Same shape as the demo seeding that already exists.
+- On first start with **no tokens in the database**, the API mints an **instance-scoped** token,
+  writes it to the log **once**, and never again. It has to be instance-scoped: on a production node
+  there is no tenant for it to belong to, and minting the first tenant is the job it exists for.
 - `Lakehold__BootstrapToken` in the environment overrides it, for deployments that provision
   credentials externally and cannot scrape a log.
+- The bootstrap path runs only when the token table is empty, so it cannot be used to mint a second
+  admin credential on a running deployment.
+
+This is what closes the gap the production image exposed. A fresh deployment becomes:
+
+```bash
+docker compose -f compose.production.yaml up -d          # read the bootstrap token from the log
+curl -X POST …/api/tenants        -H 'Authorization: Bearer lkh_admin_…'   -d '{"slug":"acme"}'
+curl -X POST …/api/tenants/acme/catalogs -H 'Authorization: Bearer lkh_admin_…' -d '{"name":"analytics"}'
+curl -X POST …/api/tenants/acme/tokens   -H 'Authorization: Bearer lkh_admin_…' -d '{"name":"bi"}'
+```
 
 ### Endpoints
 
@@ -188,6 +267,9 @@ DELETE /api/tenants/{tenant}/tokens/{id}   → revokes
 - A revoked or expired token is refused.
 - The token never appears in a response body after creation, in a log, or in `QueryRun`.
 - The workbench still works, which means the UI must send the token — see "Open questions".
+- **An instance-scoped token cannot execute a query**, and the refusal comes from the same check
+  every data path uses rather than from a special case.
+- A tenant named `admin` cannot be created.
 
 ---
 
@@ -277,7 +359,8 @@ To settle before or during the step they block, not before starting:
    Blocks phase 1's acceptance criterion about the UI still working.
 2. **Do tokens scope to a catalog, or only to a tenant?** Tenant-only is simpler and matches the
    isolation boundary. Catalog scoping is a real ask for sharing, and is easier to add before anyone
-   depends on the shape.
+   depends on the shape. Note that `TokenScope` now exists, so a third value is cheap to add — but
+   scope and *subject* are different axes, and collapsing them into one enum is the mistake to avoid.
 3. **Per-principal quotas?** ClickHouse treats them as access control. `MaxRowsPerResult` and the
    statement timeout are per-node today. Not phase 1, but the entity should not make it awkward.
 4. **Rate limiting on authentication attempts.** The wire endpoint counts failures
@@ -292,6 +375,7 @@ Each step ships on its own and leaves the product working:
 | 1 | `ApiToken` entity, additive-schema test, token generation and hashing | Unit tests on format and verification |
 | 2 | Middleware, `ILakeholdPrincipal`, `LakehouseService` takes the principal | Cross-tenant refusal test |
 | 3 | Token management endpoints and bootstrap | Token shown once; revocation effective |
+| 3b | Provisioning endpoints for tenants and catalogs | A fresh deployment can be set up with only the bootstrap token |
 | 4 | Workbench sends credentials | Question 1 answered |
 | 5 | Read-only attachment, pool key includes mode | `INSERT` refused by the engine |
 | 6 | `QueryRun.TokenId` and history surfacing | Audit shows the principal |
@@ -299,4 +383,6 @@ Each step ships on its own and leaves the product working:
 | 8 | OIDC | Workbench login against a real IdP |
 | 9 | Roles | Maintenance restricted to owners |
 
-Steps 1–3 are the ones that change the product from open to closed. Everything after is depth.
+Steps 1–3 are the ones that change the product from open to closed. Step 3b is what makes a
+production deployment usable at all — today it starts empty with no supported way to add anything.
+Everything after is depth.

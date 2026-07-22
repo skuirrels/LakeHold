@@ -109,7 +109,8 @@ public static class LakehouseEndpoints
                 [.. result.Columns.Select(c => new ColumnDto(c.Name, c.DataType, c.ClrType))],
                 result.Rows,
                 result.Truncated,
-                result.Elapsed.TotalMilliseconds));
+                result.Elapsed.TotalMilliseconds,
+                result.RowsAffected));
         }
         catch (CatalogNotFoundException ex)
         {
