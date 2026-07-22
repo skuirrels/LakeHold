@@ -111,7 +111,7 @@ export class ComparisonComponent {
     },
     {
       dimension: 'BI tools (Power BI, Tableau)',
-      lakehold: { text: 'Postgres wire protocol, no connector needed', tone: 'good' },
+      lakehold: { text: 'Postgres wire protocol; Power BI blocked on type loading', tone: 'weak' },
       motherduck: { text: 'Postgres endpoint; connector for older tools', tone: 'good' },
       clickhouse: { text: 'Native connectors and JDBC/ODBC', tone: 'good' },
       cloud: { text: 'First-class connectors everywhere', tone: 'good' },

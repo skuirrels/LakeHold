@@ -134,7 +134,7 @@ import { RouterLink } from '@angular/router';
               <li>Procurement wants a provable exit, not a clause promising one.</li>
               <li>Your stack is .NET and you want EF Core and analytics on one model.</li>
               <li>You want change data capture without running Debezium and Kafka.</li>
-              <li>You want Power BI or Tableau pointed at it with no connector to install.</li>
+              <li>You want SQL clients on the Postgres wire protocol, not a connector to install.</li>
               <li>You would rather pay for a VM than per-second compute.</li>
               <li>You need explicit control over compaction, retention, and snapshots.</li>
             </ul>
@@ -207,10 +207,10 @@ export class LandingComponent {
     },
     {
       tag: 'Compatibility',
-      title: 'Power BI and Tableau connect, with no connector to install',
-      body: 'Lakehold speaks the PostgreSQL wire protocol, so every BI tool that already speaks Postgres connects to a catalog directly — no .mez file, driver, or plugin. The user is the tenant and the database is the catalog, and every statement resolves through the same tenant check, session gate, and query history as an HTTP query, so BI traffic is visible in the history for the first time. The 10,000-row ceiling does not apply: rows are encoded straight to the socket rather than materialised, so a result streams instead of being silently truncated.',
+      title: 'A PostgreSQL wire endpoint, so SQL clients connect directly',
+      body: 'Lakehold speaks the PostgreSQL wire protocol, so a client that already speaks Postgres connects to a catalog with no .mez file, driver, or plugin. The user is the tenant and the database is the catalog, and every statement resolves through the same tenant check, session gate, and query history as an HTTP query, so client traffic is visible in the history for the first time. The 10,000-row ceiling does not apply: rows are encoded straight to the socket rather than materialised, so a result streams instead of being silently truncated.',
       caveat:
-        'Off by default, and enabling it without a password refuses to start. Authentication is one shared secret and there is no TLS yet, so terminate TLS in front of the port or keep it on a trusted network. Power BI itself has not been driven against it — the tests drive Npgsql, which its connector is built on.',
+        'psql, DBeaver, and Npgsql work today. Power BI does not yet: it reads the server’s type catalogue when connecting, and DuckDB leaves pg_type.typreceive empty, so the driver’s own join comes back with nothing. That is fixable in our compatibility shim rather than in DuckDB, and it is measured rather than guessed — see docs/POSTGRES-WIRE.md. Off by default, one shared password, no TLS yet.',
     },
     {
       tag: 'Integration',
