@@ -38,7 +38,7 @@ services:
 
       # Off by default in Production; set explicitly here so the intent is visible rather than
       # inherited. A production node must not invent a demo tenant holding 250,000 rows.
-      Lakehold__SeedDemoData: "false"
+      Lakehold__SeedDemoData: ${LAKEHOLD_SEED_DEMO_DATA:-false}
 
       # Telemetry goes wherever the deployment collects it. Unset means no exporter.
       OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
