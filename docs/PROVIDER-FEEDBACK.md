@@ -8,6 +8,11 @@ reproduced against the shipped NuGet package, not inferred from documentation.
 it was a bad recommendation.** Lakehold's data plane has moved off raw `DuckDB.NET` and onto the
 provider as a result.
 
+A later round of findings, from building the PostgreSQL wire endpoint against 1.13.0, is in
+[Findings from the wire endpoint](#findings-from-the-wire-endpoint). It includes one **correction to
+this document's own assumptions** and one capability that turns out to be better than it was given
+credit for.
+
 ---
 
 ## Verification against 1.13.0
@@ -187,6 +192,105 @@ Minor, found while migrating. None are blocking.
 
 ---
 
+## Findings from the wire endpoint
+
+Lakehold now serves the PostgreSQL frontend/backend protocol (`docs/POSTGRES-WIRE.md`), which put a
+different kind of load on the dynamic path than the HTTP API does: it needs a result's *shape* before
+its rows, a type description precise enough for a client to parse values, and statements arriving
+from a driver rather than from a person. All of the following was reproduced against 1.13.0 as
+shipped.
+
+### Correction — parameterised dynamic queries already exist
+
+Worth stating first because it corrects an assumption made while building, not the provider. The
+wire endpoint currently refuses bound parameters, and the initial reasoning was that the dynamic path
+had no way to carry them. It does:
+
+```csharp
+// Both overloads are public on DuckDBDatabaseFacadeExtensions:
+SqlQueryDynamicRawAsync(DatabaseFacade, string, CancellationToken)
+SqlQueryDynamicRawAsync(DatabaseFacade, string, IReadOnlyList<object>, CancellationToken)
+```
+
+A positional `IReadOnlyList<object>` is exactly the shape the protocol's `Bind` message supplies —
+parameters arrive as an ordered list bound to `$1, $2, …` — so this maps across with no impedance.
+Refusing parameters is a Lakehold gap and the next thing to implement there, not a provider one.
+
+The only feedback that remains is discoverability: the parameterised overload is the one a consumer
+serving arbitrary SQL needs most, and nothing in the type name or the surrounding documentation
+suggests it exists. Naming it in whatever documents `SqlQueryDynamicRawAsync` would have saved a
+design decision from being made around a limitation that was not there.
+
+### Verified strength — cancellation interrupts the engine, it does not just abandon the await
+
+This mattered enough to measure rather than assume, because the failure mode is invisible until
+production: if a token only abandoned the `await`, a runaway BI query would keep a DuckDB thread and
+its session gate for as long as it liked, and every other statement for that tenant would queue
+behind a query nobody was waiting for any more.
+
+Measured against a scan that would otherwise run for minutes, with a two-second token:
+
+```
+OUTCOME=cancelled  ELAPSED_MS=2006
+REUSABLE=yes       ROWS=1
+```
+
+The scan stops when the token fires, not when it finishes, and the session is immediately usable
+afterwards. That is the behaviour a multi-tenant host needs and it is worth documenting explicitly —
+"is cancellation real?" is a question every adopter serving user-submitted SQL has to answer, and
+right now the only way to answer it is to build the experiment.
+
+### Gap 9 — column metadata carries no precision, scale, or nullability
+
+`DuckDBDynamicColumn` exposes `Ordinal`, `Name`, `DuckDBTypeName`, and `ClrType`. For a wire protocol
+that is not quite enough: `RowDescription` declares a *type modifier* per column, which for
+`DECIMAL(18,4)` is how a client learns the precision and scale, and nullability decides whether a
+client can treat a column as a non-nullable value type.
+
+Lakehold sends `-1` for the type modifier, so that information is lost between DuckDB and the BI
+tool. The only alternative available is to string-parse `"DECIMAL(18,4)"` out of `DuckDBTypeName` —
+which is precisely the regex-over-type-names pattern that gap 1's closure was credited with
+eliminating from the result grid. Reintroducing it one layer down would be a poor trade.
+
+A structured descriptor alongside the existing string would close it: logical type id, precision and
+scale where they apply, nullability, and child types for `LIST`, `STRUCT`, and `MAP`. That last part
+has a second consumer already — mapping nested types onto anything other than "render it as text"
+needs the children, and today they are only reachable by inspecting the CLR values that come back.
+
+### Gap 10 — no way to learn a result's shape without executing it
+
+The protocol asks for a row description at `Describe`, which arrives *before* `Execute`. The shape of
+arbitrary SQL is only knowable by running it, and the two available workarounds are both bad:
+answering "no data" makes clients reject the rows that follow, and planning the statement a second
+time to discover its shape executes every query twice.
+
+Lakehold's resolution was to defer the `Describe` reply until `Execute` produces columns, which is
+sound but is a workaround for a missing capability rather than a design. DuckDB's own C API supports
+preparing a statement and reading its result schema without executing it, so the capability exists
+underneath:
+
+```csharp
+// Sketch of what would close it:
+await using var prepared = await context.Database.PrepareDynamicAsync(sql, ct);
+IReadOnlyList<DuckDBDynamicColumn> columns = prepared.Columns;      // no rows scanned
+IReadOnlyList<Type> parameters = prepared.ParameterTypes;           // for ParameterDescription
+await using var result = await prepared.ExecuteAsync(values, ct);
+```
+
+The `ParameterTypes` half matters as much as the columns: the protocol has a `ParameterDescription`
+message that is currently answered with "none", which is honest only because parameters are refused.
+Once they are supported, that message needs real types and there is nowhere to get them.
+
+### Gap 11 — `RecordsAffected` (reinforcing observation 3 above)
+
+Already recorded from the HTTP path; the wire endpoint hits it independently and harder. Postgres
+completes a statement with a tag carrying the affected count — `INSERT 0 12`, `UPDATE 7`,
+`DELETE 3` — and clients parse it. With no affected-row count on the dynamic path, Lakehold reports
+`INSERT 0 0` for a successful insert of any size.
+
+Two unrelated consumers now want the same nullable `RecordsAffected`, which is usually the signal
+that it belongs in the API rather than in each caller.
+
 ## The architectural finding, revised
 
 The original conclusion was:
@@ -213,3 +317,10 @@ The remaining split in Lakehold is now about *models*, not dependencies:
 
 One dependency, one type-mapping implementation, two usage patterns. That is the outcome worth
 having.
+
+The wire endpoint is the strongest evidence for that conclusion so far, because it is a consumer the
+dynamic path was never designed for: a database protocol, serving a driver rather than a person,
+streaming results with no ceiling straight to a socket. It needed no second stack and no return to
+raw `DuckDB.NET` — the three gaps above are refinements of an API that already carried the workload,
+not blockers against it. An answer of "yes, you can serve analytics traffic through this" now covers
+BI tools as well as browsers.
