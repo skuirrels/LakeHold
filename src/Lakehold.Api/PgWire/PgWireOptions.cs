@@ -46,6 +46,49 @@ public sealed class PgWireOptions
     /// </remarks>
     public int MaxRows { get; set; }
 
+    /// <summary>
+    ///     Path to the TLS certificate served to clients, as PKCS#12 (<c>.pfx</c>) or PEM. Unset
+    ///     leaves the endpoint plaintext.
+    /// </summary>
+    /// <remarks>
+    ///     Without this the shared password crosses the network protected only by MD5's per-
+    ///     connection salt, which stops replay but not an observer who can see every byte of every
+    ///     result set. A database port carrying tenant data off a trusted network needs TLS, and
+    ///     terminating it in front of the process is only equivalent when the hop behind the
+    ///     terminator is itself trusted.
+    /// </remarks>
+    public string TlsCertificatePath { get; set; } = string.Empty;
+
+    /// <summary>Password protecting <see cref="TlsCertificatePath"/>. A secret: it belongs in <c>.env</c>.</summary>
+    public string TlsCertificatePassword { get; set; } = string.Empty;
+
+    /// <summary>
+    ///     Private key file, when <see cref="TlsCertificatePath"/> is a PEM certificate rather than a
+    ///     PKCS#12 bundle. Ignored for <c>.pfx</c> and <c>.p12</c>, which already carry the key.
+    /// </summary>
+    public string TlsCertificateKeyPath { get; set; } = string.Empty;
+
+    /// <summary>
+    ///     Refuses any client that will not negotiate TLS. Off by default because it breaks
+    ///     plaintext clients; on, it is the setting that makes the guarantee real rather than
+    ///     available — a client that simply declines otherwise gets a plaintext session.
+    /// </summary>
+    public bool RequireTls { get; set; }
+
+    /// <summary>
+    ///     Per-tenant passwords, keyed by tenant slug. When any are configured they are
+    ///     authoritative and <see cref="Password"/> is ignored.
+    /// </summary>
+    /// <remarks>
+    ///     <see cref="Password"/> authenticates the connection but not the tenant it named: any
+    ///     holder of it can present themselves as any tenant, so on a multi-tenant node one
+    ///     credential is every credential. These bind a secret to a single tenant, which is what
+    ///     makes the isolation boundary meaningful from outside the process rather than only inside
+    ///     it. Values are secrets and belong in <c>.env</c> as
+    ///     <c>Lakehold__PgWire__TenantPasswords__demo</c>.
+    /// </remarks>
+    public Dictionary<string, string> TenantPasswords { get; } = new(StringComparer.OrdinalIgnoreCase);
+
     /// <summary>Ceiling on concurrent client connections.</summary>
     public int MaxConnections { get; set; } = 64;
 

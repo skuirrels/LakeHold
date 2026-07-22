@@ -31,6 +31,21 @@ internal static partial class PgWireLog
     public static partial void ConnectionFaulted(ILogger logger, Exception exception);
 
     [LoggerMessage(Level = LogLevel.Error,
+        Message = "TLS is required but no usable certificate is configured; the connection was refused.")]
+    public static partial void TlsUnavailable(ILogger logger);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "TLS handshake failed.")]
+    public static partial void TlsHandshakeFailed(ILogger logger, Exception exception);
+
+    [LoggerMessage(Level = LogLevel.Error,
+        Message = "The TLS certificate at {Path} has no private key and cannot serve TLS.")]
+    public static partial void CertificateHasNoPrivateKey(ILogger logger, string path);
+
+    [LoggerMessage(Level = LogLevel.Error,
+        Message = "The TLS certificate at {Path} could not be loaded; the endpoint will serve plaintext.")]
+    public static partial void CertificateLoadFailed(ILogger logger, Exception exception, string path);
+
+    [LoggerMessage(Level = LogLevel.Error,
         Message = "The PostgreSQL wire endpoint could not listen on port {Port}. The HTTP API is "
             + "unaffected, but no BI client can connect until this is resolved.")]
     public static partial void ListenFailed(ILogger logger, Exception exception, int port);

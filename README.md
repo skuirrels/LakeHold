@@ -327,8 +327,11 @@ Worth knowing:
   because each statement resolves a fresh session. Invisible to BI traffic, not to `psql` users.
 - **Bound parameters are refused**, not guessed at, and `BEGIN`/`COMMIT` are acknowledged rather than
   executed. Both are honest stubs — see [`docs/POSTGRES-WIRE.md`](docs/POSTGRES-WIRE.md).
-- **Authentication is a single shared password** and there is no TLS. Terminate TLS in front of the
-  port or keep it on a trusted network. Real per-user identity is the roadmap item above this one.
+- **Credentials are per tenant**, so one tenant's password does not open another's catalog. A single
+  shared `Password` still works for single-tenant deployments, where the distinction is meaningless.
+- **TLS is supported** — point `TlsCertificatePath` at a `.pfx` or a PEM pair, and set `RequireTls`
+  to refuse clients that will not encrypt. Without a certificate the endpoint serves plaintext, as
+  before.
 - **Type-catalogue loading is the open blocker**, not a vague "untested" caveat. A client that reads
   `pg_type` at connection time gets an empty result from DuckDB and gives up. That is what stops
   Power BI, and it is fixable in the shim rather than in DuckDB.

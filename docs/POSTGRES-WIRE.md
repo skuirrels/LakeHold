@@ -33,11 +33,31 @@ endpoint enters the engine through the same seam the HTTP API does. Tenant isola
 remains structural (invariant 4): a connection reaches exactly the catalog attached to the session
 its `user`/`database` pair resolved to, and no SQL it submits is inspected to enforce that.
 
-## Authentication, and its honest limits
+## Authentication
 
-The API has no authentication (see [`ARCHITECTURE.md`](ARCHITECTURE.md)), so this endpoint cannot
-inherit one. It implements the protocol's own password exchange against a **single shared secret**
-from configuration:
+The API has no authentication (see [`ARCHITECTURE.md`](ARCHITECTURE.md)), so this endpoint carries
+its own. It implements the protocol's password exchange against **per-tenant credentials**:
+
+```jsonc
+// .env — these are secrets
+Lakehold__PgWire__TenantPasswords__demo=…
+Lakehold__PgWire__TenantPasswords__acme=…
+```
+
+A per-tenant password authenticates *that tenant only*. This matters more than it sounds: a single
+shared password authenticates the connection but not the tenant it named, so any holder of it could
+present themselves as any tenant — on a multi-tenant node, one credential was every credential. The
+attachment boundary was doing its job and the credential was undermining it from outside.
+
+When any per-tenant password is configured they are authoritative, and a tenant without one is
+refused rather than falling back to the shared secret — a fallback would mean adding the first
+tenant's credential silently left every other tenant on the shared one. A tenant with no entry is
+refused *identically* to a wrong password, challenge included, so the response does not disclose
+which tenant names exist.
+
+`Password` remains for single-tenant deployments, where the distinction is meaningless.
+
+Mechanics:
 
 - `AuthenticationMD5Password` by default — the password is salted and hashed per connection, so it
   does not cross an unencrypted socket in the clear.
@@ -51,9 +71,37 @@ presenting the shared secret is the tenant it names. That is strictly better tha
 (which asks for nothing at all) and strictly worse than what real authentication will provide. It is
 a stopgap with an expiry date, not the design.
 
-**TLS is not implemented.** `SSLRequest` is answered `N` and the session continues unencrypted, which
-is what `psql` and Npgsql do by default when the server declines. Terminate TLS in front of the port,
-or keep it on a trusted network.
+## TLS
+
+Configure a certificate and the endpoint negotiates encryption on `SSLRequest`:
+
+```jsonc
+{
+  "Lakehold": {
+    "PgWire": {
+      "TlsCertificatePath": "/etc/lakehold/wire.pfx",   // .pfx/.p12, or a .pem with a key path
+      "TlsCertificateKeyPath": "",                       // PEM only; a bundle carries its own key
+      "RequireTls": false                                // refuse clients that will not encrypt
+    }
+  }
+}
+```
+
+TLS 1.2 is the floor — older versions are broken rather than merely dated, and a database port is
+the last place to keep them for compatibility. `TlsCertificatePassword` is a secret and belongs in
+`.env`.
+
+Three behaviours worth knowing:
+
+- **Without a certificate the endpoint declines encryption and continues in plaintext**, which is
+  what `psql` and Npgsql expect when a server has no TLS. That is the previous behaviour, preserved.
+- **`RequireTls` refuses a client that never asks.** Rejecting only in the negotiation path would
+  leave a client that skips `SSLRequest` entirely with a plaintext session, so the check also covers
+  a startup packet arriving unencrypted. With it set, the process refuses to start without a
+  certificate rather than refusing every connection at run time.
+- **A certificate that cannot be loaded, or has no private key, is logged as an error** and the
+  endpoint falls back to plaintext unless `RequireTls` is set. The distinction is deliberate: a
+  deployment that asked for TLS and cannot serve it should fail loudly, not quietly downgrade.
 
 ## Protocol surface
 
