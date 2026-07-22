@@ -69,6 +69,92 @@
   font-family: var(--mono);
 }
 
+/* The native popup is drawn by the platform and ignores the palette, so a dark chrome ends up with
+   a light system list hanging off it. `base-select` hands the picker back to CSS. Browsers without
+   it drop these rules and keep the native widget, which is the correct fallback. */
+@supports (appearance: base-select) {
+  .field select,
+  .field select::picker(select) {
+    appearance: base-select;
+  }
+
+  .field select {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .field select:hover {
+    border-color: var(--text-faint);
+  }
+
+  .field select:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+
+  .field select::picker-icon {
+    color: var(--text-faint);
+    margin-left: auto;
+    transition: transform 120ms ease;
+  }
+
+  .field select:open::picker-icon {
+    transform: rotate(180deg);
+  }
+
+  .field select::picker(select) {
+    background: var(--surface-2);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-sm);
+    padding: 4px;
+    margin-top: 4px;
+    box-shadow: 0 12px 28px rgb(0 0 0 / 0.5);
+    /* The picker is a popover, so it is display:none when closed; the discrete transition is what
+       lets the fade run on open instead of being skipped. */
+    opacity: 0;
+    transition: opacity 110ms ease, display 110ms allow-discrete, overlay 110ms allow-discrete;
+  }
+
+  .field select:open::picker(select) {
+    opacity: 1;
+  }
+
+  @starting-style {
+    .field select:open::picker(select) {
+      opacity: 0;
+    }
+  }
+
+  .field option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 9px;
+    border-radius: 3px;
+    background: transparent;
+    color: var(--text);
+    font-size: 13px;
+    font-family: var(--mono);
+  }
+
+  .field option:hover,
+  .field option:focus {
+    background: var(--surface-3);
+    outline: none;
+  }
+
+  .field option:checked {
+    color: var(--accent);
+  }
+
+  .field option::checkmark {
+    order: 1;
+    margin-left: auto;
+    color: var(--accent);
+  }
+}
+
 .maintenance {
   display: flex;
   align-items: center;
