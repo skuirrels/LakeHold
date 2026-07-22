@@ -157,11 +157,9 @@ services:
   # DuckDB executing, a cold session attaching, or a statement queued behind another on the same
   # tenant's gate.
   jaeger:
-    image: jaegertracing/all-in-one:latest
+    image: jaegertracing/jaeger:2.20.0
     container_name: lakehold-jaeger
     restart: unless-stopped
-    environment:
-      COLLECTOR_OTLP_ENABLED: "true"
     ports:
       - "${JAEGER_UI_PORT:-16686}:16686"   # trace UI
       - "${OTLP_GRPC_PORT:-4317}:4317"     # OTLP/gRPC, what the API exports to
