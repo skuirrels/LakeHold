@@ -90,12 +90,21 @@ if (pgWire.Enabled)
     // Fail closed. This opens a database port onto every catalog the node serves, so starting it
     // without a password has to be an explicit decision rather than the consequence of an
     // unset configuration key.
-    if (pgWire.Password.Length == 0 && !pgWire.AllowAnonymous)
+    if (pgWire.Password.Length == 0 && pgWire.TenantPasswords.Count == 0 && !pgWire.AllowAnonymous)
     {
         throw new InvalidOperationException(
-            "Lakehold:PgWire is enabled but no password is configured. Set Lakehold__PgWire__Password "
-            + "in .env, or set Lakehold:PgWire:AllowAnonymous to true to accept unauthenticated "
-            + "connections deliberately.");
+            "Lakehold:PgWire is enabled but no credentials are configured. Set per-tenant passwords "
+            + "(Lakehold__PgWire__TenantPasswords__<tenant>) in .env, or Lakehold__PgWire__Password "
+            + "for a single shared credential, or set Lakehold:PgWire:AllowAnonymous to true to "
+            + "accept unauthenticated connections deliberately.");
+    }
+
+    if (pgWire.RequireTls && pgWire.TlsCertificatePath.Length == 0)
+    {
+        // Refusing every connection at run time is a worse way to learn this than refusing to start.
+        throw new InvalidOperationException(
+            "Lakehold:PgWire:RequireTls is set but no certificate is configured. Set "
+            + "Lakehold:PgWire:TlsCertificatePath, or clear RequireTls to serve plaintext.");
     }
 
     builder.Services.AddHostedService<PgWireServer>();

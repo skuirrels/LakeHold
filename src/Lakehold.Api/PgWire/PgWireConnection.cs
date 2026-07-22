@@ -1,5 +1,8 @@
 using System.Globalization;
+using System.Net.Security;
+using System.Security.Authentication;
 using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using Lakehold.ControlPlane.Data;
 using Lakehold.Engine.Execution;
@@ -26,11 +29,19 @@ namespace Lakehold.Api.PgWire;
 ///     </para>
 /// </remarks>
 internal sealed class PgWireConnection(
-    Stream stream,
+    Stream transport,
     PgWireOptions options,
     IServiceScopeFactory scopeFactory,
     ILogger logger)
 {
+    /// <summary>
+    ///     The active stream. Replaced by the TLS stream when a client negotiates encryption, which
+    ///     is why it is a field rather than the constructor parameter: every read and write after
+    ///     the upgrade must go through the new one, and a single missed call site would send
+    ///     plaintext on a socket the client believes is encrypted.
+    /// </summary>
+    private Stream _stream = transport;
+
     private const int ProtocolVersion3 = 196608;
     private const int SslRequestCode = 80877103;
     private const int CancelRequestCode = 80877102;
@@ -285,7 +296,7 @@ internal sealed class PgWireConnection(
                 break;
 
             case PgFrontend.Flush:
-                await stream.FlushAsync(cancellationToken).ConfigureAwait(false);
+                await _stream.FlushAsync(cancellationToken).ConfigureAwait(false);
                 break;
 
             default:
@@ -558,15 +569,36 @@ internal sealed class PgWireConnection(
             switch (code)
             {
                 case SslRequestCode:
+                    if (!await TryUpgradeToTlsAsync(cancellationToken).ConfigureAwait(false))
+                    {
+                        return false;
+                    }
+
+                    // Either way the client now re-sends a startup packet: over the encrypted
+                    // stream if it was accepted, over the original socket if it was declined.
+                    continue;
+
                 case GssEncRequestCode:
-                    // Declined, then the client re-sends a plain startup packet on the same socket.
-                    await stream.WriteAsync(new byte[] { (byte)'N' }, cancellationToken).ConfigureAwait(false);
-                    await stream.FlushAsync(cancellationToken).ConfigureAwait(false);
+                    // GSSAPI encryption is not offered. Declined, then the client continues with a
+                    // plain startup packet or its own SSLRequest.
+                    await _stream.WriteAsync(new byte[] { (byte)'N' }, cancellationToken).ConfigureAwait(false);
+                    await _stream.FlushAsync(cancellationToken).ConfigureAwait(false);
                     continue;
 
                 case CancelRequestCode:
                     // Accepted and ignored. Cancellation is per-statement through the session's own
                     // token; there is no cross-connection key registry to look the request up in.
+                    return false;
+
+                case ProtocolVersion3 when options.RequireTls && _stream is not SslStream:
+                    // The client skipped SSLRequest entirely. Refusing here rather than only in the
+                    // negotiation path is what makes RequireTls a guarantee: otherwise a client that
+                    // never asks for encryption simply gets a plaintext session.
+                    await SendErrorAsync(
+                        "28000",
+                        "This endpoint requires TLS. Connect with SSL enabled.",
+                        cancellationToken,
+                        fatal: true).ConfigureAwait(false);
                     return false;
 
                 case ProtocolVersion3:
@@ -603,6 +635,104 @@ internal sealed class PgWireConnection(
         }
 
         return parameters;
+    }
+
+    /// <summary>
+    ///     Answers an <c>SSLRequest</c>, upgrading the connection when a certificate is configured.
+    /// </summary>
+    /// <returns>False when the connection should be closed.</returns>
+    private async Task<bool> TryUpgradeToTlsAsync(CancellationToken cancellationToken)
+    {
+        var certificate = LoadCertificate();
+
+        if (certificate is null)
+        {
+            if (options.RequireTls)
+            {
+                // Refuse rather than fall back. Configured to require TLS but unable to serve it is
+                // a deployment error, and answering "no encryption available" would quietly hand the
+                // client the plaintext session the setting exists to prevent.
+                PgWireLog.TlsUnavailable(logger);
+                return false;
+            }
+
+            await _stream.WriteAsync(new byte[] { (byte)'N' }, cancellationToken).ConfigureAwait(false);
+            await _stream.FlushAsync(cancellationToken).ConfigureAwait(false);
+            return true;
+        }
+
+        await _stream.WriteAsync(new byte[] { (byte)'S' }, cancellationToken).ConfigureAwait(false);
+        await _stream.FlushAsync(cancellationToken).ConfigureAwait(false);
+
+        var tls = new SslStream(_stream, leaveInnerStreamOpen: false);
+
+        try
+        {
+            await tls.AuthenticateAsServerAsync(
+                new SslServerAuthenticationOptions
+                {
+                    ServerCertificate = certificate,
+
+                    // TLS 1.2 is the floor. Older versions are broken rather than merely dated, and
+                    // a database port is the last place to accept them for compatibility's sake.
+                    EnabledSslProtocols = SslProtocols.Tls12 | SslProtocols.Tls13,
+                    ClientCertificateRequired = false,
+                },
+                cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is AuthenticationException or IOException)
+        {
+            PgWireLog.TlsHandshakeFailed(logger, ex);
+            await tls.DisposeAsync().ConfigureAwait(false);
+            return false;
+        }
+
+        _stream = tls;
+        return true;
+    }
+
+    private X509Certificate2? LoadCertificate()
+    {
+        if (options.TlsCertificatePath.Length == 0)
+        {
+            return null;
+        }
+
+        try
+        {
+            // Chosen by extension rather than by whether a password was supplied: a PKCS#12 bundle
+            // is frequently unprotected, and treating "no password" as "not a bundle" silently
+            // routed every passwordless .pfx to the certificate-only loader, which cannot read one.
+            // The endpoint then declined TLS and clients fell back to plaintext — a security
+            // property lost to a file-format guess, with nothing in the logs but a load failure.
+            var path = options.TlsCertificatePath;
+            var isBundle = path.EndsWith(".pfx", StringComparison.OrdinalIgnoreCase)
+                || path.EndsWith(".p12", StringComparison.OrdinalIgnoreCase);
+
+            var certificate = isBundle
+                ? X509CertificateLoader.LoadPkcs12FromFile(
+                    path,
+                    options.TlsCertificatePassword.Length > 0 ? options.TlsCertificatePassword : null)
+                : X509Certificate2.CreateFromPemFile(
+                    path,
+                    options.TlsCertificateKeyPath.Length > 0 ? options.TlsCertificateKeyPath : null);
+
+            if (!certificate.HasPrivateKey)
+            {
+                // A certificate without its key cannot complete a handshake. Caught here so the log
+                // names the cause rather than leaving every connection to fail opaquely.
+                PgWireLog.CertificateHasNoPrivateKey(logger, path);
+                certificate.Dispose();
+                return null;
+            }
+
+            return certificate;
+        }
+        catch (Exception ex) when (ex is CryptographicException or IOException or UnauthorizedAccessException)
+        {
+            PgWireLog.CertificateLoadFailed(logger, ex, options.TlsCertificatePath);
+            return null;
+        }
     }
 
     private async Task<bool> AuthenticateAsync(
@@ -663,9 +793,45 @@ internal sealed class PgWireConnection(
         return true;
     }
 
+    /// <summary>
+    ///     The password this connection's tenant must present.
+    /// </summary>
+    /// <remarks>
+    ///     A per-tenant entry wins outright when any are configured, and a tenant with no entry is
+    ///     refused rather than falling back to the shared password — a fallback would mean adding
+    ///     one tenant's credential silently left every other tenant on the shared one, which is the
+    ///     failure this replaces.
+    /// </remarks>
+    private string? ExpectedPassword()
+    {
+        if (options.TenantPasswords.Count > 0)
+        {
+            return options.TenantPasswords.TryGetValue(_tenant, out var perTenant) ? perTenant : null;
+        }
+
+        return options.Password;
+    }
+
     private async Task<bool> CheckPasswordAsync(CancellationToken cancellationToken)
     {
-        if (options.Password.Length == 0)
+        var configured = ExpectedPassword();
+
+        if (configured is null)
+        {
+            // Per-tenant credentials are in force and this tenant has none. Answered exactly like a
+            // wrong password, including the challenge, so the response does not reveal which tenant
+            // names are configured.
+            await ChallengeAsync(cancellationToken).ConfigureAwait(false);
+            _ = await ReadPasswordAsync(cancellationToken).ConfigureAwait(false);
+
+            LakeholdTelemetry.WireAuthenticationFailures.Add(1);
+            PgWireLog.AuthenticationFailed(logger, _tenant);
+            await SendErrorAsync("28P01", "Password authentication failed.", cancellationToken, fatal: true)
+                .ConfigureAwait(false);
+            return false;
+        }
+
+        if (configured.Length == 0)
         {
             // No exchange at all. AuthenticationOk is sent once by the caller for every path —
             // sending it here too would put two of them on the wire, which is a protocol violation
@@ -674,38 +840,17 @@ internal sealed class PgWireConnection(
             return true;
         }
 
-        var salt = RandomNumberGenerator.GetBytes(4);
+        var salt = await ChallengeAsync(cancellationToken).ConfigureAwait(false);
 
-        _writer.Reset();
-        if (options.AllowCleartextPassword)
-        {
-            _writer.Begin(PgBackend.Authentication).Int32(3).End();
-        }
-        else
-        {
-            _writer.Begin(PgBackend.Authentication).Int32(5).Bytes(salt).End();
-        }
-
-        await FlushAsync(cancellationToken).ConfigureAwait(false);
-
-        if (!await ReadExactAsync(_header.AsMemory(0, 1), cancellationToken).ConfigureAwait(false)
-            || _header[0] != PgFrontend.PasswordMessage)
+        var presented = await ReadPasswordAsync(cancellationToken).ConfigureAwait(false);
+        if (presented is null)
         {
             return false;
         }
-
-        var body = await ReadBodyAsync(cancellationToken).ConfigureAwait(false);
-        if (body is null)
-        {
-            return false;
-        }
-
-        var reader = new PgMessageReader(body);
-        var presented = reader.String();
 
         var expected = options.AllowCleartextPassword
-            ? options.Password
-            : Md5Credential(options.Password, _tenant, salt);
+            ? configured
+            : Md5Credential(configured, _tenant, salt);
 
         // Fixed-time comparison: the password is shared across every tenant, so leaking it through
         // response timing would leak all of them at once.
@@ -723,6 +868,44 @@ internal sealed class PgWireConnection(
         }
 
         return true;
+    }
+
+    /// <summary>Sends the authentication challenge, returning the salt it carried.</summary>
+    private async Task<byte[]> ChallengeAsync(CancellationToken cancellationToken)
+    {
+        var salt = RandomNumberGenerator.GetBytes(4);
+
+        _writer.Reset();
+        if (options.AllowCleartextPassword)
+        {
+            _writer.Begin(PgBackend.Authentication).Int32(3).End();
+        }
+        else
+        {
+            _writer.Begin(PgBackend.Authentication).Int32(5).Bytes(salt).End();
+        }
+
+        await FlushAsync(cancellationToken).ConfigureAwait(false);
+        return salt;
+    }
+
+    /// <summary>Reads the client's PasswordMessage, or null when it sent something else.</summary>
+    private async Task<string?> ReadPasswordAsync(CancellationToken cancellationToken)
+    {
+        if (!await ReadExactAsync(_header.AsMemory(0, 1), cancellationToken).ConfigureAwait(false)
+            || _header[0] != PgFrontend.PasswordMessage)
+        {
+            return null;
+        }
+
+        var body = await ReadBodyAsync(cancellationToken).ConfigureAwait(false);
+        if (body is null)
+        {
+            return null;
+        }
+
+        var reader = new PgMessageReader(body);
+        return reader.String();
     }
 
     /// <summary>
@@ -782,8 +965,8 @@ internal sealed class PgWireConnection(
 
     private async Task FlushAsync(CancellationToken cancellationToken)
     {
-        await stream.WriteAsync(_writer.Written, cancellationToken).ConfigureAwait(false);
-        await stream.FlushAsync(cancellationToken).ConfigureAwait(false);
+        await _stream.WriteAsync(_writer.Written, cancellationToken).ConfigureAwait(false);
+        await _stream.FlushAsync(cancellationToken).ConfigureAwait(false);
         _writer.Reset();
     }
 
@@ -825,7 +1008,7 @@ internal sealed class PgWireConnection(
         var offset = 0;
         while (offset < buffer.Length)
         {
-            var read = await stream.ReadAsync(buffer[offset..], token).ConfigureAwait(false);
+            var read = await _stream.ReadAsync(buffer[offset..], token).ConfigureAwait(false);
             if (read == 0)
             {
                 return false;
