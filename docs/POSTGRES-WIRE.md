@@ -201,11 +201,63 @@ Established by that suite rather than assumed:
   the client.
 - Every statement lands in query history — the point of entering through `LakehouseService`.
 
-### Not yet verified
+## Power BI does not work yet, and here is exactly why
 
-**Power BI itself has not been driven against this endpoint.** Npgsql is what its connector is built
-on, which is why the suite uses it, but the connector's own introspection queries and Navigator
-behaviour are a layer above that and remain untested. The known risk is Npgsql's type-catalog
-loading: the tests connect with `Server Compatibility Mode=NoTypeLoading`, and whether a client that
-performs full type loading finds enough of `pg_type` in DuckDB is an open question. Tableau,
-Metabase, and DBeaver are equally untested.
+This was an open risk when the endpoint shipped. It has since been measured, and the answer is no.
+
+**Clients that perform full type-catalog loading cannot connect.** The tests pass because they set
+`Server Compatibility Mode=NoTypeLoading`; Power BI has no such option, and it bundles its own
+Npgsql — Microsoft's connector documentation puts recent builds on **Npgsql 4.0.17**, far older than
+the 10.x the suite exercises.
+
+Npgsql's type loader reads the backend catalogue with a query that inner-joins `pg_proc` on the
+receive function of each type:
+
+```sql
+FROM pg_type AS a
+JOIN pg_namespace AS ns ON ns.oid = a.typnamespace
+JOIN pg_proc      AS p  ON p.oid  = a.typreceive
+```
+
+Against DuckDB 1.5.4 that join returns **zero rows**, and the reason is specific:
+
+| Probe | Result |
+|---|---|
+| `pg_catalog.pg_type` rows | 39 |
+| Joined to `pg_namespace` only | 39 ✅ |
+| `typreceive IS NULL` | **39 of 39** |
+| Joined to `pg_proc` on `typreceive` | **0** ❌ |
+| `pg_proc` rows named `array_recv` | **0** |
+
+`typreceive`, `typelem`, and `typarray` are present as columns but NULL for every type, so the join
+matches nothing and the client ends up with an empty type catalogue. `array_recv` — which Npgsql uses
+to recognise array types — does not exist in DuckDB's `pg_proc` either.
+
+So the failure is not a subtle incompatibility to be chased through a driver's logs. It is one
+missing column's worth of data, and it stops every full-type-loading client at connection time.
+
+### What would fix it
+
+The shim already intercepts a small number of statements. Extending it to recognise the type-loading
+query and answer with a synthetic catalogue — one row per OID this endpoint actually emits, with a
+non-null `typreceive` and matching `pg_proc` entries — would close it without touching DuckDB.
+
+That is a bigger shim than the one this document argues for elsewhere, and the tension is worth
+stating rather than hiding: intercepting a real query is exactly what "the shim is a last resort" was
+meant to avoid. The justification is that this particular query is not a user's query and never
+returns user data. It is a driver handshake, its shape is fixed by the driver, and the alternative is
+that the largest BI tool in the market cannot connect at all.
+
+### Status by client
+
+| Client | Status |
+|---|---|
+| Npgsql 10.x with `NoTypeLoading` | ✅ Verified by the test suite |
+| `psql` | ✅ Simple query protocol covered by a raw-socket test |
+| Power BI | ❌ Blocked on type loading, above |
+| Npgsql without `NoTypeLoading` | ❌ Same blocker |
+| Tableau, Metabase, DBeaver | ⚠️ Untested; those on libpq rather than Npgsql may be unaffected |
+
+**A client that does connect still needs one setting changed.** Power BI's PostgreSQL connector
+enables *Use Encrypted Connection* by default and this endpoint declines TLS, so that box has to be
+cleared even once type loading is solved.

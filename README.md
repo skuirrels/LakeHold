@@ -256,11 +256,17 @@ Worth knowing:
 
 ---
 
-## Power BI, Tableau, and psql, with no connector to install
+## The PostgreSQL wire endpoint
 
-Lakehold speaks the PostgreSQL wire protocol, so every BI tool that already speaks Postgres connects
-to a catalog with no `.mez` file, driver, or plugin involved. It is off by default — it opens a
-database port — and enabling it without a password refuses to start.
+Lakehold speaks the PostgreSQL wire protocol, so a client that already speaks Postgres connects to a
+catalog with no `.mez` file, driver, or plugin involved. It is off by default — it opens a database
+port — and enabling it without a password refuses to start.
+
+> **Power BI does not connect yet.** Its bundled Npgsql loads the server's type catalogue at
+> connection time, and DuckDB's `pg_catalog.pg_type` leaves `typreceive` NULL for all 39 types, so
+> the driver's own join returns nothing. `psql`, DBeaver's PostgreSQL driver, and Npgsql with
+> `NoTypeLoading` work today. The measurement, and the shim that would fix it, are in
+> [`docs/POSTGRES-WIRE.md`](docs/POSTGRES-WIRE.md).
 
 ```jsonc
 {
@@ -286,6 +292,29 @@ The mapping is the part to remember: **user is the tenant, database is the catal
 | `Username=demo` | tenant slug |
 | `Database=analytics` | catalog name |
 
+### Connecting a client
+
+**DBeaver** — new connection, PostgreSQL, host `localhost`, port `5433`, database the *catalog* name,
+username the *tenant* slug, password from `.env`. On the driver properties tab set **SSL** off; the
+endpoint declines TLS and DBeaver retries in plaintext only if it is not required.
+
+**.NET / Npgsql** — the connection string the test suite uses, and the one to copy:
+
+```text
+Host=localhost;Port=5433;Database=analytics;Username=demo;Password=…;
+SSL Mode=Disable;Server Compatibility Mode=NoTypeLoading
+```
+
+`NoTypeLoading` is not optional. Without it Npgsql tries to read the server's type catalogue and gets
+nothing back — the same thing that currently blocks Power BI.
+
+**Power BI** — not yet, per the note above. When the type-loading shim lands, the flow is *Get Data →
+PostgreSQL database*, server as `host:5433`, database as the catalog, credentials on the **Database**
+tab rather than Windows — and **clear "Use Encrypted Connection"**, which the connector enables by
+default and which this endpoint has no TLS to satisfy. Expect Import mode to behave before
+DirectQuery does: DirectQuery generates parameterised queries, and bound parameters are still
+refused.
+
 Worth knowing:
 
 - **The 10,000-row ceiling does not apply here.** It bounds a JSON response that has to be built in
@@ -300,9 +329,9 @@ Worth knowing:
   executed. Both are honest stubs — see [`docs/POSTGRES-WIRE.md`](docs/POSTGRES-WIRE.md).
 - **Authentication is a single shared password** and there is no TLS. Terminate TLS in front of the
   port or keep it on a trusted network. Real per-user identity is the roadmap item above this one.
-- **Power BI itself has not been driven against it yet.** The tests drive Npgsql — the driver Power
-  BI's connector is built on — through a real catalog, which is the closest proof available without
-  a Windows host in the loop, but it is not the same claim.
+- **Type-catalogue loading is the open blocker**, not a vague "untested" caveat. A client that reads
+  `pg_type` at connection time gets an empty result from DuckDB and gives up. That is what stops
+  Power BI, and it is fixable in the shim rather than in DuckDB.
 
 ## Backup, restore, and scheduling
 
