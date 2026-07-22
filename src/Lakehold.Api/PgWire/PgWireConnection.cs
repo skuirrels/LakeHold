@@ -3,6 +3,7 @@ using System.Security.Cryptography;
 using System.Text;
 using Lakehold.ControlPlane.Data;
 using Lakehold.Engine.Execution;
+using Lakehold.Engine.Telemetry;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Lakehold.Api.PgWire;
@@ -64,6 +65,24 @@ internal sealed class PgWireConnection(
     ///     <see cref="PgTypes.EncodeBinary"/> for why that is a requirement rather than a preference.
     /// </summary>
     private bool _binaryResults;
+
+    /// <summary>
+    ///     Whether the startup handshake has completed. Gates both the message-size ceiling and the
+    ///     read timeout, because an unauthenticated peer is allowed far less of either.
+    /// </summary>
+    private bool _authenticated;
+
+    /// <summary>
+    ///     Ceiling on a message from a peer that has not authenticated yet.
+    /// </summary>
+    /// <remarks>
+    ///     The length prefix is attacker-controlled and sizes an allocation. Before authentication
+    ///     the only message expected is a password, so anything beyond a few kilobytes is either a
+    ///     broken client or an attempt to make the server allocate on demand — at
+    ///     <see cref="PgWireOptions.MaxConnections"/> connections, a 100 MB ceiling would have been
+    ///     gigabytes of reachable allocation from an unauthenticated peer.
+    /// </remarks>
+    private const int MaxPreAuthMessageBytes = 8 * 1024;
 
     public async Task RunAsync(CancellationToken cancellationToken)
     {
@@ -225,6 +244,29 @@ internal sealed class PgWireConnection(
 
             case PgFrontend.Execute:
             {
+                var reader = new PgMessageReader(body);
+                _ = reader.String();                // portal name
+                var rowLimit = reader.Int32();
+
+                if (rowLimit > 0)
+                {
+                    // A row-limited Execute asks the server to return part of a portal and hold the
+                    // rest for a later Execute, replying PortalSuspended rather than CommandComplete.
+                    // Holding it would mean keeping a streaming reader — and therefore a Duckling and
+                    // its session gate — open across messages, which is exactly the per-statement
+                    // session model this endpoint is built on.
+                    //
+                    // Refused rather than approximated. Returning every row ignores what the client
+                    // asked for, and re-running the statement on the next Execute would resend rows
+                    // it already has: one is a protocol violation, the other is silent duplication.
+                    _describePending = false;
+                    await SendErrorAsync(
+                        "0A000",
+                        "Row-limited Execute is not supported; request the full result instead.",
+                        cancellationToken).ConfigureAwait(false);
+                    break;
+                }
+
                 await RunStatementAsync(_preparedSql, cancellationToken).ConfigureAwait(false);
                 break;
             }
@@ -537,7 +579,8 @@ internal sealed class PgWireConnection(
                     await SendErrorAsync(
                         "0A000",
                         $"Unsupported protocol version {code.ToString(CultureInfo.InvariantCulture)}.",
-                        cancellationToken).ConfigureAwait(false);
+                        cancellationToken,
+                        fatal: true).ConfigureAwait(false);
                     return false;
             }
         }
@@ -571,8 +614,8 @@ internal sealed class PgWireConnection(
 
         if (_tenant.Length == 0)
         {
-            await SendErrorAsync("28000", "A user is required; it names the Lakehold tenant.", cancellationToken)
-                .ConfigureAwait(false);
+            await SendErrorAsync("28000", "A user is required; it names the Lakehold tenant.", cancellationToken,
+                fatal: true).ConfigureAwait(false);
             return false;
         }
 
@@ -583,7 +626,8 @@ internal sealed class PgWireConnection(
             await SendErrorAsync(
                 "3D000",
                 "A database is required; it names the catalog to attach.",
-                cancellationToken).ConfigureAwait(false);
+                cancellationToken,
+                fatal: true).ConfigureAwait(false);
             return false;
         }
 
@@ -614,6 +658,7 @@ internal sealed class PgWireConnection(
         _writer.Begin(PgBackend.ReadyForQuery).Byte((byte)'I').End();
         await FlushAsync(cancellationToken).ConfigureAwait(false);
 
+        _authenticated = true;
         PgWireLog.ConnectionOpened(logger, _tenant, _catalog);
         return true;
     }
@@ -670,8 +715,10 @@ internal sealed class PgWireConnection(
 
         if (!matched)
         {
+            LakeholdTelemetry.WireAuthenticationFailures.Add(1);
             PgWireLog.AuthenticationFailed(logger, _tenant);
-            await SendErrorAsync("28P01", "Password authentication failed.", cancellationToken).ConfigureAwait(false);
+            await SendErrorAsync("28P01", "Password authentication failed.", cancellationToken, fatal: true)
+                .ConfigureAwait(false);
             return false;
         }
 
@@ -704,11 +751,20 @@ internal sealed class PgWireConnection(
     }
 #pragma warning restore CA5351
 
-    private async Task SendErrorAsync(string code, string message, CancellationToken cancellationToken)
+    /// <param name="fatal">
+    ///     Whether the connection is being torn down. A client distinguishes the two: ERROR leaves
+    ///     the session usable and it resynchronises, while FATAL tells it the connection is gone and
+    ///     stops it retrying on a socket that is already closing.
+    /// </param>
+    private async Task SendErrorAsync(
+        string code,
+        string message,
+        CancellationToken cancellationToken,
+        bool fatal = false)
     {
         _writer.Reset();
         _writer.Begin(PgBackend.ErrorResponse)
-            .Byte((byte)'S').String("ERROR")
+            .Byte((byte)'S').String(fatal ? "FATAL" : "ERROR")
             .Byte((byte)'C').String(code)
             .Byte((byte)'M').String(message)
             .Byte(0)
@@ -739,7 +795,8 @@ internal sealed class PgWireConnection(
         }
 
         var length = System.Buffers.Binary.BinaryPrimitives.ReadInt32BigEndian(_header.AsSpan(1, 4)) - 4;
-        if (length is < 0 or > 100_000_000)
+        var ceiling = _authenticated ? options.MaxMessageBytes : MaxPreAuthMessageBytes;
+        if (length < 0 || length > ceiling)
         {
             return null;
         }
@@ -748,12 +805,27 @@ internal sealed class PgWireConnection(
         return await ReadExactAsync(body, cancellationToken).ConfigureAwait(false) ? body : null;
     }
 
+    /// <summary>
+    ///     Reads exactly <paramref name="buffer"/>.Length bytes, under a timeout appropriate to the
+    ///     connection's state.
+    /// </summary>
+    /// <remarks>
+    ///     Every read on this connection passes through here, which is why the timeout lives here
+    ///     rather than at each call site: a single unguarded read is all it takes to reinstate the
+    ///     hang this is meant to prevent.
+    /// </remarks>
     private async Task<bool> ReadExactAsync(Memory<byte> buffer, CancellationToken cancellationToken)
     {
+        var budget = _authenticated ? options.IdleTimeout : options.HandshakeTimeout;
+
+        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        deadline.CancelAfter(budget);
+        var token = deadline.Token;
+
         var offset = 0;
         while (offset < buffer.Length)
         {
-            var read = await stream.ReadAsync(buffer[offset..], cancellationToken).ConfigureAwait(false);
+            var read = await stream.ReadAsync(buffer[offset..], token).ConfigureAwait(false);
             if (read == 0)
             {
                 return false;

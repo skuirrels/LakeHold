@@ -71,8 +71,8 @@ Implemented:
 | `Query` (simple) | → | Split into statements; each answered with its own result set |
 | `Parse`, `Bind`, `Describe`, `Execute`, `Sync`, `Close`, `Flush` | → | Extended query protocol |
 | `RowDescription`, `DataRow`, `CommandComplete`, `EmptyQueryResponse` | ← | |
-| `ParseComplete`, `BindComplete`, `NoData`, `ParameterDescription`, `PortalSuspended` | ← | |
-| `ErrorResponse`, `NoticeResponse` | ← | Engine errors are returned verbatim, as the HTTP API does |
+| `ParseComplete`, `BindComplete`, `NoData`, `ParameterDescription` | ← | |
+| `ErrorResponse` | ← | Engine errors returned verbatim; `FATAL` when the connection is closing |
 | `Terminate` | → | |
 
 Deliberately not implemented:
@@ -81,6 +81,12 @@ Deliberately not implemented:
   guessed at. Textual substitution would be a SQL-injection surface inside the tenant's own session
   and a silent correctness risk; the provider's parameterised path is the correct fix and is the
   first follow-up.
+- **Row-limited `Execute`.** A client asking for part of a portal is refused rather than served
+  approximately. Honouring it means holding a streaming reader — and therefore a `Duckling` and its
+  session gate — open across messages, which is the opposite of the per-statement session model
+  below. Returning everything anyway ignores what the client asked for, and re-running the statement
+  on the next `Execute` would resend rows it already has: one is a protocol violation, the other is
+  silent duplication. `PortalSuspended` is consequently never sent.
 - **COPY, function-call, and replication protocols.**
 - **Real transactions.** `BEGIN`/`COMMIT`/`ROLLBACK` are acknowledged rather than executed, because a
   connection resolves a fresh session per statement and so has nothing to hold a transaction open
@@ -132,6 +138,37 @@ cancelling the request stops the scan.
 
 `Lakehold:PgWire:MaxRows` can impose a ceiling anyway for operators who want one. Zero, the default,
 means unbounded.
+
+## Limits and hardening
+
+The endpoint is a listening TCP port, so the limits are part of the design rather than tuning:
+
+| Setting | Default | What it bounds |
+|---|---|---|
+| `MaxConnections` | 64 | Concurrent connections; further ones are refused rather than queued |
+| `HandshakeTimeout` | 15s | How long an unauthenticated peer may take to complete startup |
+| `IdleTimeout` | 30min | How long an established connection may sit between messages |
+| `MaxMessageBytes` | 16 MB | Largest message from an authenticated client |
+| — (fixed) | 8 KB | Largest message from a peer that has **not** authenticated |
+
+Two of these exist because of specific attacks rather than tidiness. Without the handshake timeout, a
+peer that opens a socket and sends nothing holds a connection slot indefinitely, and
+`MaxConnections` silent sockets deny the endpoint to everyone at the cost of one TCP handshake each.
+And because a message's length prefix sizes an allocation before its contents are read, an
+unauthenticated peer that could name a large one turns `MaxConnections` sockets into gigabytes of
+reachable allocation — hence a separate, much lower ceiling before authentication.
+
+Both are covered by tests that assert the connection is closed rather than held.
+
+## Observability
+
+Alongside the query and session instruments every statement already records:
+
+| Instrument | Why |
+|---|---|
+| `lakehold.pgwire.connections` | Open connections; against `MaxConnections` it says immediately whether the ceiling is why clients cannot connect, and a value that only rises means they are leaking |
+| `lakehold.pgwire.connections.closed` | Tagged clean / dropped / refused / faulted, which separates a BI tool cycling its pool from clients being turned away |
+| `lakehold.pgwire.auth.failures` | Its own instrument rather than a tag, because on a network-reachable port a rising rate is a security signal that wants its own alert |
 
 ## Session and concurrency model
 

@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Sockets;
+using Lakehold.Engine.Telemetry;
 using Microsoft.Extensions.Options;
 
 namespace Lakehold.Api.PgWire;
@@ -85,6 +86,8 @@ internal sealed class PgWireServer(
                 {
                     Interlocked.Decrement(ref _active);
                     PgWireLog.ConnectionRefused(logger, _options.MaxConnections);
+                    LakeholdTelemetry.WireConnectionsClosed.Add(
+                        1, new KeyValuePair<string, object?>(LakeholdTelemetry.OutcomeKey, "refused"));
                     client.Dispose();
                     continue;
                 }
@@ -104,6 +107,9 @@ internal sealed class PgWireServer(
 
     private async Task ServeAsync(TcpClient client, CancellationToken stoppingToken)
     {
+        LakeholdTelemetry.WireConnections.Add(1);
+        var outcome = "closed";
+
         try
         {
             using (client)
@@ -122,10 +128,12 @@ internal sealed class PgWireServer(
         catch (Exception ex) when (ex is IOException or SocketException or OperationCanceledException)
         {
             // A BI tool closing a pooled connection mid-conversation is ordinary, not an incident.
+            outcome = "dropped";
             PgWireLog.ConnectionClosed(logger, ex);
         }
         catch (Exception ex)
         {
+            outcome = "faulted";
             // Anything else is a bug in the protocol handler. It must not escape into an unobserved
             // task, where it would surface as a connection that simply vanished with nothing in the
             // log to explain it — the hardest possible failure to diagnose from the client end.
@@ -134,6 +142,9 @@ internal sealed class PgWireServer(
         finally
         {
             Interlocked.Decrement(ref _active);
+            LakeholdTelemetry.WireConnections.Add(-1);
+            LakeholdTelemetry.WireConnectionsClosed.Add(
+                1, new KeyValuePair<string, object?>(LakeholdTelemetry.OutcomeKey, outcome));
         }
     }
 }
