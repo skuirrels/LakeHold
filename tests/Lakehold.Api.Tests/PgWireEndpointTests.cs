@@ -65,6 +65,10 @@ public sealed class PgWireEndpointTests : IAsyncLifetime
             o.Enabled = true;
             o.Port = _port;
             o.Password = Password;
+
+            // Short enough to assert against, long enough that a loaded CI machine still completes
+            // a legitimate handshake inside it.
+            o.HandshakeTimeout = TimeSpan.FromSeconds(3);
         });
 
         services.AddDbContext<ControlPlaneContext>(o =>
@@ -242,6 +246,59 @@ public sealed class PgWireEndpointTests : IAsyncLifetime
         Assert.Equal(99999999.99m, reader.GetDecimal(3));
         Assert.Equal(new DateTime(2026, 7, 22, 13, 45, 6, DateTimeKind.Unspecified).AddTicks(1234560), reader.GetDateTime(4));
         Assert.Equal(new DateTime(2026, 7, 22), reader.GetDateTime(5));
+    }
+
+    /// <summary>
+    ///     A peer that connects and says nothing must be dropped rather than holding its slot.
+    /// </summary>
+    /// <remarks>
+    ///     Untested, this is a denial of service costing one TCP handshake per slot: MaxConnections
+    ///     silent sockets and no legitimate client can connect again until the process restarts.
+    ///     The fixture's handshake timeout is shortened so the test asserts the behaviour rather
+    ///     than waiting out the production default.
+    /// </remarks>
+    [Fact]
+    public async Task Silent_client_is_dropped_at_the_handshake_timeout()
+    {
+        using var client = new TcpClient();
+        await client.ConnectAsync(IPAddress.Loopback, _port);
+        await using var stream = client.GetStream();
+
+        // Never send a startup packet. The server should close rather than wait indefinitely.
+        var buffer = new byte[1];
+        var read = await stream.ReadAsync(buffer).AsTask().WaitAsync(TimeSpan.FromSeconds(15));
+
+        Assert.Equal(0, read);
+    }
+
+    /// <summary>
+    ///     The length prefix sizes an allocation and is attacker-controlled, so an unauthenticated
+    ///     peer must not be able to name a large one.
+    /// </summary>
+    [Fact]
+    public async Task Oversized_pre_authentication_message_is_refused()
+    {
+        using var client = new TcpClient();
+        await client.ConnectAsync(IPAddress.Loopback, _port);
+        await using var stream = client.GetStream();
+
+        await SendStartupAsync(stream);
+
+        // Read the authentication request, then answer with a password message claiming 64 MB.
+        var header = new byte[13];
+        await stream.ReadExactlyAsync(header);
+
+        var oversized = new byte[5];
+        oversized[0] = (byte)'p';
+        System.Buffers.Binary.BinaryPrimitives.WriteInt32BigEndian(oversized.AsSpan(1, 4), 64 * 1024 * 1024);
+        await stream.WriteAsync(oversized);
+        await stream.FlushAsync();
+
+        // The server must close instead of allocating what the header asked for.
+        var buffer = new byte[1];
+        var read = await stream.ReadAsync(buffer).AsTask().WaitAsync(TimeSpan.FromSeconds(15));
+
+        Assert.Equal(0, read);
     }
 
     [Fact]

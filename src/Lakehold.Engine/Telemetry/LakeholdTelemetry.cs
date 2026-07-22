@@ -90,6 +90,37 @@ public static class LakeholdTelemetry
     public static readonly Counter<long> PoolRequests = Meter.CreateCounter<long>(
         "lakehold.pool.requests", "{request}", "Session pool lookups, by hit or miss.");
 
+    // ---- postgres wire endpoint ----
+
+    /// <summary>
+    ///     Client connections currently open on the wire endpoint.
+    /// </summary>
+    /// <remarks>
+    ///     The first number an operator wants when the endpoint stops accepting: this against
+    ///     <c>MaxConnections</c> says immediately whether the ceiling is the problem, and a value
+    ///     that only ever rises says connections are leaking rather than being closed.
+    /// </remarks>
+    public static readonly UpDownCounter<long> WireConnections = Meter.CreateUpDownCounter<long>(
+        "lakehold.pgwire.connections", "{connection}", "Wire-protocol connections currently open.");
+
+    /// <summary>Connections closed, tagged by outcome. See <see cref="OutcomeKey"/>.</summary>
+    /// <remarks>
+    ///     Distinguishing a clean close from a refused one from a faulted one is what separates "a
+    ///     BI tool cycling its pool" from "clients are being turned away" — indistinguishable in a
+    ///     plain connection count, and they have opposite remedies.
+    /// </remarks>
+    public static readonly Counter<long> WireConnectionsClosed = Meter.CreateCounter<long>(
+        "lakehold.pgwire.connections.closed", "{connection}", "Wire connections closed, by outcome.");
+
+    /// <summary>Failed authentication attempts on the wire endpoint.</summary>
+    /// <remarks>
+    ///     Deliberately separate from the closed-connection outcomes rather than a tag on them: on a
+    ///     port reachable from a network, a rising rate here is a security signal and wants its own
+    ///     alert, not a slice of a general-purpose counter.
+    /// </remarks>
+    public static readonly Counter<long> WireAuthenticationFailures = Meter.CreateCounter<long>(
+        "lakehold.pgwire.auth.failures", "{attempt}", "Rejected wire-protocol authentication attempts.");
+
     // ---- control plane ----
 
     /// <summary>
