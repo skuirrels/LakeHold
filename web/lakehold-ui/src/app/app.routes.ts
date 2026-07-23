@@ -17,6 +17,11 @@ export const routes: Routes = [
     loadComponent: () => import('./comparison.component').then((m) => m.ComparisonComponent),
   },
   {
+    path: 'docs',
+    title: 'Documentation — get started with Lakehold',
+    loadComponent: () => import('./docs.component').then((m) => m.DocsComponent),
+  },
+  {
     path: 'workbench',
     title: 'Workbench — Lakehold',
     loadComponent: () => import('./workbench.component').then((m) => m.WorkbenchComponent),

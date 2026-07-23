@@ -1,0 +1,425 @@
+:host {
+  display: block;
+  height: 100vh;
+  overflow-y: auto;
+}
+
+.page {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 0 28px 80px;
+}
+
+/* Sidebar + content ---------------------------------------------------------- */
+
+.layout {
+  display: grid;
+  grid-template-columns: 232px minmax(0, 1fr);
+  gap: 52px;
+  align-items: start;
+}
+
+/* The rail sticks within the scrolling host and scrolls on its own if it outgrows the viewport.
+   `min-width: 0` lets the grid column stay at its track width so the mobile chip row can scroll
+   inside it instead of stretching the column. */
+.sidenav {
+  position: sticky;
+  top: 24px;
+  align-self: start;
+  min-width: 0;
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+  padding: 4px 8px 24px 0;
+}
+
+.side-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  margin-bottom: 12px;
+  padding-left: 11px;
+}
+
+.nav-tree,
+.subtree {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.nav-tree > li {
+  margin-bottom: 2px;
+}
+
+.sidenav a {
+  display: block;
+  text-decoration: none;
+  border-left: 2px solid transparent;
+  transition: color 0.12s ease, background 0.12s ease, border-color 0.12s ease;
+}
+
+a.sec {
+  padding: 6px 11px;
+  border-radius: 0 6px 6px 0;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+a.sec:hover {
+  color: var(--text);
+  background: var(--surface-1);
+}
+
+/* The subtree's vertical line is the rail; each child's own left border overlaps it and lights up
+   when active. */
+.subtree {
+  margin: 2px 0 8px;
+  border-left: 1px solid var(--border);
+}
+
+a.sub {
+  margin-left: -1px;
+  padding: 5px 11px 5px 18px;
+  font-size: 13px;
+  color: var(--text-faint);
+}
+
+a.sub:hover {
+  color: var(--text);
+}
+
+a.sec.active,
+a.sub.active {
+  color: var(--accent);
+  border-left-color: var(--accent);
+  background: rgba(255, 200, 87, 0.06);
+}
+
+.content {
+  min-width: 0;
+}
+
+/* Nav — matches the comparison page. */
+
+.nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 0;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 650;
+  color: var(--text);
+  text-decoration: none;
+}
+
+.mark {
+  color: var(--accent);
+}
+
+.nav-links {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.nav-links a {
+  color: var(--text-muted);
+  text-decoration: none;
+  font-size: 14px;
+}
+
+.nav-links a:hover {
+  color: var(--text);
+}
+
+.nav-links a.btn {
+  text-decoration: none;
+}
+
+.nav-links a.btn-primary {
+  color: #241c05;
+}
+
+/* Hero — just the eyebrow; the markdown supplies its own <h1>. */
+
+.hero {
+  padding: 40px 0 8px;
+}
+
+.eyebrow {
+  display: inline-block;
+  font-size: 12px;
+  font-family: var(--mono);
+  color: var(--accent);
+  padding: 5px 13px;
+  border: 1px solid rgba(255, 200, 87, 0.3);
+  border-radius: 999px;
+  background: rgba(255, 200, 87, 0.06);
+}
+
+.markdown {
+  display: block;
+  color: var(--text-muted);
+  font-size: 15px;
+  line-height: 1.7;
+}
+
+/* Rendered Markdown ----------------------------------------------------------
+   The prose is injected with [innerHTML], so it never receives this component's emulated-
+   encapsulation attributes. `:host ::ng-deep` pierces into that content while still keeping the
+   rules from leaking outside the docs page. Styled by element under `.markdown` rather than by
+   class, so the content file stays pure Markdown. */
+
+:host ::ng-deep .markdown h1 {
+  font-size: clamp(2rem, 5vw, 3rem);
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  margin: 12px 0 20px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+:host ::ng-deep .markdown h2 {
+  font-size: 24px;
+  letter-spacing: -0.02em;
+  margin: 52px 0 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+  color: var(--text);
+  scroll-margin-top: 20px;
+}
+
+:host ::ng-deep .markdown h3 {
+  font-size: 17px;
+  margin: 30px 0 10px;
+  color: var(--text);
+  scroll-margin-top: 20px;
+}
+
+:host ::ng-deep .markdown h3 em {
+  font-family: var(--mono);
+  font-size: 12.5px;
+  font-style: normal;
+  font-weight: 500;
+  color: var(--text-faint);
+  margin-left: 6px;
+}
+
+:host ::ng-deep .markdown p {
+  margin: 0 0 16px;
+}
+
+:host ::ng-deep .markdown a {
+  color: var(--info);
+  text-decoration: none;
+}
+
+:host ::ng-deep .markdown a:hover {
+  text-decoration: underline;
+}
+
+:host ::ng-deep .markdown strong {
+  color: var(--text);
+}
+
+:host ::ng-deep .markdown ul {
+  margin: 0 0 16px;
+  padding-left: 22px;
+}
+
+:host ::ng-deep .markdown li {
+  margin-bottom: 8px;
+}
+
+/* The `---` separators in the source become <hr>; the h2 top border already divides sections, so
+   keep them quiet. */
+:host ::ng-deep .markdown hr {
+  border: 0;
+  border-top: 1px solid var(--border);
+  margin: 40px 0;
+}
+
+/* Inline + block code */
+
+:host ::ng-deep .markdown code {
+  font-family: var(--mono);
+  font-size: 0.85em;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+
+:host ::ng-deep .markdown pre {
+  margin: 0 0 16px;
+  padding: 14px 16px;
+  overflow-x: auto;
+  border-radius: var(--radius-sm);
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+}
+
+:host ::ng-deep .markdown pre code {
+  padding: 0;
+  border: 0;
+  background: none;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-muted);
+  white-space: pre;
+}
+
+/* Blockquotes are the "Caveat" and row-cap callouts. */
+:host ::ng-deep .markdown blockquote {
+  margin: 0 0 16px;
+  padding: 2px 16px;
+  border-left: 3px solid var(--border-strong);
+  background: var(--surface-1);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  color: var(--text-faint);
+}
+
+:host ::ng-deep .markdown blockquote strong {
+  color: var(--warn);
+}
+
+/* Tables scroll inside their own wrapper so the page body never does. */
+:host ::ng-deep .markdown table {
+  display: block;
+  width: 100%;
+  overflow-x: auto;
+  border-collapse: collapse;
+  font-size: 13.5px;
+  margin: 0 0 16px;
+}
+
+:host ::ng-deep .markdown thead th {
+  background: var(--surface-2);
+  text-align: left;
+  padding: 11px 14px;
+  font-weight: 650;
+  color: var(--text);
+  border-bottom: 1px solid var(--border-strong);
+  white-space: nowrap;
+}
+
+:host ::ng-deep .markdown tbody td {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+
+:host ::ng-deep .markdown tbody tr:hover td {
+  background: var(--surface-1);
+}
+
+/* CTA + footer */
+
+.cta {
+  margin-top: 64px;
+  text-align: center;
+}
+
+.cta h2 {
+  font-size: 24px;
+  letter-spacing: -0.02em;
+  margin: 0 0 10px;
+}
+
+.cta p {
+  color: var(--text-muted);
+  margin: 0 0 22px;
+  font-size: 14px;
+}
+
+.lg {
+  padding: 11px 22px;
+  font-size: 14px;
+  text-decoration: none;
+}
+
+.foot {
+  margin-top: 72px;
+  padding-top: 26px;
+  border-top: 1px solid var(--border);
+  text-align: center;
+}
+
+.foot p {
+  font-size: 13px;
+  color: var(--text-faint);
+  margin: 0;
+}
+
+.foot .domain {
+  margin-bottom: 10px;
+  font-family: var(--mono);
+  font-size: 14px;
+}
+
+.foot .domain a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.foot a {
+  color: var(--info);
+}
+
+/* Below the breakpoint the rail can't sit beside the content, so it becomes a horizontally
+   scrolling row of top-level sections pinned above the article. The h3 sub-links drop out — a chip
+   bar is for orientation, not a full outline. */
+@media (max-width: 900px) {
+  .layout {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+
+  .sidenav {
+    position: static;
+    max-height: none;
+    overflow: visible;
+    margin-bottom: 20px;
+    padding: 0 0 8px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .side-label {
+    display: none;
+  }
+
+  .nav-tree {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding-bottom: 8px;
+  }
+
+  .nav-tree > li {
+    margin-bottom: 0;
+  }
+
+  .subtree {
+    display: none;
+  }
+
+  a.sec {
+    white-space: nowrap;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+  }
+
+  a.sec.active {
+    border-color: var(--accent);
+  }
+}
