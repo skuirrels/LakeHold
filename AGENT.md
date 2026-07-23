@@ -28,7 +28,10 @@ integration.
 - `src/Lakehold.AppHost`: legacy Aspire composition. Retained but no longer the documented way to
   run the product — `compose.yaml` plus the two host processes is. Do not add to it.
 - `src/Lakehold.ServiceDefaults`: health, resilience, service discovery, and telemetry defaults.
-- `web/lakehold-ui`: Angular workbench, catalog explorer, result grid, and landing page.
+- `web/lakehold-ui`: Angular workbench, catalog explorer, result grid, landing page, and the docs
+  page (`/docs`). The docs page renders `src/app/docs.content.md` at runtime (via `marked`, with a
+  `.md` text loader configured in `angular.json`); that one Markdown file is the single source for
+  both the in-app page and the getting-started guide read on GitHub — edit it, not two copies.
 - `docs/ARCHITECTURE.md`: architectural rationale and current product boundaries.
 - `docs/EXIT-PATH.md`: verified open-format exit procedure and Parquet caveats. Eject automates that
   procedure; keep the two consistent.
@@ -38,6 +41,9 @@ integration.
 - `docs/AUTHENTICATION.md`: the phased plan for API authentication, worked one step at a time.
   The API has none today — tenant identity is a URL segment. Read it before adding any surface that
   resolves a tenant.
+- `docs/PUBLIC-API.md`: the phased spec for the public HTTP control API — time travel and the whole
+  lakehouse. Builds on `docs/AUTHENTICATION.md` (auth is its gate); the cross-cutting API conventions
+  (versioning, `problem+json`, pagination, async jobs) live here.
 
 ## Architectural invariants
 

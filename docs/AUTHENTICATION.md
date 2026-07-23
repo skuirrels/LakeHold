@@ -8,6 +8,9 @@ This document is the specification and the running record of what has landed. It
 worked one step at a time — each step is independently shippable, independently testable, and leaves
 the product working. Nothing here requires the whole plan to be finished before any of it is useful.
 
+The broader HTTP surface that sits on top of this — time travel, maintenance, and the rest of the
+lakehouse — is specified in [`PUBLIC-API.md`](PUBLIC-API.md), which treats auth as its gate.
+
 ## The central change
 
 Everything else is detail. Today:
@@ -38,6 +41,7 @@ Stated plainly, because a control that does not name its threat tends to be the 
 |---|---|---|
 | Anyone with network reach reads every tenant's data | Trivial | Requires a credential |
 | A credential for tenant A reads tenant B | Trivial over HTTP | Refused; the credential names the tenant |
+| A credential shared for one catalog reads another in the same tenant | No tokens exist | Refused when the token is catalog-scoped |
 | A read-only consumer writes to the lake | Nothing prevents it | Catalog attached read-only |
 | A leaked credential cannot be withdrawn | No credentials exist | Revoked centrally, affects HTTP and the wire endpoint together |
 | An audit trail says what ran but not who | `QueryRun` has no principal | Principal recorded per statement |
@@ -117,6 +121,13 @@ public sealed class ApiToken
     /// <summary>Null for an instance-scoped token, which belongs to no tenant.</summary>
     public int? TenantId { get; set; }
 
+    /// <summary>
+    ///     Optional least-privilege narrowing for a tenant-scoped token: null grants every catalog in
+    ///     the tenant, a value restricts the token to that one catalog. This is *subject*, not
+    ///     capability — orthogonal to <see cref="Scope"/>, and always null for an instance token.
+    /// </summary>
+    public string? CatalogName { get; set; }
+
     /// <summary>Human-facing label. Not a secret and not an identifier.</summary>
     public required string Name { get; set; }
 
@@ -139,6 +150,37 @@ public sealed class ApiToken
 Adding an entity needs no migration: the control plane creates missing tables additively at start-up,
 and `AdditiveSchemaTests` covers exactly this case. Add a test there for the new table rather than
 assuming it.
+
+### Token subject: tenant, optionally narrowed to a catalog
+
+`Scope` is *capability* — provision (`Instance`) versus use (`Tenant`). *Subject* — which tenant, and
+optionally which catalog — is a separate axis, and the two must not collapse into one enum. A third
+`TokenScope.Catalog` would force the question "does a catalog token also imply a tenant?" and tangle
+the two; a `CatalogName` on the row keeps them orthogonal.
+
+The isolation boundary is the catalog, not the tenant: a `Duckling` attaches one catalog, and a tenant
+is only the ownership grouping around its `Catalogs`. So the two subjects worth expressing are **the
+whole tenant** — the workbench, internal apps, an admin doing tenant-wide work — and **exactly one
+catalog, usually read-only** — a partner, a BI dashboard, anything given least privilege.
+`CatalogName is null` is the first; a value is the second. Neither pure form suffices on its own:
+tenant-only hands a multi-catalog tenant's every catalog to a consumer that needed one, and
+catalog-only cannot express the admin and workbench paths that legitimately span the tenant.
+
+Enforcement is by attachment, as everywhere else: a catalog-scoped token can only produce a session
+that attaches its one catalog, so this composes with read-only (phase 2) rather than competing with
+it. Two consequences fall out cleanly:
+
+- **Cross-catalog shares still work.** A catalog-scoped token attaching `X` still reads whatever
+  read-only shares `X` is configured to attach (invariant 9). The share is a property of the catalog,
+  not a grant on the token, so there is nothing to widen here.
+- **Arbitrary subsets are a later, additive change.** A single nullable `CatalogName` covers both real
+  cases. "These three of ten catalogs" would be a `TokenCatalog` join table, added additively if and
+  when someone asks — not before.
+
+Phase 1 need not *issue* catalog-scoped tokens, but it bakes in the axis: the column exists and the
+enforcement check runs from the start, a no-op while null. That makes least privilege the default the
+day sharing is needed, with no token-model migration and no user retrained away from "a token is the
+whole tenant".
 
 ### Token format
 
@@ -173,9 +215,13 @@ One place, so there is one thing to get right:
 
 1. Authentication middleware resolves `Bearer` → `ApiToken` → `Tenant`, rejecting revoked, expired,
    and unknown tokens identically (`401`, no detail about which).
-2. The resolved principal is exposed as a scoped `ILakeholdPrincipal { TenantId, TenantSlug, ReadOnly }`.
+2. The resolved principal is exposed as a scoped
+   `ILakeholdPrincipal { TenantId, TenantSlug, CatalogName, IsReadOnly }`, where a null `CatalogName`
+   means every catalog in the tenant.
 3. `LakehouseService` takes the principal rather than a bare `tenantSlug`. A route slug that does not
-   match the principal's tenant is a **404, not a 403** — a 403 confirms the tenant exists.
+   match the principal's tenant is a **404, not a 403** — a 403 confirms the tenant exists. A
+   catalog-scoped principal whose `CatalogName` does not match the route's catalog is the same **404**,
+   for the same reason.
 4. `LastUsedUtc` is updated opportunistically, not on the request path. A write per request would put
    the control plane in front of every query for a field nobody reads in real time.
 
@@ -264,6 +310,8 @@ DELETE /api/tenants/{tenant}/tokens/{id}   → revokes
 
 - A request with no token is refused; with a valid token succeeds.
 - A token for tenant A cannot reach tenant B's catalog, by slug or by any other route.
+- A token narrowed to catalog `X` cannot reach catalog `Y` in the same tenant, and the refusal is the
+  same 404 as a cross-tenant one.
 - A revoked or expired token is refused.
 - The token never appears in a response body after creation, in a log, or in `QueryRun`.
 - The workbench still works, which means the UI must send the token — see "Open questions".
@@ -357,10 +405,11 @@ To settle before or during the step they block, not before starting:
    `localStorage` is the standard bad answer. Options: a short-lived session cookie issued by the API
    in exchange for a token, or defer entirely and require OIDC for the UI while tokens serve machines.
    Blocks phase 1's acceptance criterion about the UI still working.
-2. **Do tokens scope to a catalog, or only to a tenant?** Tenant-only is simpler and matches the
-   isolation boundary. Catalog scoping is a real ask for sharing, and is easier to add before anyone
-   depends on the shape. Note that `TokenScope` now exists, so a third value is cheap to add — but
-   scope and *subject* are different axes, and collapsing them into one enum is the mistake to avoid.
+2. **Do tokens scope to a catalog, or only to a tenant?** *Resolved: both, layered.* A token belongs
+   to a tenant and may optionally be narrowed to one catalog via `ApiToken.CatalogName` (null = the
+   whole tenant). Subject stays separate from `TokenScope`, which remains purely capability, and the
+   enforcement check ships dormant in phase 1. See "Token subject: tenant, optionally narrowed to a
+   catalog" under phase 1.
 3. **Per-principal quotas?** ClickHouse treats them as access control. `MaxRowsPerResult` and the
    statement timeout are per-node today. Not phase 1, but the entity should not make it awkward.
 4. **Rate limiting on authentication attempts.** The wire endpoint counts failures
@@ -373,7 +422,7 @@ Each step ships on its own and leaves the product working:
 | Step | Deliverable | Gate |
 |---|---|---|
 | 1 | `ApiToken` entity, additive-schema test, token generation and hashing | Unit tests on format and verification |
-| 2 | Middleware, `ILakeholdPrincipal`, `LakehouseService` takes the principal | Cross-tenant refusal test |
+| 2 | Middleware, `ILakeholdPrincipal` (incl. catalog narrowing), `LakehouseService` takes the principal | Cross-tenant and cross-catalog refusal test |
 | 3 | Token management endpoints and bootstrap | Token shown once; revocation effective |
 | 3b | Provisioning endpoints for tenants and catalogs | A fresh deployment can be set up with only the bootstrap token |
 | 4 | Workbench sends credentials | Question 1 answered |
@@ -386,3 +435,25 @@ Each step ships on its own and leaves the product working:
 Steps 1–3 are the ones that change the product from open to closed. Step 3b is what makes a
 production deployment usable at all — today it starts empty with no supported way to add anything.
 Everything after is depth.
+
+## Status
+
+**Steps 1 and 2 have landed.**
+
+- **Step 1** — the `ApiToken` entity (with the `CatalogName` narrowing) and its `ControlPlaneContext`
+  mapping, additive-schema coverage that recreates the table on an existing database, and
+  `ApiTokenFactory` for generation, SHA-256 hashing, and constant-time verification. Unit-tested on
+  format and verification.
+- **Step 2** — `ILakeholdPrincipal` / `LakeholdPrincipal`, `ApiTokenAuthenticator` (resolves a bearer
+  token to a principal; malformed, unknown, revoked, and expired are refused identically),
+  `TenantAccessPolicy` (route validated against the credential; mismatch is a 404), and a
+  `LakeholdAuthorizationFilter` on the `/api/tenants` group. Enforcement is realised as a group filter
+  rather than by threading the principal through every `LakehouseService` signature; the principal is
+  stashed on the request for the phases that need it downstream (read-only attachment, audit).
+  Cross-tenant, cross-catalog, revoked, expired, malformed, and instance-token-on-a-data-route are all
+  refused, with tests at the policy, authenticator, and filter levels.
+
+The door is not yet closed: `LakeholdAuthOptions.RequireAuthentication` defaults false, so a request
+with **no** token still falls back to trusting the route (today's behaviour). A token that *is*
+presented is always validated. Requiring a token becomes safe once step 3 (issuance and bootstrap)
+and step 4 (the workbench sends its credential) land — that is the next work.
