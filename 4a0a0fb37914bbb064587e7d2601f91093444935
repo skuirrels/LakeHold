@@ -1,0 +1,23 @@
+RECORD CORRECTION (added after merge, no history rewrite).
+
+This commit's subject describes only the authentication-spec documentation
+change (docs/AUTHENTICATION.md, README pointer). It ALSO contains 17 non-docs
+files of parallel feature work that were staged into it by mistake — a git
+add -A run over a working tree that, unbeknownst to the committing session,
+also held another session's in-progress changes.
+
+Nothing was lost and main builds and tests clean; this note exists because the
+subject line understates the contents. The bundled feature work was:
+
+  * StatementVerb + affected-row reporting on the dynamic query path
+    (StatementVerb.cs, AffectedRowsTests.cs, Duckling.cs, QueryResult.cs,
+    LakehouseService.cs, Contracts.cs) — the RecordsAffected capability
+    recorded as provider gap 11 in PROVIDER-FEEDBACK.md.
+  * Maintenance commit messages (LakehouseMaintenance.cs, CatalogDescriptor.cs,
+    MaintenanceCommitMessageTests.cs).
+  * PgWire and telemetry touch-ups; workbench + models.ts UI changes.
+  * The 374-line PROVIDER-FEEDBACK.md expansion.
+
+Subsequent commits (#12-#15) build on this content, so it is load-bearing and
+correct where it sits. History is intentionally left immutable; this note is
+the forward correction.
