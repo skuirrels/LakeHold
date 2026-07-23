@@ -9,8 +9,7 @@ the necessary rights are in place. This is a legally binding document, so please
 carefully before agreeing to it.
 
 This Agreement is between the individual or entity identified below ("You" or "Your") and
-**[PROJECT OWNER — replace with the legal name of the individual or entity that owns the
-Project, e.g. "Jane Doe" or "Lakehold Ltd"]** (the "Owner"). By making a Contribution to
+**Tyrone Omidi** (the "Owner"). By making a Contribution to
 the Project, You accept and agree to the following terms and conditions for Your present and
 future Contributions submitted to the Project.
 

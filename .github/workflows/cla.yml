@@ -4,15 +4,14 @@
 # the agreement comment on the PR. Signatures are stored in a JSON file in a dedicated branch
 # of this repository, so there is no external service to trust.
 #
-# ── One-time setup before this works ──────────────────────────────────────────────────────
-#   1. Create a repository secret named PERSONAL_ACCESS_TOKEN: a fine-grained or classic PAT
-#      with `repo` scope (contents read/write). The action uses it to write the signatures
-#      file. The built-in GITHUB_TOKEN is intentionally NOT reused for the signature store.
-#   2. Fill in the [PROJECT OWNER] placeholder in CLA.md with your legal name or entity.
-#   3. Merge this workflow to the default branch. The first PR after that will prompt for the
-#      agreement comment.
+# ── Setup ─────────────────────────────────────────────────────────────────────────────────
+#   The action writes the signatures file with the built-in GITHUB_TOKEN: the workflow grants
+#   `contents: write`, and the store is a branch of this same repository, so no extra secret is
+#   needed. To keep the signature store off the default token instead, create a PAT secret named
+#   PERSONAL_ACCESS_TOKEN (contents read/write) and reference it in place of GITHUB_TOKEN below.
 #
-# The signatures branch (`cla-signatures` below) is created automatically on first signing.
+# The signatures branch (`cla-signatures` below) is created automatically on first signing, and
+# must not be branch-protected.
 # ──────────────────────────────────────────────────────────────────────────────────────────
 
 name: CLA Assistant
@@ -42,10 +41,12 @@ jobs:
         uses: contributor-assistant/github-action@v2.6.1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          # The signature store lives in this repo, so the built-in token can write it — no PAT
+          # needed. Swap in secrets.PERSONAL_ACCESS_TOKEN here if you prefer a scoped credential.
+          PERSONAL_ACCESS_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           # The exact sentence a contributor must comment to sign.
-          custom-pr-signatures: 'I hereby agree to the terms of the Lakehold Contributor License Agreement'
+          custom-pr-sign-comment: 'I hereby agree to the terms of the Lakehold Contributor License Agreement'
           # Where the record of who signed is kept.
           path-to-signatures: 'signatures/cla.json'
           path-to-document: 'https://github.com/skuirrels/LakeHold/blob/main/CLA.md'
