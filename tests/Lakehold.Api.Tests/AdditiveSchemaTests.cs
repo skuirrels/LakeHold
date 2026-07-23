@@ -1,6 +1,7 @@
 using DuckDB.EFCoreProvider.Extensions;
 using Lakehold.ControlPlane.Data;
 using Lakehold.ControlPlane.Model;
+using Lakehold.ControlPlane.Security;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
 
@@ -80,6 +81,38 @@ public sealed class AdditiveSchemaTests : IAsyncLifetime
 
             var subscription = await context.ChangeSubscriptions.SingleAsync();
             Assert.True(subscription.Id > 0, "the recreated table's auto-increment must produce keys");
+        }
+    }
+
+    [Fact]
+    public async Task Missing_api_tokens_table_is_created_and_usable()
+    {
+        // A database initialised before tokens existed: full schema, then the ApiTokens table and its
+        // sequence dropped, with a tenant already present.
+        await using (var context = NewContext())
+        {
+            await context.Database.EnsureCreatedAsync();
+            context.Tenants.Add(new Tenant { Slug = "acme", DisplayName = "Acme", CreatedUtc = DateTimeOffset.UtcNow });
+            await context.SaveChangesAsync();
+            await context.Database.ExecuteSqlRawAsync("DROP TABLE \"ApiTokens\"");
+            await context.Database.ExecuteSqlRawAsync("DROP SEQUENCE IF EXISTS \"ApiTokens_Id_seq\"");
+        }
+
+        await using (var context = NewContext())
+        {
+            var created = await AdditiveSchema.EnsureModelTablesAsync(context, CancellationToken.None);
+            Assert.Equal(1, created);
+            Assert.Equal(1, await context.Tenants.CountAsync());
+
+            // A tenant token (FK set) and an instance token (FK null) both insert — exercising the
+            // recreated auto-increment sequence and the nullable tenant relationship.
+            var tenant = await context.Tenants.SingleAsync();
+            context.ApiTokens.Add(ApiTokenFactory.Issue(TokenScope.Tenant, tenant, "bi", DateTimeOffset.UtcNow).Record);
+            context.ApiTokens.Add(ApiTokenFactory.Issue(TokenScope.Instance, null, "admin", DateTimeOffset.UtcNow).Record);
+            await context.SaveChangesAsync();
+
+            Assert.Equal(2, await context.ApiTokens.CountAsync());
+            Assert.True(await context.ApiTokens.AllAsync(t => t.Id > 0), "the recreated table's auto-increment must produce keys");
         }
     }
 

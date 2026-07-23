@@ -1,12 +1,15 @@
 using DuckDB.EFCoreProvider.Extensions;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Lakehold.Api;
+using Lakehold.Api.Auth;
 using Lakehold.Api.Cdc;
 using Lakehold.Api.Endpoints;
 using Lakehold.Api.Health;
 using Lakehold.Api.PgWire;
 using Lakehold.Api.Scheduling;
 using Lakehold.ControlPlane.Data;
+using Lakehold.ControlPlane.Security;
 using Lakehold.Engine.Configuration;
 using Lakehold.Engine.Execution;
 using Lakehold.Engine.Telemetry;
@@ -66,6 +69,13 @@ builder.Services.AddDbContext<ControlPlaneContext>(options =>
 builder.Services.AddSingleton<DucklingPool>();
 builder.Services.AddSingleton<CatalogCache>();
 builder.Services.AddScoped<LakehouseService>();
+
+// Authentication: resolve a bearer token to a principal, then validate the route against it in the
+// endpoint filter. Off by default for token-less requests until issuance and the UI wiring land —
+// see LakeholdAuthOptions and docs/AUTHENTICATION.md.
+builder.Services.Configure<LakeholdAuthOptions>(builder.Configuration.GetSection(LakeholdAuthOptions.Section));
+builder.Services.TryAddSingleton(TimeProvider.System);
+builder.Services.AddScoped<ApiTokenAuthenticator>();
 
 // Scheduled flush/backup/compact. A backup that depends on someone pressing a button is not a
 // recovery guarantee; unflushed inlined data is permanently unrecoverable, so both must be automatic.

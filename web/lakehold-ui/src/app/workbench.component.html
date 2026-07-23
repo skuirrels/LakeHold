@@ -155,6 +155,7 @@
                       <th scope="col">Committed</th>
                       <th scope="col">Schema version</th>
                       <th scope="col">Time travel</th>
+                      <th scope="col">Restore</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -164,6 +165,15 @@
                         <td>{{ formatTime(snapshot.committedAt) }}</td>
                         <td>{{ snapshot.schemaVersion }}</td>
                         <td class="snippet">AT (VERSION =&gt; {{ snapshot.snapshotId }})</td>
+                        <td>
+                          <button
+                            type="button"
+                            class="restore-btn"
+                            title="Load SQL to restore a table to this snapshot into the editor"
+                            (click)="restoreSnapshot(snapshot)">
+                            Restore…
+                          </button>
+                        </td>
                       </tr>
                     }
                   </tbody>

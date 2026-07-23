@@ -158,6 +158,36 @@ export class WorkbenchComponent {
   }
 
   /**
+   * Populates the editor with a statement that restores a table to a chosen snapshot, ready to run.
+   *
+   * A DuckLake snapshot is catalog-wide, but a restore is expressed per table:
+   * `CREATE OR REPLACE TABLE t AS SELECT * FROM t AT (VERSION => n)` rewrites the table to its rows
+   * at that snapshot. It is a single statement — so it runs through the same path as any other query
+   * — and it records a *new* snapshot rather than rewriting history, which keeps time travel intact
+   * and makes the restore itself reversible. The naive `DELETE` + `INSERT ... AT` reads the snapshot
+   * through the pending delete and silently restores the wrong rows, so this form is used instead.
+   *
+   * The target defaults to the catalog's first table so Run works immediately; other tables are
+   * listed as a hint because we cannot know which one the operator means.
+   */
+  protected restoreSnapshot(snapshot: Snapshot): void {
+    const version = snapshot.snapshotId;
+    const tables = this.schemas().flatMap((schema) =>
+      schema.tables.filter((table) => table.kind !== 'VIEW').map((table) => `${schema.name}.${table.name}`),
+    );
+    const target = tables[0] ?? 'schema.table';
+    const others = tables.length > 1 ? `\n-- Other tables in this catalog: ${tables.slice(1).join(', ')}` : '';
+
+    this.sql.set(
+      `-- Restore a table to snapshot ${version} and record a new, reversible snapshot.
+-- A snapshot spans the whole catalog; this restores one table. Constraints or defaults
+-- added since the snapshot are not carried over. Review the target, then press Run.${others}
+CREATE OR REPLACE TABLE ${target} AS
+SELECT * FROM ${target} AT (VERSION => ${version});`,
+    );
+  }
+
+  /**
    * Runs a maintenance operation.
    *
    * `expire` and `cleanup` run as a dry run first. The result is shown with a confirmation

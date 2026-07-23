@@ -1,0 +1,67 @@
+<div class="page">
+  <header class="nav">
+    <a class="brand" routerLink="/"><span class="mark">◆</span> Lakehold</a>
+    <nav class="nav-links">
+      <a routerLink="/">Home</a>
+      <a routerLink="/compare">Compare</a>
+      <a class="btn btn-primary" routerLink="/workbench">Open workbench →</a>
+    </nav>
+  </header>
+
+  <div class="layout">
+    <!-- Left rail, derived from the headings in docs.content.md. -->
+    <aside class="sidenav" aria-label="Documentation sections">
+      <span class="side-label">On this page</span>
+      <ul class="nav-tree">
+        @for (section of sections; track section.id) {
+          <li>
+            <a
+              class="sec"
+              [href]="'#' + section.id"
+              [class.active]="activeId() === section.id"
+              (click)="jumpTo($event, section.id)"
+              >{{ section.label }}</a
+            >
+            @if (section.children.length) {
+              <ul class="subtree">
+                @for (child of section.children; track child.id) {
+                  <li>
+                    <a
+                      class="sub"
+                      [href]="'#' + child.id"
+                      [class.active]="activeId() === child.id"
+                      (click)="jumpTo($event, child.id)"
+                      >{{ child.label }}</a
+                    >
+                  </li>
+                }
+              </ul>
+            }
+          </li>
+        }
+      </ul>
+    </aside>
+
+    <main class="content">
+      <section class="hero"><span class="eyebrow">Documentation</span></section>
+
+      <!-- Rendered from docs.content.md — the single source shared with the GitHub copy. -->
+      <article class="markdown" [innerHTML]="body"></article>
+
+      <section class="cta">
+        <h2>Ready to run a query?</h2>
+        <p>The workbench ships with a seeded catalog — 250,000 events, queryable immediately.</p>
+        <a class="btn btn-primary lg" routerLink="/workbench">Open the workbench</a>
+      </section>
+
+      <footer class="foot">
+        <p class="domain"><a href="https://lakehold.dev">lakehold.dev</a></p>
+        <p>
+          Built on <a href="https://duckdb.org" target="_blank" rel="noopener">DuckDB</a>,
+          <a href="https://ducklake.select" target="_blank" rel="noopener">DuckLake</a>, .NET 10, and Angular.
+          Apache-2.0.
+        </p>
+      </footer>
+    </main>
+  </div>
+</div>

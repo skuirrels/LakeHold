@@ -35,6 +35,8 @@ public sealed class ControlPlaneContext(DbContextOptions<ControlPlaneContext> op
 
     public DbSet<ChangeSubscription> ChangeSubscriptions => Set<ChangeSubscription>();
 
+    public DbSet<ApiToken> ApiTokens => Set<ApiToken>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         ArgumentNullException.ThrowIfNull(modelBuilder);
@@ -118,6 +120,29 @@ public sealed class ControlPlaneContext(DbContextOptions<ControlPlaneContext> op
             entity.HasOne(r => r.Tenant)
                 .WithMany()
                 .HasForeignKey(r => r.TenantId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ApiToken>(entity =>
+        {
+            entity.HasKey(t => t.Id);
+            entity.Property(t => t.Id).UseAutoIncrement();
+            entity.Property(t => t.Name).HasMaxLength(200);
+            entity.Property(t => t.Prefix).HasMaxLength(80);
+            entity.Property(t => t.SecretHash).HasMaxLength(64);
+            entity.Property(t => t.CatalogName).HasMaxLength(63);
+
+            // The prefix narrows a lookup to one tenant's candidate tokens before the secret is
+            // verified; the hash is the per-token key, unique because a repeated secret would be a
+            // generator failure worth rejecting rather than storing.
+            entity.HasIndex(t => t.Prefix);
+            entity.HasIndex(t => t.SecretHash).IsUnique();
+
+            // A tenant token is removed with its tenant; an instance token has a null tenant and is
+            // untouched by any tenant deletion.
+            entity.HasOne(t => t.Tenant)
+                .WithMany()
+                .HasForeignKey(t => t.TenantId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
     }

@@ -67,6 +67,10 @@ containers — and seeds a `demo` workspace with an `analytics` catalog of 250,0
 customers, so the workbench is usable the moment it loads. Later starts are fast, and source is
 bind-mounted so saving a file hot-reloads in place.
 
+New here? The [getting-started guide](web/lakehold-ui/src/app/docs.content.md) walks every feature —
+what it does, how to reach it, and what it is for. That one Markdown file is the single source for
+both this copy and the in-app page served at <http://localhost:5399/docs>.
+
 ```bash
 docker compose down -v    # stop and discard the data
 ```

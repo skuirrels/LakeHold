@@ -19,6 +19,7 @@ import { RouterLink } from '@angular/router';
           Lakehold
         </div>
         <nav class="nav-links">
+          <a routerLink="/docs">Docs</a>
           <a routerLink="/compare">Compare</a>
           <a
             class="icon-link"
@@ -45,6 +46,7 @@ import { RouterLink } from '@angular/router';
         </p>
         <div class="cta">
           <a class="btn btn-primary lg" routerLink="/workbench">Open the workbench</a>
+          <a class="btn lg" routerLink="/docs">Get started</a>
           <a class="btn lg" routerLink="/compare">How we compare</a>
         </div>
       </section>
