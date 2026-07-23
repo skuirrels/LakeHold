@@ -189,3 +189,75 @@ public sealed class QueryRun
 
     public Tenant Tenant { get; set; } = null!;
 }
+
+/// <summary>What an <see cref="ApiToken"/> may do — its capability, kept distinct from its subject.</summary>
+public enum TokenScope
+{
+    /// <summary>Acts as one tenant. The overwhelming majority of tokens.</summary>
+    Tenant,
+
+    /// <summary>
+    ///     Provisions tenants and catalogs and mints tenant tokens. It cannot itself query, run
+    ///     maintenance, or eject — every data path requires a tenant-scoped token, so the credential
+    ///     always names the tenant whose data is reachable.
+    /// </summary>
+    Instance,
+}
+
+/// <summary>
+///     A bearer credential for the HTTP API. The token string is shown once at creation and never
+///     stored; only its <see cref="Prefix"/> and a SHA-256 <see cref="SecretHash"/> are persisted, so
+///     a database read never yields a usable credential.
+/// </summary>
+/// <remarks>
+///     Capability (<see cref="Scope"/>, <see cref="ReadOnly"/>) and subject (<see cref="TenantId"/>,
+///     <see cref="CatalogName"/>) are separate axes — see <c>docs/AUTHENTICATION.md</c>. Generation and
+///     verification live in <see cref="Security.ApiTokenFactory"/>.
+/// </remarks>
+public sealed class ApiToken
+{
+    public int Id { get; set; }
+
+    /// <summary>Capability: acts as a tenant, or provisions the instance.</summary>
+    public TokenScope Scope { get; set; }
+
+    /// <summary>Owning tenant, or null for an instance-scoped token, which belongs to no tenant.</summary>
+    public int? TenantId { get; set; }
+
+    /// <summary>
+    ///     Optional least-privilege narrowing for a tenant token: null grants every catalog in the
+    ///     tenant, a value restricts the token to that one catalog. Subject, not capability — orthogonal
+    ///     to <see cref="Scope"/>, and always null for an instance token.
+    /// </summary>
+    public string? CatalogName { get; set; }
+
+    /// <summary>Human-facing label. Not a secret and not an identifier.</summary>
+    public required string Name { get; set; }
+
+    /// <summary>
+    ///     The token's public prefix (<c>lkh_&lt;tenant&gt;_</c>, or <c>lkh_admin_</c>), stored in the
+    ///     clear. It narrows a lookup to a candidate set before the secret is verified, and makes a
+    ///     leaked token identifiable in a log without being usable.
+    /// </summary>
+    public required string Prefix { get; set; }
+
+    /// <summary>SHA-256 of the full token, lower-hex. The token itself is never stored.</summary>
+    public required string SecretHash { get; set; }
+
+    /// <summary>Whether the credential produces a read-only catalog attachment.</summary>
+    public bool ReadOnly { get; set; }
+
+    public DateTimeOffset CreatedUtc { get; set; }
+
+    /// <summary>Optional expiry; a token past this instant is refused.</summary>
+    public DateTimeOffset? ExpiresUtc { get; set; }
+
+    /// <summary>Set when the token is revoked; a revoked token is refused thereafter.</summary>
+    public DateTimeOffset? RevokedUtc { get; set; }
+
+    /// <summary>Updated opportunistically, off the request path.</summary>
+    public DateTimeOffset? LastUsedUtc { get; set; }
+
+    /// <summary>Owning tenant, or null for an instance-scoped token.</summary>
+    public Tenant? Tenant { get; set; }
+}

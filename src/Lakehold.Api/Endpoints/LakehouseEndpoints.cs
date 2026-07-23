@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
+using Lakehold.Api.Auth;
 using Lakehold.Api.Scheduling;
 using Lakehold.ControlPlane.Data;
 using Lakehold.ControlPlane.Model;
@@ -15,7 +16,12 @@ public static class LakehouseEndpoints
     {
         ArgumentNullException.ThrowIfNull(app);
 
-        var tenants = app.MapGroup("/api/tenants").WithTags("Lakehouse");
+        // Every tenant-scoped path shares one authentication check: the bearer token is resolved to a
+        // principal and the route's tenant and catalog are validated against it. See
+        // docs/AUTHENTICATION.md; today the filter is permissive for token-less requests.
+        var tenants = app.MapGroup("/api/tenants")
+            .WithTags("Lakehouse")
+            .AddEndpointFilter<LakeholdAuthorizationFilter>();
 
         tenants.MapGet("/", ListTenantsAsync)
             .WithSummary("Lists tenants and their catalogs.");
