@@ -339,16 +339,38 @@ admin credential is a visible provisioning problem rather than a silent data bre
 ```bash
 docker compose -f compose.production.yaml up -d          # read the bootstrap token from the log
 
-curl -X POST …/api/tenants        -H 'Authorization: Bearer lkh_admin_…' -d '{"slug":"acme","displayName":"Acme"}'
-curl -X POST …/api/tenants/acme/catalogs -H 'Authorization: Bearer lkh_admin_…' -d '{"name":"analytics"}'
-curl -X POST …/api/tenants/acme/tokens   -H 'Authorization: Bearer lkh_admin_…' -d '{"name":"bi","role":"reader"}'
+ADMIN='lkh_admin_…'
+
+curl -X POST localhost:5200/api/tenants -H "Authorization: Bearer $ADMIN" \
+  -H 'Content-Type: application/json' -d '{"slug":"acme","displayName":"Acme"}'
+
+curl -X POST localhost:5200/api/tenants/acme/catalogs -H "Authorization: Bearer $ADMIN" \
+  -H 'Content-Type: application/json' -d '{"name":"analytics"}'
+
+curl -X POST localhost:5200/api/tenants/acme/tokens -H "Authorization: Bearer $ADMIN" \
+  -H 'Content-Type: application/json' \
+  -d '{"name":"bi","role":"reader","catalogName":"analytics"}'
 ```
 
 Set `Lakehold__BootstrapToken` if your platform injects credentials and cannot scrape a log.
 
 A token is shown once at creation and stored only as a SHA-256 hash, so it cannot be recovered — from
-the API or the database. Reaching a tenant or catalog your credential does not name returns **404**,
-not 403: a 403 would confirm it exists.
+the API or the database. `admin` is a reserved tenant slug: a tenant of that name would mint tokens
+indistinguishable from instance-scoped ones.
+
+### Roles
+
+| Role | Query | Write | Maintenance, restore, eject | Manage tokens |
+|---|---|---|---|---|
+| `reader` | yes | no — catalog is attached read-only | no | no |
+| `editor` | yes | yes | no | no |
+| `owner` | yes | yes | yes | yes |
+
+> **A token created without `role` is an owner.** The default keeps credentials minted before roles
+> existed working unchanged, but it means `{"name":"bi"}` mints a full-privilege credential. Pass an
+> explicit `role` for anything that only needs to read. An unrecognised value also falls back to
+> owner, so check what you issued with `GET /api/tenants/{tenant}/tokens` — the listing shows the
+> role and never the secret.
 
 ### Capability comes from attachment
 
@@ -356,9 +378,46 @@ A `reader` token does not get a permission check that clever SQL might route aro
 attached **read-only**, so a write fails in the engine itself. That is the same reasoning behind
 Lakehold's isolation model: a session can only reference the catalog attached to it.
 
-Humans can sign in with **OIDC** instead (Keycloak, Entra, Authentik, Auth0). Configure an authority
-and a tenant claim; leave it unset and the whole path stays off, so an air-gapped install never takes
-a dependency on an identity provider. The full design is in
+### Revoking
+
+```bash
+curl -X DELETE localhost:5200/api/tenants/acme/tokens/2 -H "Authorization: Bearer $ADMIN"
+```
+
+Revocation is immediate and closes **both** surfaces: the HTTP API and the PostgreSQL wire endpoint
+resolve against the same store, so a revoked token stops a BI tool as well as a script. There is no
+un-revoke — issue a new token.
+
+### Signing in to the workbench
+
+The workbench has a **Sign in** control in its header. Paste a token and it is held for that browser
+session only, and sent as a bearer token on API calls. With no token set the workbench behaves
+exactly as it does today, which is what keeps local development frictionless.
+
+### Connecting a BI tool with a token
+
+Set `Lakehold:PgWire:AllowTokenAuthentication` and give the token as the password, with the tenant as
+the user and the catalog as the database. Because a hashed store cannot answer PostgreSQL's MD5
+challenge, this uses the cleartext exchange — so the API **refuses to start** unless TLS is required
+or cleartext is explicitly acknowledged, rather than quietly putting a credential on the wire.
+
+### When a request is refused
+
+| Code | Meaning |
+|---|---|
+| **401** | No credential when one is required, or one that did not resolve. Malformed, unknown, revoked, and expired are reported identically — you never learn which. |
+| **404** | Valid credential, but it does not name that tenant or catalog. Deliberately not 403: a 403 would confirm the tenant exists. |
+| **403** | Right subject, wrong capability — a reader running maintenance, or a tenant token calling provisioning. |
+
+### Signing in as a human
+
+Humans can use **OIDC** instead (Keycloak, Entra, Authentik, Auth0). Configure an authority and a
+tenant claim; leave it unset and the whole path stays off, so an air-gapped install never takes a
+dependency on an identity provider. Tokens and OIDC resolve to the same principal, so nothing
+downstream distinguishes a person from a machine.
+
+The full design, the endpoint and capability tables, and the runbook for closing the door on a fresh
+deployment are in
 [`docs/AUTHENTICATION.md`](https://github.com/skuirrels/LakeHold/blob/main/docs/AUTHENTICATION.md).
 
 ---

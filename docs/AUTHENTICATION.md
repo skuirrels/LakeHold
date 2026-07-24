@@ -434,6 +434,191 @@ To settle before or during the step they block, not before starting:
 4. **Rate limiting on authentication attempts.** The wire endpoint counts failures
    (`lakehold.pgwire.auth.failures`); the HTTP path will need the same, and probably a lockout.
 
+## Reference — operating the implemented system
+
+Everything above is the design and the reasoning behind it. This section is the reference for the
+system as built: what to configure, what the endpoints are, who may reach them, and what the failures
+mean. It is written for someone operating a deployment rather than someone changing the design.
+
+### Configuration
+
+| Key | Default | Meaning |
+|---|---|---|
+| `Lakehold:Auth:RequireAuthentication` | `false` | Whether a request must carry a credential. False lets a token-less request fall back to trusting the route. A credential that *is* presented is always validated regardless. |
+| `Lakehold:BootstrapToken` | unset | Pre-seeds the first instance token instead of minting one. Only read when the token table is empty. A secret — set it through the environment, never `appsettings.json`. |
+| `Lakehold:Oidc:Authority` | empty | OIDC issuer. **Empty disables OIDC entirely**, which is what keeps an air-gapped install free of an identity-provider dependency. |
+| `Lakehold:Oidc:Audience` | empty | Audience a JWT must carry. Empty skips audience validation. |
+| `Lakehold:Oidc:RequireHttpsMetadata` | `true` | Only relax against a local IdP. |
+| `Lakehold:Oidc:TenantClaim` | `tenant` | Claim naming the tenant a human belongs to. |
+| `Lakehold:Oidc:RoleClaim` | `role` | Claim naming the role. Absent claim means `editor`. |
+| `Lakehold:PgWire:AllowTokenAuthentication` | `false` | Lets the wire endpoint accept an API token as the password, against the same store. |
+
+Secrets — `Lakehold__BootstrapToken`, wire passwords, TLS certificate passwords — belong in the
+environment or a secret store. `.env` is the local mechanism and is gitignored; `.env.example`
+documents each one without carrying a value.
+
+### Credential model
+
+Three axes, deliberately independent, so none of them has to be widened to express another:
+
+- **Scope** — capability at the instance level. `Instance` provisions; `Tenant` uses. An instance
+  token can create tenants, catalogs, and tokens, and **cannot execute a statement, read a catalog,
+  run maintenance, or eject**. That is what keeps "the credential names the tenant whose data is
+  reachable" true of every data path.
+- **Subject** — which tenant, and optionally which catalog. `CatalogName` is null for the whole
+  tenant, or one catalog for a least-privilege credential.
+- **Role** — `Owner` / `Editor` / `Reader` within the tenant. `Reader` implies read-only, which is
+  applied as an *attachment mode* rather than a permission check.
+
+> **A token created without `role` is an owner.** The default exists so that credentials minted
+> before roles existed keep working unchanged, but it means `{"name":"bi"}` mints a full-privilege
+> credential. Pass `"role":"reader"` for anything that only needs to read — the default is chosen for
+> upgrade safety, not for least privilege.
+
+`role` accepts the obvious synonyms (`admin`, `write`, `readwrite`, `readonly`, `viewer`, …), and an
+unrecognised value falls back to the default rather than failing — so a typo yields an owner token,
+which is the other reason to check what was issued with `GET …/tokens`.
+
+```
+lkh_<tenant-slug>_<43 chars base64url>      tenant-scoped
+lkh_admin_<43 chars base64url>              instance-scoped
+```
+
+The prefix is stored in the clear so a lookup is indexed and a leaked token is identifiable in a log
+without being usable. The secret is 32 bytes from `RandomNumberGenerator`, stored as SHA-256 and
+compared with `CryptographicOperations.FixedTimeEquals`. It is returned exactly once, at creation,
+and is not recoverable from the database, an API response, or a log.
+
+`admin` is a reserved tenant slug, refused both at tenant creation and in `ApiTokenFactory`, because
+a tenant named `admin` would mint tokens indistinguishable from instance-scoped ones.
+
+### Endpoints and who may reach them
+
+Capability is declared on the route as `RouteCapability` metadata and enforced in one place by
+`LakeholdAuthorizationFilter`.
+
+| Route | Capability | Reachable by |
+|---|---|---|
+| `GET /api/tenants` | `Listing` | Anyone; the result is scoped — instance sees all tenants, a tenant token sees only its own |
+| `POST /api/tenants` | `Instance` | Instance token |
+| `DELETE /api/tenants/{tenant}` | `Instance` | Instance token |
+| `POST /api/tenants/{tenant}/catalogs` | `Instance` | Instance token |
+| `DELETE /api/tenants/{tenant}/catalogs/{catalog}` | `Instance` | Instance token |
+| `POST`/`GET`/`DELETE /api/tenants/{tenant}/tokens` | `TenantAdmin` | Instance token, or a full **owner** token on its own tenant |
+| `POST …/catalogs/{catalog}/query` | `TenantData` | Any tenant token for that tenant/catalog |
+| `GET …/schemas`, `…/snapshots`, `…/backups`, `…/ejects`, `…/changes`, `…/subscriptions` | `TenantData` | Any tenant token |
+| `GET /api/tenants/{tenant}/history` | `TenantData` | Any tenant token |
+| `POST …/maintenance/{operation}` | `TenantOwner` | Owner only |
+| `POST …/backups/restore` | `TenantOwner` | Owner only |
+| `POST …/eject` | `TenantOwner` | Owner only |
+
+Maintenance, restore, and eject are owner operations because they destroy history, rewrite a catalog,
+or produce a complete copy of the lakehouse. Querying and writing are not: a `Reader` cannot write
+because its catalog is attached read-only, and an `Editor` can write but cannot expire snapshots.
+
+A least-privilege tenant token — narrowed to a catalog, or read-only — is refused at `TenantAdmin`
+even on its own tenant. Least-privilege credentials do not mint broader ones.
+
+### What a refusal means
+
+The status code is deliberate, and the distinction is worth knowing when debugging:
+
+| Code | Meaning |
+|---|---|
+| **401** | No credential when one is required, or a credential that did not resolve. Malformed, unknown, revoked, and expired are reported **identically** — the caller never learns which. |
+| **404** | The credential is valid but the route names a tenant or catalog it cannot reach. **Not 403**, because a 403 would confirm that the tenant exists. |
+| **403** | The credential can reach the subject but lacks the capability — a reader calling maintenance, a tenant token calling provisioning. |
+
+Subject is always checked before capability, which is what makes the 404 rule hold: you cannot probe
+for a tenant's existence by watching the error change.
+
+### Runbook — closing the door on a fresh deployment
+
+```bash
+docker compose -f compose.production.yaml up -d
+# read the bootstrap token from the log; it is printed once and never again
+```
+
+```bash
+ADMIN='lkh_admin_…'
+
+curl -X POST localhost:5200/api/tenants \
+  -H "Authorization: Bearer $ADMIN" -H 'Content-Type: application/json' \
+  -d '{"slug":"acme","displayName":"Acme"}'
+
+curl -X POST localhost:5200/api/tenants/acme/catalogs \
+  -H "Authorization: Bearer $ADMIN" -H 'Content-Type: application/json' \
+  -d '{"name":"analytics"}'
+
+# An owner token for day-to-day work, and a narrowed read-only one for a BI tool.
+curl -X POST localhost:5200/api/tenants/acme/tokens \
+  -H "Authorization: Bearer $ADMIN" -H 'Content-Type: application/json' \
+  -d '{"name":"ops","role":"owner"}'
+
+curl -X POST localhost:5200/api/tenants/acme/tokens \
+  -H "Authorization: Bearer $ADMIN" -H 'Content-Type: application/json' \
+  -d '{"name":"bi","role":"reader","catalogName":"analytics"}'
+```
+
+Then require authentication and restart:
+
+```json
+{ "Lakehold": { "Auth": { "RequireAuthentication": true } } }
+```
+
+Turn it on only once the workbench and any machine consumers hold tokens — otherwise the flip locks
+out the people who need to fix it. Verify with a request carrying no credential; it should be a 401.
+
+### Revoking
+
+`DELETE /api/tenants/{tenant}/tokens/{id}` sets `RevokedUtc` and is idempotent. A revoked token is
+refused thereafter on the HTTP API **and** on the PostgreSQL wire endpoint, because both resolve
+against the same store — which is the property `Lakehold:PgWire:TenantPasswords` could never offer.
+There is no un-revoke: issue a new token.
+
+### The wire endpoint
+
+`Lakehold:PgWire:AllowTokenAuthentication` lets a BI client present an API token as its password.
+The exchange must be cleartext, because a hashed store cannot answer PostgreSQL's MD5 challenge, so
+the API **refuses to start** with token authentication enabled unless TLS is required or cleartext is
+explicitly acknowledged. That refusal is the design: the alternative is a token crossing the network
+in the clear because nobody noticed.
+
+Configured `TenantPasswords` continue to work alongside tokens, so an existing deployment migrates
+one client at a time.
+
+### OIDC
+
+Humans authenticate with OIDC; machines use tokens. Both resolve to the same `ILakeholdPrincipal`,
+so nothing downstream distinguishes them.
+
+```json
+{
+  "Lakehold": {
+    "Oidc": {
+      "Authority": "https://keycloak.example.com/realms/lakehold",
+      "Audience": "lakehold",
+      "TenantClaim": "tenant",
+      "RoleClaim": "role"
+    }
+  }
+}
+```
+
+A JWT that authenticates but carries no tenant claim resolves to **nothing** rather than to a
+tenant-less principal: an identity the product cannot map to a catalog is not one it can serve, and
+guessing would be the wrong kind of helpful. With no authority configured the whole path stays off.
+
+### What is deliberately not built
+
+- **Per-principal quotas.** `MaxRowsPerResult` and the statement timeout remain per-node.
+- **Rate limiting and lockout** on HTTP authentication attempts. The wire endpoint counts failures
+  (`lakehold.pgwire.auth.failures`); the HTTP path does not yet.
+- **SCRAM-SHA-256** for the wire endpoint, which would remove the cleartext requirement.
+- **Per-user membership** (`TenantMember`). The OIDC mapping is a single claim until someone asks.
+- **Row and column security**, which stays on the far roadmap and is likely generated views rather
+  than an engine feature.
+
 ## Order of work
 
 Each step ships on its own and leaves the product working:
