@@ -1,5 +1,6 @@
-import { ChangeDetectionStrategy, Component } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
+import { SeoService } from './seo.service';
 
 /**
  * Shell.
@@ -14,4 +15,10 @@ import { RouterOutlet } from '@angular/router';
   imports: [RouterOutlet],
   template: '<router-outlet />',
 })
-export class App {}
+export class App {
+  constructor() {
+    // The shell outlives every route, so this is the one place the per-route meta tags can be
+    // driven from a single subscription.
+    inject(SeoService).init();
+  }
+}

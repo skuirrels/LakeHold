@@ -91,7 +91,7 @@ docker compose -f compose.production.yaml up -d --build
 | Images | .NET SDK + Node, ~1 GB each | Published output only — 416 MB API, 63 MB web |
 | Source | Bind-mounted, hot reloads | Not present in the image |
 | Runs as | root | Non-root (`app`, `nginx`) |
-| Website | Angular dev server | Built bundle behind nginx |
+| Website | Angular dev server | Prerendered bundle behind nginx |
 | API port | Published on `:5200` | **Not published** — reached through the site's own origin |
 | Demo data | Seeded on first run | Never |
 | State | Named volume | Named volume, `/var/lib/lakehold` |
@@ -101,6 +101,11 @@ Worth knowing:
 - **The API is not exposed to the host.** nginx serves the site and proxies `/api` on the same
   origin, which removes CORS from the deployment and leaves one published port. Publish the API
   yourself if something outside the compose network needs it.
+- **The marketing pages are prerendered.** `ng build` emits real HTML for `/`, `/compare`, and
+  `/docs` so crawlers and link unfurlers do not have to execute JavaScript to see the content; the
+  authenticated workbench stays client-rendered and `noindex`. Adding a public route means adding it
+  to `public/sitemap.xml` and giving it a `data.seo` description in `app.routes.ts`. Unmatched paths
+  fall back to `index.csr.html`, never to a prerendered page.
 - **Demo seeding is off.** `Lakehold:SeedDemoData` defaults to the environment, so a production node
   never invents a `demo` tenant holding 250,000 rows. Schema initialisation still runs — that is
   what creates tables added since a database was first initialised.
