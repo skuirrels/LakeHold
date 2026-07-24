@@ -1,0 +1,8 @@
+# The marketing pages are prerendered and meant to be indexed. The workbench is behind
+# authentication and has nothing to crawl, and /api is not a document surface at all.
+User-agent: *
+Allow: /
+Disallow: /workbench
+Disallow: /api/
+
+Sitemap: https://lakehold.dev/sitemap.xml

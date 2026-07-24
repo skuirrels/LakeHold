@@ -15,6 +15,30 @@
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
   <meta name="theme-color" content="#ffc857">
+
+  <!--
+    Per-route description, canonical, and Open Graph tags are written by `SeoService` and baked into
+    each prerendered page. What stays here is only what is true of every page.
+  -->
+  <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "Lakehold",
+      "url": "https://lakehold.dev",
+      "applicationCategory": "DeveloperApplication",
+      "applicationSubCategory": "Database",
+      "operatingSystem": "Linux, macOS, Windows",
+      "license": "https://www.apache.org/licenses/LICENSE-2.0",
+      "description": "A self-hostable, multi-tenant lakehouse built on DuckDB and DuckLake, storing every byte as open Parquet with first-class .NET integration.",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      },
+      "codeRepository": "https://github.com/skuirrels/LakeHold"
+    }
+  </script>
 </head>
 <body>
   <app-root></app-root>
