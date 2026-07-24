@@ -50,7 +50,8 @@ public static class ApiTokenFactory
         DateTimeOffset createdUtc,
         bool readOnly = false,
         string? catalogName = null,
-        DateTimeOffset? expiresUtc = null)
+        DateTimeOffset? expiresUtc = null,
+        TokenRole role = TokenRole.Owner)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
 
@@ -69,7 +70,11 @@ public static class ApiTokenFactory
             Name = name,
             Prefix = prefix,
             SecretHash = Hash(plaintext),
-            ReadOnly = !isInstance && readOnly,
+
+            // A reader is read-only by definition; asking for one without the flag would otherwise
+            // produce a credential whose role says read and whose attachment allows write.
+            ReadOnly = !isInstance && (readOnly || role == TokenRole.Reader),
+            Role = isInstance ? TokenRole.Owner : role,
             CreatedUtc = createdUtc,
             ExpiresUtc = expiresUtc,
         };

@@ -5,6 +5,8 @@ using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using Lakehold.ControlPlane.Data;
+using Lakehold.ControlPlane.Model;
+using Lakehold.ControlPlane.Security;
 using Lakehold.Engine.Execution;
 using Lakehold.Engine.Telemetry;
 using Microsoft.Extensions.DependencyInjection;
@@ -58,6 +60,16 @@ internal sealed class PgWireConnection(
 
     private string _tenant = string.Empty;
     private string _catalog = string.Empty;
+
+    /// <summary>
+    ///     Capability carried by the credential this connection authenticated with. A read-only API
+    ///     token attaches the catalog read-only, so a write fails in the engine exactly as it does over
+    ///     HTTP; a configured password grants the catalog's own access, as before.
+    /// </summary>
+    private bool _readOnly;
+
+    /// <summary>The API token this connection authenticated with, recorded on every run it executes.</summary>
+    private int? _tokenId;
 
     // The extended-query protocol's unnamed statement and portal. Named ones are accepted and stored
     // in the same slots: a BI client uses one at a time, and pretending otherwise would mean tracking
@@ -352,7 +364,7 @@ internal sealed class PgWireConnection(
             if (StatementVerb.ReportsAffectedRows(trimmed))
             {
                 var executed = await lakehouse
-                    .ExecuteAsync(_tenant, _catalog, trimmed, cancellationToken)
+                    .ExecuteAsync(_tenant, _catalog, trimmed, cancellationToken, _readOnly, _tokenId)
                     .ConfigureAwait(false);
 
                 if (_describePending)
@@ -394,7 +406,9 @@ internal sealed class PgWireConnection(
                 },
                 WriteDataRowAsync,
                 options.MaxRows,
-                cancellationToken).ConfigureAwait(false);
+                cancellationToken,
+                _readOnly,
+                _tokenId).ConfigureAwait(false);
 
             await WriteCommandCompleteAsync(trimmed, columnCount, rows, cancellationToken).ConfigureAwait(false);
             return true;
@@ -831,6 +845,14 @@ internal sealed class PgWireConnection(
     {
         var configured = ExpectedPassword();
 
+        // Token authentication needs the password in the clear, because the store holds only a hash
+        // and MD5's challenge cannot be reproduced from one. When it is enabled, the exchange is
+        // cleartext and a presented value is tried against the token store first.
+        if (options.AllowTokenAuthentication)
+        {
+            return await CheckTokenOrPasswordAsync(configured, cancellationToken).ConfigureAwait(false);
+        }
+
         if (configured is null)
         {
             // Per-tenant credentials are in force and this tenant has none. Answered exactly like a
@@ -883,6 +905,78 @@ internal sealed class PgWireConnection(
         }
 
         return true;
+    }
+
+    /// <summary>
+    ///     Authenticates a cleartext value against the API token store, falling back to the tenant's
+    ///     configured password. This is what makes revocation close the wire endpoint and the HTTP API
+    ///     together rather than one of them.
+    /// </summary>
+    private async Task<bool> CheckTokenOrPasswordAsync(string? configured, CancellationToken cancellationToken)
+    {
+        // Always cleartext here: a token cannot answer an MD5 challenge, and mixing the two would let
+        // a client choose the weaker exchange.
+        _writer.Reset();
+        _writer.Begin(PgBackend.Authentication).Int32(3).End();
+        await FlushAsync(cancellationToken).ConfigureAwait(false);
+
+        var presented = await ReadPasswordAsync(cancellationToken).ConfigureAwait(false);
+        if (presented is null)
+        {
+            return false;
+        }
+
+        if (presented.StartsWith("lkh_", StringComparison.Ordinal))
+        {
+            await using var scope = scopeFactory.CreateAsyncScope();
+            var authenticator = scope.ServiceProvider.GetRequiredService<ApiTokenAuthenticator>();
+            var result = await authenticator.AuthenticateAsync(presented, cancellationToken).ConfigureAwait(false);
+
+            // The credential must name this connection's tenant, and honour any catalog narrowing —
+            // the same rule TenantAccessPolicy applies over HTTP, enforced here rather than reused
+            // because the wire endpoint answers with a protocol error rather than a status code.
+            if (result is { Status: TokenAuthStatus.Authenticated, Principal: { } principal }
+                && principal.Scope == TokenScope.Tenant
+                && string.Equals(principal.TenantSlug, _tenant, StringComparison.Ordinal)
+                && (principal.CatalogName is null
+                    || string.Equals(principal.CatalogName, _catalog, StringComparison.Ordinal)))
+            {
+                _readOnly = principal.IsReadOnly;
+                _tokenId = principal.TokenId;
+                return true;
+            }
+
+            return await RefuseAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        if (configured is null)
+        {
+            // Per-tenant credentials are in force and this tenant has none. Refused exactly as a wrong
+            // password is, so the response does not reveal which tenants are configured.
+            return await RefuseAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        if (configured.Length == 0)
+        {
+            // Anonymous access was deliberately enabled; start-up already refused this state otherwise.
+            return true;
+        }
+
+        var matched = CryptographicOperations.FixedTimeEquals(
+            Encoding.UTF8.GetBytes(presented),
+            Encoding.UTF8.GetBytes(configured));
+
+        return matched || await RefuseAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>Reports an authentication failure identically however it arose, and closes.</summary>
+    private async Task<bool> RefuseAsync(CancellationToken cancellationToken)
+    {
+        LakeholdTelemetry.WireAuthenticationFailures.Add(1);
+        PgWireLog.AuthenticationFailed(logger, _tenant);
+        await SendErrorAsync("28P01", "Password authentication failed.", cancellationToken, fatal: true)
+            .ConfigureAwait(false);
+        return false;
     }
 
     /// <summary>Sends the authentication challenge, returning the salt it carried.</summary>

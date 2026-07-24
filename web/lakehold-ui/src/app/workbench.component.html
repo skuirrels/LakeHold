@@ -43,6 +43,34 @@
       <button class="btn" type="button" title="Delete data files no longer referenced by any snapshot"
               (click)="runMaintenance('cleanup')">Cleanup</button>
     </div>
+
+    <div class="credential">
+      <button class="btn" type="button" [class.btn-active]="auth.hasToken()"
+              (click)="toggleCredential()"
+              [title]="auth.hasToken() ? 'An API token is set for this session' : 'No API token set'">
+        {{ auth.hasToken() ? 'Token set' : 'Sign in' }}
+      </button>
+
+      @if (credentialOpen()) {
+        <div class="credential-popover">
+          <label class="field">
+            <span>API token</span>
+            <input type="password" autocomplete="off" placeholder="lkh_…"
+                   [value]="tokenDraft()" (input)="tokenDraft.set($any($event.target).value)"
+                   (keydown.enter)="saveCredential()" />
+          </label>
+          <div class="credential-actions">
+            <button class="btn btn-primary" type="button" (click)="saveCredential()">Save</button>
+            @if (auth.hasToken()) {
+              <button class="btn" type="button" (click)="clearCredential()">Clear</button>
+            }
+          </div>
+          <p class="credential-hint">
+            Sent as a bearer token on API calls this tab makes. Kept for this browser session only.
+          </p>
+        </div>
+      }
+    </div>
   </header>
 
   <div class="body">
@@ -136,6 +164,9 @@
                         <span class="history-meta">
                           {{ run.rowCount }} rows · {{ run.elapsedMilliseconds.toFixed(0) }} ms ·
                           {{ formatTime(run.startedUtc) }}
+                          @if (run.tokenName) {
+                            · <span class="history-token">{{ run.tokenName }}</span>
+                          }
                         </span>
                       </button>
                     </li>

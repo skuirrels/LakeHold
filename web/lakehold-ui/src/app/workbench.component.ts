@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { AuthService } from './auth.service';
 import { CatalogExplorerComponent } from './catalog-explorer.component';
 import { LakehouseService } from './lakehouse.service';
 import { MaintenanceOperation, QueryResponse, QueryRun, Schema, Snapshot, Tenant } from './models';
@@ -27,6 +28,11 @@ type BottomTab = 'results' | 'history' | 'snapshots';
 })
 export class WorkbenchComponent {
   private readonly api = inject(LakehouseService);
+  protected readonly auth = inject(AuthService);
+
+  /** Whether the credential popover is open, and the token being typed into it. */
+  protected readonly credentialOpen = signal(false);
+  protected readonly tokenDraft = signal('');
 
   protected readonly tenants = signal<Tenant[]>([]);
   protected readonly tenantSlug = signal<string | null>(null);
@@ -74,19 +80,52 @@ export class WorkbenchComponent {
   });
 
   constructor() {
+    this.loadTenants();
+  }
+
+  /** Loads the tenants the current credential can see, selecting the first as a starting point. */
+  private loadTenants(): void {
     this.api.listTenants().subscribe({
       next: (tenants) => {
         this.tenants.set(tenants);
+        this.error.set(null);
         const first = tenants[0];
         if (first) {
           this.tenantSlug.set(first.slug);
           this.catalogName.set(first.catalogs[0]?.name ?? null);
           this.refreshCatalog();
           this.refreshHistory();
+        } else {
+          this.tenantSlug.set(null);
+          this.catalogName.set(null);
+          this.schemas.set([]);
+          this.history.set([]);
         }
       },
       error: (err: Error) => this.error.set(err.message),
     });
+  }
+
+  /** Toggles the credential popover, seeding the draft with nothing (the token is never echoed back). */
+  protected toggleCredential(): void {
+    this.tokenDraft.set('');
+    this.credentialOpen.update((open) => !open);
+  }
+
+  /** Stores the typed token and reloads, since it may change which tenants are visible. */
+  protected saveCredential(): void {
+    this.auth.setToken(this.tokenDraft());
+    this.tokenDraft.set('');
+    this.credentialOpen.set(false);
+    this.loadTenants();
+  }
+
+  /** Forgets the token and reloads as an anonymous caller. */
+  protected clearCredential(): void {
+    this.auth.clear();
+    this.tokenDraft.set('');
+    this.credentialOpen.set(false);
+    this.loadTenants();
   }
 
   protected selectTenant(slug: string): void {

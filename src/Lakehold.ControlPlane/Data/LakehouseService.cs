@@ -40,7 +40,9 @@ public sealed class LakehouseService(
         string tenantSlug,
         string catalogName,
         string sql,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool readOnly = false,
+        int? tokenId = null)
     {
         // The span carries tenant and catalog; the metrics deliberately do not. Per-tenant time
         // series would blow a metrics backend's cardinality budget on a multi-tenant node, and a slow
@@ -50,7 +52,7 @@ public sealed class LakehouseService(
         activity?.SetTag(LakeholdTelemetry.CatalogKey, catalogName);
         var startedAt = TimeProvider.System.GetTimestamp();
 
-        var (duckling, tenantId) = await ResolveAsync(tenantSlug, catalogName, cancellationToken).ConfigureAwait(false);
+        var (duckling, tenantId) = await ResolveAsync(tenantSlug, catalogName, cancellationToken, readOnly).ConfigureAwait(false);
 
         var run = new QueryRun
         {
@@ -58,6 +60,7 @@ public sealed class LakehouseService(
             CatalogName = catalogName,
             Sql = sql,
             StartedUtc = DateTimeOffset.UtcNow,
+            TokenId = tokenId,
         };
 
         try
@@ -134,14 +137,16 @@ public sealed class LakehouseService(
         Func<IReadOnlyList<StreamColumn>, CancellationToken, Task> onColumns,
         Duckling.RowHandler onRow,
         int maxRows,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool readOnly = false,
+        int? tokenId = null)
     {
         using var activity = LakeholdTelemetry.Source.StartActivity("lakehold.query");
         activity?.SetTag(LakeholdTelemetry.TenantKey, tenantSlug);
         activity?.SetTag(LakeholdTelemetry.CatalogKey, catalogName);
         var startedAt = TimeProvider.System.GetTimestamp();
 
-        var (duckling, tenantId) = await ResolveAsync(tenantSlug, catalogName, cancellationToken).ConfigureAwait(false);
+        var (duckling, tenantId) = await ResolveAsync(tenantSlug, catalogName, cancellationToken, readOnly).ConfigureAwait(false);
 
         var run = new QueryRun
         {
@@ -149,6 +154,7 @@ public sealed class LakehouseService(
             CatalogName = catalogName,
             Sql = sql,
             StartedUtc = DateTimeOffset.UtcNow,
+            TokenId = tokenId,
         };
 
         try
@@ -521,12 +527,20 @@ public sealed class LakehouseService(
     private async Task<(Duckling Duckling, int TenantId)> ResolveAsync(
         string tenantSlug,
         string catalogName,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool readOnly = false)
     {
         var resolved = await ResolveCatalogAsync(tenantSlug, catalogName, cancellationToken).ConfigureAwait(false);
 
+        // A read-only credential produces a read-only attachment even when the catalog is writable:
+        // capability is enforced by the engine not holding a writable handle, not by inspecting SQL.
+        // A catalog already configured read-only stays as it is — there is nothing to narrow.
+        var descriptor = readOnly && !resolved.Descriptor.ReadOnly
+            ? resolved.Descriptor with { ReadOnly = true }
+            : resolved.Descriptor;
+
         var duckling = await _pool
-            .GetOrStartAsync(resolved.Descriptor, configure: null, cancellationToken)
+            .GetOrStartAsync(descriptor, configure: null, cancellationToken)
             .ConfigureAwait(false);
 
         return (duckling, resolved.TenantId);

@@ -14,14 +14,24 @@ catalogs), and the principal model are specified there and are a prerequisite fo
 a "public" API in front of an open door is not public, it is exposed. Auth and provisioning are not
 re-specified here; this document references them and fills in the surface around them.
 
+**That gate is now met.** Every phase of `AUTHENTICATION.md` has landed: tokens, instance-scoped
+provisioning endpoints, the principal model, roles, and audit. What remains for this document is the
+surface around them — versioning, `problem+json`, pagination, async jobs, and time travel. One caveat
+carries forward: `RequireAuthentication` defaults to false, so a public surface must not assume every
+request is authenticated.
+
 ## What exists today
 
-Everything is under `/api` (unversioned), the tenant is a URL segment, there is no authentication, and
-errors are bare strings despite `AddProblemDetails` being registered. `src/Lakehold.Api/Endpoints/`:
+Everything is under `/api` (unversioned) and errors are bare strings despite `AddProblemDetails` being
+registered. Authentication and provisioning now exist (`AdminEndpoints`); the tenant is still a URL
+segment, but it is validated against the credential rather than trusted.
+`src/Lakehold.Api/Endpoints/`:
 
 | Area | Route | Gap for a public API |
 |---|---|---|
-| Discovery | `GET /api/tenants` | Lists every tenant on the node, unauthenticated. |
+| Discovery | `GET /api/tenants` | Now scoped to the credential; still unversioned and unpaginated. |
+| Provisioning | `POST`/`DELETE /api/tenants`, `…/catalogs` | Synchronous; no async job model. |
+| Tokens | `POST`/`GET`/`DELETE …/{tenant}/tokens` | No pagination; no last-used tracking on the request path. |
 | Query | `POST …/catalogs/{c}/query` | No time-travel option; result capped, no streaming variant. |
 | Schema | `GET …/catalogs/{c}/schemas` | — |
 | Time travel | `GET …/catalogs/{c}/snapshots?limit=` | **List only.** No as-of read, rollback, label, pin, or retention. |
@@ -29,7 +39,7 @@ errors are bare strings despite `AddProblemDetails` being registered. `src/Lakeh
 | Backup | `GET …/backups`, `POST …/backups/restore` | Synchronous restore; no job model. |
 | Eject | `POST …/eject`, `GET …/ejects` | Synchronous; no download. |
 | CDC | `GET …/changes`, `…/subscriptions` | Solid; keep. |
-| History | `GET …/{tenant}/history` | No principal. |
+| History | `GET …/{tenant}/history` | Principal now recorded; no cursor pagination. |
 | Scheduling | `GET /api/maintenance/schedule` | Node-global, read-only; schedule is config-only. |
 
 ## Design rules

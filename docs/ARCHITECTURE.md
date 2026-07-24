@@ -198,6 +198,29 @@ Established later, on DuckDB 1.5.4, while building eject and CDC:
    the `ducklake` extension was never loaded. Copying the data path's files directly does none of
    these things, which is why the naive glob in `docs/EXIT-PATH.md` is documented as wrong.
 
+Established on DuckDB 1.5.4, and a correction to point 2 above:
+
+9. **The metadata catalog is attached but hidden from every introspection surface.** On 1.5.3 a
+   local-file metadata catalog appeared in `duckdb_databases()` as `__ducklake_metadata_<catalog>`
+   and its tables listed in `duckdb_tables()`. On 1.5.4 it appears in *none* of
+   `duckdb_databases()` (with or without the `internal` flag), `duckdb_tables()`,
+   `PRAGMA database_list`, `SHOW DATABASES`, or the alias's own `information_schema` — while
+   remaining fully readable by name. The name is not an internal detail to be guessed: it is
+   documented behaviour of the `ducklake` extension. Point 2's "visible in `information_schema`"
+   held for 1.5.3 and no longer does.
+
+   This broke metadata export, which enumerated through `duckdb_tables()`: it found zero tables and
+   wrote a manifest saying so. `MetadataExporter` now enumerates over an independent read-only
+   connection to the metadata file, where it is an ordinary DuckDB database and lists normally, and
+   refuses to write a manifest when it finds nothing at all.
+
+10. **The metadata table list cannot be hard-coded, because part of it is named at run time.**
+    Alongside the ~28 specified `ducklake_*` tables, DuckLake stages small commits in a per-table
+    `ducklake_inlined_data_<schema-id>_<table-id>`. Those are committed rows that are not yet in
+    Parquet (point 1), so an export working from a fixed list would omit exactly the newest writes
+    while reporting success — the open-format guarantee failing silently. Discovery has to be
+    dynamic for the same reason the flush step exists at all.
+
 ## Competitive landscape
 
 Lakehold's category is "self-hostable open-format lakehouse." That places it against three groups
@@ -266,13 +289,17 @@ Legend: ✅ shipped/strong · ⚠️ partial, gated, or connector-only · 🛠�
 
 **On the isolation row.** Isolation between attached catalogs is structural and holds exactly as
 "Ducklings: the isolation unit" describes — a session can only reference what is attached to it, and
-no amount of submitted SQL changes that. What does not exist is the layer that decides *which* tenant
-a caller is. There is no authentication or authorisation anywhere in the API: tenant identity is the
-`{tenantSlug}` segment of the URL, so anyone who can reach the API is every tenant.
+no amount of submitted SQL changes that. The layer that decides *which* tenant a caller is now exists
+too: API tokens, OIDC, and roles, all specified and implemented per
+[`AUTHENTICATION.md`](AUTHENTICATION.md). The credential names the tenant and the URL segment is
+validated against it.
 
 Those are two different claims and the matrix previously ran them together. The engine-level boundary
-is real and worth the ✅ it used to carry; the product-level guarantee a security review is asking
-about is not there yet, which is why the row now reads ⚠️ and why authentication leads the roadmap.
+was always real; the product-level guarantee a security review asks about now exists as well. The row
+stays ⚠️ rather than ✅ for one reason: `Lakehold:Auth:RequireAuthentication` defaults to **false**, so
+a deployment that does not set it still accepts token-less requests and trusts the route. Enforcement
+is available and tested; making it mandatory is the operator's switch to throw, and until a
+deployment throws it the honest reading of the row is "partial".
 
 **Reading the matrix.** No competitor holds *all three* of {runs entirely in your infra, table data
 readable with no vendor catalog, .NET/EF Core model integration}. MotherDuck matches the format and
@@ -451,18 +478,21 @@ deserialises from that rather than introducing a second conversion path.
   row is the differentiator, and the first is only its delivery vehicle.
 - **Would extend**: `ChangeFeed`, the API contracts, and a new client project.
 
-### Precondition for all three: authentication
+### Precondition for all three: authentication — met
 
-USPs 4–6 are all *externally reachable surfaces*, and the API has no authentication or authorisation
-of any kind — no OIDC, no API keys, no `RequireAuthorization`. Tenant identity is a URL slug, so
-anyone who can reach the API is every tenant.
+USPs 4–6 are all *externally reachable surfaces*, and serving an Iceberg REST endpoint or a client SDK
+on top of an unauthenticated API would widen the exposure rather than the moat. That precondition has
+since been met: the whole plan in [`AUTHENTICATION.md`](AUTHENTICATION.md) — API tokens, instance-
+scoped provisioning, read-only capability by attachment, per-statement audit, the wire endpoint on the
+same token store, OIDC, and roles — is implemented.
 
-Invariant 4 is not violated by this: isolation between attached catalogs is structural and holds.
-What is missing is the layer that decides *which* tenant a caller is, and that layer is a
-prerequisite rather than a parallel workstream. The plan for it — tokens first, then read-only
-capability by attachment, then OIDC, then roles — is specified in
-[`AUTHENTICATION.md`](AUTHENTICATION.md). Serving an Iceberg REST endpoint or a client SDK on
-top of an unauthenticated API widens the exposure rather than the moat.
+Invariant 4 was never violated by the earlier gap: isolation between attached catalogs is structural
+and always held. What was missing was the layer deciding *which* tenant a caller is, and it now
+exists, with the credential naming the tenant and the route validated against it.
+
+The one caveat for anything built on top: `RequireAuthentication` still defaults to false, so a new
+externally reachable surface must not assume every request arrives authenticated. Such a surface
+should either require its own credential or ship alongside guidance to enable enforcement.
 
 ## Roadmap
 
@@ -470,11 +500,13 @@ top of an unauthenticated API widens the exposure rather than the moat.
 verified eject bundles, CDC pull API and signed webhooks.
 
 **Now** also includes the PostgreSQL wire endpoint (`docs/POSTGRES-WIRE.md`) — parity rather than
-differentiation, as the matrix says, but its absence was the one thing keeping every BI tool out.
+differentiation, as the matrix says, but its absence was the one thing keeping every BI tool out —
+and **authentication and tenant identity** (`docs/AUTHENTICATION.md`): API tokens, provisioning,
+read-only capability by attachment, audit, wire convergence, OIDC, and roles. Enforcement is opt-in
+per deployment (`Lakehold:Auth:RequireAuthentication`).
 
-**Next** — authentication and tenant identity (a precondition for everything below it), Iceberg REST
-Catalog endpoint (USP 5), `Lakehold.Client` with the typed change stream (USP 6), MCP server for AI
-agents, read-only share links.
+**Next** — Iceberg REST Catalog endpoint (USP 5), `Lakehold.Client` with the typed change stream
+(USP 6), MCP server for AI agents, read-only share links.
 
 **Later** — continuous exit attestation (USP 4), embedded Duckling, read replicas for concurrent
 readers, managed ingestion connectors, semantic layer generated from the EF Core model,

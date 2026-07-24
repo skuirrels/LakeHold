@@ -123,6 +123,132 @@ public sealed class AdditiveSchemaTests : IAsyncLifetime
         await context.Database.EnsureCreatedAsync();
 
         Assert.Equal(0, await AdditiveSchema.EnsureModelTablesAsync(context, CancellationToken.None));
+        Assert.Equal(0, await AdditiveSchema.EnsureModelColumnsAsync(context, CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task Missing_column_is_added_to_an_existing_table_and_usable()
+    {
+        // A database from before QueryRun.TokenId existed: full schema, then the column dropped, with
+        // a tenant and an audit row already present. DuckDB refuses to alter a table while an index
+        // references it, so the index is dropped for the removal and recreated afterwards — which also
+        // reproduces the production shape exactly: the column is added back with the index in place.
+        int tenantId;
+        await using (var context = NewContext())
+        {
+            await context.Database.EnsureCreatedAsync();
+            var tenant = new Tenant { Slug = "acme", DisplayName = "Acme", CreatedUtc = DateTimeOffset.UtcNow };
+            context.Tenants.Add(tenant);
+            await context.SaveChangesAsync();
+            tenantId = tenant.Id;
+
+            await context.Database.ExecuteSqlAsync(
+                $"INSERT INTO \"QueryRuns\" (\"TenantId\", \"CatalogName\", \"Sql\", \"StartedUtc\", \"ElapsedMilliseconds\", \"RowCount\", \"Succeeded\") VALUES ({tenantId}, 'analytics', 'SELECT 1', now(), 1.0, 1, true)");
+
+            foreach (var index in await IndexNamesAsync(context, "QueryRuns"))
+            {
+                // An index name cannot be parameterised; these come from the database's own catalog.
+                await ExecuteDdlAsync(context, "DROP INDEX \"" + index + "\"");
+            }
+
+            await context.Database.ExecuteSqlRawAsync("ALTER TABLE \"QueryRuns\" DROP COLUMN \"TokenId\"");
+
+            // Put an index back so the additive pass adds the column to an indexed table, as it does
+            // in production.
+            await context.Database.ExecuteSqlRawAsync(
+                "CREATE INDEX \"IX_QueryRuns_TenantId_StartedUtc\" ON \"QueryRuns\" (\"TenantId\", \"StartedUtc\")");
+        }
+
+        await using (var context = NewContext())
+        {
+            var added = await AdditiveSchema.EnsureModelColumnsAsync(context, CancellationToken.None);
+            Assert.Equal(1, added);
+
+            // The pre-existing audit row survives, with the new column defaulting to null.
+            var existing = await context.QueryRuns.SingleAsync();
+            Assert.Null(existing.TokenId);
+
+            // And the column is writable through the model.
+            context.QueryRuns.Add(new QueryRun
+            {
+                TenantId = tenantId,
+                CatalogName = "analytics",
+                Sql = "SELECT 2",
+                StartedUtc = DateTimeOffset.UtcNow,
+                TokenId = 42,
+            });
+            await context.SaveChangesAsync();
+
+            Assert.Equal(42, (await context.QueryRuns.OrderByDescending(r => r.Id).FirstAsync()).TokenId);
+
+            // Idempotent: a second pass adds nothing.
+            Assert.Equal(0, await AdditiveSchema.EnsureModelColumnsAsync(context, CancellationToken.None));
+        }
+    }
+
+    /// <summary>Runs fixture DDL whose identifiers cannot be parameterised, off EF's raw-SQL path.</summary>
+    private static async Task ExecuteDdlAsync(ControlPlaneContext context, string sql)
+    {
+        var connection = context.Database.GetDbConnection();
+        var opened = connection.State != System.Data.ConnectionState.Open;
+        if (opened)
+        {
+            await connection.OpenAsync();
+        }
+
+        try
+        {
+            await using var command = connection.CreateCommand();
+            command.CommandText = sql;
+            await command.ExecuteNonQueryAsync();
+        }
+        finally
+        {
+            if (opened)
+            {
+                await connection.CloseAsync();
+            }
+        }
+    }
+
+    /// <summary>Index names on a table, so a fixture can drop what blocks an ALTER and restore it.</summary>
+    private static async Task<List<string>> IndexNamesAsync(ControlPlaneContext context, string table)
+    {
+        var names = new List<string>();
+        var connection = context.Database.GetDbConnection();
+        var opened = connection.State != System.Data.ConnectionState.Open;
+        if (opened)
+        {
+            await connection.OpenAsync();
+        }
+
+        try
+        {
+            await using var command = connection.CreateCommand();
+            command.CommandText = "SELECT index_name FROM duckdb_indexes() WHERE table_name = $table";
+            var parameter = command.CreateParameter();
+            parameter.ParameterName = "table";
+            parameter.Value = table;
+            command.Parameters.Add(parameter);
+
+            await using var reader = await command.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+            {
+                if (reader.GetValue(0) is string name)
+                {
+                    names.Add(name);
+                }
+            }
+        }
+        finally
+        {
+            if (opened)
+            {
+                await connection.CloseAsync();
+            }
+        }
+
+        return names;
     }
 
     private ControlPlaneContext NewContext()

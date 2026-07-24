@@ -316,15 +316,49 @@ you can add to a `csproj`.
 
 ---
 
-## Before you rely on it
+## Authentication
 
-Lakehold has **no authentication yet**. Isolation between catalogs is structural — a session can only
-reference the catalog attached to it, and no submitted SQL changes that — but the layer that decides
-*which* tenant a caller is does not exist: identity is currently the tenant segment of the URL.
+Lakehold authenticates with **API tokens**. A token names one tenant, may be narrowed to a single
+catalog, carries a role (`owner`, `editor`, `reader`), and can be revoked — which closes the HTTP API
+and the PostgreSQL wire endpoint together.
 
-So anyone who can reach the API is every tenant. Run Lakehold on a trusted network until
-authentication lands, and treat the isolation guarantee as an engine property rather than a product
-one. The PostgreSQL wire endpoint is off by default for the same reason. The phased plan is in
+**Enforcement is opt-in, and off by default.** Until you turn it on, a request with no token still
+works and is trusted to name its own tenant — which keeps local development frictionless and is
+exactly what you must not deploy. To close the door:
+
+```json
+{ "Lakehold": { "Auth": { "RequireAuthentication": true } } }
+```
+
+### Getting your first token
+
+A node with no tokens mints one on start-up, logs it **once**, and never again. It is instance-scoped:
+it provisions tenants, catalogs, and other tokens, but deliberately cannot read data — so a leaked
+admin credential is a visible provisioning problem rather than a silent data breach.
+
+```bash
+docker compose -f compose.production.yaml up -d          # read the bootstrap token from the log
+
+curl -X POST …/api/tenants        -H 'Authorization: Bearer lkh_admin_…' -d '{"slug":"acme","displayName":"Acme"}'
+curl -X POST …/api/tenants/acme/catalogs -H 'Authorization: Bearer lkh_admin_…' -d '{"name":"analytics"}'
+curl -X POST …/api/tenants/acme/tokens   -H 'Authorization: Bearer lkh_admin_…' -d '{"name":"bi","role":"reader"}'
+```
+
+Set `Lakehold__BootstrapToken` if your platform injects credentials and cannot scrape a log.
+
+A token is shown once at creation and stored only as a SHA-256 hash, so it cannot be recovered — from
+the API or the database. Reaching a tenant or catalog your credential does not name returns **404**,
+not 403: a 403 would confirm it exists.
+
+### Capability comes from attachment
+
+A `reader` token does not get a permission check that clever SQL might route around — its catalog is
+attached **read-only**, so a write fails in the engine itself. That is the same reasoning behind
+Lakehold's isolation model: a session can only reference the catalog attached to it.
+
+Humans can sign in with **OIDC** instead (Keycloak, Entra, Authentik, Auth0). Configure an authority
+and a tenant claim; leave it unset and the whole path stays off, so an air-gapped install never takes
+a dependency on an identity provider. The full design is in
 [`docs/AUTHENTICATION.md`](https://github.com/skuirrels/LakeHold/blob/main/docs/AUTHENTICATION.md).
 
 ---

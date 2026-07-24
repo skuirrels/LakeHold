@@ -170,6 +170,63 @@
   margin-right: 2px;
 }
 
+/* Credential control. Maintenance already claims the auto margin, so this sits just right of it. */
+
+.credential {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.btn-active {
+  border-color: var(--accent, #ffc857);
+  color: var(--text);
+}
+
+.credential-popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 20;
+  width: 300px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35);
+}
+
+.credential-popover .field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.credential-popover input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 6px 8px;
+  font: inherit;
+  color: var(--text);
+  background: var(--surface-2, var(--surface-1));
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.credential-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.credential-hint {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--text-faint);
+}
+
 /* Layout */
 
 .body {
@@ -441,6 +498,10 @@
   color: var(--text-faint);
   font-family: var(--mono);
   flex-shrink: 0;
+}
+
+.history-token {
+  color: var(--text-dim, var(--text-faint));
 }
 
 /* Snapshots */

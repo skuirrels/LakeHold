@@ -21,7 +21,7 @@ reason, and Power BI worked against it out of the box.
 |---|---|
 | `user` | tenant slug |
 | `database` | catalog name |
-| password | shared secret from configuration |
+| password | a Lakehold API token, or a per-tenant secret from configuration |
 | session | one `Duckling`, resolved exactly as an HTTP query resolves |
 
 ```
@@ -35,8 +35,38 @@ its `user`/`database` pair resolved to, and no SQL it submits is inspected to en
 
 ## Authentication
 
-The API has no authentication (see [`ARCHITECTURE.md`](ARCHITECTURE.md)), so this endpoint carries
-its own. It implements the protocol's password exchange against **per-tenant credentials**:
+Two credential schemes are supported, and they coexist: **Lakehold API tokens**, shared with the HTTP
+API, and **per-tenant passwords** from configuration. Tokens are the better answer — see
+[`AUTHENTICATION.md`](AUTHENTICATION.md) — because they are issued, revocable, and carry capability;
+the configured passwords predate them and remain for deployments that have not moved.
+
+### API tokens
+
+```jsonc
+// appsettings — enabling this changes the exchange; see the constraint below
+"Lakehold": { "PgWire": { "AllowTokenAuthentication": true } }
+```
+
+With this set, a client presents a Lakehold API token as its password and the server verifies it
+against the same store the HTTP API uses. The consequence that matters: **revoking a credential
+closes the BI tool and the API together**, rather than leaving a BI tool connected with a credential
+the API has already refused.
+
+The token must name the connection's tenant, and honour any catalog narrowing it carries — a token
+scoped to one catalog cannot open another, refused identically to a wrong password. A read-only token
+attaches the catalog read-only, so a write fails in the engine exactly as it does over HTTP, and the
+run is recorded against the token in query history.
+
+**The constraint:** the token store holds only SHA-256 hashes, and PostgreSQL's MD5 challenge
+requires the server to know the plaintext. Token authentication therefore uses the cleartext exchange
+and hashes what it receives, which is how most token-bearing database endpoints work — and which is
+only safe under TLS. The API **refuses to start** with `AllowTokenAuthentication` set unless
+`RequireTls` is on or `AllowCleartextPassword` is explicitly set for a trusted network. SCRAM-SHA-256
+with a stored verifier would avoid the plaintext entirely and remains the intended successor.
+
+### Per-tenant passwords
+
+The endpoint also implements the protocol's password exchange against **per-tenant credentials**:
 
 ```jsonc
 // .env — these are secrets
@@ -62,14 +92,16 @@ Mechanics:
 - `AuthenticationMD5Password` by default — the password is salted and hashed per connection, so it
   does not cross an unencrypted socket in the clear.
 - `AuthenticationCleartextPassword` when `Lakehold:PgWire:AllowCleartextPassword` is set, for clients
-  that no longer implement MD5.
-- The endpoint **refuses to start** when enabled without a password, unless
+  that no longer implement MD5, and always when `AllowTokenAuthentication` is on (a token cannot
+  answer an MD5 challenge). A presented value is then tried against the token store first and the
+  tenant's configured password second.
+- The endpoint **refuses to start** when enabled without any credential scheme, unless
   `AllowAnonymous` is explicitly set. Failing closed is the point: this is a database port.
 
-What this is not: per-user identity, roles, or an audit trail of *who* connected. Every connection
-presenting the shared secret is the tenant it names. That is strictly better than the HTTP API
-(which asks for nothing at all) and strictly worse than what real authentication will provide. It is
-a stopgap with an expiry date, not the design.
+What a configured password is not: per-user identity, roles, or an audit trail of *who* connected.
+Every connection presenting it is the tenant it names. An API token is what supplies those — it
+identifies a credential, carries a role and read-only capability, and lands in query history — which
+is why the configured passwords are a stopgap and tokens are the design.
 
 ## TLS
 
@@ -279,7 +311,8 @@ every entry in it is a compatibility bug someone should eventually push upstream
       "Port": 5433,
       "MaxRows": 0,              // 0 = unbounded, streamed
       "AllowCleartextPassword": false,
-      "AllowAnonymous": false    // refuses to start without a password unless set
+      "AllowTokenAuthentication": false, // accept API tokens; requires TLS (see Authentication)
+      "AllowAnonymous": false    // refuses to start without a credential scheme unless set
     }
   }
 }

@@ -89,6 +89,29 @@ public sealed class PgWireOptions
     /// </remarks>
     public Dictionary<string, string> TenantPasswords { get; } = new(StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>
+    ///     Accepts a Lakehold API token as the password, verified against the same token store the
+    ///     HTTP API uses — so revoking a credential closes the BI tool and the API together.
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///         Off by default because it changes the authentication exchange: a hashed token store
+    ///         deliberately cannot reproduce the plaintext that PostgreSQL's MD5 challenge requires, so
+    ///         token authentication has to request the password in the clear and hash what it receives.
+    ///         That is how most token-bearing database endpoints work, and it is safe only under TLS —
+    ///         enabling this without <see cref="RequireTls"/> (or an explicit
+    ///         <see cref="AllowCleartextPassword"/>) is refused at start-up rather than quietly putting
+    ///         a credential on an unencrypted socket. SCRAM-SHA-256 with a stored verifier is the
+    ///         better long-term answer and remains a follow-up.
+    ///     </para>
+    ///     <para>
+    ///         Configured <see cref="TenantPasswords"/> keep working alongside it: a presented value
+    ///         that looks like a token is verified against the store, anything else against the
+    ///         configured password for that tenant.
+    ///     </para>
+    /// </remarks>
+    public bool AllowTokenAuthentication { get; set; }
+
     /// <summary>Ceiling on concurrent client connections.</summary>
     public int MaxConnections { get; set; } = 64;
 

@@ -83,6 +83,10 @@ export interface QueryRun {
   rowCount: number;
   succeeded: boolean;
   error: string | null;
+  /** The credential that ran the statement, or null for pre-auth history. */
+  tokenId: number | null;
+  /** That credential's label when it still exists; null when anonymous or since deleted. */
+  tokenName: string | null;
 }
 
 export type MaintenanceOperation = 'flush' | 'compact' | 'backup' | 'expire' | 'cleanup';

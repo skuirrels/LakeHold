@@ -311,6 +311,56 @@ Worth knowing:
 
 ---
 
+## Authentication
+
+The credential names the tenant; the URL segment is validated against it rather than trusted. A token
+belongs to one tenant, may be narrowed to a single catalog, and carries a role — `owner`, `editor`,
+or `reader`.
+
+**Enforcement is opt-in, and off by default**, so a fresh checkout still runs token-lessly. Turn it on
+per deployment:
+
+```jsonc
+{ "Lakehold": { "Auth": { "RequireAuthentication": true } } }
+```
+
+A node with no tokens mints an instance-scoped one at start-up and logs it **once**. That token
+provisions tenants, catalogs, and other tokens, and deliberately cannot read data — so a leaked admin
+credential is a visible provisioning problem, not a silent data breach:
+
+```bash
+docker compose -f compose.production.yaml up -d          # read the bootstrap token from the log
+
+curl -X POST localhost:5200/api/tenants -H 'Authorization: Bearer lkh_admin_…' \
+     -H 'Content-Type: application/json' -d '{"slug":"acme","displayName":"Acme"}'
+curl -X POST localhost:5200/api/tenants/acme/catalogs -H 'Authorization: Bearer lkh_admin_…' \
+     -H 'Content-Type: application/json' -d '{"name":"analytics"}'
+curl -X POST localhost:5200/api/tenants/acme/tokens -H 'Authorization: Bearer lkh_admin_…' \
+     -H 'Content-Type: application/json' -d '{"name":"bi","role":"reader"}'
+```
+
+Worth knowing:
+
+- **A token is shown once** and stored only as a SHA-256 hash with its public prefix, so it cannot be
+  recovered from the API or the database. `Lakehold__BootstrapToken` overrides the minted one where a
+  platform injects credentials.
+- **Capability is attachment, not policy.** A `reader` token's catalog is attached read-only, so a
+  write fails in the engine rather than in a check that clever SQL might route around — the same
+  reasoning as the isolation model.
+- **A refusal is a 404, not a 403.** Reaching a tenant or catalog your credential does not name
+  returns "not found", because a 403 would confirm it exists.
+- **Maintenance, restore, and eject are owner operations**; querying is a reader's.
+- **Revocation closes both surfaces** when the wire endpoint runs on the token store
+  (`Lakehold:PgWire:AllowTokenAuthentication`), rather than leaving a BI tool connected on a
+  credential the API already refuses.
+- **OIDC** covers humans — configure an authority and a tenant claim. Leave it unset and the path
+  stays off entirely, so an air-gapped install takes no identity-provider dependency.
+
+The full design, including what is deliberately still open, is in
+[`docs/AUTHENTICATION.md`](docs/AUTHENTICATION.md).
+
+---
+
 ## The PostgreSQL wire endpoint
 
 Lakehold speaks the PostgreSQL wire protocol, so a client that already speaks Postgres connects to a
@@ -502,11 +552,15 @@ bundles**, **CDC via a typed pull API and signed outbound webhooks**, **a Postgr
 BI tools connect with no connector**, read-only cross-catalog attach, multi-tenant catalogs, demo
 seeding.
 
-Next: authentication and tenant identity (the API has none today — see
-[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)), an Iceberg REST Catalog endpoint so Spark, Trino, and
-Snowflake read Lakehold tables live with no export, a `Lakehold.Client` package whose typed change
-stream turns the CDC feed into `ChangeEvent<T>` in your own model, MCP server for AI agents,
-read-only share links.
+Also shipped: **authentication and tenant identity** — API tokens with tenant and catalog scoping,
+instance-scoped provisioning and bootstrap, read-only capability enforced by attachment, per-statement
+audit, the PostgreSQL wire endpoint on the same token store (so revocation closes both surfaces),
+OIDC, and owner/editor/reader roles. See [`docs/AUTHENTICATION.md`](docs/AUTHENTICATION.md); note that
+enforcement is opt-in per deployment via `Lakehold:Auth:RequireAuthentication`.
+
+Next: an Iceberg REST Catalog endpoint so Spark, Trino, and Snowflake read Lakehold tables live with
+no export, a `Lakehold.Client` package whose typed change stream turns the CDC feed into
+`ChangeEvent<T>` in your own model, MCP server for AI agents, read-only share links.
 
 Later: continuous exit attestation — the verified eject running on a schedule, so "you can leave" is
 a signed and dated artifact rather than an on-demand call. And embedded Duckling — the same lakehouse

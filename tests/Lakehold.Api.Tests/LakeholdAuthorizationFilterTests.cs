@@ -150,6 +150,58 @@ public sealed class LakeholdAuthorizationFilterTests : IAsyncLifetime
         Assert.Equal(StatusCodes.Status401Unauthorized, status);
     }
 
+    [Fact]
+    public async Task An_instance_token_reaches_a_provisioning_route()
+    {
+        var (status, passed) = await RunAsync(
+            _services, _instanceToken, tenant: null, catalog: null, RouteCapability.Instance);
+
+        Assert.True(passed);
+        Assert.Equal(StatusCodes.Status200OK, status);
+    }
+
+    [Fact]
+    public async Task A_tenant_token_cannot_reach_a_provisioning_route()
+    {
+        var (status, passed) = await RunAsync(
+            _services, _fullToken, tenant: null, catalog: null, RouteCapability.Instance);
+
+        Assert.False(passed);
+        Assert.Equal(StatusCodes.Status403Forbidden, status);
+    }
+
+    [Fact]
+    public async Task A_full_tenant_token_may_administer_its_own_tokens()
+    {
+        var (status, passed) = await RunAsync(
+            _services, _fullToken, "demo", catalog: null, RouteCapability.TenantAdmin);
+
+        Assert.True(passed);
+        Assert.Equal(StatusCodes.Status200OK, status);
+    }
+
+    [Fact]
+    public async Task An_instance_token_may_administer_any_tenants_tokens()
+    {
+        var (status, passed) = await RunAsync(
+            _services, _instanceToken, "demo", catalog: null, RouteCapability.TenantAdmin);
+
+        Assert.True(passed);
+        Assert.Equal(StatusCodes.Status200OK, status);
+    }
+
+    [Fact]
+    public async Task A_least_privilege_tenant_token_cannot_administer_tokens()
+    {
+        // A catalog-narrowed (and read-only) credential is least privilege by design; it must not be
+        // able to mint a broader one.
+        var (status, passed) = await RunAsync(
+            _services, _analyticsOnlyToken, "demo", catalog: null, RouteCapability.TenantAdmin);
+
+        Assert.False(passed);
+        Assert.Equal(StatusCodes.Status403Forbidden, status);
+    }
+
     private ServiceProvider BuildServices(bool requireAuthentication)
     {
         var services = new ServiceCollection();
@@ -168,16 +220,28 @@ public sealed class LakeholdAuthorizationFilterTests : IAsyncLifetime
     }
 
     private static async Task<(int Status, bool Passed)> RunAsync(
-        IServiceProvider services, string? bearer, string tenant, string? catalog)
+        IServiceProvider services, string? bearer, string? tenant, string? catalog, RouteCapability? capability = null)
     {
         using var scope = services.CreateScope();
 
         var http = new DefaultHttpContext { RequestServices = scope.ServiceProvider };
         http.Response.Body = new MemoryStream();
-        http.Request.RouteValues["tenantSlug"] = tenant;
+        if (tenant is not null)
+        {
+            http.Request.RouteValues["tenantSlug"] = tenant;
+        }
+
         if (catalog is not null)
         {
             http.Request.RouteValues["catalogName"] = catalog;
+        }
+
+        if (capability is { } cap)
+        {
+            http.SetEndpoint(new Endpoint(
+                requestDelegate: null,
+                new EndpointMetadataCollection(new RouteCapabilityMetadata(cap)),
+                displayName: "test"));
         }
 
         if (bearer is not null)

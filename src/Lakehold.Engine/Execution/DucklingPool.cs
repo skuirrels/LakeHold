@@ -63,9 +63,15 @@ public sealed class DucklingPool : IAsyncDisposable
 
         await EvictIdleAsync().ConfigureAwait(false);
 
+        // Sessions are keyed by catalog name *and* attachment mode: a read-only credential and a
+        // read-write one for the same catalog must not share a session, or whichever started first
+        // would decide the other's write access. Without the mode in the key, a read-only token would
+        // silently inherit a writable handle — worse than not having the read-only feature at all.
+        var key = SessionKey(catalog);
+
         // Recorded before GetOrAdd so a miss is attributed to the caller that actually pays the
         // start-up, rather than to whichever request happened to arrive while it was still starting.
-        var hit = _sessions.ContainsKey(catalog.CatalogName);
+        var hit = _sessions.ContainsKey(key);
         LakeholdTelemetry.PoolRequests.Add(
             1,
             new KeyValuePair<string, object?>(
@@ -73,7 +79,7 @@ public sealed class DucklingPool : IAsyncDisposable
                 hit ? LakeholdTelemetry.ResultHit : LakeholdTelemetry.ResultMiss));
 
         var entry = _sessions.GetOrAdd(
-            catalog.CatalogName,
+            key,
             _ => new Lazy<Task<Duckling>>(
                 () => Duckling.StartAsync(
                     catalog,
@@ -91,11 +97,16 @@ public sealed class DucklingPool : IAsyncDisposable
         {
             // A failed start-up must not be cached, or every later request for this catalog would
             // replay the same failure without ever retrying the connection.
-            _sessions.TryRemove(new KeyValuePair<string, Lazy<Task<Duckling>>>(catalog.CatalogName, entry));
+            _sessions.TryRemove(new KeyValuePair<string, Lazy<Task<Duckling>>>(key, entry));
             EngineLog.DucklingStartFailed(_logger, ex, catalog.CatalogName);
             throw;
         }
     }
+
+    // A catalog can be warm in read-only and read-write form at once, so the mode is part of the key.
+    // NUL cannot appear in a bare SQL identifier, so no name and mode can collide with another pair.
+    private static string SessionKey(CatalogDescriptor catalog) =>
+        catalog.ReadOnly ? catalog.CatalogName + "\0ro" : catalog.CatalogName + "\0rw";
 
     /// <summary>
     ///     Evicts the session for a catalog, if one is warm. Call after a catalog's configuration
@@ -108,16 +119,28 @@ public sealed class DucklingPool : IAsyncDisposable
     /// </remarks>
     public async Task EvictAsync(string catalogName)
     {
-        if (_sessions.TryRemove(catalogName, out var entry))
+        // Both attachment modes are evicted: a configuration change invalidates the read-only and the
+        // read-write session alike, and the caller names the catalog, not a mode.
+        foreach (var key in new[] { catalogName + "\0rw", catalogName + "\0ro" })
         {
-            LakeholdTelemetry.SessionEvictions.Add(
-                1, new KeyValuePair<string, object?>(LakeholdTelemetry.ReasonKey, "explicit"));
-            await DisposeEntryAsync(entry).ConfigureAwait(false);
+            if (_sessions.TryRemove(key, out var entry))
+            {
+                LakeholdTelemetry.SessionEvictions.Add(
+                    1, new KeyValuePair<string, object?>(LakeholdTelemetry.ReasonKey, "explicit"));
+                await DisposeEntryAsync(entry).ConfigureAwait(false);
+            }
         }
     }
 
-    /// <summary>Currently warm catalog names.</summary>
-    public IReadOnlyCollection<string> WarmCatalogs => _sessions.Keys.ToArray();
+    /// <summary>Currently warm catalog names, deduplicated across attachment modes.</summary>
+    public IReadOnlyCollection<string> WarmCatalogs =>
+        _sessions.Keys.Select(CatalogNameOf).Distinct(StringComparer.Ordinal).ToArray();
+
+    private static string CatalogNameOf(string sessionKey)
+    {
+        var separator = sessionKey.IndexOf('\0', StringComparison.Ordinal);
+        return separator < 0 ? sessionKey : sessionKey[..separator];
+    }
 
     private async Task EvictIdleAsync()
     {
@@ -158,10 +181,11 @@ public sealed class DucklingPool : IAsyncDisposable
             candidates.Add((name, entry, entry.Value.Result.LastUsedUtc));
         }
 
-        foreach (var (name, entry, lastUsed) in candidates)
+        foreach (var (key, entry, lastUsed) in candidates)
         {
-            if (now - lastUsed > _options.IdleTimeout && _sessions.TryRemove(name, out var removed))
+            if (now - lastUsed > _options.IdleTimeout && _sessions.TryRemove(key, out var removed))
             {
+                var name = CatalogNameOf(key);
                 LakeholdTelemetry.SessionEvictions.Add(
                     1, new KeyValuePair<string, object?>(LakeholdTelemetry.ReasonKey, "idle"));
                 EngineLog.DucklingEvictedIdle(_logger, name);
@@ -176,10 +200,11 @@ public sealed class DucklingPool : IAsyncDisposable
             return;
         }
 
-        foreach (var (name, _, _) in candidates.OrderBy(c => c.LastUsed).Take(overflow))
+        foreach (var (key, _, _) in candidates.OrderBy(c => c.LastUsed).Take(overflow))
         {
-            if (_sessions.TryRemove(name, out var removed))
+            if (_sessions.TryRemove(key, out var removed))
             {
+                var name = CatalogNameOf(key);
                 LakeholdTelemetry.SessionEvictions.Add(
                     1, new KeyValuePair<string, object?>(LakeholdTelemetry.ReasonKey, "overflow"));
                 EngineLog.DucklingEvictedOverflow(_logger, name);

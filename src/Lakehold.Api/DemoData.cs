@@ -55,10 +55,18 @@ internal static class DemoData
         // one. Logged as an error because it does need fixing.
         try
         {
-            var added = await AdditiveSchema.EnsureModelTablesAsync(context, CancellationToken.None).ConfigureAwait(false);
-            if (added > 0)
+            var addedTables = await AdditiveSchema.EnsureModelTablesAsync(context, CancellationToken.None).ConfigureAwait(false);
+            if (addedTables > 0)
             {
-                logger.LogInformation("Created {Count} control-plane table(s) added since this database was initialised", added);
+                logger.LogInformation("Created {Count} control-plane table(s) added since this database was initialised", addedTables);
+            }
+
+            // Columns added to an existing table — QueryRun.TokenId, ApiToken.Role — are applied the
+            // same way: purely additive, never rewriting existing rows.
+            var addedColumns = await AdditiveSchema.EnsureModelColumnsAsync(context, CancellationToken.None).ConfigureAwait(false);
+            if (addedColumns > 0)
+            {
+                logger.LogInformation("Added {Count} control-plane column(s) introduced since this database was initialised", addedColumns);
             }
         }
         catch (Exception ex)

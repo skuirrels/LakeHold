@@ -29,9 +29,17 @@ public interface ILakeholdPrincipal
 
     /// <summary>Id of the token this principal was resolved from, for audit; null when unauthenticated.</summary>
     int? TokenId { get; }
+
+    /// <summary>The role this principal holds within its tenant.</summary>
+    TokenRole Role { get; }
 }
 
 /// <inheritdoc cref="ILakeholdPrincipal"/>
+/// <remarks>
+///     <paramref name="Role"/> is positioned last with a default so the many call sites that predate
+///     roles keep compiling and resolve to <see cref="TokenRole.Owner"/> — the capability every
+///     credential had before roles existed.
+/// </remarks>
 public sealed record LakeholdPrincipal(
     bool IsAuthenticated,
     TokenScope Scope,
@@ -39,7 +47,8 @@ public sealed record LakeholdPrincipal(
     string? TenantSlug,
     string? CatalogName,
     bool IsReadOnly,
-    int? TokenId) : ILakeholdPrincipal
+    int? TokenId,
+    TokenRole Role = TokenRole.Owner) : ILakeholdPrincipal
 {
     /// <summary>
     ///     The caller for a request that carried no token. It trusts the route, preserving today's

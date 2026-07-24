@@ -27,6 +27,52 @@ public sealed record QueryResponse(
 /// <summary>A tenant, as returned by the API.</summary>
 public sealed record TenantDto(string Slug, string DisplayName, IReadOnlyList<CatalogDto> Catalogs);
 
+/// <summary>Request to provision a tenant. Instance scope.</summary>
+/// <param name="Slug">URL-safe key. Reserved value <c>admin</c> is refused — it collides with the instance-token prefix.</param>
+public sealed record CreateTenantRequest(string Slug, string DisplayName);
+
+/// <summary>Request to provision a catalog under a tenant. Instance scope.</summary>
+/// <param name="Name">Bare SQL identifier; it reaches <c>ATTACH</c>, which cannot be parameterised.</param>
+/// <param name="DataPath">
+///     Root for Parquet data. Null derives a local path under the node's data root; a value may be a
+///     local path or an object-store URI (<c>s3://</c>, <c>gs://</c>, <c>az://</c>).
+/// </param>
+/// <param name="ReadOnly">Attach the catalog without write access.</param>
+public sealed record CreateCatalogRequest(string Name, string? DataPath = null, bool ReadOnly = false);
+
+/// <summary>Request to mint a tenant-scoped API token. Returned once at creation.</summary>
+/// <param name="Name">Human-facing label. Not a secret and not an identifier.</param>
+/// <param name="ReadOnly">Whether the token produces a read-only catalog attachment.</param>
+/// <param name="CatalogName">Optional least-privilege narrowing to one catalog in the tenant.</param>
+/// <param name="ExpiresUtc">Optional expiry; a token past this instant is refused.</param>
+/// <param name="Role">
+///     <c>owner</c>, <c>editor</c>, or <c>reader</c>. Defaults to <c>owner</c>, which is what a token
+///     minted before roles existed effectively was. A <c>reader</c> is read-only regardless of
+///     <paramref name="ReadOnly"/>.
+/// </param>
+public sealed record CreateTokenRequest(
+    string Name,
+    bool ReadOnly = false,
+    string? CatalogName = null,
+    DateTimeOffset? ExpiresUtc = null,
+    string? Role = null);
+
+/// <summary>A freshly minted token. The <see cref="Token"/> is shown once and is never recoverable.</summary>
+public sealed record CreatedTokenDto(int Id, string Name, string Token);
+
+/// <summary>Token metadata, as listed by the API. Never carries the secret.</summary>
+public sealed record ApiTokenDto(
+    int Id,
+    string Name,
+    string Scope,
+    string Role,
+    string? CatalogName,
+    bool ReadOnly,
+    DateTimeOffset CreatedUtc,
+    DateTimeOffset? ExpiresUtc,
+    DateTimeOffset? RevokedUtc,
+    DateTimeOffset? LastUsedUtc);
+
 /// <summary>A catalog, as returned by the API.</summary>
 /// <remarks>
 ///     Deliberately omits <c>MetadataSource</c> and <c>StorageSecretName</c>. The former can be a
@@ -55,6 +101,11 @@ public sealed record SnapshotDto(long SnapshotId, DateTimeOffset CommittedAt, lo
 public sealed record MaintenanceDto(string Operation, string Detail, double ElapsedMilliseconds, bool DryRun);
 
 /// <summary>An entry in the query history panel.</summary>
+/// <param name="TokenId">The credential that ran the statement, or null for pre-auth history.</param>
+/// <param name="TokenName">
+///     The label of that credential when it still exists, for a readable audit trail; null when the
+///     run was anonymous or the token has since been deleted.
+/// </param>
 public sealed record QueryRunDto(
     int Id,
     string CatalogName,
@@ -63,7 +114,9 @@ public sealed record QueryRunDto(
     double ElapsedMilliseconds,
     int RowCount,
     bool Succeeded,
-    string? Error);
+    string? Error,
+    int? TokenId,
+    string? TokenName);
 
 /// <summary>A backup generation available to restore.</summary>
 /// <param name="Complete">

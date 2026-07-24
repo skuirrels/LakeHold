@@ -82,6 +82,7 @@ public sealed class ApiTokenAuthenticator(ControlPlaneContext context, TimeProvi
             TenantSlug: match.Tenant?.Slug,
             CatalogName: match.CatalogName,
             IsReadOnly: match.ReadOnly,
-            TokenId: match.Id));
+            TokenId: match.Id,
+            Role: match.Role));
     }
 }

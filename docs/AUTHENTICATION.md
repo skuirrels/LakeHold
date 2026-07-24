@@ -1,28 +1,37 @@
 # Authentication and authorisation
 
-The plan for closing the largest gap in the product: the API has no authentication of any kind.
-Tenant identity is the `{tenantSlug}` segment of a URL, so anyone who can reach the API is every
-tenant.
+The plan for closing what was the largest gap in the product: the API had no authentication of any
+kind, and tenant identity was the `{tenantSlug}` segment of a URL, so anyone who could reach the API
+was every tenant.
 
-This document is the specification and the running record of what has landed. It is written to be
-worked one step at a time — each step is independently shippable, independently testable, and leaves
-the product working. Nothing here requires the whole plan to be finished before any of it is useful.
+**Every step of this plan has now landed.** What remains is one operator decision — setting
+`Lakehold:Auth:RequireAuthentication` — plus the follow-ups listed under [Status](#status). See that
+section for what each step delivered and what is still open.
+
+This document is the specification and the running record of what has landed. It was written to be
+worked one step at a time — each step independently shippable, independently testable, and leaving
+the product working. Nothing here required the whole plan to be finished before any of it was useful.
 
 The broader HTTP surface that sits on top of this — time travel, maintenance, and the rest of the
 lakehouse — is specified in [`PUBLIC-API.md`](PUBLIC-API.md), which treats auth as its gate.
 
 ## The central change
 
-Everything else is detail. Today:
+Everything else is detail. Before this work:
 
 ```csharp
 // Lakehold.Api/Endpoints/LakehouseEndpoints.cs
 tenants.MapPost("/{tenantSlug}/catalogs/{catalogName}/query", ExecuteAsync);
 ```
 
-The tenant is a **route parameter**, and `LakehouseService` believes it. Authentication means the
+The tenant was a **route parameter**, and `LakehouseService` believed it. Authentication means the
 tenant comes from the **credential**, and the route segment is validated against it rather than
 trusted. Until that inverts, every other control is decoration on an open door.
+
+That inversion has landed: `LakeholdAuthorizationFilter` resolves the credential, validates the
+route's tenant and catalog against it, and refuses a mismatch as a 404. The route segment is now
+checked, not believed — for every credential that is presented. A request with **no** credential
+still falls back to trusting the route until an operator sets `RequireAuthentication`.
 
 Two invariants govern how far this goes:
 
@@ -371,29 +380,38 @@ rather than an engine feature.
 ## Converging the wire endpoint
 
 `Lakehold:PgWire:TenantPasswords` is configuration-based and was shipped as an explicit stopgap. It
-should become the same token store, so that **revoking a credential closes the BI tool and the API
+has become the same token store, so that **revoking a credential closes the BI tool and the API
 together** rather than one of them.
 
-The mechanics need care. PostgreSQL's MD5 exchange requires the server to know the plaintext, which a
-hashed token store deliberately does not. Options, in preference order:
+The mechanics needed care. PostgreSQL's MD5 exchange requires the server to know the plaintext, which
+a hashed token store deliberately does not. The options were, in preference order:
 
 1. **Accept the token as a cleartext password over TLS.** The client sends the token, the server
-   hashes and compares. Requires `RequireTls`, which is now supported, and is how most token-bearing
-   database endpoints work.
+   hashes and compares. Requires `RequireTls`, and is how most token-bearing database endpoints work.
 2. **SCRAM-SHA-256** with a stored verifier, which is the modern PostgreSQL mechanism and avoids
    plaintext entirely — more work, and worth it if the endpoint is to be exposed beyond a VPC.
 3. Keep MD5 for configured per-tenant passwords as a legacy path, and tokens only over TLS.
 
-This is a decision to make deliberately rather than by default, because it is the one place where the
-token design and the protocol disagree.
+**Option 1 shipped, with option 3's coexistence.** `Lakehold:PgWire:AllowTokenAuthentication` is off
+by default; enabling it switches the exchange to cleartext, because a token cannot answer an MD5
+challenge, and a presented value is tried against the token store first and the tenant's configured
+password second. Because that puts a credential on the wire, the API **refuses to start** when it is
+enabled without `RequireTls` (or an explicit `AllowCleartextPassword` for a trusted network) — a
+misconfiguration fails loudly rather than leaking quietly. A token must name the connection's tenant
+and honour any catalog narrowing, and a read-only token attaches the catalog read-only, so the wire
+endpoint enforces exactly what the HTTP path does.
+
+SCRAM-SHA-256 remains the better mechanism and stays a follow-up.
 
 ---
 
 ## Audit
 
-`QueryRun` records what ran, not who ran it. Add `TokenId` (nullable, for the pre-auth history that
-already exists) and surface the principal in the history API and the workbench. Half an audit trail
-is the kind of thing that passes review until the day it matters.
+`QueryRun` now records who ran a statement as well as what ran: `TokenId` is nullable — for the
+pre-auth history that already existed — and carries no foreign key, so revoking or deleting a token
+never takes its audit trail down with it. The history API returns the id and, best-effort, the
+token's label; the workbench shows it beside each run. Half an audit trail is the kind of thing that
+passes review until the day it matters.
 
 ---
 
@@ -401,10 +419,11 @@ is the kind of thing that passes review until the day it matters.
 
 To settle before or during the step they block, not before starting:
 
-1. **How does the workbench hold a token?** A single-page app storing a long-lived bearer token in
-   `localStorage` is the standard bad answer. Options: a short-lived session cookie issued by the API
-   in exchange for a token, or defer entirely and require OIDC for the UI while tokens serve machines.
-   Blocks phase 1's acceptance criterion about the UI still working.
+1. **How does the workbench hold a token?** *Partly resolved.* It holds one in `sessionStorage`,
+   cleared when the tab closes, sent only to `/api`. That is deliberately not `localStorage`, and
+   deliberately not the final answer: OIDC (phase 3) is, because it keeps a long-lived Lakehold
+   credential out of the browser entirely. A short-lived cookie exchanged for a token remains the
+   other option if operators want the workbench usable without an IdP.
 2. **Do tokens scope to a catalog, or only to a tenant?** *Resolved: both, layered.* A token belongs
    to a tenant and may optionally be narrowed to one catalog via `ApiToken.CatalogName` (null = the
    whole tenant). Subject stays separate from `TokenScope`, which remains purely capability, and the
@@ -419,26 +438,26 @@ To settle before or during the step they block, not before starting:
 
 Each step ships on its own and leaves the product working:
 
-| Step | Deliverable | Gate |
-|---|---|---|
-| 1 | `ApiToken` entity, additive-schema test, token generation and hashing | Unit tests on format and verification |
-| 2 | Middleware, `ILakeholdPrincipal` (incl. catalog narrowing), `LakehouseService` takes the principal | Cross-tenant and cross-catalog refusal test |
-| 3 | Token management endpoints and bootstrap | Token shown once; revocation effective |
-| 3b | Provisioning endpoints for tenants and catalogs | A fresh deployment can be set up with only the bootstrap token |
-| 4 | Workbench sends credentials | Question 1 answered |
-| 5 | Read-only attachment, pool key includes mode | `INSERT` refused by the engine |
-| 6 | `QueryRun.TokenId` and history surfacing | Audit shows the principal |
-| 7 | Wire endpoint on the token store | Revocation closes both surfaces |
-| 8 | OIDC | Workbench login against a real IdP |
-| 9 | Roles | Maintenance restricted to owners |
+| Step | Deliverable | Gate | State |
+|---|---|---|---|
+| 1 | `ApiToken` entity, additive-schema test, token generation and hashing | Unit tests on format and verification | Done |
+| 2 | Middleware, `ILakeholdPrincipal` (incl. catalog narrowing), `LakehouseService` takes the principal | Cross-tenant and cross-catalog refusal test | Done |
+| 3 | Token management endpoints and bootstrap | Token shown once; revocation effective | Done |
+| 3b | Provisioning endpoints for tenants and catalogs | A fresh deployment can be set up with only the bootstrap token | Done |
+| 4 | Workbench sends credentials | Question 1 answered for machines; OIDC is the durable answer | Done |
+| 5 | Read-only attachment, pool key includes mode | `INSERT` refused by the engine | Done |
+| 6 | `QueryRun.TokenId` and history surfacing | Audit shows the principal | Done |
+| 7 | Wire endpoint on the token store | Revocation closes both surfaces | Done |
+| 8 | OIDC | JWT validated; tenant claim mapped to a principal | Done |
+| 9 | Roles | Maintenance restricted to owners | Done |
 
-Steps 1–3 are the ones that change the product from open to closed. Step 3b is what makes a
-production deployment usable at all — today it starts empty with no supported way to add anything.
-Everything after is depth.
+Steps 1–3 are the ones that changed the product from open to closable. Step 3b is what makes a
+production deployment usable at all — before it, a fresh node started empty with no supported way to
+add anything. Everything after is depth.
 
 ## Status
 
-**Steps 1 and 2 have landed.**
+**Every step, 1 through 9, has landed.**
 
 - **Step 1** — the `ApiToken` entity (with the `CatalogName` narrowing) and its `ControlPlaneContext`
   mapping, additive-schema coverage that recreates the table on an existing database, and
@@ -450,10 +469,69 @@ Everything after is depth.
   `LakeholdAuthorizationFilter` on the `/api/tenants` group. Enforcement is realised as a group filter
   rather than by threading the principal through every `LakehouseService` signature; the principal is
   stashed on the request for the phases that need it downstream (read-only attachment, audit).
-  Cross-tenant, cross-catalog, revoked, expired, malformed, and instance-token-on-a-data-route are all
-  refused, with tests at the policy, authenticator, and filter levels.
+- **Step 3** — token management (`POST`/`GET`/`DELETE /api/tenants/{tenant}/tokens`) in
+  `AdminEndpoints`, and `TokenBootstrap`: on first start with an empty token table the API mints an
+  instance-scoped token and logs it **once**, with `Lakehold__BootstrapToken` overriding it for
+  deployments that inject credentials externally. The mint runs only when the table is empty, so it
+  cannot add a second admin credential to a running node.
+- **Step 3b** — provisioning (`POST`/`DELETE /api/tenants`, `POST`/`DELETE
+  /api/tenants/{tenant}/catalogs`). The reserved `admin` slug is refused at creation as well as in the
+  factory. Deleting a tenant or catalog removes control-plane records and evicts the session; the
+  DuckLake metadata and Parquet are deliberately left in place (invariant 10's reasoning applied to
+  provisioning). `GET /api/tenants` is now scoped: an instance token sees every tenant, a tenant token
+  sees only its own.
+- **Step 4** — the workbench holds a token in `sessionStorage` (`AuthService`) and an
+  `authInterceptor` attaches it to `/api` calls only. A header control sets and clears it. With no
+  token set the UI behaves exactly as before, which is what keeps development token-less.
+- **Step 5** — a read-only principal produces a read-only attachment: `LakehouseService` narrows the
+  descriptor and `DucklingPool` now keys sessions by catalog **and attachment mode**, so a read-only
+  and a read-write session for one catalog cannot collide. `EvictAsync` drops both modes.
+- **Step 6** — `QueryRun.TokenId` (nullable, no foreign key, so pre-auth history survives and a
+  revoked token does not take its audit trail with it), threaded through the HTTP and wire paths and
+  surfaced in the history API and panel. `AdditiveSchema.EnsureModelColumnsAsync` applies the column
+  to existing databases.
+- **Step 7** — `Lakehold:PgWire:AllowTokenAuthentication` accepts an API token as the password,
+  verified against the same store, so **revoking a credential closes the BI tool and the API
+  together**. It uses the cleartext exchange by necessity (a hashed store cannot answer MD5's
+  challenge) and the API refuses to start with it enabled outside TLS. Configured `TenantPasswords`
+  keep working alongside it.
+- **Step 8** — `LakeholdOidcOptions` plus standard JWT bearer validation, wired only when an authority
+  is configured, so an air-gapped install never acquires an identity-provider dependency.
+  `OidcPrincipal` maps a tenant claim (and optional role claim) onto the same `ILakeholdPrincipal`
+  tokens produce, so nothing downstream distinguishes a human from a machine.
+- **Step 9** — `TokenRole` (`Owner`/`Editor`/`Reader`) on the token and the principal. Maintenance,
+  restore, and eject are owner operations (`RouteCapability.TenantOwner`); token management requires
+  owner too; querying is a reader's. `Reader` implies read-only at issuance, so phase 2's flag is the
+  degenerate case rather than a second thing to remember. The enum's default is `Owner`, which is what
+  every credential minted before roles existed effectively was — so an upgrade changes nothing.
 
-The door is not yet closed: `LakeholdAuthOptions.RequireAuthentication` defaults false, so a request
-with **no** token still falls back to trusting the route (today's behaviour). A token that *is*
-presented is always validated. Requiring a token becomes safe once step 3 (issuance and bootstrap)
-and step 4 (the workbench sends its credential) land — that is the next work.
+Route intent is declared as `RouteCapability` metadata (`TenantData`, `TenantOwner`, `TenantAdmin`,
+`Instance`, `Listing`) and enforced in one place. Subject is always checked before capability, so an
+unreachable tenant is a 404 and never a 403 that would confirm it exists.
+
+**The remaining decision is the operator's.** `LakeholdAuthOptions.RequireAuthentication` still
+defaults to **false**, so a request with no token falls back to trusting the route. Everything needed
+to turn it on now exists — tokens can be issued, the workbench can present one, and the wire endpoint
+shares the store — so a deployment closes the door by setting:
+
+```json
+{ "Lakehold": { "Auth": { "RequireAuthentication": true } } }
+```
+
+The default is left open deliberately: flipping it in a release would break every existing deployment
+on upgrade, which is a decision to make per deployment rather than one to inherit.
+
+### Still open
+
+- **Question 1 remains partly open.** The workbench holds a bearer token in `sessionStorage`, which is
+  better than `localStorage` but is still the interim answer. The durable one is OIDC (step 8), where
+  the browser never holds a long-lived Lakehold credential, or a short-lived cookie exchanged for a
+  token.
+- **Question 3 (per-principal quotas)** is untouched. `MaxRowsPerResult` and the statement timeout
+  remain per-node. The entity does not make it awkward to add.
+- **Question 4 (rate limiting on authentication attempts)** is untouched on the HTTP path; the wire
+  endpoint still counts failures. A lockout is the obvious next control.
+- **SCRAM-SHA-256** for the wire endpoint, rather than cleartext-over-TLS, remains the better
+  long-term mechanism.
+- **Per-user membership** (`TenantMember`) is deliberately not built: the OIDC mapping is a single
+  claim until someone asks for more.

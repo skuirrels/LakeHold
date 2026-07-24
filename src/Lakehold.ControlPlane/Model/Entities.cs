@@ -187,6 +187,13 @@ public sealed class QueryRun
     /// <summary>Failure message when <see cref="Succeeded"/> is false.</summary>
     public string? Error { get; set; }
 
+    /// <summary>
+    ///     The <see cref="ApiToken"/> that ran the statement, for audit. Nullable — and no foreign key
+    ///     — so the pre-auth history that predates tokens survives, and a revoked or deleted token
+    ///     never takes its audit trail down with it.
+    /// </summary>
+    public int? TokenId { get; set; }
+
     public Tenant Tenant { get; set; } = null!;
 }
 
@@ -246,6 +253,13 @@ public sealed class ApiToken
 
     /// <summary>Whether the credential produces a read-only catalog attachment.</summary>
     public bool ReadOnly { get; set; }
+
+    /// <summary>
+    ///     What the credential may do within its tenant. Defaults to <see cref="TokenRole.Owner"/>,
+    ///     which is what every token minted before roles existed effectively was — so an existing
+    ///     deployment's credentials keep working across the upgrade.
+    /// </summary>
+    public TokenRole Role { get; set; } = TokenRole.Owner;
 
     public DateTimeOffset CreatedUtc { get; set; }
 

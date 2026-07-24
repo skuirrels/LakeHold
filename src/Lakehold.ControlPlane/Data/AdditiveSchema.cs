@@ -1,6 +1,7 @@
 using System.Globalization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Metadata;
 
 namespace Lakehold.ControlPlane.Data;
 
@@ -81,6 +82,147 @@ public static class AdditiveSchema
         }
 
         return created;
+    }
+
+    /// <summary>
+    ///     Adds columns present in the model but not yet in an existing table, returning how many were
+    ///     added.
+    /// </summary>
+    /// <remarks>
+    ///     The complement of <see cref="EnsureModelTablesAsync"/>: that one creates a whole table added
+    ///     since a database was initialised, this one adds a column added to a table that already
+    ///     exists — <c>QueryRun.TokenId</c> and <c>ApiToken.Role</c> are exactly this case. Only safe,
+    ///     purely additive columns are handled: a nullable column, or a value-typed column with a
+    ///     derivable default so existing rows get a value. A required column with no default is left
+    ///     alone — it needs a real migration, and inventing a value for existing rows would be worse
+    ///     than reporting the gap. Existing data is never rewritten.
+    /// </remarks>
+    public static async Task<int> EnsureModelColumnsAsync(
+        ControlPlaneContext context,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+
+        var existingTables = await ListExistingTablesAsync(context, cancellationToken).ConfigureAwait(false);
+        var existingColumns = await ListExistingColumnsAsync(context, cancellationToken).ConfigureAwait(false);
+
+        var added = 0;
+        foreach (var entity in context.Model.GetEntityTypes())
+        {
+            var table = entity.GetTableName();
+            if (string.IsNullOrEmpty(table) || !existingTables.Contains(table))
+            {
+                // A missing table is EnsureModelTablesAsync's job; adding columns to it here would
+                // race that, and a table just created already has every model column.
+                continue;
+            }
+
+            var storeObject = StoreObjectIdentifier.Create(entity, StoreObjectType.Table);
+            if (storeObject is not { } store)
+            {
+                continue;
+            }
+
+            var present = existingColumns.TryGetValue(table, out var set) ? set : [];
+
+            foreach (var property in entity.GetProperties())
+            {
+                var column = property.GetColumnName(store);
+                var type = property.GetColumnType(store);
+                if (string.IsNullOrEmpty(column) || present.Contains(column) || string.IsNullOrEmpty(type))
+                {
+                    continue;
+                }
+
+                string ddl;
+                if (property.IsNullable)
+                {
+                    ddl = $"ALTER TABLE \"{table}\" ADD COLUMN \"{column}\" {type}";
+                }
+                else if (DefaultLiteralFor(property) is { } literal)
+                {
+                    // Existing rows need a value the moment the column is NOT NULL, so the default is
+                    // the CLR default written back — 0 for a numeric or enum column, false for a bool.
+                    ddl = $"ALTER TABLE \"{table}\" ADD COLUMN \"{column}\" {type} DEFAULT {literal}";
+                }
+                else
+                {
+                    continue;
+                }
+
+                await context.Database.ExecuteSqlRawAsync(ddl, cancellationToken).ConfigureAwait(false);
+                added++;
+            }
+        }
+
+        return added;
+    }
+
+    /// <summary>The literal for a required column's default, or null when none can be derived safely.</summary>
+    private static string? DefaultLiteralFor(IProperty property)
+    {
+        var clr = Nullable.GetUnderlyingType(property.ClrType) ?? property.ClrType;
+
+        if (clr.IsEnum)
+        {
+            return "0";
+        }
+
+        if (clr == typeof(bool))
+        {
+            return "false";
+        }
+
+        return clr == typeof(int) || clr == typeof(long) || clr == typeof(short) || clr == typeof(byte)
+            || clr == typeof(decimal) || clr == typeof(double) || clr == typeof(float)
+            ? "0"
+            : null;
+    }
+
+    private static async Task<Dictionary<string, HashSet<string>>> ListExistingColumnsAsync(
+        ControlPlaneContext context,
+        CancellationToken cancellationToken)
+    {
+        var found = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
+
+        var connection = context.Database.GetDbConnection();
+        var opened = connection.State != System.Data.ConnectionState.Open;
+        if (opened)
+        {
+            await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        try
+        {
+            await using var command = connection.CreateCommand();
+            command.CommandText =
+                "SELECT table_name, column_name FROM information_schema.columns WHERE table_schema = 'main'";
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+            while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+            {
+                var table = Convert.ToString(reader.GetValue(0), CultureInfo.InvariantCulture);
+                var column = Convert.ToString(reader.GetValue(1), CultureInfo.InvariantCulture);
+                if (table is { Length: > 0 } && column is { Length: > 0 })
+                {
+                    if (!found.TryGetValue(table, out var columns))
+                    {
+                        columns = new HashSet<string>(StringComparer.Ordinal);
+                        found[table] = columns;
+                    }
+
+                    columns.Add(column);
+                }
+            }
+        }
+        finally
+        {
+            if (opened)
+            {
+                await connection.CloseAsync().ConfigureAwait(false);
+            }
+        }
+
+        return found;
     }
 
     /// <summary>Whether a DDL statement is part of <paramref name="table"/>'s definition.</summary>

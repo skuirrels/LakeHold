@@ -38,8 +38,11 @@ integration.
 - `docs/PROVIDER-FEEDBACK.md`: provider capabilities and why the data plane uses its dynamic API.
 - `docs/POSTGRES-WIRE.md`: the wire protocol surface, its connection model, and what is
   deliberately unimplemented. Update it with the endpoint.
-- `docs/AUTHENTICATION.md`: the phased plan for API authentication, worked one step at a time.
-  The API has none today — tenant identity is a URL segment. Read it before adding any surface that
+- `docs/AUTHENTICATION.md`: the phased plan for API authentication, now fully implemented — API
+  tokens, provisioning, read-only-by-attachment, audit, wire convergence, OIDC, and roles. A route
+  declares a `RouteCapability` and `LakeholdAuthorizationFilter` enforces it in one place. Note that
+  `Lakehold:Auth:RequireAuthentication` still defaults to **false**, so a token-less request falls
+  back to trusting the route until an operator turns it on. Read it before adding any surface that
   resolves a tenant.
 - `docs/PUBLIC-API.md`: the phased spec for the public HTTP control API — time travel and the whole
   lakehouse. Builds on `docs/AUTHENTICATION.md` (auth is its gate); the cross-cutting API conventions
@@ -92,7 +95,13 @@ Preserve these unless the task explicitly changes the architecture and updates i
     Anything under the data path that the catalog does not reference is a candidate for DuckLake's
     orphan cleanup, so a nested backup deletes itself once it ages.
 12. Restore never overwrites an existing catalog, and never restores a generation with no manifest.
-    An interrupted export missing `ducklake_delete_file` would silently reinstate deleted rows.
+    An interrupted export missing `ducklake_delete_file` would silently reinstate deleted rows. The
+    metadata table list is therefore always *discovered*, never hard-coded: DuckLake stages small
+    commits in a per-table `ducklake_inlined_data_<schema>_<table>` named at run time, and those rows
+    are committed data not yet in Parquet. From DuckDB 1.5.4 the metadata catalog is hidden from
+    `duckdb_tables()` and every other introspection surface, so `MetadataExporter` enumerates over an
+    independent read-only connection — and refuses to write a manifest if it finds no tables at all,
+    because an empty backup that reports success is the failure this invariant exists to prevent.
 13. Remote metadata is addressed by DuckDB secret name, never by connection string — for the primary
     catalog and for shares alike. The provider rejects a non-file metadata path, and the secret is
     created in connection configuration so no credential reaches a catalog record, an options object,
@@ -113,6 +122,17 @@ Preserve these unless the task explicitly changes the architecture and updates i
 18. CDC delivery is at-least-once with a resumable cursor. Windows advance one snapshot at a time and
     `LastDeliveredSnapshot` moves only after a 2xx, so a failing consumer replays rather than skips.
     `ducklake_table_changes` is inclusive at both ends, so the next window opens at `L + 1`.
+19. The credential names the tenant; the route segment is validated against it, never trusted. One
+    `LakeholdAuthorizationFilter` enforces a route's declared `RouteCapability`, and subject is always
+    checked before capability so an unreachable tenant is a **404, not a 403** — a 403 would confirm
+    it exists. A token's plaintext is never stored: only its public prefix and a SHA-256 hash, so
+    reading the table yields nothing usable. The single exception to "never log a credential" is the
+    bootstrap token, logged once because it is otherwise unrecoverable and grants provisioning only.
+20. Capability is expressed as attachment wherever it can be. A read-only credential produces a
+    read-only *attachment*, so a write fails in the engine rather than in a policy check that clever
+    SQL might route around — the same reasoning as invariant 4. `DucklingPool` therefore keys sessions
+    by catalog **and attachment mode**: sharing one session between a read-only and a read-write
+    credential would silently hand the former a writable handle.
 
 ## Open-format guarantee
 

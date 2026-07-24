@@ -132,6 +132,10 @@ public sealed class ControlPlaneContext(DbContextOptions<ControlPlaneContext> op
             entity.Property(t => t.SecretHash).HasMaxLength(64);
             entity.Property(t => t.CatalogName).HasMaxLength(63);
 
+            // Stored as its underlying int, so the column default of 0 for a row that predates the
+            // column reads back as Owner — the capability every token had before roles existed.
+            entity.Property(t => t.Role).HasConversion<int>();
+
             // The prefix narrows a lookup to one tenant's candidate tokens before the secret is
             // verified; the hash is the per-token key, unique because a repeated secret would be a
             // generator failure worth rejecting rather than storing.

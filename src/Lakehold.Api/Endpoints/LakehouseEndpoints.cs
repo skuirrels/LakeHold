@@ -24,7 +24,11 @@ public static class LakehouseEndpoints
             .AddEndpointFilter<LakeholdAuthorizationFilter>();
 
         tenants.MapGet("/", ListTenantsAsync)
-            .WithSummary("Lists tenants and their catalogs.");
+            .RequireCapability(RouteCapability.Listing)
+            .WithSummary("Lists tenants and their catalogs, scoped to what the credential may see.");
+
+        // Provisioning and token management share this group's authentication filter.
+        tenants.MapAdminEndpoints();
 
         tenants.MapPost("/{tenantSlug}/catalogs/{catalogName}/query", ExecuteAsync)
             .WithSummary("Executes a statement against a tenant's catalog.");
@@ -35,7 +39,10 @@ public static class LakehouseEndpoints
         tenants.MapGet("/{tenantSlug}/catalogs/{catalogName}/snapshots", GetSnapshotsAsync)
             .WithSummary("Returns the catalog's snapshot history for time travel.");
 
+        // Maintenance, restore, and eject change or export the whole catalog: owner operations, not
+        // something a reader or editor credential authorises. See docs/AUTHENTICATION.md phase 4.
         tenants.MapPost("/{tenantSlug}/catalogs/{catalogName}/maintenance/{operation}", RunMaintenanceAsync)
+            .RequireCapability(RouteCapability.TenantOwner)
             .WithSummary("Runs a maintenance operation: flush, compact, backup, expire, or cleanup.");
 
         tenants.MapGet("/{tenantSlug}/history", GetHistoryAsync)
@@ -45,9 +52,11 @@ public static class LakehouseEndpoints
             .WithSummary("Lists catalog metadata backup generations, newest first.");
 
         tenants.MapPost("/{tenantSlug}/catalogs/{catalogName}/backups/restore", RestoreBackupAsync)
+            .RequireCapability(RouteCapability.TenantOwner)
             .WithSummary("Rebuilds a catalog from a backup into a new metadata file.");
 
         tenants.MapPost("/{tenantSlug}/catalogs/{catalogName}/eject", EjectAsync)
+            .RequireCapability(RouteCapability.TenantOwner)
             .WithSummary("Writes a verified, reader-agnostic eject bundle of the catalog.");
 
         tenants.MapGet("/{tenantSlug}/catalogs/{catalogName}/ejects", ListEjectsAsync)
@@ -73,12 +82,25 @@ public static class LakehouseEndpoints
     }
 
     private static async Task<Ok<IReadOnlyList<TenantDto>>> ListTenantsAsync(
+        HttpContext http,
         ControlPlaneContext context,
         CancellationToken cancellationToken)
     {
-        var tenants = await context.Tenants
-            .AsNoTracking()
-            .Include(t => t.Catalogs)
+        // An instance token (and the transitional token-less caller) sees every tenant; a tenant token
+        // sees only its own. The scope is applied here rather than in the filter because the filter
+        // decides reachability, not projection.
+        var principal = http.GetLakeholdPrincipal();
+        var ownTenant = principal.IsAuthenticated && principal.Scope == TokenScope.Tenant
+            ? principal.TenantSlug
+            : null;
+
+        var query = context.Tenants.AsNoTracking().Include(t => t.Catalogs).AsQueryable();
+        if (ownTenant is not null)
+        {
+            query = query.Where(t => t.Slug == ownTenant);
+        }
+
+        var tenants = await query
             .OrderBy(t => t.DisplayName)
             .Select(t => new TenantDto(
                 t.Slug,
@@ -94,6 +116,7 @@ public static class LakehouseEndpoints
     }
 
     private static async Task<Results<Ok<QueryResponse>, NotFound<string>, BadRequest<string>>> ExecuteAsync(
+        HttpContext http,
         string tenantSlug,
         string catalogName,
         ExecuteRequest request,
@@ -107,8 +130,11 @@ public static class LakehouseEndpoints
 
         try
         {
+            // A read-only credential attaches the catalog read-only, so a write fails in the engine.
+            // The token id is recorded on the run for the audit trail.
+            var principal = http.GetLakeholdPrincipal();
             var result = await lakehouse
-                .ExecuteAsync(tenantSlug, catalogName, request.Sql, cancellationToken)
+                .ExecuteAsync(tenantSlug, catalogName, request.Sql, cancellationToken, principal.IsReadOnly, principal.TokenId)
                 .ConfigureAwait(false);
 
             return TypedResults.Ok(new QueryResponse(
@@ -573,7 +599,11 @@ public static class LakehouseEndpoints
                 r.ElapsedMilliseconds,
                 r.RowCount,
                 r.Succeeded,
-                r.Error))
+                r.Error,
+                r.TokenId,
+                // Left join by hand: the token may have been deleted, so its name is best-effort and
+                // the audit row survives without it.
+                context.ApiTokens.Where(t => t.Id == r.TokenId).Select(t => t.Name).FirstOrDefault()))
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 
