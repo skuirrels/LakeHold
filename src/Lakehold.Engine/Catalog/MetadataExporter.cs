@@ -1,4 +1,5 @@
 using System.Globalization;
+using DuckDB.NET.Data;
 using Lakehold.Engine.Execution;
 
 namespace Lakehold.Engine.Catalog;
@@ -67,18 +68,23 @@ public static class MetadataExporter
         string destination,
         CancellationToken cancellationToken)
     {
-        var tables = await duckling
-            .ExecuteUnguardedAsync(
-                "SELECT table_name FROM duckdb_tables() " +
-                $"WHERE database_name = {SqlIdentifier.Literal(source.Alias)} " +
-                $"AND schema_name = {SqlIdentifier.Literal(source.Schema)} ORDER BY table_name",
-                cancellationToken)
-            .ConfigureAwait(false);
+        var tableNames = await ListMetadataTablesAsync(duckling, source, cancellationToken).ConfigureAwait(false);
+
+        // A DuckLake catalog always has metadata tables, so an empty list means discovery failed
+        // rather than that there was nothing to copy. Failing here is the whole point: a manifest
+        // reporting zero tables is an empty backup that still presents itself as complete, which is
+        // exactly what invariants 12 and 16 exist to prevent.
+        if (tableNames.Count == 0)
+        {
+            throw new InvalidOperationException(
+                $"No metadata tables were found for catalog '{duckling.Catalog.CatalogName}' via alias " +
+                $"'{source.Alias}' (schema '{source.Schema}'). Refusing to write a backup that would " +
+                "claim to be complete while containing nothing.");
+        }
 
         var exported = new List<BackupTable>();
-        foreach (var row in tables.Rows)
+        foreach (var table in tableNames)
         {
-            var table = Convert.ToString(row[0], CultureInfo.InvariantCulture);
             if (!SqlIdentifier.IsValid(table))
             {
                 continue;
@@ -106,6 +112,105 @@ public static class MetadataExporter
         }
 
         return exported;
+    }
+
+    /// <summary>
+    ///     Lists the metadata tables to copy.
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///         The ordinary route is <c>duckdb_tables()</c> on the session itself, which is correct for
+    ///         PostgreSQL metadata — attached explicitly, and therefore visible — and for DuckDB 1.5.3.
+    ///     </para>
+    ///     <para>
+    ///         From DuckDB 1.5.4, a local-file metadata catalog is attached but hidden from every
+    ///         introspection surface: <c>duckdb_databases()</c>, <c>duckdb_tables()</c>,
+    ///         <c>PRAGMA database_list</c>, and the alias's own <c>information_schema</c> all omit it,
+    ///         while its tables remain directly readable. Enumeration then happens over a second,
+    ///         read-only connection to the metadata file, where it is an ordinary DuckDB database and
+    ///         lists normally.
+    ///     </para>
+    ///     <para>
+    ///         The list must be discovered rather than hard-coded, and inlined data is why. DuckLake
+    ///         stages a small commit in a per-table <c>ducklake_inlined_data_&lt;schema&gt;_&lt;table&gt;</c>
+    ///         table whose name depends on ids that only exist at run time. Those rows are committed
+    ///         data that is not yet in Parquet, so a fixed table list would omit them and produce a
+    ///         backup that silently loses the newest writes — the failure the open-format guarantee is
+    ///         written against.
+    ///     </para>
+    /// </remarks>
+    private static async Task<List<string>> ListMetadataTablesAsync(
+        Duckling duckling,
+        MetadataSource source,
+        CancellationToken cancellationToken)
+    {
+        var listed = await duckling
+            .ExecuteUnguardedAsync(
+                "SELECT table_name FROM duckdb_tables() " +
+                $"WHERE database_name = {SqlIdentifier.Literal(source.Alias)} " +
+                $"AND schema_name = {SqlIdentifier.Literal(source.Schema)} ORDER BY table_name",
+                cancellationToken)
+            .ConfigureAwait(false);
+
+        var names = listed.Rows
+            .Select(r => Convert.ToString(r[0], CultureInfo.InvariantCulture))
+            .Where(n => !string.IsNullOrEmpty(n))
+            .Select(n => n!)
+            .ToList();
+
+        if (names.Count > 0 || duckling.Catalog.MetadataKind == CatalogMetadataKind.Postgres)
+        {
+            return names;
+        }
+
+        return await ListViaSideConnectionAsync(duckling.Catalog.MetadataSource, source.Schema, cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    /// <summary>
+    ///     Lists a metadata file's tables over an independent read-only connection.
+    /// </summary>
+    /// <remarks>
+    ///     Read-only, so this cannot alter the catalog it is inspecting, and consistent because the
+    ///     caller holds the session gate for the whole export — no write can land between this listing
+    ///     and the copies that follow. The copies still run on the session's own connection, which is
+    ///     where object-store credentials live: enumerating here and exporting there keeps a backup
+    ///     written to S3 working, which a second connection would have no secrets for.
+    /// </remarks>
+    private static async Task<List<string>> ListViaSideConnectionAsync(
+        string metadataPath,
+        string schema,
+        CancellationToken cancellationToken)
+    {
+        const string alias = "lakehold_metadata_scan";
+
+        await using var connection = new DuckDBConnection("Data Source=:memory:");
+        await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
+
+        await using (var attach = connection.CreateCommand())
+        {
+            attach.CommandText =
+                $"ATTACH {SqlIdentifier.Literal(metadataPath)} AS {SqlIdentifier.Quote(alias, nameof(alias))} (READ_ONLY)";
+            await attach.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        await using var command = connection.CreateCommand();
+        command.CommandText =
+            "SELECT table_name FROM duckdb_tables() " +
+            $"WHERE database_name = {SqlIdentifier.Literal(alias)} " +
+            $"AND schema_name = {SqlIdentifier.Literal(schema)} ORDER BY table_name";
+
+        var names = new List<string>();
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+        while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+        {
+            if (reader.GetValue(0) is string name && name.Length > 0)
+            {
+                names.Add(name);
+            }
+        }
+
+        return names;
     }
 
     /// <summary>
@@ -190,14 +295,38 @@ public static class MetadataExporter
     ///     Finds the alias DuckLake attached its own metadata store under.
     /// </summary>
     /// <remarks>
-    ///     It is <c>__ducklake_metadata_&lt;catalog&gt;</c> on DuckDB 1.5.3, but that is an internal
-    ///     detail. Attaching the file again under our own alias fails outright with
-    ///     "Unique file handle conflict", so discovery by path is both necessary and more durable
-    ///     than reproducing the naming convention.
+    ///     <para>
+    ///         The alias is <c>__ducklake_metadata_&lt;catalog&gt;</c>. Attaching the file again under
+    ///         our own name fails outright with "Unique file handle conflict", so the existing
+    ///         attachment has to be found rather than recreated.
+    ///     </para>
+    ///     <para>
+    ///         Two ways of finding it, in that order, because each covers the other's blind spot.
+    ///         <em>Probing the conventional name</em> is tried first: it is the only method that works
+    ///         on DuckDB 1.5.4, where the metadata database is still attached under exactly that name
+    ///         but is no longer listed by <c>duckdb_databases()</c> at all. Discovery through that
+    ///         listing is the fallback, covering any future release that keeps listing the database
+    ///         but renames it.
+    ///     </para>
+    ///     <para>
+    ///         The order was originally the reverse, on the reasoning that the naming convention is an
+    ///         internal detail and a path match is more durable. DuckDB 1.5.4 inverted that: the
+    ///         convention held exactly, and the listing is what disappeared — taking backup, restore,
+    ///         and eject with it, since all three read the metadata tables directly.
+    ///     </para>
     /// </remarks>
     private static async Task<string> ResolveMetadataAliasAsync(Duckling duckling, CancellationToken cancellationToken)
     {
         var catalogName = duckling.Catalog.CatalogName;
+
+        // The conventional alias, confirmed by reading from it. A probe is what makes this safe to
+        // try first: if the name is wrong the query fails, costs nothing, and discovery still runs.
+        var conventional = "__ducklake_metadata_" + catalogName;
+        if (SqlIdentifier.IsValid(conventional)
+            && await IsMetadataDatabaseAsync(duckling, conventional, cancellationToken).ConfigureAwait(false))
+        {
+            return conventional;
+        }
 
         var databases = await duckling
             .ExecuteUnguardedAsync(
@@ -212,7 +341,7 @@ public static class MetadataExporter
             .Where(d => SqlIdentifier.IsValid(d.Name))
             .ToArray();
 
-        // Path equality first, but it cannot be the only rule: DuckDB reports the resolved path, and
+        // Path equality, which cannot be an exact-string rule: DuckDB reports the resolved path, and
         // on macOS a temp directory arrives as /var/folders/… while resolving to /private/var/… .
         // Matching only on the string made export fail everywhere temp paths are symlinked.
         var byPath = candidates.FirstOrDefault(d =>
@@ -222,8 +351,8 @@ public static class MetadataExporter
             return byPath.Name;
         }
 
-        // DuckLake's own convention on DuckDB 1.5.3. An internal detail, so it is a fallback rather
-        // than the primary rule.
+        // A listed database following the convention, for a catalog name the probe above could not
+        // form a valid identifier from.
         var byConvention = candidates.FirstOrDefault(d =>
             d.Name.StartsWith("__ducklake_metadata_", StringComparison.Ordinal) &&
             d.Name.EndsWith(catalogName, StringComparison.Ordinal));
@@ -244,7 +373,38 @@ public static class MetadataExporter
             ? remaining[0].Name
             : throw new InvalidOperationException(
                 $"Could not locate the attached metadata database for catalog '{catalogName}'. " +
+                $"Tried the conventional alias '{conventional}' and every attached database. " +
                 $"Candidates: {string.Join(", ", candidates.Select(c => c.Name))}.");
+    }
+
+    /// <summary>
+    ///     Whether <paramref name="alias"/> names an attached DuckLake metadata database.
+    /// </summary>
+    /// <remarks>
+    ///     Reads one of DuckLake's own bookkeeping tables rather than merely checking the name
+    ///     resolves, so an unrelated database that happened to match the convention cannot be mistaken
+    ///     for the metadata store. A failure means "not this one", never an error worth propagating —
+    ///     the caller has other strategies to try.
+    /// </remarks>
+    private static async Task<bool> IsMetadataDatabaseAsync(
+        Duckling duckling,
+        string alias,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var schema = SqlIdentifier.Quote(duckling.Catalog.ResolvedMetadataSchema, "metadataSchema");
+            await duckling
+                .ExecuteUnguardedAsync(
+                    $"SELECT 1 FROM {SqlIdentifier.Quote(alias, nameof(alias))}.{schema}.\"ducklake_snapshot\" LIMIT 1",
+                    cancellationToken)
+                .ConfigureAwait(false);
+            return true;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            return false;
+        }
     }
 
     /// <summary>Compares two filesystem paths, tolerating symlinked roots and relative forms.</summary>

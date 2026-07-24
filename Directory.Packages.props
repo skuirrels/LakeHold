@@ -6,9 +6,20 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- Lakehouse engine + control plane persistence -->
-    <PackageVersion Include="DuckDB.NET.Data.Full" Version="1.5.3" />
-    <PackageVersion Include="DuckDB.EFCoreProvider" Version="1.14.0" />
+    <!-- Lakehouse engine + control plane persistence.
+
+         The ADO.NET layer is the Skuirrels fork of DuckDB.NET, which is what DuckDB.EFCoreProvider
+         1.14.1 and later depend on. Package 1.5.5 carries DuckDB engine v1.5.4 — the two version
+         lines are separate, so read the engine version from `SELECT version()`, not from here.
+
+         These are pinned explicitly even though no project references them directly. Transitive
+         pinning is enabled, so this is what fixes the native engine version rather than leaving it
+         to whatever the provider happens to resolve. The upstream `DuckDB.NET.*` packages are
+         deliberately absent: the provider no longer uses them, and a pin on an unreferenced package
+         id silently constrains nothing while still reading like a guarantee. -->
+    <PackageVersion Include="Skuirrels.DuckDB.NET.Data.Full" Version="1.5.5" />
+    <PackageVersion Include="Skuirrels.DuckDB.NET.Bindings.Full" Version="1.5.5" />
+    <PackageVersion Include="DuckDB.EFCoreProvider" Version="1.14.1" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="10.0.10" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.10" />
   </ItemGroup>
@@ -41,6 +52,9 @@
          GHSA-v5pm-xwqc-g5wc (high). Transitive pinning is enabled, so this reaches the
          restore graph. -->
     <PackageVersion Include="Microsoft.OpenApi" Version="2.11.0" />
+    <!-- OIDC for the workbench. Validation only: Lakehold is a resource server, never an identity
+         provider, and the whole path stays off unless an authority is configured. -->
+    <PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.10" />
   </ItemGroup>
 
   <ItemGroup>
