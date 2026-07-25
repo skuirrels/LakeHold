@@ -1,0 +1,66 @@
+# Build and test on every push and pull request.
+#
+# This exists so the images published by release.yml are built from a commit that was known to
+# compile and pass its tests. Publishing an artifact nobody had built in a clean checkout is worse
+# than publishing none: it moves the failure from a contributor's machine to an operator's node.
+#
+# Integration tests are deliberately not configured here. They skip unless their service variables
+# are set, so this run needs no PostgreSQL and no MinIO — see README.md for running them locally.
+# Their failure modes (object stores having no directories, PostgreSQL attaching nothing behind the
+# catalog) are worth a scheduled job against real services later; a per-PR run against containers
+# would report the same green either way.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Build and test the backend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore
+        run: dotnet restore Lakehold.slnx
+
+      - name: Build
+        run: dotnet build Lakehold.slnx --no-restore
+
+      - name: Test
+        run: dotnet test Lakehold.slnx --no-build
+
+  frontend:
+    name: Build the website
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web/lakehold-ui
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: web/lakehold-ui/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      - name: Build
+        run: npm run build

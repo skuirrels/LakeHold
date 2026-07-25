@@ -5,39 +5,44 @@
       <span class="name">Lakehold</span>
     </a>
 
-    <div class="selectors">
-      <label class="field">
-        <span>Workspace</span>
-        <select [value]="tenantSlug() ?? ''" (change)="selectTenant($any($event.target).value)">
-          @for (tenant of tenants(); track tenant.slug) {
-            <option [value]="tenant.slug">{{ tenant.displayName }}</option>
-          }
-        </select>
-      </label>
+    <!-- The pickers and the maintenance menu act on a selected catalog, so during a first run
+         they have nothing to act on. Hiding them keeps the header honest rather than offering
+         five buttons that quietly do nothing. -->
+    @if (firstRun() === 'none') {
+      <div class="selectors">
+        <label class="field">
+          <span>Workspace</span>
+          <select [value]="tenantSlug() ?? ''" (change)="selectTenant($any($event.target).value)">
+            @for (tenant of tenants(); track tenant.slug) {
+              <option [value]="tenant.slug">{{ tenant.displayName }}</option>
+            }
+          </select>
+        </label>
 
-      <label class="field">
-        <span>Catalog</span>
-        <select [value]="catalogName() ?? ''" (change)="selectCatalog($any($event.target).value)">
-          @for (catalog of catalogs(); track catalog.name) {
-            <option [value]="catalog.name">{{ catalog.name }}</option>
-          }
-        </select>
-      </label>
-    </div>
+        <label class="field">
+          <span>Catalog</span>
+          <select [value]="catalogName() ?? ''" (change)="selectCatalog($any($event.target).value)">
+            @for (catalog of catalogs(); track catalog.name) {
+              <option [value]="catalog.name">{{ catalog.name }}</option>
+            }
+          </select>
+        </label>
+      </div>
 
-    <div class="maintenance">
-      <span class="maint-label">Maintenance</span>
-      <button class="btn" type="button" title="Write inlined commits out as Parquet"
-              (click)="runMaintenance('flush')">Flush</button>
-      <button class="btn" type="button" title="Merge small Parquet files"
-              (click)="runMaintenance('compact')">Compact</button>
-      <button class="btn" type="button" title="Export catalog metadata to Parquet beside the data"
-              (click)="runMaintenance('backup')">Backup</button>
-      <button class="btn" type="button" title="Drop snapshots older than 7 days"
-              (click)="runMaintenance('expire')">Expire</button>
-      <button class="btn" type="button" title="Delete data files no longer referenced by any snapshot"
-              (click)="runMaintenance('cleanup')">Cleanup</button>
-    </div>
+      <div class="maintenance">
+        <span class="maint-label">Maintenance</span>
+        <button class="btn" type="button" title="Write inlined commits out as Parquet"
+                (click)="runMaintenance('flush')">Flush</button>
+        <button class="btn" type="button" title="Merge small Parquet files"
+                (click)="runMaintenance('compact')">Compact</button>
+        <button class="btn" type="button" title="Export catalog metadata to Parquet beside the data"
+                (click)="runMaintenance('backup')">Backup</button>
+        <button class="btn" type="button" title="Drop snapshots older than 7 days"
+                (click)="runMaintenance('expire')">Expire</button>
+        <button class="btn" type="button" title="Delete data files no longer referenced by any snapshot"
+                (click)="runMaintenance('cleanup')">Cleanup</button>
+      </div>
+    }
 
     <div class="credential">
       <button class="btn" type="button" [class.btn-active]="auth.hasToken()"
@@ -68,6 +73,17 @@
     </div>
   </header>
 
+  @if (firstRun() !== 'none') {
+    <lh-first-run
+      [mode]="firstRun()"
+      [busy]="setupBusy()"
+      [error]="setupError()"
+      [issuedToken]="issuedToken()"
+      [workspace]="setupSlug()"
+      (signIn)="signInWith($event)"
+      (createWorkspace)="createWorkspace($event)"
+      (adoptToken)="useIssuedToken()" />
+  } @else {
   <div class="body">
     <aside class="sidebar">
       <div class="sidebar-head">Catalog</div>
@@ -211,4 +227,5 @@
       </section>
     </main>
   </div>
+  }
 </div>

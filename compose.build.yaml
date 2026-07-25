@@ -1,0 +1,25 @@
+# Build override for the production stack.
+#
+#   docker compose -f compose.production.yaml -f compose.build.yaml up -d --build
+#
+# compose.production.yaml names published images so that installing Lakehold is a download rather
+# than a compile. This file adds a build context to each of those services, for the two cases where
+# that is not what you want: developing against the production images, and deploying a commit that
+# has not been released — a patch, a fork, or a private build.
+#
+# The image names are inherited, not restated. A build here produces exactly the reference the other
+# file would have pulled, so `docker compose up` afterwards finds it locally and does not reach for
+# the registry.
+
+name: lakehold
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: src/Lakehold.Api/Dockerfile
+
+  web:
+    build:
+      context: .
+      dockerfile: web/lakehold-ui/Dockerfile

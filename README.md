@@ -30,14 +30,14 @@ stores tables as ordinary Parquet files and metadata as ordinary SQL.
 | Elastic scale-out | ✅ | Bounded by node size |
 | Zero operations | ✅ | You run it |
 | Dual execution | ✅ | Not replicated |
-| Accounts, SSO, permissions | ✅ | **API tokens, OIDC, and roles — enforcement opt-in** |
+| Accounts, SSO, permissions | ✅ | **API tokens, OIDC, and roles — on in the production stack** |
 
 Catalog isolation is structural — a session can only reference the catalog attached to it — and the
 layer deciding *which* tenant a caller is now exists too: the credential names the tenant and the URL
-segment is validated against it. One caveat, and it is the whole caveat:
-`Lakehold:Auth:RequireAuthentication` defaults to **false**, so a deployment that never sets it still
-accepts token-less requests and trusts the route. Turn it on before the node is reachable by anyone
-you would not hand an owner token.
+segment is validated against it. One caveat, and it is the whole caveat: the *application* default
+for `Lakehold:Auth:RequireAuthentication` is **false**, so a bare `dotnet run` accepts token-less
+requests and trusts the route. `compose.production.yaml` sets it to true, so the deployment path is
+closed by default and only a hand-rolled one can be left open.
 
 The trade is deliberate: **elasticity and zero-ops for control, openness, and .NET integration.**
 Full analysis, including where MotherDuck is the better choice, in
@@ -81,30 +81,45 @@ docker compose down -v    # stop and discard the data
 ### Running it in production
 
 `compose.yaml` above is the **development** stack: stock SDK images, your source bind-mounted, and a
-file watcher. It is not a deployment. `compose.production.yaml` is:
+file watcher. It is not a deployment. `compose.production.yaml` is, and it is the whole install —
+one file naming published images, so a deployment host needs neither a checkout nor a compiler:
 
 ```bash
-docker compose -f compose.production.yaml up -d --build
+curl -O https://raw.githubusercontent.com/skuirrels/LakeHold/main/compose.production.yaml
+docker compose -f compose.production.yaml up -d
 ```
 
 → the website on <http://localhost:8080>
 
-To update a host that already runs it, `make production` pulls, rebuilds, and restarts:
+Then read the bootstrap token out of the log and open the site — the workbench walks the rest:
 
 ```bash
-make production
+docker compose -f compose.production.yaml logs api | grep -i bootstrap
 ```
 
-It refuses to run if tracked files have been edited on the host, pulls `--ff-only` so a deployment
-can never invent a merge commit, and rebuilds before it restarts anything — a broken build leaves
-the current containers serving traffic. `--wait` means it exits non-zero unless both healthchecks
-pass, so a container that starts and immediately crashes fails the deploy rather than reporting
-success. `make status`, `make logs`, and `make stop` cover the rest; nothing in the file removes the
-state volume.
+Pin `LAKEHOLD_TAG` to a release rather than tracking `latest`, or a redeploy silently moves you to
+whatever was tagged since. From a checkout, `make deploy` pulls and restarts in one step, and
+`make status`, `make logs`, `make stop`, and `make backup-state` cover the rest. Nothing in either
+file removes the state volume.
+
+**Deploying from source instead** — a fork, a patch, or a commit that has not been released — adds
+the build override, which supplies a build context for each image:
+
+```bash
+docker compose -f compose.production.yaml -f compose.build.yaml up -d --build
+```
+
+`make production` is that path as a repeatable deploy: it refuses to run if tracked files have been
+edited on the host, pulls `--ff-only` so a deployment can never invent a merge commit, and rebuilds
+before it restarts anything — a broken build leaves the current containers serving traffic. `--wait`
+means it exits non-zero unless both healthchecks pass, so a container that starts and immediately
+crashes fails the deploy rather than reporting success.
 
 | | Development (`compose.yaml`) | Production (`compose.production.yaml`) |
 |---|---|---|
+| Install | Clone the repository | One file, published images |
 | Images | .NET SDK + Node, ~1 GB each | Published output only — 416 MB API, 63 MB web |
+| Authentication | Off unless you turn it on | **Required** unless you turn it off |
 | Source | Bind-mounted, hot reloads | Not present in the image |
 | Runs as | root | Non-root (`app`, `nginx`) |
 | Website | Angular dev server | Prerendered bundle behind nginx |
@@ -131,14 +146,34 @@ Worth knowing:
 - **The image is architecture-pruned.** Publishing for the target RID drops the Windows and macOS
   DuckDB natives that a portable publish would ship — 940 MB down to 416 MB — and `TARGETARCH`
   keeps it correct on arm64 hosts.
-- **Provisioning goes through the API, on the site's port.** A fresh deployment has no tenants; the
-  node mints an instance-scoped bootstrap token on first start and logs it once. Because the API is
-  not published, every call goes to the website's origin — `localhost:8080/api/…`, not `:5200`, which
-  is the *development* stack's port. See [Authentication](#authentication) for the three calls that
-  create the first tenant, catalog, and token.
-- **Enforcement is still opt-in here.** This file does not set
-  `Lakehold__Auth__RequireAuthentication`, so the stack starts trusting token-less requests. Set it to
-  `true` in your own deployment before the port is reachable by anything you do not trust.
+- **The images come from GHCR**, built and pushed by `.github/workflows/release.yml` on a `v*` tag,
+  for amd64 and arm64. Neither pays for emulation: both Dockerfiles run their build stage on the
+  builder's own architecture, the API cross-publishing by `TARGETARCH` and the website emitting
+  static files that have no architecture at all. `LAKEHOLD_REGISTRY_NAMESPACE` repoints them at a
+  fork's namespace or a mirror.
+- **Authentication is required here**, unlike the development stack: this file sets
+  `Lakehold__Auth__RequireAuthentication` to `true`. The application default stays `false` so a fresh
+  checkout runs token-lessly, but that default is wrong for anything with a published port. Set
+  `LAKEHOLD_REQUIRE_AUTH=false` to go back to trusting the route — knowing that it means anyone who
+  reaches `:8080` is every tenant.
+- **The first credential comes out of the log.** A node with no tokens mints an instance-scoped
+  bootstrap token on first start and logs it once. Open the site and the workbench asks for it, then
+  trades it for a token that can actually read — provisioning and querying are deliberately different
+  capabilities. [Authentication](#authentication) has the same three steps as `curl`, if you would
+  rather script it.
+- **Upgrading a deployment that predates this** will find authentication suddenly enforced. That is
+  the point, but it is a breaking change for a node whose clients hold no tokens: issue them first,
+  or set `LAKEHOLD_REQUIRE_AUTH=false` for the one deploy that bridges the gap.
+- **Back the state volume up with `make backup-state`.** It is the catalog, the Parquet, the backup
+  generations, and the eject bundles — the only thing in the stack that cannot be rebuilt. The
+  archive is a file copy, so stop the stack first if it has to be restorable with certainty; the
+  catalog-consistent tools are Lakehold's own backup and eject. Restore is deliberately manual:
+  ```bash
+  make stop
+  docker run --rm -v lakehold_lakehold-state:/state -v "$PWD":/archive alpine \
+    sh -c 'rm -rf /state/* && tar xzf /archive/<archive>.tar.gz -C /state'
+  make deploy
+  ```
 
 ### Running the app on the host instead
 
@@ -335,8 +370,8 @@ The credential names the tenant; the URL segment is validated against it rather 
 belongs to one tenant, may be narrowed to a single catalog, and carries a role — `owner`, `editor`,
 or `reader`.
 
-**Enforcement is opt-in, and off by default**, so a fresh checkout still runs token-lessly. Turn it on
-per deployment:
+**The application default is off**, so a fresh checkout still runs token-lessly. The production
+compose file turns it on, and any deployment with a published port should:
 
 ```jsonc
 { "Lakehold": { "Auth": { "RequireAuthentication": true } } }
@@ -344,10 +379,14 @@ per deployment:
 
 A node with no tokens mints an instance-scoped one at start-up and logs it **once**. That token
 provisions tenants, catalogs, and other tokens, and deliberately cannot read data — so a leaked admin
-credential is a visible provisioning problem, not a silent data breach:
+credential is a visible provisioning problem, not a silent data breach.
+
+The workbench does this for you: open the site, paste the bootstrap token when it asks, name a
+workspace and a catalog, and it mints the token that can query them and shows it once. The same three
+steps by hand:
 
 ```bash
-docker compose -f compose.production.yaml up -d --build
+docker compose -f compose.production.yaml up -d
 docker compose -f compose.production.yaml logs api | grep -i bootstrap
 
 # The production stack does not publish the API: nginx serves the site and proxies /api on the same

@@ -1,20 +1,30 @@
 # Lakehold operations.
 #
-#   make production   Update this deployment in place: pull, rebuild, restart.
+#   make deploy       Update this deployment to the current published images.
+#   make production   Update it from source instead: pull the repository, rebuild, restart.
 #   make status       What is running, and whether it is healthy.
 #   make logs         Follow the running stack's logs.
 #   make stop         Stop the stack. The state volume survives.
+#   make backup-state Archive the state volume to a tarball in the working directory.
 #
 # This drives compose.production.yaml and never compose.yaml. The development stack bind-mounts
 # source and runs a file watcher, so it has no build step to redo — "rebuild and restart" is not a
 # thing you do to it, you just save a file.
 #
-# `make production` is for a host that already runs the stack, and is safe to re-run. The step order
-# is deliberate: everything that can fail does so before anything is taken down, so a broken build
-# or a diverged checkout leaves the current containers serving traffic untouched.
+# `make deploy` is the ordinary path and needs nothing but Docker and the compose file: images come
+# from the registry, so a deployment host does not need a checkout, a compiler, or this Makefile.
+# `make production` is the from-source variant, for a host that deploys a commit rather than a
+# release. Both are safe to re-run, and both order their steps so that everything which can fail
+# does so before anything is taken down — a broken build or a diverged checkout leaves the current
+# containers serving traffic untouched.
 
-COMPOSE := docker compose -f compose.production.yaml
-BRANCH  := $(shell git rev-parse --abbrev-ref HEAD 2>/dev/null)
+COMPOSE        := docker compose -f compose.production.yaml
+COMPOSE_SOURCE := docker compose -f compose.production.yaml -f compose.build.yaml
+BRANCH         := $(shell git rev-parse --abbrev-ref HEAD 2>/dev/null)
+
+# Compose prefixes volumes with the project name, which compose.production.yaml pins to `lakehold`.
+STATE_VOLUME := lakehold_lakehold-state
+ARCHIVE      ?= lakehold-state-$(shell date -u +%Y%m%dT%H%M%SZ).tar.gz
 
 # How long `up` waits for both healthchecks before it calls the deployment failed. The API's own
 # start-period is 45s and a cold DuckDB open lands on top of that, so this leaves real headroom.
@@ -22,17 +32,31 @@ WAIT_TIMEOUT ?= 180
 
 .DEFAULT_GOAL := help
 
-.PHONY: help production check-tree pull build up status logs stop
+.PHONY: help deploy production check-tree pull build up status logs stop backup-state
 
 help:
 	@echo "Lakehold — make targets"
 	@echo ""
-	@echo "  production   Update this deployment: git pull, rebuild images, restart containers"
-	@echo "  status       Show the running containers and their health"
-	@echo "  logs         Follow the stack's logs"
-	@echo "  stop         Stop the stack, keeping the state volume"
+	@echo "  deploy        Update this deployment to the current published images"
+	@echo "  production    Update it from source: git pull, rebuild images, restart containers"
+	@echo "  status        Show the running containers and their health"
+	@echo "  logs          Follow the stack's logs"
+	@echo "  stop          Stop the stack, keeping the state volume"
+	@echo "  backup-state  Archive the state volume to a tarball here"
 	@echo ""
-	@echo "  Overrides:   WAIT_TIMEOUT=$(WAIT_TIMEOUT) (seconds to wait for healthy containers)"
+	@echo "  Overrides:    WAIT_TIMEOUT=$(WAIT_TIMEOUT) (seconds to wait for healthy containers)"
+	@echo "                LAKEHOLD_TAG=<version> (which published images deploy pulls)"
+	@echo "                ARCHIVE=<path> (where backup-state writes)"
+
+# The published-image path. No git, no build: whatever LAKEHOLD_TAG names is pulled and started.
+# Pinning that to a released version rather than the default `latest` is what makes a redeploy
+# reproducible — `latest` moves under you the next time someone tags a release.
+deploy:
+	@echo "==> pulling images"
+	$(COMPOSE) pull
+	@$(MAKE) --no-print-directory up status
+	@echo ""
+	@echo "==> deployed $${LAKEHOLD_TAG:-latest}"
 
 production: check-tree pull build up status
 	@echo ""
@@ -59,7 +83,7 @@ pull:
 # months ago and never picks up their security updates.
 build:
 	@echo "==> building images"
-	$(COMPOSE) build --pull
+	$(COMPOSE_SOURCE) build --pull
 
 # `up -d` is the stop-and-start: compose recreates exactly the containers whose image changed and
 # leaves the rest alone, so downtime is a few seconds rather than the length of a full down/up. A
@@ -81,3 +105,25 @@ logs:
 # eject bundles — everything in this stack that cannot be rebuilt from the repository.
 stop:
 	@$(COMPOSE) down
+
+# A disaster copy of that volume: the catalog database, the Parquet, the backup generations, and the
+# eject bundles, as one tarball. Read-only mount, so this cannot damage what it is copying.
+#
+# It is not a substitute for Lakehold's own catalog backup or an eject. Those run through the
+# catalog and are consistent by construction; this is a file copy, so a container writing during it
+# can land a torn page in the archive. Stop the stack first when the archive has to be restorable
+# with certainty — `make stop backup-state deploy` is a few seconds of downtime for a copy nobody
+# has to think about afterwards.
+backup-state:
+	@docker volume inspect $(STATE_VOLUME) >/dev/null 2>&1 || { \
+		echo "error: volume $(STATE_VOLUME) does not exist — has the stack ever run here?"; \
+		exit 1; \
+	}
+	@$(COMPOSE) ps --status running --quiet | grep -q . \
+		&& echo "note: the stack is running; see the comment above this target" || true
+	@echo "==> archiving $(STATE_VOLUME) to $(ARCHIVE)"
+	@docker run --rm \
+		-v $(STATE_VOLUME):/state:ro \
+		-v "$(CURDIR)":/archive \
+		alpine tar czf "/archive/$(ARCHIVE)" -C /state .
+	@ls -lh "$(ARCHIVE)"

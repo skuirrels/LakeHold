@@ -90,3 +90,15 @@ export interface QueryRun {
 }
 
 export type MaintenanceOperation = 'flush' | 'compact' | 'backup' | 'expire' | 'cleanup';
+
+/**
+ * A freshly minted token.
+ *
+ * `token` is the plaintext, and the server stores only a hash of it — so this is the one and only
+ * time it exists anywhere the user can copy it from.
+ */
+export interface CreatedToken {
+  id: number;
+  name: string;
+  token: string;
+}

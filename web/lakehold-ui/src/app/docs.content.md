@@ -434,8 +434,13 @@ A node with no tokens mints one on start-up, logs it **once**, and never again. 
 it provisions tenants, catalogs, and other tokens, but deliberately cannot read data — so a leaked
 admin credential is a visible provisioning problem rather than a silent data breach.
 
+**The workbench does this for you.** Open a fresh deployment and it asks for that bootstrap token,
+then for a workspace and catalog name, creates both, and mints the token that can query them —
+showing it once, because the server keeps only a hash. Adopting it is one click. The steps below are
+the same thing by hand, for a script or a deployment with no browser in reach.
+
 ```bash
-docker compose -f compose.production.yaml up -d --build
+docker compose -f compose.production.yaml up -d
 docker compose -f compose.production.yaml logs api | grep -i bootstrap
 
 API=http://localhost:8080/api
@@ -497,6 +502,11 @@ un-revoke — issue a new token.
 The workbench has a **Sign in** control in its header. Paste a token and it is held for that browser
 session only, and sent as a bearer token on API calls. With no token set the workbench behaves
 exactly as it does today, which is what keeps local development frictionless.
+
+When a deployment requires authentication and the browser has no usable token, the workbench says so
+and asks for one instead of showing empty pickers — the same panel that runs the first-workspace flow
+above. A token that has been revoked, or one from a rebuilt node, lands in the same place: the API
+answers 401, and the panel is the remedy rather than an error.
 
 ### Connecting a BI tool with a token
 
