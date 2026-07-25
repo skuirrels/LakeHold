@@ -12,11 +12,11 @@ import { Routes } from '@angular/router';
 export const routes: Routes = [
   {
     path: '',
-    title: 'Lakehold — your lakehouse, held outright',
+    title: 'Lakehold — a feature-rich DuckDB lakehouse you host yourself',
     data: {
       seo: {
         description:
-          'A self-hostable DuckDB and DuckLake lakehouse that runs on your own infrastructure, stores every byte as open Parquet you can read without us, and speaks .NET natively.',
+          'A DuckDB and DuckLake lakehouse you host yourself: time travel, change data capture, a PostgreSQL wire endpoint, and every byte stored as open Parquet.',
       },
     },
     loadComponent: () => import('./landing.component').then((m) => m.LandingComponent),
