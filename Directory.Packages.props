@@ -89,7 +89,7 @@
 
   <ItemGroup>
     <!-- Scheduling -->
-    <PackageVersion Include="Quartz.Extensions.Hosting" Version="3.18.2" />
+    <PackageVersion Include="Quartz.Extensions.Hosting" Version="3.19.0" />
   </ItemGroup>
 
 </Project>
