@@ -51,6 +51,10 @@ integration.
 - `docs/PUBLIC-API.md`: the phased spec for the public HTTP control API — time travel and the whole
   lakehouse. Builds on `docs/AUTHENTICATION.md` (auth is its gate); the cross-cutting API conventions
   (versioning, `problem+json`, pagination, async jobs) live here.
+- `docs/MCP.md`: the phased spec for the MCP server — specified, not yet implemented. Records why the
+  dependency is the MCP C# SDK and *not* Microsoft Agent Framework (Lakehold is the server, not the
+  agent), which tools are deliberately withheld from an agent, and the capability-policy refactor
+  Phase 1 requires. Read it before adding an agent-reachable surface.
 - `docs/COMPETITIVE-RESEARCH.md`: a **dated** snapshot of competitor releases, the DuckLake roadmap,
   and ranked demand from the upstream trackers. It is the evidence behind the positioning and feature
   matrix in `docs/ARCHITECTURE.md`; that document states the position, this one says when it was last
@@ -141,6 +145,12 @@ Preserve these unless the task explicitly changes the architecture and updates i
     SQL might route around — the same reasoning as invariant 4. `DucklingPool` therefore keys sessions
     by catalog **and attachment mode**: sharing one session between a read-only and a read-write
     credential would silently hand the former a writable handle.
+21. An agent-reachable surface declares its capability like a route and always requires a credential.
+    An MCP tool names a `RouteCapability` and the *same* policy that guards the HTTP route enforces
+    it — the rules live in one transport-neutral place, never copied into a second dispatch, or the
+    404-not-403 reasoning in invariant 19 drifts between them. Unlike every other surface, MCP refuses
+    a token-less call even while `Lakehold:Auth:RequireAuthentication` is false: a surface whose
+    purpose is letting an autonomous agent run SQL cannot also trust the route. See `docs/MCP.md`.
 
 ## Open-format guarantee
 
