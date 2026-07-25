@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { AuthService } from './auth.service';
+import { BrandMarkComponent } from './brand-mark.component';
 import { CatalogExplorerComponent } from './catalog-explorer.component';
 import { LakehouseService } from './lakehouse.service';
 import { MaintenanceOperation, QueryResponse, QueryRun, Schema, Snapshot, Tenant } from './models';
@@ -22,7 +23,7 @@ type BottomTab = 'results' | 'history' | 'snapshots';
 @Component({
   selector: 'lh-workbench',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CatalogExplorerComponent, ResultGridComponent, RouterLink],
+  imports: [BrandMarkComponent, CatalogExplorerComponent, ResultGridComponent, RouterLink],
   templateUrl: './workbench.component.html',
   styleUrl: './workbench.component.css',
 })

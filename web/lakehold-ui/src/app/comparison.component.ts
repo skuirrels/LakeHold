@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { BrandMarkComponent } from './brand-mark.component';
 
 /**
  * Strength or limitation on a given axis, judged from the reader's point of view — not ours.
@@ -40,7 +41,7 @@ interface HeadToHead {
 @Component({
   selector: 'lh-comparison',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink],
+  imports: [BrandMarkComponent, RouterLink],
   templateUrl: './comparison.component.html',
   styleUrl: './comparison.component.css',
 })
