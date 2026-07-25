@@ -1,0 +1,531 @@
+/* Page chrome and the value-proposition sections. The `.layout` rail and the rendered-Markdown
+   prose come from the shared `markdown-page.css`, listed ahead of this file in `styleUrls`. */
+
+:host {
+  display: block;
+  height: 100vh;
+  overflow-y: auto;
+}
+
+.page {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 0 28px 80px;
+}
+
+/* Nav — matches the docs and comparison pages. */
+
+/* The links plus the call to action do not fit a phone width, and this site has no hamburger menu,
+   so the header wraps onto a second row rather than clipping the button off the right edge. */
+.nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 16px;
+  flex-wrap: wrap;
+  padding: 20px 0;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 650;
+  color: var(--text);
+  text-decoration: none;
+}
+
+.mark {
+  color: var(--accent);
+}
+
+.nav-links {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px 20px;
+}
+
+.nav-links a {
+  color: var(--text-muted);
+  text-decoration: none;
+  font-size: 14px;
+}
+
+.nav-links a:hover {
+  color: var(--text);
+}
+
+.nav-links a.btn {
+  text-decoration: none;
+}
+
+.nav-links a.btn-primary {
+  color: #241c05;
+}
+
+/* Hero */
+
+.hero {
+  padding: 66px 0 8px;
+  text-align: center;
+}
+
+.eyebrow {
+  display: inline-block;
+  font-size: 12px;
+  font-family: var(--mono);
+  color: var(--accent);
+  padding: 5px 13px;
+  border: 1px solid rgba(255, 200, 87, 0.3);
+  border-radius: 999px;
+  background: rgba(255, 200, 87, 0.06);
+}
+
+.hero h1 {
+  font-size: clamp(2.2rem, 5.4vw, 3.6rem);
+  line-height: 1.08;
+  letter-spacing: -0.03em;
+  margin: 26px 0 20px;
+  font-weight: 700;
+}
+
+.hero h1 em {
+  font-style: normal;
+  color: var(--accent);
+}
+
+.lede {
+  max-width: 660px;
+  margin: 0 auto;
+  font-size: 17px;
+  line-height: 1.65;
+  color: var(--text-muted);
+  text-wrap: balance;
+}
+
+.kinship {
+  max-width: 620px;
+  margin: 16px auto 0;
+  font-size: 13.5px;
+  color: var(--text-faint);
+}
+
+.cta {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  margin-top: 32px;
+  flex-wrap: wrap;
+}
+
+.lg {
+  padding: 11px 22px;
+  font-size: 14px;
+  text-decoration: none;
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 14px;
+  margin-top: 44px;
+}
+
+.stat {
+  padding: 20px 16px;
+  border-radius: var(--radius);
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+}
+
+.stat-value {
+  font-size: 20px;
+  font-weight: 700;
+  font-family: var(--mono);
+  color: var(--accent);
+  letter-spacing: -0.02em;
+}
+
+.stat-label {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 6px;
+}
+
+/* Value-proposition sections */
+
+.block {
+  margin-top: 84px;
+}
+
+.section-title {
+  font-size: 26px;
+  letter-spacing: -0.02em;
+  margin: 0 0 8px;
+  text-align: center;
+}
+
+.section-sub {
+  text-align: center;
+  color: var(--text-muted);
+  margin: 0 auto 30px;
+  max-width: 640px;
+  font-size: 14px;
+}
+
+.pillars,
+.profiles {
+  display: grid;
+  gap: 16px;
+}
+
+.pillars {
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+.profiles {
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+
+.pillar,
+.profile {
+  padding: 22px;
+  border-radius: var(--radius);
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+}
+
+.profile.featured {
+  border-color: rgba(255, 200, 87, 0.35);
+}
+
+.pillar-label,
+.profile-label,
+.tier-label {
+  display: block;
+  font-family: var(--mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-faint);
+  margin-bottom: 10px;
+}
+
+.profile.featured .profile-label {
+  color: var(--accent);
+}
+
+.pillar h3,
+.profile h3,
+.tier h3 {
+  font-size: 15px;
+  margin: 0 0 8px;
+  font-weight: 650;
+}
+
+.pillar p,
+.profile p,
+.tier p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-muted);
+}
+
+.profile code {
+  display: block;
+  margin-top: 14px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--text);
+  overflow-x: auto;
+  white-space: nowrap;
+}
+
+/* Tiers */
+
+.tiers {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 16px;
+  align-items: center;
+}
+
+.tier {
+  padding: 22px;
+  border-radius: var(--radius);
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+}
+
+.tier-flow {
+  text-align: center;
+  color: var(--text-faint);
+}
+
+.tier-flow code {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--accent);
+}
+
+.tier-flow .arrow {
+  display: block;
+  font-size: 20px;
+  margin: 6px 0 2px;
+  color: var(--border-strong);
+}
+
+.tier-flow small {
+  display: block;
+  font-size: 11px;
+}
+
+.tier-note {
+  margin: 18px auto 0;
+  max-width: 760px;
+  text-align: center;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-faint);
+}
+
+.tier-note code,
+.tier p code,
+.lede code,
+.bench-note code {
+  font-family: var(--mono);
+  font-size: 0.88em;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+
+.lifecycle {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.step {
+  padding: 14px 16px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+}
+
+.step strong {
+  display: block;
+  font-size: 13px;
+}
+
+.step small {
+  font-size: 12px;
+  color: var(--text-faint);
+}
+
+/* Benchmark */
+
+.bench {
+  padding: 24px;
+  border-radius: var(--radius);
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+}
+
+.bench-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 20px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.bar-row {
+  display: grid;
+  grid-template-columns: 160px minmax(0, 1fr) 78px;
+  gap: 14px;
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+.bar-label strong {
+  display: block;
+  font-size: 13px;
+}
+
+.bar-label small {
+  font-size: 11.5px;
+  color: var(--text-faint);
+}
+
+.bar-track {
+  height: 10px;
+  border-radius: 999px;
+  background: var(--surface-3);
+  overflow: hidden;
+}
+
+.bar-track span {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--border-strong);
+}
+
+/* The fast path is the point of the chart, so it is the only bar that carries the accent. */
+.bar-row:last-of-type .bar-track span {
+  background: var(--accent);
+}
+
+.bar-value {
+  font-family: var(--mono);
+  font-size: 13px;
+  text-align: right;
+}
+
+.bench-note {
+  margin: 18px 0 0;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--text-faint);
+}
+
+/* Fit */
+
+.fit {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 16px;
+}
+
+.col {
+  padding: 24px;
+  border-radius: var(--radius);
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+}
+
+.col h3 {
+  font-size: 15px;
+  margin: 0 0 14px;
+}
+
+.col ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.col li,
+.col p {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-muted);
+  margin: 0 0 9px;
+}
+
+.win {
+  border-color: rgba(78, 201, 165, 0.35);
+}
+
+.win h3 {
+  color: var(--ok);
+}
+
+.lose h3 {
+  color: var(--warn);
+}
+
+.col-more a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+/* Documentation */
+
+.layout {
+  margin-top: 96px;
+  padding-top: 28px;
+  border-top: 1px solid var(--border);
+}
+
+.doc-head {
+  padding-bottom: 8px;
+}
+
+/* CTA + footer */
+
+.cta-end {
+  margin-top: 64px;
+  text-align: center;
+}
+
+.cta-end h2 {
+  font-size: 24px;
+  letter-spacing: -0.02em;
+  margin: 0 0 10px;
+}
+
+.cta-end p {
+  color: var(--text-muted);
+  margin: 0 auto 22px;
+  max-width: 520px;
+  font-size: 14px;
+}
+
+.foot {
+  margin-top: 72px;
+  padding-top: 26px;
+  border-top: 1px solid var(--border);
+  text-align: center;
+}
+
+.foot p {
+  font-size: 13px;
+  color: var(--text-faint);
+  margin: 0;
+}
+
+.foot .domain {
+  margin-bottom: 10px;
+  font-family: var(--mono);
+  font-size: 14px;
+}
+
+.foot .domain a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.foot a:not(.domain a) {
+  color: var(--info);
+}
+
+.kinship a {
+  color: var(--info);
+}
+
+@media (max-width: 760px) {
+  .tiers {
+    grid-template-columns: 1fr;
+  }
+
+  .tier-flow .arrow {
+    transform: rotate(90deg);
+  }
+
+  .bar-row {
+    grid-template-columns: 120px minmax(0, 1fr) 66px;
+    gap: 10px;
+  }
+}

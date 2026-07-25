@@ -26,10 +26,14 @@
 
 /* Nav */
 
+/* The links plus the call to action do not fit a phone width, and this site has no hamburger menu,
+   so the header wraps onto a second row rather than clipping the button off the right edge. */
 .nav {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 10px 16px;
+  flex-wrap: wrap;
   padding: 20px 0;
 }
 
@@ -49,7 +53,8 @@
 .nav-links {
   display: flex;
   align-items: center;
-  gap: 20px;
+  flex-wrap: wrap;
+  gap: 10px 20px;
 }
 
 .nav-links a {

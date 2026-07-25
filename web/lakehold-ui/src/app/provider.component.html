@@ -1,0 +1,237 @@
+<div class="page">
+  <header class="nav">
+    <a class="brand" routerLink="/"><span class="mark">◆</span> Lakehold</a>
+    <nav class="nav-links">
+      <a routerLink="/">Home</a>
+      <a routerLink="/docs">Docs</a>
+      <a routerLink="/compare">Compare</a>
+      <a class="btn btn-primary" routerLink="/workbench">Open workbench →</a>
+    </nav>
+  </header>
+
+  <!-- Value proposition. Hand-authored rather than Markdown: it is a marketing surface, and the
+       compiled-in prose below is the reference documentation. -->
+  <section class="hero">
+    <span class="eyebrow">EF Core provider · DuckDB · DuckLake · Parquet</span>
+    <h1>DuckDB, DuckLake &amp; Parquet,<br /><em>native to .NET.</em></h1>
+    <p class="lede">
+      Write LINQ, <code>SaveChanges</code>, and migrations on EF Core 10 — while your data tiers from
+      a hot DuckDB file out to hive-partitioned Parquet on S3, GCS, or Azure, or lives in a shared
+      DuckLake catalog. One analytical read model, from laptop to cloud.
+    </p>
+    <p class="kinship">
+      This is the provider <a routerLink="/">Lakehold</a> itself runs on. Everything documented here
+      is exercised by a product in production, not only by its own test suite.
+    </p>
+    <div class="cta">
+      <a
+        class="btn btn-primary lg"
+        href="https://www.nuget.org/packages/DuckDB.EFCoreProvider"
+        target="_blank"
+        rel="noopener noreferrer"
+        >Install from NuGet</a
+      >
+      <a class="btn lg" href="#overview" (click)="jumpTo($event, 'overview')">Read the documentation</a>
+      <a
+        class="btn lg"
+        href="https://github.com/skuirrels/DuckDB.EFCoreProvider"
+        target="_blank"
+        rel="noopener noreferrer"
+        >View on GitHub</a
+      >
+    </div>
+    <div class="stats">
+      @for (stat of stats; track stat.label) {
+        <div class="stat">
+          <div class="stat-value">{{ stat.value }}</div>
+          <div class="stat-label">{{ stat.label }}</div>
+        </div>
+      }
+    </div>
+  </section>
+
+  <section class="block">
+    <h2 class="section-title">Your EF Core workflow. DuckDB underneath.</h2>
+    <p class="section-sub">
+      Not an adapter or a query-only shim — a complete relational provider that speaks both fluent
+      EF Core and analytical DuckDB.
+    </p>
+    <div class="pillars">
+      @for (pillar of pillars; track pillar.title) {
+        <article class="pillar">
+          <span class="pillar-label">{{ pillar.label }}</span>
+          <h3>{{ pillar.title }}</h3>
+          <p>{{ pillar.body }}</p>
+        </article>
+      }
+    </div>
+  </section>
+
+  <section class="block">
+    <h2 class="section-title">One provider, three storage profiles</h2>
+    <p class="section-sub">
+      Start embedded, add a Parquet archive tier when history outgrows the file, or join a shared
+      DuckLake catalog. Same package, same LINQ.
+    </p>
+    <div class="profiles">
+      @for (profile of profiles; track profile.title) {
+        <article class="profile" [class.featured]="profile.featured">
+          <span class="profile-label">{{ profile.label }}</span>
+          <h3>{{ profile.title }}</h3>
+          <p>{{ profile.body }}</p>
+          <code>{{ profile.code }}</code>
+        </article>
+      }
+    </div>
+  </section>
+
+  <section class="block">
+    <h2 class="section-title">Hot data here, deep history anywhere</h2>
+    <p class="section-sub">
+      Archive whole relational aggregates — roots and their children together — to hive-partitioned
+      Parquet, and keep reporting across the full history with ordinary LINQ.
+    </p>
+
+    <div class="tiers">
+      <div class="tier">
+        <span class="tier-label">Hot · writable</span>
+        <h3>DuckDB file</h3>
+        <p>Recent entities, relationships, <code>SaveChanges</code>, and <code>Include</code>.</p>
+      </div>
+      <div class="tier-flow" aria-hidden="true">
+        <code>ArchiveTierAsync</code>
+        <span class="arrow">→</span>
+        <small>idempotent + crash-safe</small>
+      </div>
+      <div class="tier">
+        <span class="tier-label">Cold · columnar</span>
+        <h3>Parquet archive</h3>
+        <p>Named Hive partitions on disk, S3, GCS, R2, or Azure object storage.</p>
+      </div>
+    </div>
+    <p class="tier-note">
+      Generated union views keep both tiers behind one LINQ read model. Ordinary property filters
+      become partition predicates, so DuckDB opens only matching files — verified with DuckDB
+      <code>EXPLAIN</code> file counts in the release suite.
+    </p>
+
+    <div class="lifecycle">
+      @for (step of lifecycle; track step.name) {
+        <div class="step">
+          <strong>{{ step.name }}</strong>
+          <small>{{ step.body }}</small>
+        </div>
+      }
+    </div>
+  </section>
+
+  <section class="block">
+    <h2 class="section-title">The right write path for every workload</h2>
+    <p class="section-sub">
+      Keep tracked, transactional writes when semantics matter. Switch to the appender-backed path
+      when throughput does.
+    </p>
+    <div class="bench">
+      <div class="bench-head">
+        <span>100,000 row insert — lower is better</span>
+        <span class="tag">Indicative</span>
+      </div>
+      @for (bar of benchmark; track bar.name) {
+        <div class="bar-row">
+          <div class="bar-label"><strong>{{ bar.name }}</strong><small>{{ bar.note }}</small></div>
+          <div class="bar-track"><span [style.width]="bar.width"></span></div>
+          <strong class="bar-value">{{ bar.value }}</strong>
+        </div>
+      }
+      <p class="bench-note">
+        Measured on a developer laptop; run the included BenchmarkDotNet project on your own
+        hardware. <code>BulkInsert</code> bypasses change tracking and store-generated values — use
+        it when raw ingestion speed is the goal.
+      </p>
+    </div>
+  </section>
+
+  <section class="block fit">
+    <article class="col win">
+      <h3>Strong fit</h3>
+      <ul>
+        <li>Reporting and dashboards</li>
+        <li>Embedded and edge analytics</li>
+        <li>ETL and local data pipelines</li>
+        <li>Long-retention time-series aggregates</li>
+      </ul>
+    </article>
+    <article class="col lose">
+      <h3>Know the boundary</h3>
+      <p>
+        DuckDB is an embedded, single-writer analytical engine. It is not a drop-in system of record
+        for high-concurrency, multi-instance transactional workloads.
+      </p>
+      <p class="col-more">
+        <a href="#compatibility" (click)="jumpTo($event, 'compatibility')"
+          >See compatibility and limitations →</a
+        >
+      </p>
+    </article>
+  </section>
+
+  <div class="layout">
+    <!-- Left rail, derived from the headings in provider.content.md. -->
+    <aside class="sidenav" aria-label="Provider documentation sections">
+      <span class="side-label">On this page</span>
+      <ul class="nav-tree">
+        @for (section of sections; track section.id) {
+          <li>
+            <a
+              class="sec"
+              [href]="'#' + section.id"
+              [class.active]="activeId() === section.id"
+              (click)="jumpTo($event, section.id)"
+              >{{ section.label }}</a
+            >
+            @if (section.children.length) {
+              <ul class="subtree">
+                @for (child of section.children; track child.id) {
+                  <li>
+                    <a
+                      class="sub"
+                      [href]="'#' + child.id"
+                      [class.active]="activeId() === child.id"
+                      (click)="jumpTo($event, child.id)"
+                      >{{ child.label }}</a
+                    >
+                  </li>
+                }
+              </ul>
+            }
+          </li>
+        }
+      </ul>
+    </aside>
+
+    <main class="content">
+      <section class="doc-head"><span class="eyebrow">Provider documentation</span></section>
+
+      <!-- Rendered from provider.content.md. -->
+      <article class="markdown" [innerHTML]="body"></article>
+
+      <section class="cta-end">
+        <h2>See it running</h2>
+        <p>
+          The Lakehold workbench is this provider's data plane — a seeded catalog of 250,000 events,
+          queryable immediately.
+        </p>
+        <a class="btn btn-primary lg" routerLink="/workbench">Open the workbench</a>
+      </section>
+
+      <footer class="foot">
+        <p class="domain"><a href="https://lakehold.dev">lakehold.dev</a></p>
+        <p>
+          Community provider, MIT licensed. Not affiliated with DuckDB Labs or Microsoft.
+          Built on <a href="https://duckdb.org" target="_blank" rel="noopener">DuckDB</a> and
+          <a href="https://ducklake.select" target="_blank" rel="noopener">DuckLake</a>.
+        </p>
+      </footer>
+    </main>
+  </div>
+</div>

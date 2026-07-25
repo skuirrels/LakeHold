@@ -20,6 +20,7 @@ import { RouterLink } from '@angular/router';
         </div>
         <nav class="nav-links">
           <a routerLink="/docs">Docs</a>
+          <a routerLink="/provider">Provider</a>
           <a routerLink="/compare">Compare</a>
           <a
             class="icon-link"

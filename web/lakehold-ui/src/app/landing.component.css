@@ -58,6 +58,24 @@
   color: #241c05;
 }
 
+/* The links plus the wordmark stop fitting one row well above phone width — the brand ran into the
+   first link and the CTA was clipped off the right edge. Wrapping puts the wordmark on its own line
+   and centres the links beneath it, which costs no JavaScript, needs no hamburger, and absorbs a
+   new link without another measurement. */
+@media (max-width: 640px) {
+  .nav {
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 14px;
+  }
+
+  .nav-links {
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 16px;
+  }
+}
+
 .compare-more {
   text-align: center;
   margin: 22px 0 0;

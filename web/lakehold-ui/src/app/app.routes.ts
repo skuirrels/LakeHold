@@ -44,6 +44,17 @@ export const routes: Routes = [
     loadComponent: () => import('./docs.component').then((m) => m.DocsComponent),
   },
   {
+    path: 'provider',
+    title: 'DuckDB.EFCoreProvider — DuckDB, DuckLake and Parquet for EF Core 10',
+    data: {
+      seo: {
+        description:
+          'The EF Core 10 provider Lakehold runs on: native LINQ and writes on DuckDB, DuckLake catalogs with time travel, and hot-to-cold Parquet tiers on S3, GCS, or Azure.',
+      },
+    },
+    loadComponent: () => import('./provider.component').then((m) => m.ProviderComponent),
+  },
+  {
     path: 'workbench',
     title: 'Workbench — Lakehold',
     // Behind authentication and meaningless without a running instance, so it stays out of the index.
