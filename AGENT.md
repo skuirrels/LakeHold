@@ -51,10 +51,16 @@ integration.
 - `docs/PUBLIC-API.md`: the phased spec for the public HTTP control API — time travel and the whole
   lakehouse. Builds on `docs/AUTHENTICATION.md` (auth is its gate); the cross-cutting API conventions
   (versioning, `problem+json`, pagination, async jobs) live here.
-- `docs/MCP.md`: the phased spec for the MCP server — specified, not yet implemented. Records why the
-  dependency is the MCP C# SDK and *not* Microsoft Agent Framework (Lakehold is the server, not the
-  agent), which tools are deliberately withheld from an agent, and the capability-policy refactor
-  Phase 1 requires. Read it before adding an agent-reachable surface.
+- `docs/MCP.md`: the phased spec and running record for the MCP server under `src/Lakehold.Api/Mcp/`.
+  Phases 1-2 have landed: one tool (`query`, read-only), off unless `Lakehold:Mcp:Enabled`. Records why
+  the dependency is the MCP C# SDK and *not* Microsoft Agent Framework (Lakehold is the server, not the
+  agent), which tools are deliberately withheld from an agent and why, and how to connect Claude Code
+  and Codex. Read it before adding an agent-reachable surface.
+- `docs/UI.md`: the phased spec for the web surfaces beyond the SQL IDE — specified, not yet
+  implemented. Its subject is the physical layer: table sizes, Parquet file counts, and delete-file
+  overhead, read from DuckLake's own `ducklake_table_info` and `ducklake_list_files` **table
+  functions** rather than by listing the data path. Records why a raw object browser is the wrong
+  build. Read it before adding a workbench surface.
 - `docs/COMPETITIVE-RESEARCH.md`: a **dated** snapshot of competitor releases, the DuckLake roadmap,
   and ranked demand from the upstream trackers. It is the evidence behind the positioning and feature
   matrix in `docs/ARCHITECTURE.md`; that document states the position, this one says when it was last

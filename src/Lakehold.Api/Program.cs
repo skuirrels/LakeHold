@@ -7,6 +7,7 @@ using Lakehold.Api.Auth;
 using Lakehold.Api.Cdc;
 using Lakehold.Api.Endpoints;
 using Lakehold.Api.Health;
+using Lakehold.Api.Mcp;
 using Lakehold.Api.PgWire;
 using Lakehold.Api.Scheduling;
 using Lakehold.ControlPlane.Data;
@@ -166,6 +167,11 @@ if (pgWire.Enabled)
     builder.Services.AddHostedService<PgWireServer>();
 }
 
+// Model Context Protocol: lets an AI agent explore a catalog and run read-only SQL under a
+// credential that already means something. Off unless enabled, and it always demands a credential
+// even where RequireAuthentication is false. See docs/MCP.md.
+builder.AddLakeholdMcp();
+
 // The Angular dev server is a separate origin; the browser will not call the API without this.
 const string DevCors = "lakehold-dev";
 builder.Services.AddCors(options => options.AddPolicy(DevCors, policy => policy
@@ -194,6 +200,7 @@ if (oidc.Enabled)
 }
 
 app.MapLakehouseEndpoints();
+app.MapLakeholdMcp();
 
 app.LogMaintenanceSchedule();
 

@@ -55,6 +55,11 @@
     <!-- OIDC for the workbench. Validation only: Lakehold is a resource server, never an identity
          provider, and the whole path stays off unless an authority is configured. -->
     <PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.10" />
+    <!--
+      Pre-release on purpose. SDK 2.0 tracks MCP revision 2026-07-28; 1.4.x tracks the superseded one,
+      so shipping against 1.4.x would mean rewriting immediately. See docs/MCP.md.
+    -->
+    <PackageVersion Include="ModelContextProtocol.AspNetCore" Version="2.0.0-rc.1" />
   </ItemGroup>
 
   <ItemGroup>
@@ -74,6 +79,7 @@
 
   <ItemGroup>
     <!-- Test-only -->
+    <PackageVersion Include="Microsoft.AspNetCore.TestHost" Version="10.0.10" />
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.8.1" />
     <PackageVersion Include="xunit" Version="2.9.3" />
     <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.5" />

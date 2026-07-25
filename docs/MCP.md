@@ -10,9 +10,12 @@ independently shippable and testable and leaves the product working. Nothing her
 invariant in `AGENT.md`; where a rule already exists, this document says how the MCP surface preserves
 it rather than restating why.
 
-**Status: Phase 1 has landed; the MCP surface itself is not built.** The capability rules now live in
-one transport-neutral policy, which is the prerequisite everything else rests on. Nothing yet depends
-on the MCP SDK, and the reason is timing — see [Version and timing](#version-and-timing).
+**Status: Phases 1 and 2 have landed.** The capability rules live in one transport-neutral policy, and
+the endpoint serves one tool — `query`, read-only — behind a credential it always demands. Discovery
+tools are not built yet, which is the practical limitation to know about before pointing an agent at
+it: see [What an agent cannot yet do](#what-an-agent-cannot-yet-do).
+
+It is **off by default**. `Lakehold:Mcp:Enabled` turns it on.
 
 ## Why this, and why now
 
@@ -73,17 +76,23 @@ other client. That is a UI product and a separate decision. It is out of scope h
 | C# SDK **2.0.0-rc.1** | published 25 July 2026 |
 | SDK **2.0.0** stable | committed by the maintainers "on or before 2026-07-28" |
 
-The 2026-07-28 revision is not a point release. Per secondary reporting — **not yet verified against
-the specification text, and the first task of Phase 1 is to verify it** — it removes sessions, drops
-the initialization handshake, deprecates three core features, rewrites authorization around OAuth 2.1
-resource servers, and adds an extensions framework.
+The 2026-07-28 revision is not a point release. Per secondary reporting — **still not verified against
+the specification text** — it removes sessions, drops the initialization handshake, deprecates three
+core features, rewrites authorization around OAuth 2.1 resource servers, and adds an extensions
+framework.
 
-Two consequences, both decided:
+The decision taken:
 
-1. **Nothing is written against SDK 1.4.x.** It would be legacy within the week.
-2. **Nothing takes a dependency on 2.0.0-rc.1 either.** Release-candidate analyzer diagnostics (the rc
-   notes cite `MCP9007`) fail a build with warnings-as-errors enabled centrally, which this repository
-   does. Design and tests are written first; the package reference is added when 2.0.0 stable ships.
+1. **Nothing is written against SDK 1.4.x.** It tracks the superseded revision and would be legacy
+   within the week.
+2. **The dependency is `2.0.0-rc.1`**, taken deliberately on the basis that nothing here ships as
+   stable before the SDK does. The earlier concern that release-candidate analyzer diagnostics (the rc
+   notes cite `MCP9007`) would break a warnings-as-errors build did **not** materialise — the package
+   restores and builds with zero warnings, and `MCP9007` applies to a client-side OAuth API this
+   server does not use. Move to 2.0.0 stable when it publishes.
+
+The package reference carries this reasoning as a comment in `Directory.Packages.props`, because a
+pre-release pin with no explanation is the kind of thing a later reader "fixes".
 
 ## The structural problem, and the refactor it forced — landed
 
@@ -123,8 +132,9 @@ of `CapabilityOutcome` is `NotFound`, so a `default`-constructed decision refuse
 a decision type that fails open eventually fails open in production.
 
 **`RouteCapability` was moved first and renamed to `Capability` second, in two commits.** The order
-was the point. Both test files already import `Lakehold.Api.Auth` *and* `Lakehold.ControlPlane.Security`,
-so moving the type between those namespaces let `LakeholdAuthorizationFilterTests`, `TokenRoleTests`,
+was the point. Both test files already import `Lakehold.Api.Auth` *and*
+`Lakehold.ControlPlane.Security`, so moving the type between those namespaces let
+`LakeholdAuthorizationFilterTests`, `TokenRoleTests`,
 and `TenantAccessPolicyTests` compile and pass **completely untouched** — which is what proves the
 refactor changed no behaviour. Renaming in the same commit would have edited the very tests that
 constitute that evidence. With the move proven, the rename is a mechanical, compiler-verified change
@@ -197,6 +207,81 @@ the protocol.
 server-side session state to design. A stdio shim is not shipped: Lakehold is a server, and remote MCP
 is what its clients speak.
 
+### Connecting a client
+
+The endpoint speaks Streamable HTTP at `Lakehold:Mcp:Route` (default `/mcp`) and authenticates with
+an ordinary Lakehold API token in an `Authorization: Bearer` header. Issue one scoped to what the
+agent should reach — a catalog-narrowed, reader-role token is the right default, and it costs nothing
+because the surface forces a read-only attachment anyway:
+
+```bash
+curl -X POST https://lakehold.example.com/api/tenants/demo/tokens \
+  -H "Authorization: Bearer $LAKEHOLD_ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"claude-agent","role":"reader","catalogName":"analytics"}'
+```
+
+Keep the token out of files that get committed. Every example below reads it from the environment.
+
+#### Claude Code
+
+```bash
+claude mcp add --transport http lakehold https://lakehold.example.com/mcp --header "Authorization: Bearer $LAKEHOLD_TOKEN"
+```
+
+Or check a project-scoped server into `.mcp.json` — note that `type` is **required** alongside `url`,
+because an entry with a `url` and no `type` is read as a stdio server and skipped:
+
+```json
+{
+  "mcpServers": {
+    "lakehold": {
+      "type": "http",
+      "url": "https://lakehold.example.com/mcp",
+      "headers": { "Authorization": "Bearer ${LAKEHOLD_TOKEN}" }
+    }
+  }
+}
+```
+
+Verify with `claude mcp list`, then ask Claude to run a query:
+
+> Using the lakehold server, query tenant `demo`, catalog `analytics`: `SELECT count(*) FROM orders`
+
+#### Codex
+
+Codex reads `~/.codex/config.toml`. Point it at the same URL and let it take the token from the
+environment rather than from the file:
+
+```toml
+[mcp_servers.lakehold]
+url = "https://lakehold.example.com/mcp"
+bearer_token_env_var = "LAKEHOLD_TOKEN"
+startup_timeout_sec = 10.0
+tool_timeout_sec = 60.0
+```
+
+`env_http_headers = { "Authorization" = "LAKEHOLD_AUTH_HEADER" }` is the alternative when a header
+has to be sent verbatim, and `enabled_tools = ["query"]` pins the surface even if a later Lakehold
+version adds tools.
+
+#### Anything else
+
+Any MCP client that speaks Streamable HTTP and can set a request header will connect; there is
+nothing Lakehold-specific in the handshake. Over plain HTTP the token crosses the wire in the clear,
+so terminate TLS in front of the API exactly as you would for the REST surface.
+
+### First contact: the catalog must already exist
+
+A read-only attachment cannot *create* a DuckLake metadata file. A catalog that has been provisioned
+but never written to therefore fails to attach, and the agent sees an engine error about opening a
+database in read-only mode rather than an empty catalog.
+
+This is not MCP-specific — a read-only *token* on the HTTP route behaves the same way — but MCP hits
+it far more often, because this surface is read-only always. Write to a catalog once (any statement
+that creates a table will do) before pointing an agent at it. Worth revisiting if provisioning is ever
+made to initialise the metadata file at creation time, which would remove the sharp edge entirely.
+
 ### Read-only in v1
 
 The `query` tool attaches the catalog **read-only regardless of the credential's capability**. A
@@ -243,10 +328,15 @@ reasoning about a prefix of the data.
 ## Audit
 
 Every statement executed through MCP is recorded in query history against the resolved principal,
-exactly as an HTTP query is. The surface additionally records that the caller was an MCP client, so
-an operator can answer "what has the agent been running" as a first-class question rather than by
-inference. Submitted SQL is already recorded by the existing audit path; nothing about agent-authored
+exactly as an HTTP query is — the tool passes the principal's token id down the same path the HTTP
+route does. Submitted SQL is already recorded by the existing audit path; nothing about agent-authored
 SQL changes what may be logged, and the prohibition on logging credentials is unchanged.
+
+**There is no MCP-origin marker yet**, and an earlier draft of this document claimed there was. Today
+an operator distinguishes agent traffic by *which token* ran the statement, which works because an
+agent is issued its own credential — but it is a convention rather than a guarantee, and it fails the
+moment a token is shared between an agent and a script. A first-class marker means a column on the
+query-history record and a migration; it belongs to a later phase, and is listed there.
 
 ## Phases
 
@@ -257,74 +347,122 @@ unchanged by the existing filter tests, new direct coverage of the rules. No MCP
 outstanding from this phase: **verify the 2026-07-28 specification text** against the assumptions
 above, which needs the published spec rather than the reporting summarising it.
 
-**Phase 2 — the server.** Take `ModelContextProtocol.AspNetCore` 2.0.0 stable. Host the endpoint,
-wire authentication (both schemes), serve protected-resource metadata, and expose exactly one tool:
-`query`, read-only. Full test suite below.
+**Phase 2 — the server. Landed.** `ModelContextProtocol.AspNetCore` **2.0.0-rc.1**, on the deliberate
+decision that nothing here ships as stable before the SDK does — see the note in
+`Directory.Packages.props`. The endpoint is hosted at `Lakehold:Mcp:Route`, guarded by
+`McpAuthenticationFilter`, and exposes exactly one tool: `query`, read-only. Outstanding from this
+phase: **protected-resource metadata (RFC 9728) is not served yet**, so OIDC-only clients that rely on
+discovery cannot find the authorization server. Bearer tokens work today; that is the gap.
 
 **Phase 3 — discovery.** `list_tenants`, `list_catalogs`, `describe_schema`, and the schema resource.
+Now the most valuable next step rather than merely the next one — see below.
+
+### What an agent cannot yet do
+
+Worth stating plainly, because it determines whether the surface is useful to point at a real agent.
+
+With `query` alone, an agent has **no way to discover what exists**. It cannot list tenants, list
+catalogs, or read a schema, so it must be told the tenant name, the catalog name, and the table
+layout in its prompt, and any of those it guesses will come back as "not found". A read-only SQL tool
+against an unknown schema is close to unusable on its own.
+
+That is Phase 3, and it is small — every one of those tools projects an endpoint that already exists.
+Until it lands, treat the current surface as a proven seam rather than a finished product: the
+authorization, isolation, and read-only guarantees are real and tested, and the ergonomics are not
+there yet.
 
 **Phase 4 — the differentiated tools.** `list_snapshots` and `list_changes` — time travel and CDC, the
 two capabilities the competitive research says are genuinely ahead.
 
 **Phase 5 — decisions deferred to evidence.** Writes behind explicit configuration; Tasks-based
-long-running operations; the in-product assistant, which is where Agent Framework returns.
+long-running operations; an MCP-origin marker on query history; the in-product assistant, which is
+where Agent Framework returns.
 
-## Test plan
+## Configuration
+
+```jsonc
+// appsettings — all non-secret, so it lives in source control (the token does not)
+"Lakehold": {
+  "Mcp": {
+    "Enabled": false,        // closed by default: this surface lets an agent execute SQL
+    "Route": "/mcp",
+    "MaxRowsPerResult": 200  // 0 or less applies no MCP-specific ceiling, only the engine's
+  }
+}
+```
+
+## Tests
 
 `tests/Lakehold.Api.Tests/`, following the existing `PgWire*` family's shape — a protocol surface gets
 protocol-level tests, not just unit tests of its helpers.
 
-**Protocol conformance** (`McpProtocolTests`)
-- A round trip driven by the **SDK's own client** against `TestServer`: connect, `tools/list`,
-  `tools/call`. Hand-rolled JSON-RPC assertions would test the fixture rather than our conformance.
-- Every advertised tool has a schema a client can call without guessing.
-- Protected-resource metadata is served when OIDC is configured, and absent when it is not.
-- The `WWW-Authenticate` challenge names the authorization server.
+### Landed
 
-**Authorization** (`McpAuthorizationTests`) — the heart of the suite
-- A token-less call is refused **while `RequireAuthentication` is false**. This is the divergence above
-  and it must be pinned, because the surrounding default pulls the other way.
-- A read-only credential cannot write, **and the refusal comes from the engine** — the assertion
-  `ReadOnlyAttachmentTests` already makes, restated over MCP.
-- With writes disabled (v1), a *read-write* credential still cannot write.
-- A tool argument naming an unreachable tenant returns an error that does not disclose whether it
-  exists — invariant 19's 404-not-403 reasoning, translated into MCP's error shape.
-- An instance credential cannot query; a catalog-narrowed credential cannot reach another catalog.
-- A tool's declared capability is enforced by the *same* policy the HTTP route uses — asserted by
-  driving both transports through one table of cases, so drift fails a test.
+**`McpAuthenticationFilterTests`** — the credential rule, exercised against the filter directly.
+- A credential-less call is refused **while `RequireAuthentication` is false**. This is invariant 21,
+  and it is pinned precisely because the surrounding default pulls the other way.
+- A valid token resolves and is stashed where the tools read it.
+- Malformed, unknown, revoked, and expired credentials are each refused, with one opaque
+  `WWW-Authenticate: Bearer` challenge that does not say which of those it was.
 
-**Behaviour** (`McpToolTests`)
-- The MCP row cap is applied and is **distinct** from the HTTP cap; truncation is reported.
-- `describe_schema` omits `ducklake_*` internals and the inlined-data tables.
-- `list_changes` handles the inclusive-both-ends window correctly and refuses a range whose end
-  predates the table (verified behaviours 6 and 7).
-- Cancellation propagates from the transport through the engine.
-- A statement run through MCP appears in query history against the right principal, marked as
-  MCP-originated.
+**`McpServerTests`** — the endpoint driven by the **SDK's own client** over a real HTTP transport, so
+what is asserted is conformance rather than agreement with a hand-rolled fixture.
+- `tools/list` returns `query` with a description a client can act on.
+- The exposed set is asserted **exactly**, so adding a tool is a decision rather than an accident.
+- A client with no credential cannot connect at all.
+- A tool call reaches the principal — which is what proves a tool can read the request's
+  `HttpContext` and resolve its scoped dependencies from inside the SDK's dispatch. Both were real
+  design risks; neither survived contact.
+- A forbidden tenant and a genuinely missing catalog are **byte-identical** to the caller. The
+  assertion is equality, because any difference would itself answer "does that tenant exist?"
+  (invariant 19).
+- The MCP row cap is applied, is the *MCP* number rather than the engine's, and reports truncation.
+- **A write fails in the engine even for an owner credential** — the claim the surface rests on. The
+  test asserts the refusal did not come from an attach failure, and then proves the table was not
+  created rather than trusting the message.
+- Columns carry their declared type.
+- An empty statement is refused before the engine is touched.
 
 **Unchanged, and that is the point** — `LakeholdAuthorizationFilterTests`, `TenantAccessPolicyTests`,
-and `TokenRoleTests` must pass untouched after Phase 1. If the refactor needs them edited, it changed
-behaviour and is wrong.
+and `TokenRoleTests` passed untouched through Phase 1. `CapabilityPolicyTests` covers the shared rules
+directly.
+
+### Still owed
+
+- Protected-resource metadata served when OIDC is configured and absent when it is not — blocked on
+  serving it at all (Phase 2 gap).
+- An instance credential cannot query; a catalog-narrowed credential cannot cross catalogs. Both hold
+  by construction through `CapabilityPolicy`, which is covered — but not yet asserted *over MCP*.
+- Cancellation propagating from the transport through the engine.
+- Query-history attribution asserted end to end.
+- The Phase 3 and 4 tools, with `describe_schema` omitting `ducklake_*` internals and `list_changes`
+  handling the inclusive-both-ends window (verified behaviours 6 and 7).
 
 ## Documentation obligations
 
 Shipping this is not done until:
 
-- This document records what landed, as `AUTHENTICATION.md` does.
-- `AGENT.md` carries the invariant (a tool declares a capability; the surface always requires a
-  credential) and the repository-map entry.
+- ~~This document records what landed.~~ Done, and it records the gaps too.
+- ~~`AGENT.md` carries the invariant and the repository-map entry.~~ Done (invariant 21).
 - `ARCHITECTURE.md`'s matrix moves the AI / MCP row to ✅ and the roadmap moves it out of Next.
+  Currently ⚠️: the endpoint exists, the discovery tools do not.
 - `web/lakehold-ui/src/app/docs.content.md` gains a section — it is the single source for the in-app
-  page and the GitHub guide, so there is one place to edit, not two.
-- `README.md` shows the connection snippet an agent client needs.
+  page and the GitHub guide, so there is one place to edit, not two. **Outstanding**, and best written
+  once Phase 3 makes the surface usable enough to recommend.
+- `README.md` shows the connection snippet an agent client needs. **Outstanding**, same reason;
+  [Connecting a client](#connecting-a-client) above is the source to copy from.
 
 ## Open questions
 
-- **The specification text is unverified.** Everything above about sessions, the handshake, and the
-  authorization rewrite comes from secondary reporting. Phase 1 verifies it directly.
-- **.NET 10 target support** in SDK 2.0.0 is assumed and unconfirmed.
+- **The specification text is still unverified.** Everything above about sessions, the handshake, and
+  the authorization rewrite comes from secondary reporting. The SDK's behaviour is now exercised by
+  tests, which is not the same as having read the spec.
+- ~~.NET 10 target support in SDK 2.0.0.~~ Confirmed: the package ships a `net10.0` target, and the
+  API builds and runs against it.
+- **When to move off `2.0.0-rc.1`.** Taken deliberately, since nothing here ships as stable before the
+  SDK does. Revisit when 2.0.0 stable is published.
 - ~~Whether `RouteCapability` is renamed.~~ Settled: moved in Phase 1, renamed to `Capability`
   immediately after, for the reason given above.
-- **Whether the MCP endpoint is separately toggleable** (`Lakehold:Mcp:Enabled`) or on whenever
-  authentication is configured. Defaulting a new agent-reachable surface to *on* deserves an argument
-  before it is made.
+- ~~Whether the MCP endpoint is separately toggleable.~~ Settled: `Lakehold:Mcp:Enabled`, defaulting
+  to **false**, matching `PgWire`. A surface that lets an agent execute SQL is not something a
+  deployment should acquire by upgrading.
