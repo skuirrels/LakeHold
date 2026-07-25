@@ -25,7 +25,7 @@ public sealed class CapabilityPolicyTests
             CatalogName: null, IsReadOnly: false, TokenId: 2);
 
     private static CapabilityOutcome Outcome(
-        ILakeholdPrincipal principal, RouteCapability capability, string? tenant = "demo", string? catalog = null) =>
+        ILakeholdPrincipal principal, Capability capability, string? tenant = "demo", string? catalog = null) =>
         CapabilityPolicy.Evaluate(principal, capability, tenant, catalog).Outcome;
 
     [Fact]
@@ -40,7 +40,7 @@ public sealed class CapabilityPolicyTests
     public void A_refusal_that_hides_something_explains_nothing()
     {
         // NotFound exists to avoid confirming the tenant, so it must not carry a reason that does.
-        var decision = CapabilityPolicy.Evaluate(Tenant("demo"), RouteCapability.TenantData, "other", null);
+        var decision = CapabilityPolicy.Evaluate(Tenant("demo"), Capability.TenantData, "other", null);
 
         Assert.Equal(CapabilityOutcome.NotFound, decision.Outcome);
         Assert.Null(decision.Detail);
@@ -49,19 +49,19 @@ public sealed class CapabilityPolicyTests
     [Fact]
     public void A_forbidden_decision_says_why()
     {
-        var decision = CapabilityPolicy.Evaluate(Tenant("demo"), RouteCapability.Instance, tenant: null, catalog: null);
+        var decision = CapabilityPolicy.Evaluate(Tenant("demo"), Capability.Instance, tenant: null, catalog: null);
 
         Assert.Equal(CapabilityOutcome.Forbidden, decision.Outcome);
         Assert.False(string.IsNullOrWhiteSpace(decision.Detail));
     }
 
     [Theory]
-    [InlineData(RouteCapability.TenantData)]
-    [InlineData(RouteCapability.TenantOwner)]
-    [InlineData(RouteCapability.TenantAdmin)]
-    [InlineData(RouteCapability.Instance)]
-    [InlineData(RouteCapability.Listing)]
-    public void An_unauthenticated_caller_trusts_the_route_for_every_capability(RouteCapability capability)
+    [InlineData(Capability.TenantData)]
+    [InlineData(Capability.TenantOwner)]
+    [InlineData(Capability.TenantAdmin)]
+    [InlineData(Capability.Instance)]
+    [InlineData(Capability.Listing)]
+    public void An_unauthenticated_caller_trusts_the_route_for_every_capability(Capability capability)
     {
         // The transitional open path. A transport that must not offer it — an agent-reachable one —
         // refuses the credential-less caller before reaching here rather than changing this answer.
@@ -76,62 +76,62 @@ public sealed class CapabilityPolicyTests
         // role first would produce exactly that.
         var reader = Tenant("demo", role: TokenRole.Reader);
 
-        Assert.Equal(CapabilityOutcome.NotFound, Outcome(reader, RouteCapability.TenantOwner, tenant: "other"));
-        Assert.Equal(CapabilityOutcome.Forbidden, Outcome(reader, RouteCapability.TenantOwner, tenant: "demo"));
+        Assert.Equal(CapabilityOutcome.NotFound, Outcome(reader, Capability.TenantOwner, tenant: "other"));
+        Assert.Equal(CapabilityOutcome.Forbidden, Outcome(reader, Capability.TenantOwner, tenant: "demo"));
     }
 
     [Fact]
     public void Owner_capability_requires_the_owner_role()
     {
-        Assert.Equal(CapabilityOutcome.Allowed, Outcome(Tenant("demo"), RouteCapability.TenantOwner));
+        Assert.Equal(CapabilityOutcome.Allowed, Outcome(Tenant("demo"), Capability.TenantOwner));
         Assert.Equal(
             CapabilityOutcome.Forbidden,
-            Outcome(Tenant("demo", role: TokenRole.Editor), RouteCapability.TenantOwner));
+            Outcome(Tenant("demo", role: TokenRole.Editor), Capability.TenantOwner));
         Assert.Equal(
             CapabilityOutcome.Forbidden,
-            Outcome(Tenant("demo", role: TokenRole.Reader), RouteCapability.TenantOwner));
+            Outcome(Tenant("demo", role: TokenRole.Reader), Capability.TenantOwner));
     }
 
     [Fact]
     public void Instance_capability_admits_only_an_instance_credential()
     {
-        Assert.Equal(CapabilityOutcome.Allowed, Outcome(Instance(), RouteCapability.Instance, tenant: null));
-        Assert.Equal(CapabilityOutcome.Forbidden, Outcome(Tenant("demo"), RouteCapability.Instance, tenant: null));
+        Assert.Equal(CapabilityOutcome.Allowed, Outcome(Instance(), Capability.Instance, tenant: null));
+        Assert.Equal(CapabilityOutcome.Forbidden, Outcome(Tenant("demo"), Capability.Instance, tenant: null));
     }
 
     [Fact]
     public void An_instance_credential_reaches_no_tenant_data()
     {
-        Assert.Equal(CapabilityOutcome.NotFound, Outcome(Instance(), RouteCapability.TenantData));
-        Assert.Equal(CapabilityOutcome.NotFound, Outcome(Instance(), RouteCapability.TenantOwner));
+        Assert.Equal(CapabilityOutcome.NotFound, Outcome(Instance(), Capability.TenantData));
+        Assert.Equal(CapabilityOutcome.NotFound, Outcome(Instance(), Capability.TenantOwner));
     }
 
     [Fact]
     public void A_least_privilege_credential_cannot_mint_a_broader_one()
     {
-        Assert.Equal(CapabilityOutcome.Allowed, Outcome(Tenant("demo"), RouteCapability.TenantAdmin));
-        Assert.Equal(CapabilityOutcome.Allowed, Outcome(Instance(), RouteCapability.TenantAdmin));
+        Assert.Equal(CapabilityOutcome.Allowed, Outcome(Tenant("demo"), Capability.TenantAdmin));
+        Assert.Equal(CapabilityOutcome.Allowed, Outcome(Instance(), Capability.TenantAdmin));
 
         Assert.Equal(
             CapabilityOutcome.Forbidden,
-            Outcome(Tenant("demo", catalog: "analytics"), RouteCapability.TenantAdmin));
+            Outcome(Tenant("demo", catalog: "analytics"), Capability.TenantAdmin));
         Assert.Equal(
             CapabilityOutcome.Forbidden,
-            Outcome(Tenant("demo", readOnly: true), RouteCapability.TenantAdmin));
+            Outcome(Tenant("demo", readOnly: true), Capability.TenantAdmin));
         Assert.Equal(
             CapabilityOutcome.Forbidden,
-            Outcome(Tenant("demo", role: TokenRole.Editor), RouteCapability.TenantAdmin));
+            Outcome(Tenant("demo", role: TokenRole.Editor), Capability.TenantAdmin));
 
         // Another tenant's tokens are not merely forbidden — that tenant is not disclosed at all.
-        Assert.Equal(CapabilityOutcome.NotFound, Outcome(Tenant("demo"), RouteCapability.TenantAdmin, tenant: "other"));
+        Assert.Equal(CapabilityOutcome.NotFound, Outcome(Tenant("demo"), Capability.TenantAdmin, tenant: "other"));
     }
 
     [Fact]
     public void Listing_admits_every_principal_because_the_handler_scopes_the_result()
     {
-        Assert.Equal(CapabilityOutcome.Allowed, Outcome(Instance(), RouteCapability.Listing, tenant: null));
-        Assert.Equal(CapabilityOutcome.Allowed, Outcome(Tenant("demo"), RouteCapability.Listing));
-        Assert.Equal(CapabilityOutcome.Allowed, Outcome(Tenant("demo", readOnly: true), RouteCapability.Listing));
+        Assert.Equal(CapabilityOutcome.Allowed, Outcome(Instance(), Capability.Listing, tenant: null));
+        Assert.Equal(CapabilityOutcome.Allowed, Outcome(Tenant("demo"), Capability.Listing));
+        Assert.Equal(CapabilityOutcome.Allowed, Outcome(Tenant("demo", readOnly: true), Capability.Listing));
     }
 
     [Fact]
@@ -139,7 +139,7 @@ public sealed class CapabilityPolicyTests
     {
         var scoped = Tenant("demo", catalog: "analytics");
 
-        Assert.Equal(CapabilityOutcome.Allowed, Outcome(scoped, RouteCapability.TenantData, catalog: "analytics"));
-        Assert.Equal(CapabilityOutcome.NotFound, Outcome(scoped, RouteCapability.TenantData, catalog: "events"));
+        Assert.Equal(CapabilityOutcome.Allowed, Outcome(scoped, Capability.TenantData, catalog: "analytics"));
+        Assert.Equal(CapabilityOutcome.NotFound, Outcome(scoped, Capability.TenantData, catalog: "events"));
     }
 }

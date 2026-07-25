@@ -7,7 +7,7 @@ namespace Lakehold.Api.Auth;
 
 /// <summary>
 ///     The HTTP seam for authentication. Resolves the bearer token (or OIDC principal) to a
-///     <see cref="ILakeholdPrincipal"/>, enforces the route's declared <see cref="RouteCapability"/>
+///     <see cref="ILakeholdPrincipal"/>, enforces the route's declared <see cref="Capability"/>
 ///     against it, and stashes the principal for downstream use.
 /// </summary>
 /// <remarks>
@@ -73,7 +73,7 @@ public sealed class LakeholdAuthorizationFilter : IEndpointFilter
         var routeTenant = http.Request.RouteValues.TryGetValue("tenantSlug", out var t) ? t as string : null;
         var routeCatalog = http.Request.RouteValues.TryGetValue("catalogName", out var c) ? c as string : null;
         var capability = http.GetEndpoint()?.Metadata.GetMetadata<RouteCapabilityMetadata>()?.Capability
-            ?? RouteCapability.TenantData;
+            ?? Capability.TenantData;
 
         var decision = CapabilityPolicy.Evaluate(principal, capability, routeTenant, routeCatalog);
         if (decision.Outcome is not CapabilityOutcome.Allowed)

@@ -2,7 +2,7 @@ using Lakehold.ControlPlane.Model;
 
 namespace Lakehold.ControlPlane.Security;
 
-/// <summary>The outcome of checking a principal against a declared <see cref="RouteCapability"/>.</summary>
+/// <summary>The outcome of checking a principal against a declared <see cref="Capability"/>.</summary>
 /// <remarks>
 ///     <see cref="NotFound"/> is deliberately the zero value, so a
 ///     <see langword="default"/>-constructed <see cref="CapabilityDecision"/> refuses rather than
@@ -50,7 +50,7 @@ public readonly record struct CapabilityDecision
 }
 
 /// <summary>
-///     Decides whether a principal holds a declared <see cref="RouteCapability"/> over a given tenant
+///     Decides whether a principal holds a declared <see cref="Capability"/> over a given tenant
 ///     and catalog. The one place those rules live, for every transport that needs them.
 /// </summary>
 /// <remarks>
@@ -78,7 +78,7 @@ public static class CapabilityPolicy
     /// </remarks>
     public static CapabilityDecision Evaluate(
         ILakeholdPrincipal principal,
-        RouteCapability capability,
+        Capability capability,
         string? tenant,
         string? catalog)
     {
@@ -91,16 +91,16 @@ public static class CapabilityPolicy
 
         switch (capability)
         {
-            case RouteCapability.Listing:
+            case Capability.Listing:
                 // The handler scopes what it returns to the principal; reaching it is always allowed.
                 return CapabilityDecision.Allow;
 
-            case RouteCapability.Instance:
+            case Capability.Instance:
                 return principal.Scope == TokenScope.Instance
                     ? CapabilityDecision.Allow
                     : CapabilityDecision.Forbid("This operation requires an instance-scoped credential.");
 
-            case RouteCapability.TenantOwner:
+            case Capability.TenantOwner:
                 // Subject first — an unreachable tenant is a 404 whatever the role — then capability.
                 if (TenantAccessPolicy.Evaluate(principal, tenant, catalog) is AccessDecision.NotFound)
                 {
@@ -111,7 +111,7 @@ public static class CapabilityPolicy
                     ? CapabilityDecision.Allow
                     : CapabilityDecision.Forbid("This operation requires an owner credential.");
 
-            case RouteCapability.TenantAdmin:
+            case Capability.TenantAdmin:
                 if (principal.Scope == TokenScope.Instance)
                 {
                     return CapabilityDecision.Allow;
@@ -129,7 +129,7 @@ public static class CapabilityPolicy
                     ? CapabilityDecision.Allow
                     : CapabilityDecision.Forbid("This credential is not permitted to manage tokens.");
 
-            case RouteCapability.TenantData:
+            case Capability.TenantData:
             default:
                 return TenantAccessPolicy.Evaluate(principal, tenant, catalog) is AccessDecision.NotFound
                     ? CapabilityDecision.NotFound

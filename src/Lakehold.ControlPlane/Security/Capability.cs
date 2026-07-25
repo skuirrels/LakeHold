@@ -17,7 +17,7 @@ namespace Lakehold.ControlPlane.Security;
 ///         from the same rules.
 ///     </para>
 /// </remarks>
-public enum RouteCapability
+public enum Capability
 {
     /// <summary>
     ///     Reaches a tenant's data — query, schema, maintenance, eject. Requires a tenant principal

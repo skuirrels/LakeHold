@@ -31,31 +31,31 @@ public static partial class AdminEndpoints
         ArgumentNullException.ThrowIfNull(tenants);
 
         tenants.MapPost("/", CreateTenantAsync)
-            .RequireCapability(RouteCapability.Instance)
+            .RequireCapability(Capability.Instance)
             .WithSummary("Creates a tenant. Instance scope.");
 
         tenants.MapDelete("/{tenantSlug}", DeleteTenantAsync)
-            .RequireCapability(RouteCapability.Instance)
+            .RequireCapability(Capability.Instance)
             .WithSummary("Deletes a tenant's control-plane records, leaving lake data in place. Instance scope.");
 
         tenants.MapPost("/{tenantSlug}/catalogs", CreateCatalogAsync)
-            .RequireCapability(RouteCapability.Instance)
+            .RequireCapability(Capability.Instance)
             .WithSummary("Creates a catalog under a tenant. Instance scope.");
 
         tenants.MapDelete("/{tenantSlug}/catalogs/{catalogName}", DeleteCatalogAsync)
-            .RequireCapability(RouteCapability.Instance)
+            .RequireCapability(Capability.Instance)
             .WithSummary("Detaches a catalog, leaving its metadata and Parquet in place. Instance scope.");
 
         tenants.MapPost("/{tenantSlug}/tokens", CreateTokenAsync)
-            .RequireCapability(RouteCapability.TenantAdmin)
+            .RequireCapability(Capability.TenantAdmin)
             .WithSummary("Mints a tenant-scoped API token, returned once.");
 
         tenants.MapGet("/{tenantSlug}/tokens", ListTokensAsync)
-            .RequireCapability(RouteCapability.TenantAdmin)
+            .RequireCapability(Capability.TenantAdmin)
             .WithSummary("Lists token metadata for a tenant. Never returns the secret.");
 
         tenants.MapDelete("/{tenantSlug}/tokens/{id:int}", RevokeTokenAsync)
-            .RequireCapability(RouteCapability.TenantAdmin)
+            .RequireCapability(Capability.TenantAdmin)
             .WithSummary("Revokes a token; it is refused thereafter on the HTTP and wire surfaces alike.");
     }
 

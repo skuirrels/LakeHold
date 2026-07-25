@@ -25,7 +25,7 @@ public static class LakehouseEndpoints
             .AddEndpointFilter<LakeholdAuthorizationFilter>();
 
         tenants.MapGet("/", ListTenantsAsync)
-            .RequireCapability(RouteCapability.Listing)
+            .RequireCapability(Capability.Listing)
             .WithSummary("Lists tenants and their catalogs, scoped to what the credential may see.");
 
         // Provisioning and token management share this group's authentication filter.
@@ -43,7 +43,7 @@ public static class LakehouseEndpoints
         // Maintenance, restore, and eject change or export the whole catalog: owner operations, not
         // something a reader or editor credential authorises. See docs/AUTHENTICATION.md phase 4.
         tenants.MapPost("/{tenantSlug}/catalogs/{catalogName}/maintenance/{operation}", RunMaintenanceAsync)
-            .RequireCapability(RouteCapability.TenantOwner)
+            .RequireCapability(Capability.TenantOwner)
             .WithSummary("Runs a maintenance operation: flush, compact, backup, expire, or cleanup.");
 
         tenants.MapGet("/{tenantSlug}/history", GetHistoryAsync)
@@ -53,11 +53,11 @@ public static class LakehouseEndpoints
             .WithSummary("Lists catalog metadata backup generations, newest first.");
 
         tenants.MapPost("/{tenantSlug}/catalogs/{catalogName}/backups/restore", RestoreBackupAsync)
-            .RequireCapability(RouteCapability.TenantOwner)
+            .RequireCapability(Capability.TenantOwner)
             .WithSummary("Rebuilds a catalog from a backup into a new metadata file.");
 
         tenants.MapPost("/{tenantSlug}/catalogs/{catalogName}/eject", EjectAsync)
-            .RequireCapability(RouteCapability.TenantOwner)
+            .RequireCapability(Capability.TenantOwner)
             .WithSummary("Writes a verified, reader-agnostic eject bundle of the catalog.");
 
         tenants.MapGet("/{tenantSlug}/catalogs/{catalogName}/ejects", ListEjectsAsync)
@@ -82,7 +82,7 @@ public static class LakehouseEndpoints
         app.MapGet("/api/maintenance/schedule", GetScheduledRuns)
             .WithTags("Lakehouse")
             .AddEndpointFilter<LakeholdAuthorizationFilter>()
-            .RequireCapability(RouteCapability.Listing)
+            .RequireCapability(Capability.Listing)
             .WithSummary("Recent scheduled maintenance runs, scoped to what the credential may see.");
 
         return app;

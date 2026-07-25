@@ -2,13 +2,13 @@ using Lakehold.ControlPlane.Security;
 
 namespace Lakehold.Api.Auth;
 
-/// <summary>Endpoint metadata declaring a route's <see cref="RouteCapability"/>.</summary>
+/// <summary>Endpoint metadata declaring a route's <see cref="Capability"/>.</summary>
 /// <remarks>
 ///     How the HTTP transport carries a capability. The rules that read it are in
 ///     <see cref="CapabilityPolicy"/>, which knows nothing about endpoints — another transport
 ///     declares its capability its own way and reaches the same rules.
 /// </remarks>
-public sealed record RouteCapabilityMetadata(RouteCapability Capability);
+public sealed record RouteCapabilityMetadata(Capability Capability);
 
 /// <summary>Extensions for reading the resolved principal off the request.</summary>
 public static class PrincipalHttpExtensions
@@ -27,8 +27,8 @@ public static class PrincipalHttpExtensions
             : LakeholdPrincipal.Legacy;
     }
 
-    /// <summary>Attaches a <see cref="RouteCapability"/> to an endpoint, read back by the filter.</summary>
-    public static TBuilder RequireCapability<TBuilder>(this TBuilder builder, RouteCapability capability)
+    /// <summary>Attaches a <see cref="Capability"/> to an endpoint, read back by the filter.</summary>
+    public static TBuilder RequireCapability<TBuilder>(this TBuilder builder, Capability capability)
         where TBuilder : IEndpointConventionBuilder
     {
         ArgumentNullException.ThrowIfNull(builder);

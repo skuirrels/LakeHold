@@ -32,7 +32,7 @@ language model generated, which is the losing game invariant 4 exists to avoid.
 
 Lakehold does not have to play it:
 
-> An MCP tool declares a `RouteCapability` exactly as a route does, and the same policy that guards
+> An MCP tool declares a `Capability` exactly as a route does, and the same policy that guards
 > the HTTP API enforces it. A read-only agent credential produces a read-only **attachment**, so an
 > agent that writes fails **in DuckDB**, not in a check that a cleverly generated `INSERT` might route
 > around. `DucklingPool` already keys sessions by catalog *and attachment mode* (invariant 20), so an
@@ -105,7 +105,7 @@ reasoning (invariant 19) in two places and guarantee they drift.
 The fix is the one already applied to `TenantAccessPolicy`, which is transport-neutral and lives in
 `Lakehold.ControlPlane.Security`: `LakeholdAuthorizationFilter.Enforce` was lifted into
 **`CapabilityPolicy`**, taking a principal, a capability, a tenant, and a catalog, and returning a
-decision rather than an `IResult`. `RouteCapability` moved alongside it, because capability is a
+decision rather than an `IResult`. `Capability` moved alongside it, because capability is a
 property of the credential and the control plane owns the credential model.
 
 The filter now maps that decision onto `Results.NotFound` / `Results.Problem` and contributes nothing
@@ -122,13 +122,17 @@ confirming that a tenant exists, and a reason attached to it would confirm exact
 of `CapabilityOutcome` is `NotFound`, so a `default`-constructed decision refuses rather than allows —
 a decision type that fails open eventually fails open in production.
 
-**`RouteCapability` was relocated but not renamed.** The name is imperfect once a tool declares one
-rather than a route. It stays for now because both test files already import `Lakehold.Api.Auth` *and*
-`Lakehold.ControlPlane.Security`, so moving the type between those namespaces let
-`LakeholdAuthorizationFilterTests`, `TokenRoleTests`, and `TenantAccessPolicyTests` compile and pass
-**completely untouched** — which is the proof that the refactor changed no behaviour. A rename would
-have edited the very tests that constitute the evidence. It can be a separate, compiler-verified
-commit; the evidence is worth more than the name.
+**`RouteCapability` was moved first and renamed to `Capability` second, in two commits.** The order
+was the point. Both test files already import `Lakehold.Api.Auth` *and* `Lakehold.ControlPlane.Security`,
+so moving the type between those namespaces let `LakeholdAuthorizationFilterTests`, `TokenRoleTests`,
+and `TenantAccessPolicyTests` compile and pass **completely untouched** — which is what proves the
+refactor changed no behaviour. Renaming in the same commit would have edited the very tests that
+constitute that evidence. With the move proven, the rename is a mechanical, compiler-verified change
+that touches those files harmlessly.
+
+`RouteCapabilityMetadata` keeps its name. It is endpoint metadata by which an HTTP *route* declares
+its `Capability`, so "Route" there is accurate rather than vestigial — and it is exactly the part an
+MCP tool will not use, because a tool declares its capability without an endpoint to hang it on.
 
 ### What proves it
 
@@ -319,8 +323,8 @@ Shipping this is not done until:
 - **The specification text is unverified.** Everything above about sessions, the handshake, and the
   authorization rewrite comes from secondary reporting. Phase 1 verifies it directly.
 - **.NET 10 target support** in SDK 2.0.0 is assumed and unconfirmed.
-- **Whether `RouteCapability` is renamed.** Relocated in Phase 1, not renamed, for the reason given
-  above. Worth revisiting once a tool declares one and the name visibly lies.
+- ~~Whether `RouteCapability` is renamed.~~ Settled: moved in Phase 1, renamed to `Capability`
+  immediately after, for the reason given above.
 - **Whether the MCP endpoint is separately toggleable** (`Lakehold:Mcp:Enabled`) or on whenever
   authentication is configured. Defaulting a new agent-reachable surface to *on* deserves an argument
   before it is made.

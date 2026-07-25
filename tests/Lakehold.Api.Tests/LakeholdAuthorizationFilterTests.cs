@@ -156,7 +156,7 @@ public sealed class LakeholdAuthorizationFilterTests : IAsyncLifetime
     public async Task An_instance_token_reaches_a_provisioning_route()
     {
         var (status, passed) = await RunAsync(
-            _services, _instanceToken, tenant: null, catalog: null, RouteCapability.Instance);
+            _services, _instanceToken, tenant: null, catalog: null, Capability.Instance);
 
         Assert.True(passed);
         Assert.Equal(StatusCodes.Status200OK, status);
@@ -166,7 +166,7 @@ public sealed class LakeholdAuthorizationFilterTests : IAsyncLifetime
     public async Task A_tenant_token_cannot_reach_a_provisioning_route()
     {
         var (status, passed) = await RunAsync(
-            _services, _fullToken, tenant: null, catalog: null, RouteCapability.Instance);
+            _services, _fullToken, tenant: null, catalog: null, Capability.Instance);
 
         Assert.False(passed);
         Assert.Equal(StatusCodes.Status403Forbidden, status);
@@ -176,7 +176,7 @@ public sealed class LakeholdAuthorizationFilterTests : IAsyncLifetime
     public async Task A_full_tenant_token_may_administer_its_own_tokens()
     {
         var (status, passed) = await RunAsync(
-            _services, _fullToken, "demo", catalog: null, RouteCapability.TenantAdmin);
+            _services, _fullToken, "demo", catalog: null, Capability.TenantAdmin);
 
         Assert.True(passed);
         Assert.Equal(StatusCodes.Status200OK, status);
@@ -186,7 +186,7 @@ public sealed class LakeholdAuthorizationFilterTests : IAsyncLifetime
     public async Task An_instance_token_may_administer_any_tenants_tokens()
     {
         var (status, passed) = await RunAsync(
-            _services, _instanceToken, "demo", catalog: null, RouteCapability.TenantAdmin);
+            _services, _instanceToken, "demo", catalog: null, Capability.TenantAdmin);
 
         Assert.True(passed);
         Assert.Equal(StatusCodes.Status200OK, status);
@@ -198,7 +198,7 @@ public sealed class LakeholdAuthorizationFilterTests : IAsyncLifetime
         // A catalog-narrowed (and read-only) credential is least privilege by design; it must not be
         // able to mint a broader one.
         var (status, passed) = await RunAsync(
-            _services, _analyticsOnlyToken, "demo", catalog: null, RouteCapability.TenantAdmin);
+            _services, _analyticsOnlyToken, "demo", catalog: null, Capability.TenantAdmin);
 
         Assert.False(passed);
         Assert.Equal(StatusCodes.Status403Forbidden, status);
@@ -222,7 +222,7 @@ public sealed class LakeholdAuthorizationFilterTests : IAsyncLifetime
     }
 
     private static async Task<(int Status, bool Passed)> RunAsync(
-        IServiceProvider services, string? bearer, string? tenant, string? catalog, RouteCapability? capability = null)
+        IServiceProvider services, string? bearer, string? tenant, string? catalog, Capability? capability = null)
     {
         using var scope = services.CreateScope();
 

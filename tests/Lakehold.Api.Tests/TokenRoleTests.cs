@@ -128,7 +128,7 @@ public sealed class TokenRoleTests : IAsyncLifetime
     {
         foreach (var token in new[] { _owner, _editor, _reader })
         {
-            var (status, passed) = await RunAsync(token, RouteCapability.TenantData);
+            var (status, passed) = await RunAsync(token, Capability.TenantData);
             Assert.True(passed);
             Assert.Equal(StatusCodes.Status200OK, status);
         }
@@ -137,12 +137,12 @@ public sealed class TokenRoleTests : IAsyncLifetime
     [Fact]
     public async Task Only_an_owner_may_run_maintenance_or_eject()
     {
-        var owner = await RunAsync(_owner, RouteCapability.TenantOwner);
+        var owner = await RunAsync(_owner, Capability.TenantOwner);
         Assert.True(owner.Passed);
 
         foreach (var token in new[] { _editor, _reader })
         {
-            var (status, passed) = await RunAsync(token, RouteCapability.TenantOwner);
+            var (status, passed) = await RunAsync(token, Capability.TenantOwner);
             Assert.False(passed);
             Assert.Equal(StatusCodes.Status403Forbidden, status);
         }
@@ -151,12 +151,12 @@ public sealed class TokenRoleTests : IAsyncLifetime
     [Fact]
     public async Task Only_an_owner_may_manage_tokens()
     {
-        var owner = await RunAsync(_owner, RouteCapability.TenantAdmin);
+        var owner = await RunAsync(_owner, Capability.TenantAdmin);
         Assert.True(owner.Passed);
 
         foreach (var token in new[] { _editor, _reader })
         {
-            var (status, passed) = await RunAsync(token, RouteCapability.TenantAdmin);
+            var (status, passed) = await RunAsync(token, Capability.TenantAdmin);
             Assert.False(passed);
             Assert.Equal(StatusCodes.Status403Forbidden, status);
         }
@@ -166,7 +166,7 @@ public sealed class TokenRoleTests : IAsyncLifetime
     public async Task An_owner_from_another_tenant_is_still_a_404_not_a_403()
     {
         // Subject is checked before capability, so an unreachable tenant never confirms it exists.
-        var (status, passed) = await RunAsync(_owner, RouteCapability.TenantOwner, tenant: "other");
+        var (status, passed) = await RunAsync(_owner, Capability.TenantOwner, tenant: "other");
 
         Assert.False(passed);
         Assert.Equal(StatusCodes.Status404NotFound, status);
@@ -179,7 +179,7 @@ public sealed class TokenRoleTests : IAsyncLifetime
     }
 
     private async Task<(int Status, bool Passed)> RunAsync(
-        string bearer, RouteCapability capability, string tenant = "demo")
+        string bearer, Capability capability, string tenant = "demo")
     {
         using var scope = _services.CreateScope();
 

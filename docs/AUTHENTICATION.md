@@ -497,7 +497,7 @@ a tenant named `admin` would mint tokens indistinguishable from instance-scoped 
 
 ### Endpoints and who may reach them
 
-Capability is declared on the route as `RouteCapability` metadata and enforced in one place by
+Capability is declared on the route as `Capability` metadata and enforced in one place by
 `LakeholdAuthorizationFilter`.
 
 | Route | Capability | Reachable by |
@@ -694,12 +694,12 @@ add anything. Everything after is depth.
   `OidcPrincipal` maps a tenant claim (and optional role claim) onto the same `ILakeholdPrincipal`
   tokens produce, so nothing downstream distinguishes a human from a machine.
 - **Step 9** — `TokenRole` (`Owner`/`Editor`/`Reader`) on the token and the principal. Maintenance,
-  restore, and eject are owner operations (`RouteCapability.TenantOwner`); token management requires
+  restore, and eject are owner operations (`Capability.TenantOwner`); token management requires
   owner too; querying is a reader's. `Reader` implies read-only at issuance, so phase 2's flag is the
   degenerate case rather than a second thing to remember. The enum's default is `Owner`, which is what
   every credential minted before roles existed effectively was — so an upgrade changes nothing.
 
-Route intent is declared as `RouteCapability` metadata (`TenantData`, `TenantOwner`, `TenantAdmin`,
+Route intent is declared as `Capability` metadata (`TenantData`, `TenantOwner`, `TenantAdmin`,
 `Instance`, `Listing`) and enforced in one place. Subject is always checked before capability, so an
 unreachable tenant is a 404 and never a 403 that would confirm it exists.
 

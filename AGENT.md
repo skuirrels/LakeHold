@@ -44,7 +44,7 @@ integration.
   deliberately unimplemented. Update it with the endpoint.
 - `docs/AUTHENTICATION.md`: the phased plan for API authentication, now fully implemented — API
   tokens, provisioning, read-only-by-attachment, audit, wire convergence, OIDC, and roles. A route
-  declares a `RouteCapability` and `LakeholdAuthorizationFilter` enforces it in one place. Note that
+  declares a `Capability` and `LakeholdAuthorizationFilter` enforces it in one place. Note that
   `Lakehold:Auth:RequireAuthentication` still defaults to **false**, so a token-less request falls
   back to trusting the route until an operator turns it on. Read it before adding any surface that
   resolves a tenant.
@@ -135,7 +135,7 @@ Preserve these unless the task explicitly changes the architecture and updates i
     `LastDeliveredSnapshot` moves only after a 2xx, so a failing consumer replays rather than skips.
     `ducklake_table_changes` is inclusive at both ends, so the next window opens at `L + 1`.
 19. The credential names the tenant; the route segment is validated against it, never trusted. One
-    `LakeholdAuthorizationFilter` enforces a route's declared `RouteCapability`, and subject is always
+    `LakeholdAuthorizationFilter` enforces a route's declared `Capability`, and subject is always
     checked before capability so an unreachable tenant is a **404, not a 403** — a 403 would confirm
     it exists. A token's plaintext is never stored: only its public prefix and a SHA-256 hash, so
     reading the table yields nothing usable. The single exception to "never log a credential" is the
@@ -146,7 +146,7 @@ Preserve these unless the task explicitly changes the architecture and updates i
     by catalog **and attachment mode**: sharing one session between a read-only and a read-write
     credential would silently hand the former a writable handle.
 21. An agent-reachable surface declares its capability like a route and always requires a credential.
-    An MCP tool names a `RouteCapability` and the *same* policy that guards the HTTP route enforces
+    An MCP tool names a `Capability` and the *same* policy that guards the HTTP route enforces
     it — the rules live in one transport-neutral place, never copied into a second dispatch, or the
     404-not-403 reasoning in invariant 19 drifts between them. Unlike every other surface, MCP refuses
     a token-less call even while `Lakehold:Auth:RequireAuthentication` is false: a surface whose
@@ -273,5 +273,9 @@ time.
   and runtime or persisted-data checks for storage and migration claims.
 - Do not commit, push, publish packages, run destructive maintenance, or change external systems
   unless the user asks for it.
+- Branch names describe the work, never the author or the tool that produced it. Use a `feature/`
+  prefix and a short kebab-case summary — `feature/brand-mark-component`. Never a `claude/` prefix
+  or a generated name, including the default an agent session or worktree proposes: rename the
+  branch before the first commit. Use `fix/` or `docs/` where either reads more truthfully.
 - Report what changed, what was verified, and any remaining uncertainty or unverified runtime path.
 
