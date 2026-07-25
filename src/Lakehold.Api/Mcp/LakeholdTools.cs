@@ -1,8 +1,10 @@
 using System.ComponentModel;
 using Lakehold.Api.Auth;
 using Lakehold.ControlPlane.Data;
+using Lakehold.ControlPlane.Model;
 using Lakehold.ControlPlane.Security;
 using Lakehold.Engine.Catalog;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using ModelContextProtocol;
 using ModelContextProtocol.Server;
@@ -17,9 +19,96 @@ namespace Lakehold.Api.Mcp;
 [McpServerToolType]
 public sealed class LakeholdTools(
     LakehouseService lakehouse,
+    ControlPlaneContext controlPlane,
     IHttpContextAccessor httpContextAccessor,
     IOptions<McpOptions> options)
 {
+    /// <summary>Lists what the calling credential can reach: its tenants and their catalogs.</summary>
+    /// <remarks>
+    ///     The entry point for an agent, which otherwise has to be told the names in its prompt and
+    ///     guesses wrongly when it is not. Scoped to the principal exactly as the HTTP listing route
+    ///     is: an instance credential sees every tenant, a tenant credential sees its own.
+    ///     <para>
+    ///         It is <em>stricter</em> than the HTTP route in one respect. A catalog-narrowed
+    ///         credential sees only the catalog it is narrowed to, rather than every catalog its
+    ///         tenant owns. Listing catalogs the caller cannot query would waste its next call and
+    ///         disclose names it has no use for; least privilege reads better here than parity.
+    ///     </para>
+    /// </remarks>
+    [McpServerTool(Name = "list_tenants", Title = "List reachable tenants and catalogs", ReadOnly = true,
+        Destructive = false)]
+    [Description(
+        "Lists the tenants and catalogs this credential can reach. Call this first: every other tool "
+        + "needs a tenant and catalog name, and these are the only valid ones.")]
+    public async Task<IReadOnlyList<McpTenant>> ListTenantsAsync(CancellationToken cancellationToken)
+    {
+        var principal = McpCaller.Principal(httpContextAccessor);
+
+        var query = controlPlane.Tenants.AsNoTracking().Include(t => t.Catalogs).AsQueryable();
+        if (principal.Scope == TokenScope.Tenant && principal.TenantSlug is { } slug)
+        {
+            query = query.Where(t => t.Slug == slug);
+        }
+
+        var narrowedTo = principal.CatalogName;
+
+        var tenants = await query
+            .OrderBy(t => t.Slug)
+            .Select(t => new McpTenant(
+                t.Slug,
+                t.DisplayName,
+                t.Catalogs
+                    .Where(c => narrowedTo == null || c.Name == narrowedTo)
+                    .OrderBy(c => c.Name)
+                    .Select(c => new McpCatalog(c.Name, c.IsReadOnly))
+                    .ToList()))
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        return tenants;
+    }
+
+    /// <summary>Returns a catalog's schemas, tables, and columns.</summary>
+    /// <remarks>
+    ///     DuckLake's own metadata tables are excluded — <c>CatalogBrowser</c> filters
+    ///     <c>ducklake_*</c> at the source, which matters more here than in the workbench: a human
+    ///     scrolls past twenty-eight internal tables, whereas an agent reads them and reasons about
+    ///     them as though they were the tenant's data.
+    /// </remarks>
+    [McpServerTool(Name = "describe_schema", Title = "Describe a catalog's tables and columns",
+        ReadOnly = true, Destructive = false)]
+    [Description(
+        "Returns the schemas, tables, and columns of a catalog, so a query can be written against "
+        + "real column names and types rather than guessed ones.")]
+    public async Task<IReadOnlyList<McpSchema>> DescribeSchemaAsync(
+        [Description("Tenant slug the catalog belongs to.")] string tenant,
+        [Description("Catalog to describe.")] string catalog,
+        CancellationToken cancellationToken)
+    {
+        McpCaller.Authorize(httpContextAccessor, tenant, catalog);
+
+        try
+        {
+            var schemas = await lakehouse.GetSchemasAsync(tenant, catalog, cancellationToken).ConfigureAwait(false);
+
+            return
+            [
+                .. schemas.Select(s => new McpSchema(
+                    s.Name,
+                    [
+                        .. s.Tables.Select(t => new McpTable(
+                            t.Name,
+                            t.Kind,
+                            [.. t.Columns.Select(c => new McpSchemaColumn(c.Name, c.DataType, c.IsNullable))])),
+                    ])),
+            ];
+        }
+        catch (CatalogNotFoundException ex)
+        {
+            throw new McpException(ex.Message);
+        }
+    }
+
     /// <summary>Runs a read-only SQL query against one of a tenant's catalogs.</summary>
     /// <remarks>
     ///     <para>
@@ -50,7 +139,7 @@ public sealed class LakeholdTools(
             throw new McpException("A SQL statement is required.");
         }
 
-        var principal = Authorize(tenant, catalog);
+        var principal = McpCaller.Authorize(httpContextAccessor, tenant, catalog);
 
         try
         {
@@ -85,30 +174,31 @@ public sealed class LakeholdTools(
         }
     }
 
-    /// <summary>Resolves the principal and enforces the tool's capability, or throws.</summary>
-    private ILakeholdPrincipal Authorize(string tenant, string catalog)
-    {
-        var http = httpContextAccessor.HttpContext
-            ?? throw new McpException("This tool is only available over the HTTP transport.");
-
-        var principal = http.GetLakeholdPrincipal();
-
-        // McpAuthenticationFilter refuses a credential-less caller before any tool runs, so this holds
-        // on every reachable path. Asserting it here means a future transport cannot quietly bypass it.
-        if (!principal.IsAuthenticated)
-        {
-            throw new McpException("A credential is required.");
-        }
-
-        var decision = CapabilityPolicy.Evaluate(principal, Capability.TenantData, tenant, catalog);
-        return decision.Outcome switch
-        {
-            CapabilityOutcome.Allowed => principal,
-            CapabilityOutcome.Forbidden => throw new McpException(decision.Detail ?? "Forbidden."),
-            _ => throw new McpException($"Catalog '{catalog}' was not found for tenant '{tenant}'."),
-        };
-    }
 }
+
+/// <summary>A tenant an agent may reach, with the catalogs it may reach inside it.</summary>
+/// <param name="Tenant">Slug to pass as the <c>tenant</c> argument of every other tool.</param>
+/// <param name="DisplayName">Human-readable name, for the agent's prose rather than its arguments.</param>
+/// <param name="Catalogs">Catalogs reachable with this credential.</param>
+public sealed record McpTenant(string Tenant, string DisplayName, IReadOnlyList<McpCatalog> Catalogs);
+
+/// <summary>A catalog an agent may reach.</summary>
+/// <param name="Catalog">Name to pass as the <c>catalog</c> argument of every other tool.</param>
+/// <param name="ReadOnly">
+///     Whether the catalog itself is read-only. Note this is a property of the catalog, not of the
+///     session: the MCP surface attaches read-only either way, so a false here does not mean an agent
+///     can write.
+/// </param>
+public sealed record McpCatalog(string Catalog, bool ReadOnly);
+
+/// <summary>A schema and its tables.</summary>
+public sealed record McpSchema(string Name, IReadOnlyList<McpTable> Tables);
+
+/// <summary>A table and its columns. <paramref name="Kind"/> distinguishes a view from a base table.</summary>
+public sealed record McpTable(string Name, string Kind, IReadOnlyList<McpSchemaColumn> Columns);
+
+/// <summary>A column in a described table.</summary>
+public sealed record McpSchemaColumn(string Name, string Type, bool Nullable);
 
 /// <summary>One result column, as an agent sees it.</summary>
 /// <param name="Name">Column name.</param>

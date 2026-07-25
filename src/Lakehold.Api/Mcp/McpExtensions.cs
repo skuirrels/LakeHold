@@ -24,7 +24,8 @@ public static class McpExtensions
         builder.Services
             .AddMcpServer()
             .WithHttpTransport()
-            .WithTools<LakeholdTools>();
+            .WithTools<LakeholdTools>()
+            .WithResources<LakeholdResources>();
 
         return builder;
     }

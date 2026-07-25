@@ -35,6 +35,7 @@ public sealed class McpServerTests : IAsyncLifetime
     private WebApplication _app = null!;
     private string _demoToken = null!;
     private string _otherToken = null!;
+    private string _narrowedToken = null!;
 
     public async Task InitializeAsync()
     {
@@ -96,6 +97,8 @@ public sealed class McpServerTests : IAsyncLifetime
         var now = DateTimeOffset.UtcNow;
         _demoToken = Persist(context, ApiTokenFactory.Issue(TokenScope.Tenant, demo, "agent", now, role: TokenRole.Owner));
         _otherToken = Persist(context, ApiTokenFactory.Issue(TokenScope.Tenant, other, "agent", now, role: TokenRole.Owner));
+        _narrowedToken = Persist(context, ApiTokenFactory.Issue(
+            TokenScope.Tenant, demo, "narrowed", now, catalogName: "analytics", role: TokenRole.Reader));
         await context.SaveChangesAsync();
 
         // Initialise the catalog with one read-write statement. A read-only attachment cannot create
@@ -140,7 +143,7 @@ public sealed class McpServerTests : IAsyncLifetime
 
         var names = (await client.ListToolsAsync()).Select(t => t.Name).OrderBy(n => n).ToArray();
 
-        Assert.Equal(["query"], names);
+        Assert.Equal(["describe_schema", "list_tenants", "query"], names);
     }
 
     [Fact]
@@ -307,6 +310,125 @@ public sealed class McpServerTests : IAsyncLifetime
         Assert.Equal(2, columns.GetArrayLength());
         Assert.Equal("n", columns[0].GetProperty("name").GetString());
         Assert.False(string.IsNullOrWhiteSpace(columns[0].GetProperty("type").GetString()));
+    }
+
+    [Fact]
+    public async Task List_tenants_is_the_entry_point_and_is_scoped_to_the_credential()
+    {
+        // Without this an agent has to be told the names in its prompt, and guesses wrongly when it
+        // is not. It must show its own tenant and no one else's.
+        await using var client = await ConnectAsync(_demoToken);
+
+        var result = await client.CallToolAsync("list_tenants", new Dictionary<string, object?>());
+
+        Assert.True(result.IsError is not true, Text(result));
+
+        var tenants = Payload(result);
+        Assert.Equal(1, tenants.GetArrayLength());
+        Assert.Equal("demo", tenants[0].GetProperty("tenant").GetString());
+        Assert.Equal("analytics", tenants[0].GetProperty("catalogs")[0].GetProperty("catalog").GetString());
+    }
+
+    [Fact]
+    public async Task List_tenants_does_not_name_another_tenant()
+    {
+        await using var client = await ConnectAsync(_otherToken);
+
+        var result = await client.CallToolAsync("list_tenants", new Dictionary<string, object?>());
+
+        Assert.True(result.IsError is not true, Text(result));
+        Assert.DoesNotContain("demo", Text(result), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task A_narrowed_credential_is_shown_only_the_catalog_it_can_reach()
+    {
+        // Deliberately stricter than the HTTP listing route, which returns every catalog the tenant
+        // owns. Naming a catalog this credential cannot query would waste the agent's next call.
+        await using var client = await ConnectAsync(_narrowedToken);
+
+        var result = await client.CallToolAsync("list_tenants", new Dictionary<string, object?>());
+
+        Assert.True(result.IsError is not true, Text(result));
+
+        var catalogs = Payload(result)[0].GetProperty("catalogs");
+        Assert.Equal(1, catalogs.GetArrayLength());
+        Assert.Equal("analytics", catalogs[0].GetProperty("catalog").GetString());
+    }
+
+    [Fact]
+    public async Task Describe_schema_returns_columns_and_hides_ducklake_internals()
+    {
+        // The filtering matters more here than in the workbench: a human scrolls past the internal
+        // tables, an agent reads them and reasons about them as though they were the tenant's data.
+        await using var client = await ConnectAsync(_demoToken);
+
+        var result = await client.CallToolAsync(
+            "describe_schema",
+            new Dictionary<string, object?> { ["tenant"] = "demo", ["catalog"] = "analytics" });
+
+        Assert.True(result.IsError is not true, Text(result));
+
+        var text = Text(result);
+        Assert.Contains("seeded", text, StringComparison.Ordinal);
+        Assert.DoesNotContain("ducklake_", text, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Describe_schema_refuses_another_tenant_without_disclosing_it()
+    {
+        await using var client = await ConnectAsync(_demoToken);
+
+        var result = await client.CallToolAsync(
+            "describe_schema",
+            new Dictionary<string, object?> { ["tenant"] = "other", ["catalog"] = "c" });
+
+        Assert.True(result.IsError);
+        Assert.Contains("was not found for tenant 'other'", Text(result), StringComparison.Ordinal);
+        Assert.DoesNotContain("forbidden", Text(result), StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task The_schema_resource_is_a_template_that_discloses_nothing_by_being_listed()
+    {
+        // Templates rather than concrete resources on purpose: enumerating every reachable catalog
+        // would mean resolving the credential during resource listing, which is the one place a
+        // mistake would hand catalog names to a caller that cannot reach them.
+        await using var client = await ConnectAsync(_demoToken);
+
+        var templates = await client.ListResourceTemplatesAsync();
+        var concrete = await client.ListResourcesAsync();
+
+        Assert.Contains(templates, r => r.UriTemplate == "lakehold://{tenant}/{catalog}/schema");
+        Assert.Empty(concrete);
+    }
+
+    [Fact]
+    public async Task The_schema_resource_returns_the_schema()
+    {
+        await using var client = await ConnectAsync(_demoToken);
+
+        var result = await client.ReadResourceAsync("lakehold://demo/analytics/schema");
+
+        var text = string.Join(
+            " ",
+            result.Contents.OfType<ModelContextProtocol.Protocol.TextResourceContents>().Select(c => c.Text));
+
+        Assert.Contains("seeded", text, StringComparison.Ordinal);
+        Assert.DoesNotContain("ducklake_", text, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task The_schema_resource_authorises_exactly_as_a_tool_does()
+    {
+        // The hole this closes: a resource that skipped the capability check would expose every
+        // tenant's schema by URI while the tools stayed correct.
+        await using var client = await ConnectAsync(_demoToken);
+
+        var failure = await Assert.ThrowsAnyAsync<Exception>(
+            async () => await client.ReadResourceAsync("lakehold://other/c/schema"));
+
+        Assert.Contains("was not found for tenant 'other'", failure.Message, StringComparison.Ordinal);
     }
 
     private static System.Text.Json.JsonElement Payload(ModelContextProtocol.Protocol.CallToolResult result) =>

@@ -10,10 +10,10 @@ independently shippable and testable and leaves the product working. Nothing her
 invariant in `AGENT.md`; where a rule already exists, this document says how the MCP surface preserves
 it rather than restating why.
 
-**Status: Phases 1 and 2 have landed.** The capability rules live in one transport-neutral policy, and
-the endpoint serves one tool — `query`, read-only — behind a credential it always demands. Discovery
-tools are not built yet, which is the practical limitation to know about before pointing an agent at
-it: see [What an agent cannot yet do](#what-an-agent-cannot-yet-do).
+**Status: Phases 1-3 have landed.** The capability rules live in one transport-neutral policy, and the
+endpoint serves three read-only tools — `list_tenants`, `describe_schema`, `query` — plus a schema
+resource, behind a credential it always demands. An agent can now discover what exists rather than
+being told in its prompt.
 
 It is **off by default**. `Lakehold:Mcp:Enabled` turns it on.
 
@@ -192,16 +192,25 @@ wire endpoint does.
 
 | Tool | Capability | Notes |
 |---|---|---|
-| `list_tenants` | `Listing` | Scoped to the principal — an instance credential sees every tenant, a tenant credential sees its own |
-| `list_catalogs` | `Listing` | As above |
-| `describe_schema` | `TenantData` | Schemas, tables, columns. **Must filter `ducklake_*` internals** — verified behaviours 2 and 9 in `ARCHITECTURE.md`, or an agent sees ~28 metadata tables per tenant and reasons about them |
-| `query` | `TenantData` | Read-only in v1; see below. A materialising path, so a row cap applies (invariant 6) |
+| `list_tenants` | `Listing` | **Shipped.** Tenants *and* their catalogs, scoped to the principal. A separate `list_catalogs` was specified and then dropped: catalogs come back nested here, so a second tool would answer a question already answered and cost the agent context to read. Stricter than the HTTP listing route in one way — a catalog-narrowed credential sees only its own catalog, because naming one the caller cannot query wastes its next call |
+| `describe_schema` | `TenantData` | **Shipped.** Schemas, tables, columns. `ducklake_*` internals are filtered by `CatalogBrowser` at the source — verified behaviours 2 and 9 in `ARCHITECTURE.md` — which matters more here than in the workbench: a human scrolls past ~28 internal tables, an agent reasons about them |
+| `query` | `TenantData` | **Shipped.** Read-only; see below. A materialising path, so a row cap applies (invariant 6) |
 | `list_snapshots` | `TenantData` | Time travel is shipped here and is *not* shipped by the closest peer. "What did this table look like on Tuesday" is a natural agent question and a differentiated answer |
 | `list_changes` | `TenantData` | The CDC feed, paged. "What changed since snapshot N" is the other natural one. Windows are inclusive at both ends (invariant 18) — the tool must not re-expose that trap to a caller passing arbitrary bounds |
 
-**Resources** carry a catalog's schema, so a client can attach it as context without spending a tool
-call. **Prompts** are not shipped in v1 — there is no workflow yet whose shape is worth freezing into
-the protocol.
+**Resources.** `lakehold://{tenant}/{catalog}/schema` carries the same information
+`describe_schema` returns, so a client can pin it as standing context instead of spending a tool call
+whenever it needs a column name. It is a **template**, not a set of concrete resources, and that is a
+security choice rather than a convenience one: enumerating every reachable catalog would mean
+resolving the credential during resource *listing*, and listing is the one place a mistake would hand
+catalog names to a caller that cannot reach them. A template discloses nothing.
+
+Both tools and resources authorise through one `McpCaller`. A resource that authorised differently
+from a tool would be a hole shaped precisely like the one invariant 21 closes, so there is deliberately
+no second path to get wrong.
+
+**Prompts** are not shipped — there is no workflow yet whose shape is worth freezing into the
+protocol.
 
 **Transport** is Streamable HTTP. Given the 2026-07-28 revision removes sessions, there is no
 server-side session state to design. A stdio shim is not shipped: Lakehold is a server, and remote MCP
@@ -354,22 +363,10 @@ decision that nothing here ships as stable before the SDK does — see the note 
 phase: **protected-resource metadata (RFC 9728) is not served yet**, so OIDC-only clients that rely on
 discovery cannot find the authorization server. Bearer tokens work today; that is the gap.
 
-**Phase 3 — discovery.** `list_tenants`, `list_catalogs`, `describe_schema`, and the schema resource.
-Now the most valuable next step rather than merely the next one — see below.
-
-### What an agent cannot yet do
-
-Worth stating plainly, because it determines whether the surface is useful to point at a real agent.
-
-With `query` alone, an agent has **no way to discover what exists**. It cannot list tenants, list
-catalogs, or read a schema, so it must be told the tenant name, the catalog name, and the table
-layout in its prompt, and any of those it guesses will come back as "not found". A read-only SQL tool
-against an unknown schema is close to unusable on its own.
-
-That is Phase 3, and it is small — every one of those tools projects an endpoint that already exists.
-Until it lands, treat the current surface as a proven seam rather than a finished product: the
-authorization, isolation, and read-only guarantees are real and tested, and the ergonomics are not
-there yet.
+**Phase 3 — discovery. Landed.** `list_tenants`, `describe_schema`, and the schema resource. The
+separately specified `list_catalogs` was dropped for the reason given in the tool table. An agent can
+now start from `list_tenants` and work down to a query without being told anything in its prompt,
+which is what turns the surface from a proven seam into something usable.
 
 **Phase 4 — the differentiated tools.** `list_snapshots` and `list_changes` — time travel and CDC, the
 two capabilities the competitive research says are genuinely ahead.
@@ -408,6 +405,14 @@ protocol-level tests, not just unit tests of its helpers.
 **`McpServerTests`** — the endpoint driven by the **SDK's own client** over a real HTTP transport, so
 what is asserted is conformance rather than agreement with a hand-rolled fixture.
 - `tools/list` returns `query` with a description a client can act on.
+- `list_tenants` shows the caller's own tenant and catalogs, and does not name another tenant.
+- A catalog-narrowed credential is shown only the catalog it can reach — the deliberate divergence
+  from the HTTP listing route.
+- `describe_schema` returns real columns and omits `ducklake_*` internals, and refuses another tenant
+  without disclosing it.
+- The schema resource is advertised as a **template** and the concrete resource list is empty, so
+  listing discloses nothing; reading it returns the schema; and reading another tenant's is refused
+  with the same wording a tool uses — the second authorization path cannot drift from the first.
 - The exposed set is asserted **exactly**, so adding a tool is a decision rather than an accident.
 - A client with no credential cannot connect at all.
 - A tool call reaches the principal — which is what proves a tool can read the request's
@@ -431,12 +436,12 @@ directly.
 
 - Protected-resource metadata served when OIDC is configured and absent when it is not — blocked on
   serving it at all (Phase 2 gap).
-- An instance credential cannot query; a catalog-narrowed credential cannot cross catalogs. Both hold
-  by construction through `CapabilityPolicy`, which is covered — but not yet asserted *over MCP*.
+- An instance credential cannot query. Holds by construction through `CapabilityPolicy`, which is
+  covered — but not yet asserted *over MCP*.
 - Cancellation propagating from the transport through the engine.
 - Query-history attribution asserted end to end.
-- The Phase 3 and 4 tools, with `describe_schema` omitting `ducklake_*` internals and `list_changes`
-  handling the inclusive-both-ends window (verified behaviours 6 and 7).
+- The Phase 4 tools, with `list_changes` handling the inclusive-both-ends window (verified
+  behaviours 6 and 7).
 
 ## Documentation obligations
 

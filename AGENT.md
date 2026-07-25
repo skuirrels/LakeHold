@@ -52,10 +52,11 @@ integration.
   lakehouse. Builds on `docs/AUTHENTICATION.md` (auth is its gate); the cross-cutting API conventions
   (versioning, `problem+json`, pagination, async jobs) live here.
 - `docs/MCP.md`: the phased spec and running record for the MCP server under `src/Lakehold.Api/Mcp/`.
-  Phases 1-2 have landed: one tool (`query`, read-only), off unless `Lakehold:Mcp:Enabled`. Records why
-  the dependency is the MCP C# SDK and *not* Microsoft Agent Framework (Lakehold is the server, not the
-  agent), which tools are deliberately withheld from an agent and why, and how to connect Claude Code
-  and Codex. Read it before adding an agent-reachable surface.
+  Phases 1-3 have landed: three read-only tools and a schema resource, off unless
+  `Lakehold:Mcp:Enabled`. Records why the dependency is the MCP C# SDK and *not* Microsoft Agent
+  Framework (Lakehold is the server, not the agent), which tools are deliberately withheld from an
+  agent and why, and how to connect Claude Code and Codex. Read it before adding an agent-reachable
+  surface.
 - `docs/UI.md`: the phased spec for the web surfaces beyond the SQL IDE — specified, not yet
   implemented. Its subject is the physical layer: table sizes, Parquet file counts, and delete-file
   overhead, read from DuckLake's own `ducklake_table_info` and `ducklake_list_files` **table

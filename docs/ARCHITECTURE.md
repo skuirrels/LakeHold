@@ -302,7 +302,7 @@ readable by Spark, Trino, or Snowflake.
 | Postgres / BI wire protocol | ✅ | ✅ JDBC | ✅ | ✅ Flight/JDBC | ✅ Trino JDBC | ✅ built-in endpoint |
 | Native DuckDB remote protocol (Quack) | ⚠️ own hybrid client | — | — | — | — | ❌ decision open |
 | Managed ingestion connectors | ✅ Flights | ✅ | ✅ | ⚠️ | ❌ | 🛠️ roadmap |
-| AI / MCP / assistant | ✅ | ✅ Genie | ✅ Cortex | ✅ MCP server | ❌ | ⚠️ MCP server, query only |
+| AI / MCP / assistant | ✅ | ✅ Genie | ✅ Cortex | ✅ MCP server | ❌ | ✅ MCP server, read-only |
 | Semantic layer / governed metrics for agents | ❌ | ✅ Metric Views | ✅ Semantic Views | ✅ | ⚠️ dbt/Cube | 🛠️ from EF model |
 | Row / column-level security | ❌ by design | ✅ | ✅ | ✅ | ⚠️ | 🛠️ later |
 | Dual local↔cloud hybrid execution | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
