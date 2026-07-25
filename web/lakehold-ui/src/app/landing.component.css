@@ -35,7 +35,7 @@
 }
 
 .nav-links a {
-  color: var(--text-muted);
+  color: var(--info);
   text-decoration: none;
   font-size: 14px;
 }
@@ -408,4 +408,10 @@ h1 {
 .foot a:not(.btn),
 .landing a:not(.btn) {
   color: var(--info);
+}
+
+/* A link into the provider surface keeps the accent. It has to be declared after the blanket colour
+   and one class more specific, for the same reason the comment above describes. */
+.landing a.provider:not(.btn) {
+  color: var(--accent);
 }

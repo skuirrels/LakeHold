@@ -47,9 +47,16 @@
 }
 
 .nav-links a {
-  color: var(--text-muted);
+  color: var(--info);
   text-decoration: none;
   font-size: 14px;
+}
+
+/* A link into the DuckDB.EFCoreProvider surface wears the accent instead, so where a link leads is
+   readable from its colour and not only from its label. Declared before the button rules so the
+   filled call to action, which matches on the same specificity, still wins. */
+.nav-links a.provider {
+  color: var(--accent);
 }
 
 .nav-links a:hover {
