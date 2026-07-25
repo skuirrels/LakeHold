@@ -74,9 +74,15 @@ public static class LakehouseEndpoints
         tenants.MapDelete("/{tenantSlug}/catalogs/{catalogName}/subscriptions/{id:int}", DeleteSubscriptionAsync)
             .WithSummary("Deletes a change subscription.");
 
+        // Outside the /api/tenants group, so it carries the filter itself: the run log names every
+        // tenant and catalog the scheduler touched, which is not anonymous-readable. Listing rather
+        // than Instance because a tenant credential has a legitimate reason to check its own backups
+        // ran — the handler narrows the rows to what the principal may see.
         app.MapGet("/api/maintenance/schedule", GetScheduledRuns)
             .WithTags("Lakehouse")
-            .WithSummary("Recent scheduled maintenance runs.");
+            .AddEndpointFilter<LakeholdAuthorizationFilter>()
+            .RequireCapability(RouteCapability.Listing)
+            .WithSummary("Recent scheduled maintenance runs, scoped to what the credential may see.");
 
         return app;
     }
@@ -572,12 +578,30 @@ public static class LakehouseEndpoints
         _ => "unknown",
     };
 
-    private static Ok<IReadOnlyList<ScheduledRunDto>> GetScheduledRuns(ScheduledRunLog log)
-        => TypedResults.Ok<IReadOnlyList<ScheduledRunDto>>(
+    internal static Ok<IReadOnlyList<ScheduledRunDto>> GetScheduledRuns(HttpContext http, ScheduledRunLog log)
+    {
+        // Same projection rule as the tenant listing: an instance token (and the transitional
+        // token-less caller) sees every run, a tenant token sees only its own tenant's, and a
+        // catalog-narrowed token sees only that catalog's. Reachability was the filter's decision.
+        var principal = http.GetLakeholdPrincipal();
+        var runs = log.Recent().AsEnumerable();
+
+        if (principal.IsAuthenticated && principal.Scope == TokenScope.Tenant)
+        {
+            runs = runs.Where(r => string.Equals(r.Tenant, principal.TenantSlug, StringComparison.Ordinal));
+
+            if (principal.CatalogName is { } catalog)
+            {
+                runs = runs.Where(r => string.Equals(r.Catalog, catalog, StringComparison.Ordinal));
+            }
+        }
+
+        return TypedResults.Ok<IReadOnlyList<ScheduledRunDto>>(
         [
-            .. log.Recent().Select(r => new ScheduledRunDto(
+            .. runs.Select(r => new ScheduledRunDto(
                 r.Job, r.Tenant, r.Catalog, r.StartedUtc, r.ElapsedMilliseconds, r.Succeeded, r.Detail)),
         ]);
+    }
 
     private static async Task<Ok<IReadOnlyList<QueryRunDto>>> GetHistoryAsync(
         string tenantSlug,

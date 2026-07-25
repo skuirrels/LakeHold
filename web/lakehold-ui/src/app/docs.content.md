@@ -139,6 +139,104 @@ The two destructive operations return what they *would* do and change nothing un
 transaction labelled `lakehold maintenance: …` so platform writes stay distinguishable from a
 tenant's own.
 
+The first three also run on a schedule, so you rarely need this menu — see
+[Automatic maintenance](#automatic-maintenance).
+
+---
+
+## Automatic maintenance
+
+Flush, backup, and compact run on a cron schedule against **every writable catalog in every
+workspace**, so a lakehouse stays healthy with nobody clicking anything. Read-only shares are skipped:
+they have nothing to maintain.
+
+| Job | Runs by default | Why that cadence |
+|---|---|---|
+| **Flush** | Every 15 minutes — `0 0/15 * * * ?` | The consequential one. Inlined commits that have never been flushed are the one category of data that is *permanently* unrecoverable if the catalog is lost, so this interval is the upper bound on that exposure. |
+| **Backup** | Hourly, on the hour — `0 0 * * * ?` | Bounds how much snapshot history a catalog loss costs. |
+| **Compact** | 02:30 daily — `0 30 2 * * ?` | Non-destructive but I/O heavy, so it stays off-peak. |
+
+**Expire and cleanup are never scheduled.** They delete data, and automating an irreversible deletion
+would quietly undo the safety the rest of the product argues for. They stay manual and
+dry-run-by-default, whatever else you configure.
+
+### Changing the schedule
+
+Everything lives under `Lakehold:Maintenance` in `appsettings.json`:
+
+```jsonc
+{
+  "Lakehold": {
+    "Maintenance": {
+      "Enabled": true,
+      "FlushCron": "0 0/15 * * * ?",
+      "BackupCron": "0 0 * * * ?",
+      "CompactCron": "0 30 2 * * ?",
+      "NodeId": "",                 // defaults to the machine name
+      "LeaseDuration": "00:30:00"
+    }
+  }
+}
+```
+
+| Setting | Default | Meaning |
+|---|---|---|
+| `Enabled` | `true` | Whether the scheduler runs at all. `false` makes every operation manual. |
+| `FlushCron` · `BackupCron` · `CompactCron` | above | When each job fires. |
+| `NodeId` | machine name | Identifies this node when claiming a maintenance lease. |
+| `LeaseDuration` | 30 minutes | How long a lease stays valid if the node holding it never releases it. |
+
+Any of them can be set as an environment variable instead, which is usually how a container is
+configured — double underscores separate the levels:
+
+```bash
+Lakehold__Maintenance__FlushCron="0 0/5 * * * ?"
+Lakehold__Maintenance__Enabled=false
+```
+
+> **These are Quartz cron expressions, not Unix cron.** The first field is **seconds**, so there are
+> six, and `0 0/15 * * * ?` means *every 15 minutes*, not *every 15 hours*. Day-of-month and
+> day-of-week cannot both be constrained, which is why one of them is `?`. Paste a five-field Unix
+> expression such as `*/15 * * * *` and the API will not start: it fails with
+> `System.FormatException: Unexpected end of expression`. Times are the server's local time zone, so
+> the 02:30 compaction follows the host's clock rather than UTC.
+
+A missed window is skipped rather than replayed: if the host was asleep or busy past the trigger
+time, the job waits for the next one instead of firing a backlog the moment it wakes.
+
+### Seeing what actually ran
+
+A schedule you cannot observe is a schedule you will not rely on, so recent runs are readable:
+
+```bash
+curl -s http://localhost:5200/api/maintenance/schedule
+```
+
+Each entry gives the job, workspace, catalog, start time, elapsed milliseconds, whether it succeeded,
+and a detail line. It is an in-memory ring of the last 100 runs — an operational read-out, not an
+audit trail; query history covers durable auditing, and the list starts empty after a restart. The
+effective schedule is also logged once at start-up.
+
+The list is scoped to your credential, the same way the tenant listing is: an instance token sees
+every workspace's runs, a tenant token sees only its own, and a catalog-narrowed token sees only that
+catalog's.
+
+A catalog skipped because another node was doing the work is recorded as exactly that, rather than
+being left out: "nothing ran" and "another node ran it" have to be tellable apart when you are
+working out why a backup is missing.
+
+### Running more than one node
+
+Schedules are held in memory on each node, so every node fires the same sweep at the same moment.
+Duplicate *work* is excluded by a lease taken per job, per catalog — not by centralising the
+*schedule*, which is identical everywhere because it comes from configuration.
+
+The lease only engages where a catalog can genuinely be shared, which is where its metadata is in
+PostgreSQL; a local file catalog cannot be opened twice at once anyway. Two things are worth setting
+deliberately: `NodeId`, if several containers share a host and would otherwise present the same
+identity, and `LeaseDuration`, which only needs to exceed the longest plausible single run so a slow
+compaction is never mistaken for a dead node.
+
 ---
 
 ## Time travel

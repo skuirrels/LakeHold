@@ -514,6 +514,12 @@ Capability is declared on the route as `RouteCapability` metadata and enforced i
 | `POST …/maintenance/{operation}` | `TenantOwner` | Owner only |
 | `POST …/backups/restore` | `TenantOwner` | Owner only |
 | `POST …/eject` | `TenantOwner` | Owner only |
+| `GET /api/maintenance/schedule` | `Listing` | Anyone; the result is scoped — instance sees every tenant's runs, a tenant token only its own, a catalog-narrowed token only that catalog's |
+
+`GET /api/maintenance/schedule` is the one route outside the `/api/tenants` group, so it carries the
+filter itself rather than inheriting it. It needs one: the run log names every tenant and catalog the
+scheduler touched, which is not anonymous-readable. `Listing` rather than `Instance` because a tenant
+has a legitimate reason to check that its own backups ran.
 
 Maintenance, restore, and eject are owner operations because they destroy history, rewrite a catalog,
 or produce a complete copy of the lakehouse. Querying and writing are not: a `Reader` cannot write
