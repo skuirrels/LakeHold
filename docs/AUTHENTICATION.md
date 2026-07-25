@@ -470,14 +470,17 @@ Three axes, deliberately independent, so none of them has to be widened to expre
 - **Role** — `Owner` / `Editor` / `Reader` within the tenant. `Reader` implies read-only, which is
   applied as an *attachment mode* rather than a permission check.
 
-> **A token created without `role` is an owner.** The default exists so that credentials minted
-> before roles existed keep working unchanged, but it means `{"name":"bi"}` mints a full-privilege
-> credential. Pass `"role":"reader"` for anything that only needs to read — the default is chosen for
-> upgrade safety, not for least privilege.
+**A token created without `role` is a reader**, and so is one naming a role that is not recognised.
+`role` accepts the obvious synonyms (`admin`, `write`, `readwrite`, `readonly`, `viewer`, …), and
+anything else falls back rather than failing — so the cost of a typo is a credential that can read,
+discovered the first time it is asked to write, instead of one that can do everything and is
+discovered never. Confirm what was issued with `GET /api/tenants/{tenant}/tokens`, which reports the
+role and never the secret.
 
-`role` accepts the obvious synonyms (`admin`, `write`, `readwrite`, `readonly`, `viewer`, …), and an
-unrecognised value falls back to the default rather than failing — so a typo yields an owner token,
-which is the other reason to check what was issued with `GET …/tokens`.
+Note that this is deliberately *not* the same as the enum's zero value. `Owner` stays zero because
+the additive schema upgrade writes zero into the column for tokens issued before roles existed, and
+those were owners in every respect but name. The two defaults answer different questions: what a new
+credential should be, and what an old one already was.
 
 ```
 lkh_<tenant-slug>_<43 chars base64url>      tenant-scoped

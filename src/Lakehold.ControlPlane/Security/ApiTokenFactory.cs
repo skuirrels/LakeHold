@@ -43,6 +43,14 @@ public static class ApiTokenFactory
     ///     prefix is <c>lkh_admin_</c>. <paramref name="catalogName"/> and <paramref name="readOnly"/>
     ///     are only meaningful for a tenant token.
     /// </summary>
+    /// <param name="role">
+    ///     Defaults to <see cref="TokenRole.Reader"/>, so a caller that does not think about capability
+    ///     mints the least privileged credential rather than the most. Note this is deliberately *not*
+    ///     the enum's zero value: <see cref="TokenRole.Owner"/> stays zero because the additive schema
+    ///     upgrade writes zero into the column for tokens issued before roles existed, and those were
+    ///     owners in every respect but name. The two defaults answer different questions — what a new
+    ///     credential should be, and what an old one already was.
+    /// </param>
     public static IssuedToken Issue(
         TokenScope scope,
         Tenant? tenant,
@@ -51,7 +59,7 @@ public static class ApiTokenFactory
         bool readOnly = false,
         string? catalogName = null,
         DateTimeOffset? expiresUtc = null,
-        TokenRole role = TokenRole.Owner)
+        TokenRole role = TokenRole.Reader)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
 

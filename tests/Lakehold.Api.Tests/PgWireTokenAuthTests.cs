@@ -107,8 +107,11 @@ public sealed class PgWireTokenAuthTests : IAsyncLifetime
             await context.SaveChangesAsync();
 
             var now = DateTimeOffset.UtcNow;
-            _tokenA = Persist(context, ApiTokenFactory.Issue(TokenScope.Tenant, alpha!, "bi", now));
-            _readOnlyTokenA = Persist(context, ApiTokenFactory.Issue(TokenScope.Tenant, alpha!, "ro", now, readOnly: true));
+            // Stated explicitly, because the pair is the whole point of these tests: an editor that
+            // may write, against a reader that may not. Issuance defaults to reader, so leaving the
+            // role off would quietly make both sides of the comparison identical.
+            _tokenA = Persist(context, ApiTokenFactory.Issue(TokenScope.Tenant, alpha!, "bi", now, role: TokenRole.Editor));
+            _readOnlyTokenA = Persist(context, ApiTokenFactory.Issue(TokenScope.Tenant, alpha!, "ro", now, readOnly: true, role: TokenRole.Reader));
             _narrowedTokenA = Persist(
                 context, ApiTokenFactory.Issue(TokenScope.Tenant, alpha!, "narrowed", now, catalogName: "somethingelse"));
 

@@ -42,7 +42,9 @@ public sealed class LakeholdAuthorizationFilterTests : IAsyncLifetime
         await context.SaveChangesAsync();
 
         var now = DateTimeOffset.UtcNow;
-        _fullToken = Persist(context, ApiTokenFactory.Issue(TokenScope.Tenant, demo, "full", now));
+        // Explicitly an owner: this token stands for a full-privilege credential, and issuance now
+        // defaults to reader, so the role has to be stated rather than inherited.
+        _fullToken = Persist(context, ApiTokenFactory.Issue(TokenScope.Tenant, demo, "full", now, role: TokenRole.Owner));
         _analyticsOnlyToken = Persist(context, ApiTokenFactory.Issue(TokenScope.Tenant, demo, "analytics", now, catalogName: "analytics"));
 
         var revoked = ApiTokenFactory.Issue(TokenScope.Tenant, demo, "revoked", now);

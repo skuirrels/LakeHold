@@ -344,9 +344,9 @@ Worth knowing:
 - **A token is shown once** and stored only as a SHA-256 hash with its public prefix, so it cannot be
   recovered from the API or the database. `Lakehold__BootstrapToken` overrides the minted one where a
   platform injects credentials.
-- **A token created without `role` is an owner.** The default keeps pre-roles credentials working on
-  upgrade, but it means `{"name":"bi"}` mints full privilege — and an unrecognised role falls back the
-  same way. Pass the role explicitly, and check what you issued with `GET …/tokens`.
+- **A token defaults to `reader`**, as does one naming an unrecognised role, so a typo costs read
+  access rather than granting everything. Pass `owner` or `editor` deliberately. Tokens issued before
+  roles existed remain owners — the column's default preserves what they already were.
 - **Capability is attachment, not policy.** A `reader` token's catalog is attached read-only, so a
   write fails in the engine rather than in a check that clever SQL might route around — the same
   reasoning as the isolation model.

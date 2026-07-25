@@ -262,7 +262,11 @@ public static partial class AdminEndpoints
             readOnly: request.ReadOnly,
             catalogName: request.CatalogName,
             expiresUtc: request.ExpiresUtc,
-            role: TokenRoleParser.Parse(request.Role, TokenRole.Owner));
+            // Least privilege by default: a request that does not name a role gets a reader, and so
+            // does one naming a role we do not recognise. The safe outcome of a typo is a credential
+            // that can read, discovered the first time it is asked to write — not one that can do
+            // everything, discovered never.
+            role: TokenRoleParser.Parse(request.Role, TokenRole.Reader));
 
         context.ApiTokens.Add(issued.Record);
         await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);

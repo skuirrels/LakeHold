@@ -80,6 +80,40 @@ public sealed class TokenRoleTests : IAsyncLifetime
         Assert.Equal(TokenRole.Reader, issued.Record.Role);
     }
 
+    /// <summary>
+    ///     Issuing without naming a role must produce the least privileged credential, not the most.
+    ///     The default was <see cref="TokenRole.Owner"/> at first, so that tokens minted before roles
+    ///     existed kept working; that made the most obvious request — a name and nothing else — mint
+    ///     full privilege. Old rows are still owners by way of the column's zero value, which is a
+    ///     separate question from what a fresh token should be.
+    /// </summary>
+    [Fact]
+    public void Issuing_without_a_role_produces_a_reader()
+    {
+        var issued = ApiTokenFactory.Issue(
+            TokenScope.Tenant,
+            new Tenant { Id = 1, Slug = "demo", DisplayName = "Demo", CreatedUtc = DateTimeOffset.UnixEpoch },
+            "unspecified",
+            DateTimeOffset.UtcNow);
+
+        Assert.Equal(TokenRole.Reader, issued.Record.Role);
+
+        // And a reader is read-only by attachment, so the default cannot write either.
+        Assert.True(issued.Record.ReadOnly);
+    }
+
+    /// <summary>
+    ///     An unrecognised role name resolves to a reader rather than to an owner. A typo should cost
+    ///     the caller a 403 the first time they write, never hand them everything.
+    /// </summary>
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("ownr")]
+    [InlineData("superuser")]
+    public void An_absent_or_unrecognised_role_resolves_to_reader(string? value)
+        => Assert.Equal(TokenRole.Reader, TokenRoleParser.Parse(value, TokenRole.Reader));
+
     [Fact]
     public void An_instance_token_is_always_an_owner()
     {

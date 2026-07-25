@@ -366,11 +366,10 @@ indistinguishable from instance-scoped ones.
 | `editor` | yes | yes | no | no |
 | `owner` | yes | yes | yes | yes |
 
-> **A token created without `role` is an owner.** The default keeps credentials minted before roles
-> existed working unchanged, but it means `{"name":"bi"}` mints a full-privilege credential. Pass an
-> explicit `role` for anything that only needs to read. An unrecognised value also falls back to
-> owner, so check what you issued with `GET /api/tenants/{tenant}/tokens` — the listing shows the
-> role and never the secret.
+A token created without `role` is a **reader**, and so is one naming a role that is not recognised —
+so the cost of a typo is a credential that can read rather than one that can do everything. Pass
+`"role":"owner"` or `"role":"editor"` deliberately when you mean them, and confirm what you issued
+with `GET /api/tenants/{tenant}/tokens`, which shows the role and never the secret.
 
 ### Capability comes from attachment
 
