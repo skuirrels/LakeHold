@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { BrandMarkComponent } from './brand-mark.component';
 import { MarkdownPage } from './markdown-page';
 import content from './docs.content.md';
 
@@ -13,7 +14,7 @@ import content from './docs.content.md';
 @Component({
   selector: 'lh-docs',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink],
+  imports: [BrandMarkComponent, RouterLink],
   templateUrl: './docs.component.html',
   styleUrls: ['./markdown-page.css', './docs.component.css'],
 })

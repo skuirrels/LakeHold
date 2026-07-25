@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { BrandMarkComponent } from './brand-mark.component';
 
 /**
  * The DuckDB.EFCoreProvider surface: the provider's value proposition.
@@ -13,7 +14,7 @@ import { RouterLink } from '@angular/router';
 @Component({
   selector: 'lh-provider',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink],
+  imports: [BrandMarkComponent, RouterLink],
   templateUrl: './provider.component.html',
   styleUrls: ['./provider.component.css'],
 })
