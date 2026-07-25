@@ -181,7 +181,7 @@ export class ComparisonComponent {
         'A predictable VM bill beats per-second billing for your workload.',
       ],
       chooseThem: [
-        'You need accounts, SSO, and per-user permissions today — Lakehold has no authentication yet, so it belongs on a trusted network until that lands.',
+        'You need per-user accounts and row- or column-level permissions with a console to administer them — Lakehold authenticates with tenant-scoped API tokens, OIDC, and three roles, but per-user administration is not a product surface yet.',
         'You want zero operations and nothing to run.',
         'You need to scale past a single node without re-architecting.',
         'Hybrid local-and-cloud dual execution is valuable to you — it is genuinely clever and we have not replicated it.',

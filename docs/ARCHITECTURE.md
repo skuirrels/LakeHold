@@ -286,10 +286,10 @@ readable by Spark, Trino, or Snowflake.
 | Readable live by Spark / Trino / Snowflake (no export) | ⚠️ | ⚠️ via Unity | ⚠️ via Polaris | ✅ | ✅ | 🛠️ USP 5, Iceberg REST |
 | Serverless-feel / auto-suspend compute | ✅ | ✅ | ✅ | ⚠️ | ❌ | ✅ Ducklings idle-evict |
 | Elastic scale-out (multi-node) | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ single-writer node |
-| Per-tenant isolation as a product primitive | ✅ hypertenancy | ✅ | ✅ | ⚠️ projects | ❌ DIY | ⚠️ engine-level only, see below |
-| Authentication / tenant identity | ✅ | ✅ | ✅ | ✅ | ⚠️ DIY | ❌ **none today** |
-| SSO / OIDC | ✅ | ✅ | ✅ | ✅ | ⚠️ | ❌ |
-| RBAC beyond tenancy | ✅ | ✅ | ✅ | ✅ | ⚠️ | 🛠️ roadmap |
+| Per-tenant isolation as a product primitive | ✅ hypertenancy | ✅ | ✅ | ⚠️ projects | ❌ DIY | ⚠️ engine-level + credential, see below |
+| Authentication / tenant identity | ✅ | ✅ | ✅ | ✅ | ⚠️ DIY | ⚠️ shipped, enforcement opt-in |
+| SSO / OIDC | ✅ | ✅ | ✅ | ✅ | ⚠️ | ✅ authority + tenant claim |
+| RBAC beyond tenancy | ✅ | ✅ | ✅ | ✅ | ⚠️ | ⚠️ owner/editor/reader per token |
 | Web SQL IDE | ✅ mature | ✅ | ✅ | ✅ | ❌ add Superset | ✅ Monaco, focused |
 | Catalog explorer | ✅ | ✅ | ✅ | ✅ | ⚠️ | ✅ |
 | Time travel / snapshots | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
@@ -469,8 +469,8 @@ DuckLake-to-IRC bridge exists. Ship both; lead with this one.
 - **Why they cannot follow**: they can serve IRC, and do. What they cannot serve is IRC over a
   catalog that is a single SQL database and a directory of Parquet, deployable as one .NET process.
   The differentiator is the operational floor underneath the endpoint, not the endpoint.
-- **Preconditions**: authentication, which does not exist yet (see below), and a decision on whether
-  writes are ever accepted over IRC — read-only keeps invariants 4 and 5 intact for free.
+- **Preconditions**: authentication, which is met (see below), and a decision on whether writes are
+  ever accepted over IRC — read-only keeps invariants 4 and 5 intact for free.
 
 ### 6. Typed .NET client and change stream — not built
 

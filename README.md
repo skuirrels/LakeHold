@@ -30,11 +30,14 @@ stores tables as ordinary Parquet files and metadata as ordinary SQL.
 | Elastic scale-out | ✅ | Bounded by node size |
 | Zero operations | ✅ | You run it |
 | Dual execution | ✅ | Not replicated |
-| Accounts, SSO, permissions | ✅ | ❌ **none yet — run it on a trusted network** |
+| Accounts, SSO, permissions | ✅ | **API tokens, OIDC, and roles — enforcement opt-in** |
 
-Catalog isolation is structural — a session can only reference the catalog attached to it — but
-nothing yet decides *which* tenant a caller is, so treat that as an engine guarantee rather than a
-product one until authentication lands. It leads the roadmap for that reason.
+Catalog isolation is structural — a session can only reference the catalog attached to it — and the
+layer deciding *which* tenant a caller is now exists too: the credential names the tenant and the URL
+segment is validated against it. One caveat, and it is the whole caveat:
+`Lakehold:Auth:RequireAuthentication` defaults to **false**, so a deployment that never sets it still
+accepts token-less requests and trusts the route. Turn it on before the node is reachable by anyone
+you would not hand an owner token.
 
 The trade is deliberate: **elasticity and zero-ops for control, openness, and .NET integration.**
 Full analysis, including where MotherDuck is the better choice, in
@@ -128,12 +131,14 @@ Worth knowing:
 - **The image is architecture-pruned.** Publishing for the target RID drops the Windows and macOS
   DuckDB natives that a portable publish would ship — 940 MB down to 416 MB — and `TARGETARCH`
   keeps it correct on arm64 hosts.
-- **One gap to know about:** there is no API for creating tenants or catalogs yet, so an empty
-  production deployment has no supported way to add the first one. Until that lands, seed a catalog
-  in a development stack and carry the state volume across, or enable `Lakehold__SeedDemoData` once
-  and edit from there. The endpoints are specified in
-  [`docs/AUTHENTICATION.md`](docs/AUTHENTICATION.md) — provisioning and authentication have to land
-  together, because creating a tenant is the one operation with no tenant to be scoped to.
+- **Provisioning goes through the API, on the site's port.** A fresh deployment has no tenants; the
+  node mints an instance-scoped bootstrap token on first start and logs it once. Because the API is
+  not published, every call goes to the website's origin — `localhost:8080/api/…`, not `:5200`, which
+  is the *development* stack's port. See [Authentication](#authentication) for the three calls that
+  create the first tenant, catalog, and token.
+- **Enforcement is still opt-in here.** This file does not set
+  `Lakehold__Auth__RequireAuthentication`, so the stack starts trusting token-less requests. Set it to
+  `true` in your own deployment before the port is reachable by anything you do not trust.
 
 ### Running the app on the host instead
 
@@ -342,13 +347,19 @@ provisions tenants, catalogs, and other tokens, and deliberately cannot read dat
 credential is a visible provisioning problem, not a silent data breach:
 
 ```bash
-docker compose -f compose.production.yaml up -d          # read the bootstrap token from the log
+docker compose -f compose.production.yaml up -d --build
+docker compose -f compose.production.yaml logs api | grep -i bootstrap
 
-curl -X POST localhost:5200/api/tenants -H 'Authorization: Bearer lkh_admin_…' \
+# The production stack does not publish the API: nginx serves the site and proxies /api on the same
+# origin, so provisioning goes to :8080. On the development stack it is localhost:5200 instead.
+API=http://localhost:8080/api
+ADMIN='lkh_admin_…'
+
+curl -X POST $API/tenants -H "Authorization: Bearer $ADMIN" \
      -H 'Content-Type: application/json' -d '{"slug":"acme","displayName":"Acme"}'
-curl -X POST localhost:5200/api/tenants/acme/catalogs -H 'Authorization: Bearer lkh_admin_…' \
+curl -X POST $API/tenants/acme/catalogs -H "Authorization: Bearer $ADMIN" \
      -H 'Content-Type: application/json' -d '{"name":"analytics"}'
-curl -X POST localhost:5200/api/tenants/acme/tokens -H 'Authorization: Bearer lkh_admin_…' \
+curl -X POST $API/tenants/acme/tokens -H "Authorization: Bearer $ADMIN" \
      -H 'Content-Type: application/json' -d '{"name":"bi","role":"reader"}'
 ```
 

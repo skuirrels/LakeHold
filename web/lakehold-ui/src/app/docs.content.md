@@ -10,9 +10,9 @@ This one file is the single source for both the in-app `/docs` page and the copy
 
 ## Quick start
 
-You need **Docker**, the **.NET 10 SDK**, and **Node.js 20 or newer**. The backing services —
-PostgreSQL, MinIO, and a trace viewer — run in Docker; the API and the Angular dev server run either
-on the host or in the same compose stack.
+You need **Docker**. The **.NET 10 SDK** and **Node.js 20 or newer** are needed only if you run the
+API and the Angular dev server on the host — the all-in-Docker path below compiles both inside the
+stack. Either way the backing services (PostgreSQL, MinIO, and a trace viewer) run in Docker.
 
 ### 1. Clone and configure secrets
 
@@ -435,20 +435,27 @@ it provisions tenants, catalogs, and other tokens, but deliberately cannot read 
 admin credential is a visible provisioning problem rather than a silent data breach.
 
 ```bash
-docker compose -f compose.production.yaml up -d          # read the bootstrap token from the log
+docker compose -f compose.production.yaml up -d --build
+docker compose -f compose.production.yaml logs api | grep -i bootstrap
 
+API=http://localhost:8080/api
 ADMIN='lkh_admin_…'
 
-curl -X POST localhost:5200/api/tenants -H "Authorization: Bearer $ADMIN" \
+curl -X POST $API/tenants -H "Authorization: Bearer $ADMIN" \
   -H 'Content-Type: application/json' -d '{"slug":"acme","displayName":"Acme"}'
 
-curl -X POST localhost:5200/api/tenants/acme/catalogs -H "Authorization: Bearer $ADMIN" \
+curl -X POST $API/tenants/acme/catalogs -H "Authorization: Bearer $ADMIN" \
   -H 'Content-Type: application/json' -d '{"name":"analytics"}'
 
-curl -X POST localhost:5200/api/tenants/acme/tokens -H "Authorization: Bearer $ADMIN" \
+curl -X POST $API/tenants/acme/tokens -H "Authorization: Bearer $ADMIN" \
   -H 'Content-Type: application/json' \
   -d '{"name":"bi","role":"reader","catalogName":"analytics"}'
 ```
+
+**Mind the port.** The production stack does not publish the API — nginx serves the site on `:8080`
+and proxies `/api` on the same origin, so provisioning goes there. On the development stack the API
+is published directly and the base URL is `http://localhost:5200/api` instead. Every `$API` in this
+section is one or the other.
 
 Set `Lakehold__BootstrapToken` if your platform injects credentials and cannot scrape a log.
 
@@ -478,7 +485,7 @@ Lakehold's isolation model: a session can only reference the catalog attached to
 ### Revoking
 
 ```bash
-curl -X DELETE localhost:5200/api/tenants/acme/tokens/2 -H "Authorization: Bearer $ADMIN"
+curl -X DELETE $API/tenants/acme/tokens/2 -H "Authorization: Bearer $ADMIN"
 ```
 
 Revocation is immediate and closes **both** surfaces: the HTTP API and the PostgreSQL wire endpoint

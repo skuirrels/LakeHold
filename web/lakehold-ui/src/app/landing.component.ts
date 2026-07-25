@@ -99,7 +99,7 @@ import { BrandMarkComponent } from './brand-mark.component';
       <section class="roadmap">
         <h2 class="section-title">What's next</h2>
         <p class="section-sub">
-          Stated as plainly as the shipped list, including the one that has to come first.
+          Stated as plainly as the shipped list, caveats and all.
         </p>
 
         <ol class="changelog">
@@ -141,7 +141,7 @@ import { BrandMarkComponent } from './brand-mark.component';
           <div class="col lose">
             <h3>Choose MotherDuck when</h3>
             <ul>
-              <li>You need accounts, SSO, and per-user permissions today.</li>
+              <li>You need per-user accounts and row- or column-level permissions, administered from a console.</li>
               <li>You want zero operations and no infrastructure to own.</li>
               <li>You need elastic scale-out beyond a single node.</li>
               <li>Hybrid local-and-cloud dual execution matters to you.</li>
@@ -198,6 +198,13 @@ export class LandingComponent {
    */
   protected readonly changelog = [
     {
+      tag: 'Security',
+      title: 'Authentication and tenant identity',
+      body: 'The layer deciding which tenant a caller is now exists: API tokens scoped to a tenant and optionally a single catalog, carrying an owner, editor, or reader role, with OIDC for humans. The credential names the tenant and the URL segment is validated against it rather than trusted. A reader’s catalog is attached read-only, so a write fails in the engine rather than in a check that clever SQL might route around — and revoking a token closes the HTTP API and the PostgreSQL wire endpoint together, because both resolve against the same store.',
+      caveat:
+        'Enforcement is opt-in: Lakehold:Auth:RequireAuthentication defaults to false, so a deployment that never sets it still accepts token-less requests and trusts the route. That keeps a fresh checkout frictionless and is exactly what you must not deploy.',
+    },
+    {
       tag: 'Portability',
       title: 'Eject: the exit path in one call',
       body: 'Ejects a verified bundle of your data as ordinary Parquet, plus the metadata catalog when you want history. It re-materialises every table through the catalog rather than copying files, so merge-on-read deletes are applied, superseded update rows are gone, inlined commits are included, and none of DuckLake’s internal columns leak. Every file is counted back through a plain Parquet reader and compared to the catalog before the manifest is written, and the manifest carries per-table row counts, SHA-256 digests, and an HMAC signature when you configure a key.',
@@ -248,18 +255,12 @@ export class LandingComponent {
   ];
 
   /**
-   * Planned work, in dependency order rather than excitement order. Authentication leads because
-   * the three items under it are all externally reachable surfaces, and shipping any of them onto
-   * an unauthenticated API widens the exposure rather than the product.
+   * Planned work, in dependency order rather than excitement order. Authentication used to lead this
+   * list, because every entry in it is an externally reachable surface and shipping one onto an
+   * unauthenticated API would widen the exposure rather than the product. It has shipped, so it now
+   * sits in the changelog above and the precondition is met.
    */
   protected readonly roadmap = [
-    {
-      tag: 'First',
-      title: 'Authentication and tenant identity',
-      body: 'Isolation between catalogs is structural today — a session can only reference what is attached to it, and no submitted SQL changes that. What does not exist yet is the layer deciding which tenant a caller is: identity is currently the tenant segment of the URL.',
-      caveat:
-        'So anyone who can reach the API is every tenant. Run Lakehold on a trusted network until this lands, and treat the isolation guarantee as an engine property rather than a product one.',
-    },
     {
       tag: 'Interop',
       title: 'An Iceberg REST endpoint, so other engines read you live',
