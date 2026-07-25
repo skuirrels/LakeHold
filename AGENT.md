@@ -51,6 +51,10 @@ integration.
 - `docs/PUBLIC-API.md`: the phased spec for the public HTTP control API — time travel and the whole
   lakehouse. Builds on `docs/AUTHENTICATION.md` (auth is its gate); the cross-cutting API conventions
   (versioning, `problem+json`, pagination, async jobs) live here.
+- `docs/COMPETITIVE-RESEARCH.md`: a **dated** snapshot of competitor releases, the DuckLake roadmap,
+  and ranked demand from the upstream trackers. It is the evidence behind the positioning and feature
+  matrix in `docs/ARCHITECTURE.md`; that document states the position, this one says when it was last
+  checked. Re-gather rather than amend when it ages, and never cite a claim from it without its date.
 
 ## Architectural invariants
 

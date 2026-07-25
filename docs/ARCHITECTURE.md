@@ -226,6 +226,12 @@ Established on DuckDB 1.5.4, and a correction to point 2 above:
 Lakehold's category is "self-hostable open-format lakehouse." That places it against three groups
 of competitors, and the honest positioning differs for each.
 
+The evidence behind this section — what each competitor shipped and when, the DuckLake roadmap, and
+the ranked demand signal from the upstream trackers — is in
+[`COMPETITIVE-RESEARCH.md`](COMPETITIVE-RESEARCH.md), last gathered **25 July 2026**. Where that
+document and this one disagree, check its date first: it is a dated snapshot, and this section is
+the position derived from it.
+
 - **MotherDuck** — the closest peer: same engine (DuckDB), same table format (DuckLake), opposite
   hosting model. Every argument against it is a hosting/integration argument, never a capability
   one. It is years ahead on UI polish, managed ingestion, and dual local↔cloud execution.
@@ -247,6 +253,25 @@ of competitors, and the honest positioning differs for each.
   table catalog. They can *read* Iceberg/Delta externally, but the durable table format is
   proprietary to the engine — the opposite of Lakehold's "every byte is Parquet you can read without
   us" guarantee. Relevant as raw-speed alternatives, not as open-format lakehouses.
+
+### The upstream that is also a competitor
+
+DuckDB Labs is not in the list above, and by 2026 it belongs there. **Quack** — a client/server
+protocol over HTTP, MIT-licensed, autoloadable in DuckDB 1.5.3 and production-targeted for DuckDB 2.0
+in late 2026 — makes a DuckDB database remotely accessible to multiple clients, and is planned to be
+integrated into DuckLake so that **DuckDB itself can serve as a remote catalog server**.
+
+The honest reading is that *remote access to a DuckLake catalog* is being commoditised by the engine
+vendor. Lakehold never claimed it as a differentiator — the wire endpoint is documented as parity
+([`POSTGRES-WIRE.md`](POSTGRES-WIRE.md)) — but the surrounding argument now has to be made explicitly
+rather than assumed. What a catalog server does not carry is tenancy, credentials, audit, maintenance
+policy, verified eject, and the change feed. **The control plane is the product**; remote reachability
+is table stakes underneath it.
+
+Two things follow. Whether Lakehold speaks Quack alongside the PostgreSQL wire protocol is an open
+decision with a real deadline, and it is a parity question, not a differentiation one. And it changes
+nothing about USP 5: Quack is not the Iceberg REST Catalog and does not make a DuckLake table
+readable by Spark, Trino, or Snowflake.
 
 ## Feature / capability matrix
 
@@ -270,14 +295,16 @@ of competitors, and the honest positioning differs for each.
 | Time travel / snapshots | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | CDC / change feeds | ⚠️ limited | ✅ CDF | ✅ streams | ⚠️ | ⚠️ | ✅ typed feed + webhooks |
 | CDC without a separate pipeline (no Debezium/Kafka) | ⚠️ | ❌ | ❌ | ❌ | ❌ | ✅ **unique** |
-| Catalog branching (git-style) | ❌ | ⚠️ | ❌ | ✅ Nessie | ✅ Nessie | 🛠️ roadmap |
+| Catalog branching (git-style) | ⚠️ zero-copy clone | ⚠️ | ❌ | ✅ Nessie | ✅ Nessie | 🛠️ roadmap |
 | Table maintenance controls | ✅ automatic | ✅ auto | ✅ auto | ✅ | ⚠️ manual | ✅ explicit, dry-run default |
 | Query external files (S3/Parquet/CSV) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ `httpfs` |
 | Data sharing | ✅ | ✅ Delta Sharing | ✅ mature | ✅ | ⚠️ | ⚠️ read-only attach, no UI |
 | Postgres / BI wire protocol | ✅ | ✅ JDBC | ✅ | ✅ Flight/JDBC | ✅ Trino JDBC | ✅ built-in endpoint |
+| Native DuckDB remote protocol (Quack) | ⚠️ own hybrid client | — | — | — | — | ❌ decision open |
 | Managed ingestion connectors | ✅ Flights | ✅ | ✅ | ⚠️ | ❌ | 🛠️ roadmap |
-| AI / MCP / assistant | ✅ | ✅ Genie | ✅ Cortex | ⚠️ | ❌ | 🛠️ roadmap |
-| Row / column-level security | ✅ | ✅ | ✅ | ✅ | ⚠️ | 🛠️ later |
+| AI / MCP / assistant | ✅ | ✅ Genie | ✅ Cortex | ✅ MCP server | ❌ | 🛠️ roadmap |
+| Semantic layer / governed metrics for agents | ❌ | ✅ Metric Views | ✅ Semantic Views | ✅ | ⚠️ dbt/Cube | 🛠️ from EF model |
+| Row / column-level security | ❌ by design | ✅ | ✅ | ✅ | ⚠️ | 🛠️ later |
 | Dual local↔cloud hybrid execution | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | .NET / EF Core model integration | ❌ | ❌ | ⚠️ connector only | ❌ | ❌ | ✅ **unique** |
 | Shipped .NET client package | ⚠️ DuckDB.NET | ⚠️ ODBC/JDBC | ✅ official | ❌ | ❌ | 🛠️ USP 6 |
@@ -285,7 +312,8 @@ of competitors, and the honest positioning differs for each.
 | Cost model | per-sec compute | DBU credits | credits | node + support | node + ops | VM + bucket |
 | Open source / self-managed licence | ❌ | ⚠️ UC OSS only | ❌ | ⚠️ Community ed. | ✅ | ✅ |
 
-Legend: ✅ shipped/strong · ⚠️ partial, gated, or connector-only · 🛠️ roadmap · ❌ not available
+Legend: ✅ shipped/strong · ⚠️ partial, gated, or connector-only · 🛠️ roadmap · ❌ not available ·
+— not applicable to that product's architecture
 
 **On the isolation row.** Isolation between attached catalogs is structural and holds exactly as
 "Ducklings: the isolation unit" describes — a session can only reference what is attached to it, and
