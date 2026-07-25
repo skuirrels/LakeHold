@@ -75,79 +75,28 @@ public sealed class LakeholdAuthorizationFilter : IEndpointFilter
         var capability = http.GetEndpoint()?.Metadata.GetMetadata<RouteCapabilityMetadata>()?.Capability
             ?? RouteCapability.TenantData;
 
-        if (Enforce(principal, capability, routeTenant, routeCatalog) is { } refusal)
+        var decision = CapabilityPolicy.Evaluate(principal, capability, routeTenant, routeCatalog);
+        if (decision.Outcome is not CapabilityOutcome.Allowed)
         {
-            return refusal;
+            return Refuse(decision, routeTenant, routeCatalog);
         }
 
         http.Items[PrincipalItemKey] = principal;
         return await next(context).ConfigureAwait(false);
     }
 
-    /// <summary>Enforces <paramref name="capability"/>, returning a refusal result or null to allow.</summary>
+    /// <summary>Maps a refusal from <see cref="CapabilityPolicy"/> onto its HTTP shape.</summary>
     /// <remarks>
-    ///     An unauthenticated (route-trusting) caller is always allowed — the transitional open path
-    ///     that keeps token-less clients working until <see cref="LakeholdAuthOptions.RequireAuthentication"/>
-    ///     is set, at which point a token-less request is already refused above and never reaches here.
+    ///     This is all the HTTP transport contributes to authorization: the rules, and the ordering
+    ///     that makes an unreachable tenant a 404 rather than a 403, belong to the policy so every
+    ///     transport shares them.
     /// </remarks>
-    private static IResult? Enforce(
-        ILakeholdPrincipal principal,
-        RouteCapability capability,
-        string? routeTenant,
-        string? routeCatalog)
-    {
-        if (!principal.IsAuthenticated)
+    private static IResult Refuse(CapabilityDecision decision, string? routeTenant, string? routeCatalog) =>
+        decision.Outcome switch
         {
-            return null;
-        }
-
-        switch (capability)
-        {
-            case RouteCapability.Listing:
-                // The handler scopes what it returns to the principal; reaching it is always allowed.
-                return null;
-
-            case RouteCapability.Instance:
-                return principal.Scope == TokenScope.Instance
-                    ? null
-                    : Forbidden("This operation requires an instance-scoped credential.");
-
-            case RouteCapability.TenantOwner:
-                // Subject first — an unreachable tenant is a 404 whatever the role — then capability.
-                if (TenantAccessPolicy.Evaluate(principal, routeTenant, routeCatalog) is AccessDecision.NotFound)
-                {
-                    return NotFound(routeTenant, routeCatalog);
-                }
-
-                return principal.Role == TokenRole.Owner
-                    ? null
-                    : Forbidden("This operation requires an owner credential.");
-
-            case RouteCapability.TenantAdmin:
-                if (principal.Scope == TokenScope.Instance)
-                {
-                    return null;
-                }
-
-                // A tenant principal may administer only its own tenant, and only if it is a full
-                // credential — a catalog-narrowed or read-only token is least privilege by design and
-                // must not be able to mint a broader one.
-                if (!string.Equals(routeTenant, principal.TenantSlug, StringComparison.Ordinal))
-                {
-                    return NotFound(routeTenant, routeCatalog);
-                }
-
-                return principal.CatalogName is null && !principal.IsReadOnly && principal.Role == TokenRole.Owner
-                    ? null
-                    : Forbidden("This credential is not permitted to manage tokens.");
-
-            case RouteCapability.TenantData:
-            default:
-                return TenantAccessPolicy.Evaluate(principal, routeTenant, routeCatalog) is AccessDecision.NotFound
-                    ? NotFound(routeTenant, routeCatalog)
-                    : null;
-        }
-    }
+            CapabilityOutcome.Forbidden => Forbidden(decision.Detail ?? "Forbidden."),
+            _ => NotFound(routeTenant, routeCatalog),
+        };
 
     private static IResult Unauthorized(HttpContext http)
     {

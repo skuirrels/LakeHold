@@ -4,6 +4,7 @@ using Lakehold.Api.Auth;
 using Lakehold.Api.Scheduling;
 using Lakehold.ControlPlane.Data;
 using Lakehold.ControlPlane.Model;
+using Lakehold.ControlPlane.Security;
 using Lakehold.Engine.Catalog;
 
 namespace Lakehold.Api.Endpoints;

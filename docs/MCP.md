@@ -10,8 +10,9 @@ independently shippable and testable and leaves the product working. Nothing her
 invariant in `AGENT.md`; where a rule already exists, this document says how the MCP surface preserves
 it rather than restating why.
 
-**Status: specified, not implemented.** No code exists yet. The reason is timing, and it is in
-[Version and timing](#version-and-timing) below.
+**Status: Phase 1 has landed; the MCP surface itself is not built.** The capability rules now live in
+one transport-neutral policy, which is the prerequisite everything else rests on. Nothing yet depends
+on the MCP SDK, and the reason is timing — see [Version and timing](#version-and-timing).
 
 ## Why this, and why now
 
@@ -84,10 +85,10 @@ Two consequences, both decided:
    notes cite `MCP9007`) fail a build with warnings-as-errors enabled centrally, which this repository
    does. Design and tests are written first; the package reference is added when 2.0.0 stable ships.
 
-## The structural problem, and the refactor it forces
+## The structural problem, and the refactor it forced — landed
 
-This is the one place where MCP does not map cleanly onto the existing model, and Phase 1 exists to
-solve it.
+This is the one place where MCP does not map cleanly onto the existing model, and Phase 1 existed to
+solve it. It has shipped; what follows describes the problem and then what was actually built.
 
 `LakeholdAuthorizationFilter` is an `IEndpointFilter`. It reads the required capability from
 **endpoint metadata** (`RequireCapability(…)`) and the tenant and catalog from **route values**
@@ -101,30 +102,43 @@ holds for MCP:
 The wrong fix is a second copy of the rules inside the MCP dispatch. That would put the 404-not-403
 reasoning (invariant 19) in two places and guarantee they drift.
 
-The right fix is the one already applied to `TenantAccessPolicy`, which is transport-neutral and lives
-in `Lakehold.ControlPlane.Security`: **lift `LakeholdAuthorizationFilter.Enforce` into a
-transport-neutral policy** that takes a principal, a capability, a tenant, and a catalog, and returns a
-decision rather than an `IResult`:
+The fix is the one already applied to `TenantAccessPolicy`, which is transport-neutral and lives in
+`Lakehold.ControlPlane.Security`: `LakeholdAuthorizationFilter.Enforce` was lifted into
+**`CapabilityPolicy`**, taking a principal, a capability, a tenant, and a catalog, and returning a
+decision rather than an `IResult`. `RouteCapability` moved alongside it, because capability is a
+property of the credential and the control plane owns the credential model.
 
-```csharp
-// Lakehold.ControlPlane.Security
-public enum CapabilityDecision { Allowed, NotFound, Forbidden }
+The filter now maps that decision onto `Results.NotFound` / `Results.Problem` and contributes nothing
+else to authorization. An MCP dispatch will map the same decision onto an MCP tool error. One set of
+rules, two transports — which is what invariant 19 says in the first place.
 
-public static CapabilityDecision Evaluate(
-    ILakeholdPrincipal principal, RouteCapability capability, string? tenant, string? catalog);
-```
+Two details of the built version differ from the sketch this document originally carried, and both are
+deliberate:
 
-The HTTP filter then maps that decision to `Results.NotFound` / `Results.Problem` exactly as it does
-today — no behaviour change, and `LakeholdAuthorizationFilterTests` must keep passing untouched as the
-proof — and the MCP dispatch maps the same decision to an MCP tool error. One set of rules, two
-transports, which is what invariant 19 says in the first place.
+**The decision carries a reason.** A bare three-valued enum could not preserve the three distinct 403
+messages the filter already returned, so `CapabilityDecision` is a `readonly record struct` of an
+outcome plus an optional detail. `NotFound` carries **no** detail, on purpose: it exists to avoid
+confirming that a tenant exists, and a reason attached to it would confirm exactly that. The zero value
+of `CapabilityOutcome` is `NotFound`, so a `default`-constructed decision refuses rather than allows —
+a decision type that fails open eventually fails open in production.
 
-`RouteCapability` moves alongside it, or the policy takes it as a parameter from `Lakehold.Api`;
-either is fine, but the *rules* must not be duplicated.
+**`RouteCapability` was relocated but not renamed.** The name is imperfect once a tool declares one
+rather than a route. It stays for now because both test files already import `Lakehold.Api.Auth` *and*
+`Lakehold.ControlPlane.Security`, so moving the type between those namespaces let
+`LakeholdAuthorizationFilterTests`, `TokenRoleTests`, and `TenantAccessPolicyTests` compile and pass
+**completely untouched** — which is the proof that the refactor changed no behaviour. A rename would
+have edited the very tests that constitute the evidence. It can be a separate, compiler-verified
+commit; the evidence is worth more than the name.
 
-Note the enum's name becomes slightly wrong once a tool declares one — it is no longer only a route's
-capability. Renaming it is a mechanical change across the API project and worth doing in the same
-step rather than leaving a name that lies.
+### What proves it
+
+- `LakeholdAuthorizationFilterTests` (13), `TokenRoleTests`, and `TenantAccessPolicyTests` pass with
+  **no edits** — the refactor is invisible to the HTTP surface.
+- `CapabilityPolicyTests` is new and exercises the rules directly rather than through a transport:
+  the fail-closed default, that `NotFound` explains nothing while `Forbidden` says why, that
+  **subject is checked before capability** (a reader reaching another tenant gets `NotFound`, not
+  `Forbidden`), and each capability's admission rules. This is the coverage a second transport needs
+  in order to depend on the policy without re-deriving what a refusal means.
 
 ## Authentication
 
@@ -234,10 +248,10 @@ SQL changes what may be logged, and the prohibition on logging credentials is un
 
 Each leaves the product working and is independently testable.
 
-**Phase 1 — the seam.** Verify the 2026-07-28 specification text against the assumptions above. Lift
-`Enforce` into the transport-neutral capability policy and prove the HTTP behaviour is unchanged by
-the existing filter tests. No MCP dependency yet. *This phase is shippable on its own and is a
-refactor worth having regardless.*
+**Phase 1 — the seam. Landed.** `Enforce` lifted into `CapabilityPolicy`, HTTP behaviour proven
+unchanged by the existing filter tests, new direct coverage of the rules. No MCP dependency. Still
+outstanding from this phase: **verify the 2026-07-28 specification text** against the assumptions
+above, which needs the published spec rather than the reporting summarising it.
 
 **Phase 2 — the server.** Take `ModelContextProtocol.AspNetCore` 2.0.0 stable. Host the endpoint,
 wire authentication (both schemes), serve protected-resource metadata, and expose exactly one tool:
@@ -304,8 +318,9 @@ Shipping this is not done until:
 
 - **The specification text is unverified.** Everything above about sessions, the handshake, and the
   authorization rewrite comes from secondary reporting. Phase 1 verifies it directly.
-- **`.NET 10 target support** in SDK 2.0.0 is assumed and unconfirmed.
-- **Whether `RouteCapability` is renamed** or merely relocated, once a tool declares one.
+- **.NET 10 target support** in SDK 2.0.0 is assumed and unconfirmed.
+- **Whether `RouteCapability` is renamed.** Relocated in Phase 1, not renamed, for the reason given
+  above. Worth revisiting once a tool declares one and the name visibly lies.
 - **Whether the MCP endpoint is separately toggleable** (`Lakehold:Mcp:Enabled`) or on whenever
   authentication is configured. Defaulting a new agent-reachable surface to *on* deserves an argument
   before it is made.
