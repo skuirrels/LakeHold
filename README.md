@@ -86,6 +86,19 @@ docker compose -f compose.production.yaml up -d --build
 
 → the website on <http://localhost:8080>
 
+To update a host that already runs it, `make production` pulls, rebuilds, and restarts:
+
+```bash
+make production
+```
+
+It refuses to run if tracked files have been edited on the host, pulls `--ff-only` so a deployment
+can never invent a merge commit, and rebuilds before it restarts anything — a broken build leaves
+the current containers serving traffic. `--wait` means it exits non-zero unless both healthchecks
+pass, so a container that starts and immediately crashes fails the deploy rather than reporting
+success. `make status`, `make logs`, and `make stop` cover the rest; nothing in the file removes the
+state volume.
+
 | | Development (`compose.yaml`) | Production (`compose.production.yaml`) |
 |---|---|---|
 | Images | .NET SDK + Node, ~1 GB each | Published output only — 416 MB API, 63 MB web |
