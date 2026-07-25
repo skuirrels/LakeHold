@@ -32,6 +32,10 @@ integration.
   page (`/docs`). The docs page renders `src/app/docs.content.md` at runtime (via `marked`, with a
   `.md` text loader configured in `angular.json`); that one Markdown file is the single source for
   both the in-app page and the getting-started guide read on GitHub — edit it, not two copies.
+  The DuckDB.EFCoreProvider surface follows the same split across two routes: `/provider` is the
+  pitch and `/provider/docs` renders `src/app/provider.content.md`. They are separate pages so that
+  a "Docs" link never means the provider's documentation on one page and Lakehold's on the next; the
+  provider pages name both destinations. A new route needs an entry in `public/sitemap.xml` too.
 - `docs/ARCHITECTURE.md`: architectural rationale and current product boundaries.
 - `docs/EXIT-PATH.md`: verified open-format exit procedure and Parquet caveats. Eject automates that
   procedure; keep the two consistent.

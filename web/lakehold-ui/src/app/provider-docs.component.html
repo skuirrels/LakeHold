@@ -1,0 +1,82 @@
+<div class="page">
+  <header class="nav">
+    <a class="brand" routerLink="/provider"><span class="mark">◆</span> Lakehold</a>
+    <nav class="nav-links">
+      <a routerLink="/provider">Provider</a>
+      <a routerLink="/docs">Lakehold docs</a>
+      <a
+        href="https://www.nuget.org/packages/DuckDB.EFCoreProvider"
+        target="_blank"
+        rel="noopener noreferrer"
+        >NuGet</a
+      >
+      <a
+        href="https://github.com/skuirrels/DuckDB.EFCoreProvider"
+        target="_blank"
+        rel="noopener noreferrer"
+        >GitHub</a
+      >
+      <a class="btn btn-primary" routerLink="/workbench">Open workbench →</a>
+    </nav>
+  </header>
+
+  <div class="layout">
+    <!-- Left rail, derived from the headings in provider.content.md. -->
+    <aside class="sidenav" aria-label="Provider documentation sections">
+      <span class="side-label">On this page</span>
+      <ul class="nav-tree">
+        @for (section of sections; track section.id) {
+          <li>
+            <a
+              class="sec"
+              [href]="'#' + section.id"
+              [class.active]="activeId() === section.id"
+              (click)="jumpTo($event, section.id)"
+              >{{ section.label }}</a
+            >
+            @if (section.children.length) {
+              <ul class="subtree">
+                @for (child of section.children; track child.id) {
+                  <li>
+                    <a
+                      class="sub"
+                      [href]="'#' + child.id"
+                      [class.active]="activeId() === child.id"
+                      (click)="jumpTo($event, child.id)"
+                      >{{ child.label }}</a
+                    >
+                  </li>
+                }
+              </ul>
+            }
+          </li>
+        }
+      </ul>
+    </aside>
+
+    <main class="content">
+      <section class="hero"><span class="eyebrow">Provider documentation</span></section>
+
+      <!-- Rendered from provider.content.md. -->
+      <article class="markdown" [innerHTML]="body"></article>
+
+      <section class="cta">
+        <h2>See it running</h2>
+        <p>
+          The Lakehold workbench is this provider's data plane — a seeded catalog of 250,000 events,
+          queryable immediately.
+        </p>
+        <a class="btn btn-primary lg" routerLink="/workbench">Open the workbench</a>
+      </section>
+
+      <footer class="foot">
+        <p class="domain"><a href="https://lakehold.dev">lakehold.dev</a></p>
+        <p>
+          Community provider, MIT licensed. Not affiliated with DuckDB Labs or Microsoft.
+          Built on <a href="https://duckdb.org" target="_blank" rel="noopener">DuckDB</a> and
+          <a href="https://ducklake.select" target="_blank" rel="noopener">DuckLake</a>.
+        </p>
+      </footer>
+    </main>
+  </div>
+</div>

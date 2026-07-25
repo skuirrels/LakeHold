@@ -56,6 +56,12 @@
   color: var(--text);
 }
 
+.nav-links a.icon-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .nav-links a.btn {
   text-decoration: none;
 }
@@ -451,36 +457,57 @@
   text-decoration: none;
 }
 
-/* Documentation */
-
-.layout {
-  margin-top: 96px;
-  padding-top: 28px;
-  border-top: 1px solid var(--border);
-}
-
-.doc-head {
-  padding-bottom: 8px;
-}
-
-/* CTA + footer */
+/* Handoff to the reference documentation at /provider/docs */
 
 .cta-end {
-  margin-top: 64px;
+  margin-top: 96px;
+  padding-top: 44px;
+  border-top: 1px solid var(--border);
   text-align: center;
 }
 
 .cta-end h2 {
   font-size: 24px;
   letter-spacing: -0.02em;
-  margin: 0 0 10px;
+  margin: 18px 0 10px;
 }
 
 .cta-end p {
   color: var(--text-muted);
   margin: 0 auto 22px;
-  max-width: 520px;
+  max-width: 560px;
   font-size: 14px;
+}
+
+.cta-end .cta {
+  margin-top: 0;
+}
+
+/* The section list, so the shape of the documentation is visible before you leave this page. */
+.doc-jump {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px 10px;
+  list-style: none;
+  margin: 30px 0 0;
+  padding: 0;
+}
+
+.doc-jump a {
+  display: block;
+  padding: 6px 13px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface-1);
+  color: var(--text-muted);
+  font-size: 12.5px;
+  text-decoration: none;
+}
+
+.doc-jump a:hover {
+  color: var(--text);
+  border-color: var(--border-strong);
 }
 
 .foot {

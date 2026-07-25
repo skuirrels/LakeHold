@@ -1,29 +1,23 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { MarkdownPage } from './markdown-page';
-import content from './provider.content.md';
 
 /**
- * The DuckDB.EFCoreProvider surface: the provider's value proposition, then its full reference
- * documentation.
+ * The DuckDB.EFCoreProvider surface: the provider's value proposition.
  *
  * The provider is a separate package with its own repository, but it is the data plane Lakehold is
- * built on, so its documentation is served from this site rather than from a second one. The
- * marketing copy is authored in the template; the reference prose lives in `provider.content.md`
- * and is rendered by `MarkdownPage`, exactly as the Lakehold docs page renders its own content.
+ * built on, so its documentation is served from this site rather than from a second one. This page
+ * is the pitch only — the reference prose is `ProviderDocsComponent` at `/provider/docs`, kept apart
+ * so that a "Docs" link never has to mean the provider's documentation on one page and Lakehold's on
+ * the next.
  */
 @Component({
   selector: 'lh-provider',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [RouterLink],
   templateUrl: './provider.component.html',
-  styleUrls: ['./markdown-page.css', './provider.component.css'],
+  styleUrls: ['./provider.component.css'],
 })
-export class ProviderComponent extends MarkdownPage {
-  constructor() {
-    super(content);
-  }
-
+export class ProviderComponent {
   protected readonly stats = [
     { value: 'EF Core 10', label: 'Native provider, .NET 10' },
     { value: 'v1.14', label: 'Current release on NuGet' },
@@ -94,5 +88,21 @@ export class ProviderComponent extends MarkdownPage {
   protected readonly benchmark = [
     { name: 'SaveChanges', note: 'Full EF semantics', value: '~12.5 s', width: '100%' },
     { name: 'BulkInsert', note: 'Appender fast path', value: '~90 ms', width: '8%' },
+  ];
+
+  /**
+   * Deep links into `/provider/docs`. The ids are the heading slugs `renderMarkdown` derives from
+   * `provider.content.md`, so a renamed heading has to be renamed here too.
+   */
+  protected readonly docLinks = [
+    { id: 'install', label: 'Install' },
+    { id: 'choose-a-backend', label: 'Choose a backend' },
+    { id: 'model-and-query', label: 'Model and query' },
+    { id: 'write-paths', label: 'Write paths' },
+    { id: 'file-analytics', label: 'File analytics' },
+    { id: 'ducklake', label: 'DuckLake' },
+    { id: 'tiered-storage', label: 'Tiered storage' },
+    { id: 'compatibility', label: 'Compatibility' },
+    { id: 'reference', label: 'Reference' },
   ];
 }

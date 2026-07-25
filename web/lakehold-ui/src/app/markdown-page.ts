@@ -6,6 +6,7 @@ import {
   signal,
 } from '@angular/core';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
+import { ActivatedRoute } from '@angular/router';
 import { Marked, Renderer } from 'marked';
 
 /** A jump target in the left navigation, built from a rendered heading. */
@@ -80,6 +81,7 @@ export function renderMarkdown(content: string): { html: string; sections: NavSe
 export abstract class MarkdownPage {
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly route = inject(ActivatedRoute);
 
   protected readonly body: SafeHtml;
   protected readonly sections: NavSection[];
@@ -92,6 +94,13 @@ export abstract class MarkdownPage {
     afterNextRender(() => {
       this.trackActiveHeading();
       this.wireInContentAnchors();
+      // A link from another page (`routerLink="/provider/docs" fragment="compatibility"`) has to land
+      // on the section it names. The router's anchor scrolling works on the document scroller, and
+      // the prose scrolls inside this component, so the fragment is applied here instead.
+      const fragment = this.route.snapshot.fragment;
+      if (fragment) {
+        this.scrollTo(fragment);
+      }
     });
   }
 
@@ -126,6 +135,11 @@ export abstract class MarkdownPage {
    */
   protected jumpTo(event: Event, id: string): void {
     event.preventDefault();
+    this.scrollTo(id);
+  }
+
+  /** The scroll itself, shared by the sidebar links and by an incoming route fragment. */
+  private scrollTo(id: string): void {
     const host = this.host.nativeElement;
     const target = host.querySelector(`#${CSS.escape(id)}`);
     if (target) {
