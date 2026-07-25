@@ -67,6 +67,12 @@
   color: var(--text);
 }
 
+.nav-links a.icon-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .nav-links a.btn {
   text-decoration: none;
 }
