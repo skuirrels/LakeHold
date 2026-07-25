@@ -105,6 +105,11 @@ h1 {
   font-size: 17px;
   line-height: 1.65;
   color: var(--text-muted);
+
+  /* Centred text strands its last word on a line of its own at several widths, which reads as a
+     mistake directly under the headline. Balancing evens the lines out instead of us hand-tuning
+     copy against one viewport; a browser without it just wraps normally. */
+  text-wrap: balance;
 }
 
 .lede em {

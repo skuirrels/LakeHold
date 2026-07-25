@@ -39,10 +39,10 @@ import { RouterLink } from '@angular/router';
 
       <section class="hero">
         <span class="eyebrow">Open-source lakehouse · DuckDB + DuckLake · .NET</span>
-        <h1>Your lakehouse.<br />Your bucket. Your VPC.</h1>
+        <h1>A feature-rich lakehouse.<br />You host it yourself.</h1>
         <p class="lede">
-          A serverless-feeling DuckDB warehouse that runs on <em>your</em> infrastructure, stores every
-          byte as open Parquet you can read without us, and speaks .NET natively.
+          Time travel, change data capture, a PostgreSQL wire endpoint, and native&nbsp;.NET — on
+          <em>your</em> infrastructure, storing every byte as open Parquet you can read without us.
         </p>
         <div class="cta">
           <a class="btn btn-primary lg" routerLink="/workbench">Open the workbench</a>
