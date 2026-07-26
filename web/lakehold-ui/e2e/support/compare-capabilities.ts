@@ -143,7 +143,7 @@ export const compareCapabilities: readonly CompareCapability[] = [
   },
   {
     dimension: 'Time travel',
-    claim: 'Snapshots + AS OF queries',
+    claim: 'Yes — query your data from an earlier point in time',
     tone: 'good',
     evidence: [
       {

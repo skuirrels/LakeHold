@@ -91,7 +91,7 @@ export class ComparisonComponent {
     },
     {
       dimension: 'Time travel',
-      lakehold: { text: 'Snapshots + AS OF queries', tone: 'good' },
+      lakehold: { text: 'Yes — query your data from an earlier point in time', tone: 'good' },
       motherduck: { text: 'Yes', tone: 'good' },
       clickhouse: { text: 'No first-class equivalent', tone: 'weak' },
       cloud: { text: 'Yes, mature', tone: 'good' },
