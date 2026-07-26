@@ -12,6 +12,13 @@ export interface Tenant {
   catalogs: Catalog[];
 }
 
+/** Effective permissions for the current workbench visitor. */
+export interface AccessContext {
+  mode: 'open' | 'authenticated' | 'demo';
+  role: 'owner' | 'editor' | 'reader';
+  readOnly: boolean;
+}
+
 export interface Column {
   name: string;
   /** DuckDB type name, e.g. `BigInt`, `Varchar`, `Struct`. */

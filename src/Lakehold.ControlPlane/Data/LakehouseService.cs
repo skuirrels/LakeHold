@@ -42,7 +42,8 @@ public sealed class LakehouseService(
         string sql,
         CancellationToken cancellationToken,
         bool readOnly = false,
-        int? tokenId = null)
+        int? tokenId = null,
+        bool recordHistory = true)
     {
         // The span carries tenant and catalog; the metrics deliberately do not. Per-tenant time
         // series would blow a metrics backend's cardinality budget on a multi-tenant node, and a slow
@@ -101,21 +102,24 @@ public sealed class LakehouseService(
         }
         finally
         {
-            // History is written on both paths — a failed query is exactly what a user comes to
-            // the history panel to find. Recording must not mask the original failure, so a
-            // history write that fails is swallowed rather than replacing the real exception.
-            try
+            if (recordHistory)
             {
-                run.ElapsedMilliseconds = run.ElapsedMilliseconds is 0
-                    ? (DateTimeOffset.UtcNow - run.StartedUtc).TotalMilliseconds
-                    : run.ElapsedMilliseconds;
+                // History is written on both paths — a failed query is exactly what a user comes to
+                // the history panel to find. Recording must not mask the original failure, so a
+                // history write that fails is swallowed rather than replacing the real exception.
+                try
+                {
+                    run.ElapsedMilliseconds = run.ElapsedMilliseconds is 0
+                        ? (DateTimeOffset.UtcNow - run.StartedUtc).TotalMilliseconds
+                        : run.ElapsedMilliseconds;
 
-                _context.QueryRuns.Add(run);
-                await _context.SaveChangesAsync(CancellationToken.None).ConfigureAwait(false);
-            }
-            catch (DbUpdateException)
-            {
-                // Losing an audit row is preferable to losing the query result or the real error.
+                    _context.QueryRuns.Add(run);
+                    await _context.SaveChangesAsync(CancellationToken.None).ConfigureAwait(false);
+                }
+                catch (DbUpdateException)
+                {
+                    // Losing an audit row is preferable to losing the query result or the real error.
+                }
             }
         }
     }

@@ -41,10 +41,6 @@ services:
       ASPNETCORE_ENVIRONMENT: Production
       Lakehouse__StateRoot: /var/lib/lakehold
 
-      # Off by default in Production; set explicitly here so the intent is visible rather than
-      # inherited. A production node must not invent a demo tenant holding 250,000 rows.
-      Lakehold__SeedDemoData: ${LAKEHOLD_SEED_DEMO_DATA:-false}
-
       # The application default is false, so that a fresh checkout runs token-lessly and local
       # development stays frictionless. That default is wrong for anything with a published port:
       # without it the API trusts whatever tenant a URL names, and this stack publishes :8080. The

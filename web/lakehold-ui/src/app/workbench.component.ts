@@ -1,4 +1,11 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal, viewChild } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  inject,
+  signal,
+  viewChild,
+} from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { Observable, of, throwError } from 'rxjs';
 import { catchError, switchMap } from 'rxjs/operators';
@@ -11,7 +18,15 @@ import { EjectPanelComponent } from './eject-panel.component';
 import { FirstRunComponent, FirstRunMode, WorkspaceRequest } from './first-run.component';
 import { formatTime } from './format';
 import { ApiError, LakehouseService } from './lakehouse.service';
-import { MaintenanceOperation, QueryResponse, QueryRun, Schema, Snapshot, Tenant } from './models';
+import {
+  AccessContext,
+  MaintenanceOperation,
+  QueryResponse,
+  QueryRun,
+  Schema,
+  Snapshot,
+  Tenant,
+} from './models';
 import { ResultGridComponent } from './result-grid.component';
 import { SchedulePanelComponent } from './schedule-panel.component';
 import { StoragePanelComponent } from './storage-panel.component';
@@ -27,14 +42,7 @@ GROUP BY country
 ORDER BY revenue DESC;`;
 
 type BottomTab =
-  | 'results'
-  | 'history'
-  | 'snapshots'
-  | 'storage'
-  | 'backups'
-  | 'ejects'
-  | 'changes'
-  | 'schedule';
+  'results' | 'history' | 'snapshots' | 'storage' | 'backups' | 'ejects' | 'changes' | 'schedule';
 
 /**
  * The SQL IDE.
@@ -83,6 +91,7 @@ export class WorkbenchComponent {
   protected readonly tokenDraft = signal('');
 
   protected readonly tenants = signal<Tenant[]>([]);
+  protected readonly access = signal<AccessContext | null>(null);
   protected readonly tenantSlug = signal<string | null>(null);
   protected readonly catalogName = signal<string | null>(null);
 
@@ -142,7 +151,11 @@ export class WorkbenchComponent {
     () => this.tenants().find((t) => t.slug === this.tenantSlug())?.catalogs ?? [],
   );
 
-  protected readonly ready = computed(() => this.tenantSlug() !== null && this.catalogName() !== null);
+  protected readonly ready = computed(
+    () => this.tenantSlug() !== null && this.catalogName() !== null,
+  );
+  protected readonly readOnlyAccess = computed(() => this.access()?.readOnly ?? false);
+  protected readonly demoMode = computed(() => this.access()?.mode === 'demo');
 
   /**
    * Base tables as `schema.table`, for the pickers that need one.
@@ -153,7 +166,9 @@ export class WorkbenchComponent {
    */
   protected readonly baseTables = computed(() =>
     this.schemas().flatMap((schema) =>
-      schema.tables.filter((table) => table.kind !== 'VIEW').map((table) => `${schema.name}.${table.name}`),
+      schema.tables
+        .filter((table) => table.kind !== 'VIEW')
+        .map((table) => `${schema.name}.${table.name}`),
     ),
   );
 
@@ -189,46 +204,55 @@ export class WorkbenchComponent {
 
   /** Loads the tenants the current credential can see, selecting the first as a starting point. */
   private loadTenants(): void {
-    this.api.listTenants().subscribe({
-      next: (tenants) => {
-        this.tenants.set(tenants);
-        this.error.set(null);
-        const first = tenants[0];
-        if (first) {
-          this.firstRun.set('none');
-          this.signInRejected.set(false);
-          this.tenantSlug.set(first.slug);
-          this.catalogName.set(first.catalogs[0]?.name ?? null);
-          this.refreshCatalog();
-          this.refreshHistory();
-        } else {
-          // The credential is accepted and there is nothing behind it. On a fresh node that is the
-          // expected state, not a failure, so the panel offers to create the first workspace rather
-          // than leaving two empty pickers and no explanation.
-          this.firstRun.set('setup');
-          this.tenantSlug.set(null);
-          this.catalogName.set(null);
-          this.schemas.set([]);
-          this.history.set([]);
-        }
-      },
-      error: (err: Error) => {
-        // 401 is the ordinary first contact with a deployment that requires authentication, so it
-        // asks for a token instead of reporting a failure the user cannot act on.
-        if (err instanceof ApiError && err.status === 401) {
-          this.firstRun.set('unauthorized');
-          this.signInRejected.set(this.auth.hasToken());
-          this.tenants.set([]);
-          this.tenantSlug.set(null);
-          this.catalogName.set(null);
+    this.api
+      .getAccess()
+      .pipe(
+        switchMap((access) => {
+          this.access.set(access);
+          return this.api.listTenants();
+        }),
+      )
+      .subscribe({
+        next: (tenants) => {
+          this.tenants.set(tenants);
           this.error.set(null);
-          return;
-        }
+          const first = tenants[0];
+          if (first) {
+            this.firstRun.set('none');
+            this.signInRejected.set(false);
+            this.tenantSlug.set(first.slug);
+            this.catalogName.set(first.catalogs[0]?.name ?? null);
+            this.refreshCatalog();
+            this.refreshHistory();
+          } else {
+            // The credential is accepted and there is nothing behind it. On a fresh node that is the
+            // expected state, not a failure, so the panel offers to create the first workspace rather
+            // than leaving two empty pickers and no explanation.
+            this.firstRun.set('setup');
+            this.tenantSlug.set(null);
+            this.catalogName.set(null);
+            this.schemas.set([]);
+            this.history.set([]);
+          }
+        },
+        error: (err: Error) => {
+          // 401 is the ordinary first contact with a deployment that requires authentication, so it
+          // asks for a token instead of reporting a failure the user cannot act on.
+          if (err instanceof ApiError && err.status === 401) {
+            this.access.set(null);
+            this.firstRun.set('unauthorized');
+            this.signInRejected.set(this.auth.hasToken());
+            this.tenants.set([]);
+            this.tenantSlug.set(null);
+            this.catalogName.set(null);
+            this.error.set(null);
+            return;
+          }
 
-        this.firstRun.set('none');
-        this.fail('Could not load workspaces', err.message);
-      },
-    });
+          this.firstRun.set('none');
+          this.fail('Could not load workspaces', err.message);
+        },
+      });
   }
 
   /**
@@ -408,7 +432,8 @@ export class WorkbenchComponent {
     const version = snapshot.snapshotId;
     const tables = this.baseTables();
     const target = tables[0] ?? 'schema.table';
-    const others = tables.length > 1 ? `\n-- Other tables in this catalog: ${tables.slice(1).join(', ')}` : '';
+    const others =
+      tables.length > 1 ? `\n-- Other tables in this catalog: ${tables.slice(1).join(', ')}` : '';
 
     this.sql.set(
       `-- Restore a table to snapshot ${version} and record a new, reversible snapshot.
@@ -439,7 +464,9 @@ SELECT * FROM ${target} AT (VERSION => ${version});`,
 
     this.api.runMaintenance(tenant, catalog, operation, apply).subscribe({
       next: (res) => {
-        this.notice.set(`${res.operation}: ${res.detail} (${res.elapsedMilliseconds.toFixed(0)} ms)`);
+        this.notice.set(
+          `${res.operation}: ${res.detail} (${res.elapsedMilliseconds.toFixed(0)} ms)`,
+        );
         this.pendingApply.set(res.dryRun ? operation : null);
 
         // A dry run changed nothing and needs no refresh. A committed one did, and the panel showing
@@ -516,7 +543,9 @@ SELECT * FROM ${target} AT (VERSION => ${version});`,
     }
 
     // History is advisory; a failure here must not replace the query error the user is reading.
-    this.api.getHistory(tenant).subscribe({ next: (runs) => this.history.set(runs), error: () => undefined });
+    this.api
+      .getHistory(tenant)
+      .subscribe({ next: (runs) => this.history.set(runs), error: () => undefined });
   }
 
   private refreshSnapshots(): void {

@@ -63,7 +63,17 @@ public sealed class LakeholdAuthorizationFilter : IEndpointFilter
         }
         else if (options.RequireAuthentication)
         {
-            return Unauthorized(http);
+            var demoTenant = options.DemoTenant.Trim();
+            var demoCatalog = options.DemoCatalog.Trim();
+            if (demoTenant.Length == 0 || demoCatalog.Length == 0)
+            {
+                return Unauthorized(http);
+            }
+
+            // A demo deployment may expose one seeded catalog for evaluation without publishing an
+            // operator credential. This principal is still subject-scoped and read-only; unlike the
+            // legacy token-less principal it never trusts tenant or catalog route segments.
+            principal = LakeholdPrincipal.Demo(demoTenant, demoCatalog);
         }
         else
         {

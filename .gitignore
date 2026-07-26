@@ -3,6 +3,7 @@ bin/
 obj/
 dist/
 artifacts/
+output/playwright/
 
 # Node
 node_modules/

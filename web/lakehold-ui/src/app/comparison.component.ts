@@ -161,9 +161,9 @@ export class ComparisonComponent {
     },
     {
       dimension: 'Licence',
-      lakehold: { text: 'Apache-2.0, no open-core catch', tone: 'good' },
+      lakehold: { text: 'Apache-2.0', tone: 'good' },
       motherduck: { text: 'Proprietary', tone: 'weak' },
-      clickhouse: { text: 'Apache-2.0', tone: 'good' },
+      clickhouse: { text: 'Apache-2.0; Cloud proprietary', tone: 'good' },
       cloud: { text: 'Proprietary', tone: 'weak' },
     },
     {

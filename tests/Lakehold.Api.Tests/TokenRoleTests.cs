@@ -149,6 +149,20 @@ public sealed class TokenRoleTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Owners_and_editors_may_change_subscriptions_but_readers_may_not()
+    {
+        foreach (var token in new[] { _owner, _editor })
+        {
+            var allowed = await RunAsync(token, Capability.TenantWrite);
+            Assert.True(allowed.Passed);
+        }
+
+        var reader = await RunAsync(_reader, Capability.TenantWrite);
+        Assert.False(reader.Passed);
+        Assert.Equal(StatusCodes.Status403Forbidden, reader.Status);
+    }
+
+    [Fact]
     public async Task Only_an_owner_may_manage_tokens()
     {
         var owner = await RunAsync(_owner, Capability.TenantAdmin);

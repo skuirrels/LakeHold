@@ -28,6 +28,13 @@ public enum Capability
     TenantData,
 
     /// <summary>
+    ///     Changes tenant-owned control-plane state without requiring full owner privileges. Owners
+    ///     and editors hold it; readers do not. Used for webhook subscription management, whose
+    ///     endpoints mutate state even though they sit beside read-only change-feed routes.
+    /// </summary>
+    TenantWrite,
+
+    /// <summary>
     ///     Reaches a tenant's data <em>and</em> changes it destructively or exports it — maintenance,
     ///     restore, and eject. Everything <see cref="TenantData"/> requires, plus the owner role: a
     ///     reader queries and an editor writes, but expiring snapshots, deleting data files, and

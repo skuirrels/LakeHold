@@ -153,6 +153,47 @@ public sealed class LakeholdAuthorizationFilterTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Demo_access_is_scoped_to_one_read_only_catalog()
+    {
+        await using var services = BuildServices(
+            requireAuthentication: true,
+            demoTenant: "demo",
+            demoCatalog: "analytics");
+
+        var ownCatalog = await RunAsync(
+            services, bearer: null, "demo", "analytics", Capability.TenantData);
+        var otherCatalog = await RunAsync(
+            services, bearer: null, "demo", "private", Capability.TenantData);
+        var maintenance = await RunAsync(
+            services, bearer: null, "demo", "analytics", Capability.TenantOwner);
+        var subscriptionWrite = await RunAsync(
+            services, bearer: null, "demo", "analytics", Capability.TenantWrite);
+
+        Assert.True(ownCatalog.Passed);
+        Assert.Equal(StatusCodes.Status200OK, ownCatalog.Status);
+        Assert.Equal(StatusCodes.Status404NotFound, otherCatalog.Status);
+        Assert.Equal(StatusCodes.Status403Forbidden, maintenance.Status);
+        Assert.Equal(StatusCodes.Status403Forbidden, subscriptionWrite.Status);
+    }
+
+    [Theory]
+    [InlineData("demo", "")]
+    [InlineData("", "analytics")]
+    public async Task An_incomplete_demo_configuration_fails_closed(string tenant, string catalog)
+    {
+        await using var services = BuildServices(
+            requireAuthentication: true,
+            demoTenant: tenant,
+            demoCatalog: catalog);
+
+        var (status, passed) = await RunAsync(
+            services, bearer: null, "demo", "analytics", Capability.TenantData);
+
+        Assert.False(passed);
+        Assert.Equal(StatusCodes.Status401Unauthorized, status);
+    }
+
+    [Fact]
     public async Task An_instance_token_reaches_a_provisioning_route()
     {
         var (status, passed) = await RunAsync(
@@ -204,14 +245,22 @@ public sealed class LakeholdAuthorizationFilterTests : IAsyncLifetime
         Assert.Equal(StatusCodes.Status403Forbidden, status);
     }
 
-    private ServiceProvider BuildServices(bool requireAuthentication)
+    private ServiceProvider BuildServices(
+        bool requireAuthentication,
+        string demoTenant = "",
+        string demoCatalog = "")
     {
         var services = new ServiceCollection();
         services.AddLogging();
         services.AddDbContext<ControlPlaneContext>(o => o.UseDuckDB($"Data Source={Path.Combine(_root, "cp.duckdb")}"));
         services.AddScoped<ApiTokenAuthenticator>();
         services.AddSingleton(TimeProvider.System);
-        services.Configure<LakeholdAuthOptions>(o => o.RequireAuthentication = requireAuthentication);
+        services.Configure<LakeholdAuthOptions>(o =>
+        {
+            o.RequireAuthentication = requireAuthentication;
+            o.DemoTenant = demoTenant;
+            o.DemoCatalog = demoCatalog;
+        });
         return services.BuildServiceProvider();
     }
 

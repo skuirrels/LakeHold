@@ -27,6 +27,12 @@ public sealed record QueryResponse(
 /// <summary>A tenant, as returned by the API.</summary>
 public sealed record TenantDto(string Slug, string DisplayName, IReadOnlyList<CatalogDto> Catalogs);
 
+/// <summary>The effective access the current browser has to the workbench.</summary>
+/// <param name="Mode"><c>open</c>, <c>authenticated</c>, or <c>demo</c>.</param>
+/// <param name="Role">Effective tenant role, lower-case for direct display and client comparison.</param>
+/// <param name="ReadOnly">Whether catalogs are attached without write access.</param>
+public sealed record AccessDto(string Mode, string Role, bool ReadOnly);
+
 /// <summary>Request to provision a tenant. Instance scope.</summary>
 /// <param name="Slug">URL-safe key. Reserved value <c>admin</c> is refused — it collides with the instance-token prefix.</param>
 public sealed record CreateTenantRequest(string Slug, string DisplayName);

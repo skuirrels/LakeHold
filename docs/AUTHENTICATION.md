@@ -446,6 +446,8 @@ mean. It is written for someone operating a deployment rather than someone chang
 | Key | Default | Meaning |
 |---|---|---|
 | `Lakehold:Auth:RequireAuthentication` | `false` | Whether a request must carry a credential. False lets a token-less request fall back to trusting the route. A credential that *is* presented is always validated regardless. |
+| `Lakehold:Auth:DemoTenant` | empty | Optional tenant exposed in demo mode to credential-less visitors as a reader. Requires `DemoCatalog`; incomplete configuration fails closed. |
+| `Lakehold:Auth:DemoCatalog` | empty | The single catalog exposed inside `DemoTenant`, attached read-only. |
 | `Lakehold:BootstrapToken` | unset | Pre-seeds the first instance token instead of minting one. Only read when the token table is empty. A secret — set it through the environment, never `appsettings.json`. |
 | `Lakehold:Oidc:Authority` | empty | OIDC issuer. **Empty disables OIDC entirely**, which is what keeps an air-gapped install free of an identity-provider dependency. |
 | `Lakehold:Oidc:Audience` | empty | Audience a JWT must carry. Empty skips audience validation. |

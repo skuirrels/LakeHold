@@ -111,6 +111,16 @@ public static class CapabilityPolicy
                     ? CapabilityDecision.Allow
                     : CapabilityDecision.Forbid("This operation requires an owner credential.");
 
+            case Capability.TenantWrite:
+                if (TenantAccessPolicy.Evaluate(principal, tenant, catalog) is AccessDecision.NotFound)
+                {
+                    return CapabilityDecision.NotFound;
+                }
+
+                return principal.Role is TokenRole.Owner or TokenRole.Editor
+                    ? CapabilityDecision.Allow
+                    : CapabilityDecision.Forbid("This operation requires an editor or owner credential.");
+
             case Capability.TenantAdmin:
                 if (principal.Scope == TokenScope.Instance)
                 {

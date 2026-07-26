@@ -1,0 +1,18 @@
+# Demo deployment overlay used by lakehold.dev and the E2E suite.
+#
+# Authentication stays enabled. Credential-less visitors receive only the synthetic reader scoped
+# to demo/analytics; this is intentionally different from setting LAKEHOLD_REQUIRE_AUTH=false,
+# which would trust every tenant and catalog named in a URL.
+#
+#   docker compose -f compose.production.yaml -f compose.demo.yaml up -d
+#
+# The customer-facing production file contains no demo settings. This overlay owns all of them, and
+# may be pointed at a different seeded tenant/catalog without changing the standard installation.
+
+services:
+  api:
+    environment:
+      Lakehold__SeedDemoData: "true"
+      Lakehold__Auth__RequireAuthentication: "true"
+      Lakehold__Auth__DemoTenant: ${LAKEHOLD_DEMO_TENANT:-demo}
+      Lakehold__Auth__DemoCatalog: ${LAKEHOLD_DEMO_CATALOG:-analytics}

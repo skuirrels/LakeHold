@@ -290,6 +290,6 @@ export class LandingComponent {
     { value: '30', label: 'Metadata tables backed up and restored' },
     { value: '35', label: 'Automated tests, 5 against live services' },
     { value: '0', label: 'Vendor services in the query path' },
-    { value: 'Apache-2.0', label: 'Licence, no open-core catch' },
+    { value: 'Apache-2.0', label: 'Permissive open-source licence' },
   ];
 }

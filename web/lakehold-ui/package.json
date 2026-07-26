@@ -6,7 +6,12 @@
     "start": "ng serve",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
-    "test": "ng test"
+    "test": "ng test",
+    "test:unit": "ng test --watch=false",
+    "test:e2e": "playwright test",
+    "test:e2e:demo": "../../scripts/test-demo.sh",
+    "test:e2e:phase2": "../../scripts/test-phase2.sh",
+    "test:e2e:install": "playwright install chromium"
   },
   "private": true,
   "packageManager": "npm@11.12.1",
@@ -27,6 +32,7 @@
     "@angular/build": "^22.0.8",
     "@angular/cli": "^22.0.8",
     "@angular/compiler-cli": "^22.0.8",
+    "@playwright/test": "^1.62.0",
     "jsdom": "^29.1.1",
     "prettier": "^3.8.1",
     "typescript": "~6.0.2",

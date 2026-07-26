@@ -3,8 +3,8 @@
 @if (restoreResult(); as result) {
   <div class="ok-banner">
     Restored generation {{ result.generation }} — {{ formatCount(result.tablesRestored) }} tables,
-    {{ formatCount(result.rowsRestored) }} rows, into {{ result.metadataPath }}. The original catalog is
-    untouched.
+    {{ formatCount(result.rowsRestored) }} rows, into {{ result.metadataPath }}. The original
+    catalog is untouched.
   </div>
 }
 
@@ -31,12 +31,15 @@
           <td class="num">{{ backup.snapshotId ?? '—' }}</td>
           <td class="num">{{ formatCount(backup.tableCount) }}</td>
           <td>
-            @if (backup.complete) {
+            @if (readOnly()) {
+              <span class="advisory">view only</span>
+            } @else if (backup.complete) {
               <button class="row-btn" type="button" (click)="beginRestore(backup)">Restore…</button>
             } @else {
               <span
                 class="advisory"
-                title="No manifest: this generation died partway through. Restoring it could silently reinstate deleted rows, so the server refuses it.">
+                title="No manifest: this generation died partway through. Restoring it could silently reinstate deleted rows, so the server refuses it."
+              >
                 incomplete
               </span>
             }
@@ -47,29 +50,38 @@
   </table>
 }
 
-@if (restoreFrom(); as generation) {
-  <div class="restore-form">
-    <p class="restore-lead">
-      Rebuild generation <strong>{{ generation.generation }}</strong> into a <em>new</em> catalog file.
-      Restore never overwrites, so this path must not already exist — the current catalog is left
-      exactly as it is.
-    </p>
+@if (!readOnly()) {
+  @if (restoreFrom(); as generation) {
+    <div class="restore-form">
+      <p class="restore-lead">
+        Rebuild generation <strong>{{ generation.generation }}</strong> into a <em>new</em> catalog
+        file. Restore never overwrites, so this path must not already exist — the current catalog is
+        left exactly as it is.
+      </p>
 
-    <label class="field wide">
-      <span>Target metadata path</span>
-      <input type="text" [value]="restoreTarget()" (input)="restoreTarget.set($any($event.target).value)" />
-      <small class="hint">
-        A bare name lands beside the server's other catalogs. An absolute path is used as given.
-      </small>
-    </label>
+      <label class="field wide">
+        <span>Target metadata path</span>
+        <input
+          type="text"
+          [value]="restoreTarget()"
+          (input)="restoreTarget.set($any($event.target).value)"
+        />
+        <small class="hint">
+          A bare name lands beside the server's other catalogs. An absolute path is used as given.
+        </small>
+      </label>
 
-    <div class="restore-actions">
-      <button class="btn btn-primary" type="button"
-              [disabled]="restoring() || !restoreTarget().trim()"
-              (click)="confirmRestore()">
-        {{ restoring() ? 'Restoring…' : 'Restore' }}
-      </button>
-      <button class="btn" type="button" (click)="cancelRestore()">Cancel</button>
+      <div class="restore-actions">
+        <button
+          class="btn btn-primary"
+          type="button"
+          [disabled]="restoring() || !restoreTarget().trim()"
+          (click)="confirmRestore()"
+        >
+          {{ restoring() ? 'Restoring…' : 'Restore' }}
+        </button>
+        <button class="btn" type="button" (click)="cancelRestore()">Cancel</button>
+      </div>
     </div>
-  </div>
+  }
 }

@@ -13,4 +13,16 @@ public sealed class LakeholdAuthOptions
     ///     validated, regardless of this flag.
     /// </summary>
     public bool RequireAuthentication { get; set; }
+
+    /// <summary>
+    ///     Tenant exposed in demo mode to credential-less visitors as a tightly scoped reader.
+    ///     Empty disables demo access. <see cref="DemoCatalog"/> must also be set.
+    /// </summary>
+    public string DemoTenant { get; set; } = string.Empty;
+
+    /// <summary>
+    ///     The single catalog exposed inside <see cref="DemoTenant"/>. Empty disables demo access,
+    ///     even when a tenant was configured, so an incomplete deployment fails closed.
+    /// </summary>
+    public string DemoCatalog { get; set; } = string.Empty;
 }

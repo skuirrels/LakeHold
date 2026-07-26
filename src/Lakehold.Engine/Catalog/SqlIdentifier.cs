@@ -24,6 +24,8 @@ namespace Lakehold.Engine.Catalog;
 public static class SqlIdentifier
 {
     private const int MaxLength = 63;
+    private static readonly HashSet<string> ReservedCatalogNames =
+        new(StringComparer.OrdinalIgnoreCase) { "main", "system", "temp" };
 
     /// <summary>
     ///     Returns whether <paramref name="value"/> is a bare identifier: an ASCII letter or
@@ -50,6 +52,36 @@ public static class SqlIdentifier
         }
 
         return true;
+    }
+
+    /// <summary>
+    ///     Returns whether a value is a valid identifier that DuckDB can use as an attached database
+    ///     name. <c>main</c>, <c>system</c>, and <c>temp</c> are reserved by DuckDB even when quoted.
+    /// </summary>
+    public static bool IsValidCatalogName([NotNullWhen(true)] string? value)
+        => IsValid(value) && !ReservedCatalogNames.Contains(value);
+
+    /// <summary>Validates an attached catalog name and returns it unchanged.</summary>
+    /// <exception cref="ArgumentException">
+    ///     The value is not a bare identifier, or is a database name reserved by DuckDB.
+    /// </exception>
+    public static string ValidateCatalogName(
+        string? value,
+        [CallerArgumentExpression(nameof(value))] string? paramName = null)
+    {
+        if (!IsValid(value))
+        {
+            return Quote(value, paramName);
+        }
+
+        if (ReservedCatalogNames.Contains(value))
+        {
+            throw new ArgumentException(
+                $"'{value}' is reserved by DuckDB and cannot be used as a catalog name.",
+                paramName);
+        }
+
+        return value;
     }
 
     /// <summary>

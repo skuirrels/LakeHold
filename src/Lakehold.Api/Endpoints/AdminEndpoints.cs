@@ -146,6 +146,12 @@ public static partial class AdminEndpoints
             return TypedResults.BadRequest("A catalog name that is a bare SQL identifier of at most 63 characters is required.");
         }
 
+        if (!SqlIdentifier.IsValidCatalogName(request.Name))
+        {
+            return TypedResults.BadRequest(
+                $"'{request.Name}' is reserved by DuckDB and cannot be used as a catalog name.");
+        }
+
         var tenant = await context.Tenants
             .FirstOrDefaultAsync(t => t.Slug == tenantSlug, cancellationToken)
             .ConfigureAwait(false);

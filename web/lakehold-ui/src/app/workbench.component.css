@@ -112,7 +112,10 @@
     /* The picker is a popover, so it is display:none when closed; the discrete transition is what
        lets the fade run on open instead of being skipped. */
     opacity: 0;
-    transition: opacity 110ms ease, display 110ms allow-discrete, overlay 110ms allow-discrete;
+    transition:
+      opacity 110ms ease,
+      display 110ms allow-discrete,
+      overlay 110ms allow-discrete;
   }
 
   .field select:open::picker(select) {
@@ -167,6 +170,19 @@
   letter-spacing: 0.08em;
   color: var(--text-faint);
   margin-right: 2px;
+}
+
+.access-badge {
+  margin-left: auto;
+  padding: 4px 9px;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--border));
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
 }
 
 /* Credential control. Maintenance already claims the auto margin, so this sits just right of it. */
@@ -234,7 +250,6 @@
   min-height: 0;
 }
 
-
 .sidebar {
   width: 270px;
   flex-shrink: 0;
@@ -268,6 +283,26 @@
   flex-direction: column;
   min-width: 0;
   min-height: 0;
+}
+
+.demo-banner {
+  flex-shrink: 0;
+  padding: 8px 14px;
+  color: var(--text-muted);
+  background: color-mix(in srgb, var(--accent) 7%, var(--surface-1));
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.demo-banner strong {
+  color: var(--text);
+  margin-right: 4px;
+}
+
+.read-only-label {
+  color: var(--text-faint);
+  font-size: 11px;
 }
 
 /* Editor */
@@ -543,7 +578,10 @@
   background: var(--surface-3);
   color: var(--text-muted);
   white-space: nowrap;
-  transition: color 0.12s ease, border-color 0.12s ease, background 0.12s ease;
+  transition:
+    color 0.12s ease,
+    border-color 0.12s ease,
+    background 0.12s ease;
 }
 
 .restore-btn:hover {
