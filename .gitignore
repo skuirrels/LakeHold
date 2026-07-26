@@ -30,3 +30,6 @@ node_modules/
 
 # Aspire CLI local state: records which AppHost this machine last ran.
 .aspire/
+
+# Local strategy assessment; intentionally not part of the public repository.
+/docs/local-only/lakehold-market-positioning-assessment-2026-07-26.md
