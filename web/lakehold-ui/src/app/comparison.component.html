@@ -108,7 +108,7 @@
     </p>
     <ul>
       <li><strong>More than one person.</strong> DuckDB is a library, not a service — there is no shared endpoint, no auth, no query history.</li>
-      <li><strong>More than one tenant.</strong> Isolation has to live somewhere. Here it is the per-tenant session and what is attached to it.</li>
+      <li><strong>Tenant-scoped access.</strong> Credentials and control-plane records carry tenant identity. Shared multi-tenant production use still waits on complete same-name catalog isolation.</li>
       <li><strong>Transactions and time travel.</strong> That is DuckLake, and someone has to own the catalog, the snapshots, and the compaction schedule.</li>
       <li><strong>An operator.</strong> Flush, compact, expire, and cleanup are real jobs with real consequences. Lakehold makes them buttons with dry-run defaults instead of folklore.</li>
     </ul>
@@ -120,7 +120,7 @@
 
   <section class="cta">
     <h2>See it for yourself</h2>
-    <p>The workbench ships with a seeded catalog — 250,000 events, queryable immediately.</p>
+    <p>The development stack ships with a seeded catalog — 250,000 events, queryable immediately.</p>
     <a class="btn btn-primary lg" routerLink="/workbench">Open the workbench</a>
   </section>
 

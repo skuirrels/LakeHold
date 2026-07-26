@@ -50,20 +50,20 @@ export class ComparisonComponent {
     {
       dimension: 'Deployment',
       lakehold: { text: 'Self-hosted anywhere, incl. air-gapped', tone: 'good' },
-      motherduck: { text: 'Hosted service only', tone: 'weak' },
+      motherduck: { text: 'Hosted catalog; local or cloud compute', tone: 'neutral' },
       clickhouse: { text: 'Self-hosted or ClickHouse Cloud', tone: 'good' },
       cloud: { text: 'Hosted service only', tone: 'weak' },
     },
     {
       dimension: 'Where your data lives',
-      lakehold: { text: 'Your bucket, always', tone: 'good' },
-      motherduck: { text: 'Their account; BYO bucket on paid tiers', tone: 'weak' },
+      lakehold: { text: 'Your disk or object store, under your control', tone: 'good' },
+      motherduck: { text: 'Managed storage or your own bucket', tone: 'good' },
       clickhouse: { text: 'Your disks, or their cloud', tone: 'good' },
       cloud: { text: 'Their account, or external tables', tone: 'weak' },
     },
     {
       dimension: 'Accounts, SSO, permissions',
-      lakehold: { text: 'None yet — next on the roadmap', tone: 'weak' },
+      lakehold: { text: 'API tokens, OIDC, three roles; opt-in, no admin UI or row policies', tone: 'weak' },
       motherduck: { text: 'Accounts, SSO, org roles', tone: 'good' },
       clickhouse: { text: 'Users, roles, row policies', tone: 'good' },
       cloud: { text: 'Mature RBAC, SSO, lineage', tone: 'good' },
@@ -85,7 +85,7 @@ export class ComparisonComponent {
     {
       dimension: 'Other engines read it live',
       lakehold: { text: 'Eject or export today; Iceberg REST planned', tone: 'weak' },
-      motherduck: { text: 'Through their service, not direct', tone: 'weak' },
+      motherduck: { text: 'Direct with BYO compute; catalog remains hosted', tone: 'good' },
       clickhouse: { text: 'Its own protocols; export for others', tone: 'weak' },
       cloud: { text: 'Yes — via their catalog endpoints', tone: 'good' },
     },
@@ -109,6 +109,13 @@ export class ComparisonComponent {
       motherduck: { text: 'Limited; not exposed directly', tone: 'weak' },
       clickhouse: { text: 'Kafka engine or external tooling', tone: 'neutral' },
       cloud: { text: 'Yes — CDF / streams, mature', tone: 'good' },
+    },
+    {
+      dimension: 'AI / MCP',
+      lakehold: { text: 'Authenticated MCP; read tools + operator-gated writes', tone: 'good' },
+      motherduck: { text: 'Managed MCP with sandboxed compute', tone: 'good' },
+      clickhouse: { text: 'Open-source and managed remote MCP', tone: 'good' },
+      cloud: { text: 'Managed AI and agent platforms with MCP', tone: 'good' },
     },
     {
       dimension: 'BI tools (Power BI, Tableau)',
@@ -162,9 +169,9 @@ export class ComparisonComponent {
     {
       dimension: 'Cost shape',
       lakehold: { text: 'A VM and a bucket', tone: 'neutral' },
-      motherduck: { text: 'Free tier; Business from ~$250/mo', tone: 'neutral' },
-      clickhouse: { text: 'Free self-hosted; Cloud from ~$66/mo', tone: 'neutral' },
-      cloud: { text: 'Credit-based; ~$28\u201336k/yr mid-size team', tone: 'neutral' },
+      motherduck: { text: 'Free Lite; Business $250/org/mo + usage', tone: 'neutral' },
+      clickhouse: { text: 'Free self-hosted; Cloud pay-as-you-use', tone: 'neutral' },
+      cloud: { text: 'Usage / credit based; enterprise spend varies', tone: 'neutral' },
     },
   ];
 
@@ -172,16 +179,17 @@ export class ComparisonComponent {
     {
       name: 'MotherDuck',
       summary:
-        'The closest comparison: the same engine and the same table format, with the opposite deployment model. This is a choice about where the data sits and who operates it, not about query semantics — a query that runs on one generally runs on the other.',
+        'The closest comparison: the same engine and the same table format, with a different control model. MotherDuck hosts the catalog and can manage storage and compute; Lakehold puts the whole service under your control. Query semantics are otherwise close — a query that runs on one generally runs on the other.',
       chooseUs: [
         'Data residency, a security review, or an air-gapped network rules out a hosted service.',
-        'You want bring-your-own-bucket as the default, not a paid tier.',
+        'You want the metadata catalog under your control rather than hosted by another service.',
         'Your stack is .NET and you want EF Core and analytics sharing one model.',
         'You want the compaction and retention knobs exposed rather than managed for you.',
         'A predictable VM bill beats per-second billing for your workload.',
       ],
       chooseThem: [
         'You need per-user accounts and row- or column-level permissions with a console to administer them — Lakehold authenticates with tenant-scoped API tokens, OIDC, and three roles, but per-user administration is not a product surface yet.',
+        'You need a shared multi-tenant production service today — Lakehold still has same-name catalog isolation work to complete.',
         'You want zero operations and nothing to run.',
         'You need to scale past a single node without re-architecting.',
         'Hybrid local-and-cloud dual execution is valuable to you — it is genuinely clever and we have not replicated it.',
@@ -194,7 +202,7 @@ export class ComparisonComponent {
       summary:
         'The strongest alternative if self-hosting is the requirement, and on raw scale and concurrency it beats us outright. The real difference is storage philosophy: ClickHouse owns its on-disk format, Lakehold leaves plain Parquet in your bucket.',
       chooseUs: [
-        'You want open Parquet on disk that other engines can read without an export step.',
+        'You want an open Parquet and DuckLake storage contract with a verified eject path.',
         'You need transactions, snapshots, and time travel over your tables.',
         'Your data fits comfortably on one node and you would rather not run a cluster.',
         'You are a .NET shop and want an ORM story, not just a driver.',

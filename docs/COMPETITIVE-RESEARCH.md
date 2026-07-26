@@ -21,7 +21,7 @@ Stated first, because a competitive document that hides its sourcing is marketin
   v1.0 drew four comments and carried no usable signal. So "what users want" below rests on the
   issue trackers, and community *sentiment* is under-sampled relative to community *requests*.
 
-Counts are as of 25 July 2026 and only move upward; treat them as a floor.
+Counts are as of 26 July 2026 and only move upward; treat them as a floor.
 
 ## 1. The upstream shift that matters most: Quack
 
@@ -93,7 +93,16 @@ feature the format will never own (tenancy, attestation, .NET model sharing) is 
 | **dbt Cloud support through the Postgres endpoint** | 2 Jul |
 | SOC 2 Type II, GDPR, tiered support, read scaling, EU and APAC regions | H1 |
 
-Two observations are worth more than the list.
+Three observations are worth more than the list.
+
+**Bring-your-own storage and compute are current capabilities, not paid-tier caveats.** MotherDuck's
+[DuckLake product page](https://motherduck.com/product/ducklake/) advertises managed or
+bring-your-own object storage, and its
+[DuckLake 1.0 announcement](https://motherduck.com/blog/announcing-ducklake-1-0-on-motherduck)
+documents bring-your-own compute reading and writing those tables directly while MotherDuck hosts
+the catalog. The public comparison page must therefore distinguish hosted *catalog* from hosted
+*data and compute*. Pricing was rechecked on 26 July:
+[Lite is free and Business is $250 per organisation per month plus usage](https://motherduck.com/product/pricing/).
 
 **The dbt Cloud integration arrived through their PostgreSQL endpoint.** That is independent
 confirmation that a PG wire surface is an *integration* surface and not merely a BI convenience —
@@ -112,6 +121,11 @@ deliberate design choice — access is granted at the database level, whole data
 multi-tenancy handled by separating databases rather than by fine-grained policy. The matrix
 previously scored them ✅ on that row; it was wrong and is corrected.
 
+**MCP is a first-class product surface.** The
+[managed MCP server](https://motherduck.com/product/mcp-server/) gives agents read-only access by
+default on isolated compute and exposes the SQL it executes. Lakehold's comparison should claim its
+own authentication and two-gate write policy, not pretend the competing surface is absent.
+
 ## 4. Dremio, Databricks, Snowflake
 
 **Dremio** repositioned as "the agentic lakehouse". Concretely: an open-source **MCP server** that
@@ -121,6 +135,12 @@ compaction and garbage collection, and branching, deployable as a full stack by 
 Community Edition that now bundles Apache Polaris. Row-access and column-masking policies are
 documented product features. Dremio remains the sharpest direct competitor and got sharper on the
 catalog axis specifically.
+
+**ClickHouse** publishes an
+[open-source MCP server and a managed remote Cloud surface](https://clickhouse.com/blog/integrating-clickhouse-mcp).
+Its current [pricing](https://clickhouse.com/pricing?legacy=true) is usage-based and configuration
+dependent, so the public comparison records the cost *shape* rather than repeating an unsupported
+fixed monthly floor.
 
 **Snowflake and Databricks** converged on the same four bets at their 2026 summits: agents as the
 primary compute unit, MCP as the protocol layer, a semantic or "context" layer serving certified
@@ -201,12 +221,12 @@ From the 2026 State of Data Engineering and adjacent reporting, for direction on
 
 Recommendations, not commitments. Each names the evidence above that produced it.
 
-**Move the MCP server ahead of the rest of "Next".** Every competitor shipped one this year, it is
-cheap on an API that already has tokens, roles, and audit, and Lakehold has a claim none of them can
-make: **capability is attachment** (invariants 4 and 20), so a read-only agent token yields a
-read-only *attachment* and a write fails in the engine. Everyone else enforces agent safety in a
-policy layer above the SQL. Given the practitioner complaint that MCP authentication models are where
-servers actually differ, that is the right differentiator to lead with.
+**MCP is shipped; lead with how it authenticates and refuses.** Every competitor shipped one this
+year, but Lakehold has a claim none of them can make: **capability is attachment** (invariants 4 and
+20), so a read-only agent token yields a read-only *attachment* and a write fails in the engine.
+Write execution adds a separate operator switch and still requires a writer credential. Given the
+practitioner complaint that MCP authentication models are where servers actually differ, those
+enforced boundaries — not merely having an MCP endpoint — are the differentiator to lead with.
 
 **Keep the Iceberg REST Catalog endpoint as the moat play; the research strengthens it.** IRC is now
 the universal catalog protocol, catalog federation is the stated industry direction, MotherDuck added
