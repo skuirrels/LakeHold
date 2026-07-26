@@ -66,11 +66,11 @@ name alone cannot identify storage or a warm session.
 
 ### Actions
 
-- Require authentication by default in production. Limit token-less legacy mode to an explicit
-  development setting, and refuse production start-up when it is enabled accidentally.
-- Make the production Compose path set or validate the secure authentication mode.
-- Put `/api/maintenance/schedule` behind authentication and define the minimum role allowed to see
-  node, tenant, catalog, failure, and timing details.
+- **Partly landed:** production Compose enables authentication by default. Remaining work is to limit
+  token-less legacy mode to an explicit development setting and refuse production start-up when it
+  is enabled accidentally.
+- **Landed:** `/api/maintenance/schedule` carries the authorization filter, requires `Listing`, and
+  projects only the tenant and catalog runs reachable by the credential.
 - Review all routes outside the authenticated tenant group and add a test that inventories the
   intended public endpoints.
 - Add authentication-attempt rate limiting and document TLS termination requirements.
@@ -150,9 +150,10 @@ cross-tenant ambiguity or undocumented manual database edits.
 
 ### Actions
 
-- Add mandatory backend restore, build, format/style, unit, and default integration-test jobs.
-- Add frontend install, production build, lint/format, unit tests, and a small end-to-end workbench
-  smoke suite.
+- **Partly landed:** CI restores and tests the backend. Remaining gates are explicit build,
+  format/style, and dedicated integration lanes.
+- **Partly landed:** CI runs `npm ci`, the frontend unit suite, and the production build. Remaining
+  gates are lint/format and a small end-to-end workbench smoke suite.
 - Add dedicated PostgreSQL metadata, object-store, PostgreSQL-wire, and two-tenant isolation lanes.
 - Add dependency vulnerability review, secret scanning, container build/scanning, and reproducible
   lockfile checks.
