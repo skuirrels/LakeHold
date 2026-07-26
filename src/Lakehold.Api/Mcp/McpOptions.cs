@@ -19,6 +19,45 @@ public sealed class McpOptions
     public string Route { get; set; } = "/mcp";
 
     /// <summary>
+    ///     Public base URL clients reach this server on — scheme, host, optional port and path base,
+    ///     e.g. <c>https://lakehold.example.com</c>. Empty infers it from the request.
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///         This exists because of RFC 9728. The metadata document advertises a <c>resource</c>, and
+    ///         the <c>401</c> challenge cites the document's own URL; a client compares the first
+    ///         against the URL it called and follows the second. Both must therefore be the address the
+    ///         <em>client</em> uses.
+    ///     </para>
+    ///     <para>
+    ///         Inferring that from the request is wrong in the documented production topology, where the
+    ///         API runs unpublished behind nginx: <c>Request.Scheme</c> and <c>Request.Host</c> describe
+    ///         the internal hop, so the document would advertise a host no client can resolve. Trusting
+    ///         <c>X-Forwarded-*</c> instead would mean trusting headers any caller can set unless the
+    ///         proxy list is pinned. An operator-declared value is the honest input — it is the one
+    ///         thing the process cannot work out for itself.
+    ///     </para>
+    ///     <para>
+    ///         Left empty, the request is used, which is correct for a directly exposed API and for
+    ///         local development.
+    ///     </para>
+    /// </remarks>
+    public string PublicBaseUrl { get; set; } = string.Empty;
+
+    /// <summary>
+    ///     Whether the write tool is served at all. Off by default: a surface whose purpose is letting
+    ///     an autonomous agent run SQL should not also mutate the lakehouse unless an operator says so.
+    /// </summary>
+    /// <remarks>
+    ///     Setting this registers a second tool, <c>execute</c>, annotated as destructive so a client
+    ///     can ask before calling it. It does <em>not</em> loosen <c>query</c>, which attaches
+    ///     read-only whatever this says — the read tool never becomes a write path, and the tool list
+    ///     itself tells a caller which mode the deployment is in. A read-write credential is still
+    ///     required on top of this; the operator's switch and the credential are two gates, not one.
+    /// </remarks>
+    public bool AllowWrites { get; set; }
+
+    /// <summary>
     ///     Ceiling on rows a tool returns, applied on top of
     ///     <c>LakehouseOptions.MaxRowsPerResult</c> and deliberately far below it. Zero or less
     ///     applies no MCP-specific ceiling, leaving only the engine's — the same convention

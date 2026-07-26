@@ -21,11 +21,18 @@ public static class McpExtensions
         // without the protocol carrying identity itself.
         builder.Services.AddHttpContextAccessor();
 
-        builder.Services
+        var server = builder.Services
             .AddMcpServer()
             .WithHttpTransport()
             .WithTools<LakeholdTools>()
             .WithResources<LakeholdResources>();
+
+        // Registered rather than mode-switched, so the annotations a client reads stay true and the
+        // tool list says whether this deployment permits writes. See LakeholdWriteTools.
+        if (options.AllowWrites)
+        {
+            server.WithTools<LakeholdWriteTools>();
+        }
 
         return builder;
     }

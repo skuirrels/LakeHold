@@ -10,10 +10,12 @@ independently shippable and testable and leaves the product working. Nothing her
 invariant in `AGENT.md`; where a rule already exists, this document says how the MCP surface preserves
 it rather than restating why.
 
-**Status: Phases 1-4 have landed.** The capability rules live in one transport-neutral policy, and the
-endpoint serves five read-only tools — `list_tenants`, `describe_schema`, `query`, `list_snapshots`,
-`list_changes` — plus a schema resource, behind a credential it always demands. An agent can discover
-what exists, read it, and ask what changed and when.
+**Status: Phases 1-5 have landed, bar two items that are blocked or have nothing to carry.** The
+capability rules live in one transport-neutral policy; the endpoint serves five read-only tools —
+`list_tenants`, `describe_schema`, `query`, `list_snapshots`, `list_changes` — plus a schema resource,
+behind a credential it always demands; it publishes RFC 9728 protected-resource metadata where OIDC is
+configured; and a sixth tool, `execute`, appears only where an operator has opted into writes. What
+remains is recorded under [Phases](#phases) with the reason rather than as an aspiration.
 
 It is **off by default**. `Lakehold:Mcp:Enabled` turns it on.
 
@@ -172,17 +174,41 @@ Code and any client that can set a header, it reuses `ApiTokenAuthenticator` unc
 the token closes the agent's access and the API's together. The token names the tenant; a tool
 argument naming a different tenant is a **404**, never a 403 (invariant 19).
 
-### OIDC, as an OAuth 2.1 resource server
+### OIDC, as an OAuth 2.1 resource server — shipped
 
 The 2026 specification requires an MCP server to be a formal OAuth 2.1 resource server publishing
 **RFC 9728 protected resource metadata** at `/.well-known/oauth-protected-resource`, with
-`WWW-Authenticate` challenges pointing clients at the authorization server. The SDK ships
-`McpAuthenticationHandler` for the server half.
+`WWW-Authenticate` challenges pointing clients at the authorization server. Both halves are served.
 
-When `Lakehold:Auth:Oidc` is configured, Lakehold serves that metadata pointing at the configured
-issuer, and an agent presenting a JWT resolves to an `OidcPrincipal` through the existing path. When
-OIDC is not configured, the metadata document is not served and token authentication is the only
-route in — a deployment that has not configured an identity provider is not made to.
+The document names the MCP endpoint as the `resource`, the configured issuer under
+`authorization_servers`, and `header` as the only supported bearer method — Lakehold reads a credential
+from the `Authorization` header and nowhere else, never a query parameter, which would put it in access
+logs and referrers. It is **unauthenticated by design**: a client reads it *because* it has no
+credential yet, so requiring one would be circular, and it discloses only an issuer and a resource,
+both already public, and no tenant. An unauthenticated MCP call is answered
+`401` with `WWW-Authenticate: Bearer resource_metadata="…"`, which is the thread a client follows.
+
+**Served only where OIDC is configured.** Absent an authority there is no authorization server to name,
+and a document advertising none is worse than none: a client discovers it, learns nothing, and fails
+somewhere less obvious. There the challenge stays a bare `Bearer` and API tokens are the only
+credential.
+
+**Set `Lakehold:Mcp:PublicBaseUrl` behind a reverse proxy.** The metadata advertises a `resource` and
+the challenge cites the document's own URL; a client compares the first against the URL it called and
+follows the second, so both must be the address the *client* uses. In the documented production
+topology the API runs unpublished behind nginx, where `Request.Scheme` and `Request.Host` describe the
+internal hop — inferring from the request would advertise a host no client can resolve. Trusting
+`X-Forwarded-*` instead would mean trusting headers any caller can set unless the proxy list is pinned,
+so this is declared rather than sniffed. Left empty the request is used, which is right for a directly
+exposed API and for local development.
+
+It is written as an ordinary endpoint rather than by registering the SDK's `McpAuthenticationHandler`,
+and that is a deliberate choice. The handler is an ASP.NET Core authentication *scheme* that serves the
+document and the challenge from the middleware's challenge path — but Lakehold does not authenticate
+through that pipeline. Identity is resolved by an endpoint filter, and a second scheme overlapping that
+filter would be two things deciding one question. The document is the contract, not the mechanism, so
+it is emitted directly and serialised through the SDK's own `ProtectedResourceMetadata` type, which
+keeps the field names the spec's rather than ours.
 
 ## Tool surface
 
@@ -291,16 +317,24 @@ it far more often, because this surface is read-only always. Write to a catalog 
 that creates a table will do) before pointing an agent at it. Worth revisiting if provisioning is ever
 made to initialise the metadata file at creation time, which would remove the sharp edge entirely.
 
-### Read-only in v1
+### Reads and writes are different tools
 
-The `query` tool attaches the catalog **read-only regardless of the credential's capability**. A
-credential that may write over HTTP still cannot write through MCP.
+The `query` tool attaches the catalog **read-only regardless of the credential's capability**, and that
+never changes — not even where writes are enabled. A credential that may write over HTTP cannot write
+through `query`.
 
-This is a stronger rule than "the token decides", and it is chosen deliberately. It means the v1 blast
-radius is exactly zero mutations, it means the read-only-attachment claim above is unconditionally
-true rather than conditionally true, and it costs nothing that cannot be added later. Whether writes
-are ever enabled — behind an explicit `Lakehold:Mcp:AllowWrites` *and* a read-write credential, both
-required — is a Phase 4 decision to be taken on evidence, not now.
+Writes are a *separate* tool, `execute`, registered only when `Lakehold:Mcp:AllowWrites` is set. The
+reason is the tool annotations: MCP clients read `readOnly` and `destructive` to decide whether to ask
+a human before calling, and those live in an attribute fixed at compile time. A `query` that sometimes
+wrote would advertise itself read-only while writing, or destructive while doing nothing of the kind —
+either way a client makes a safety decision on false information. Splitting them keeps every annotation
+true, and buys a second property worth having: **the tool list itself says whether this deployment
+permits writes**, visible to an operator or an agent that cannot read the configuration.
+
+Two gates, not one. The operator opts in *and* the credential must not be read-only. A read-only
+credential still produces a read-only attachment, so its refusal comes from DuckDB (invariants 4
+and 20); the explicit check exists only so the agent reads "your credential cannot write" instead of an
+engine error about the catalog.
 
 ### What is deliberately unimplemented
 
@@ -314,7 +348,7 @@ The section that makes this document useful, in the same spirit as `POSTGRES-WIR
 | Provisioning — create/delete tenants and catalogs | `Instance` capability. An MCP server that can create tenants is a liability, not a feature |
 | Token minting | `TenantAdmin`. A credential that can mint credentials is the one thing an agent must never reach |
 | CDC subscriptions | Creating a webhook subscription is an outbound side effect with a stored secret (invariant 17) |
-| Arbitrary DDL | Follows from read-only |
+| Arbitrary DDL | Available through `execute` where an operator has enabled writes, and nowhere else |
 
 Long-running operations, if any of the above are ever exposed, go through the SDK 2.0 **Tasks**
 extension rather than a bespoke mechanism — and Tasks is structurally the same thing as
@@ -379,9 +413,26 @@ CDC, the two capabilities `COMPETITIVE-RESEARCH.md` says are genuinely ahead of 
 emit the same change vocabulary the REST feed and the webhooks use, so an agent and a webhook consumer
 do not read two names for one event.
 
-**Phase 5 — decisions deferred to evidence.** Writes behind explicit configuration; Tasks-based
-long-running operations; an MCP-origin marker on query history; the in-product assistant, which is
-where Agent Framework returns.
+**Phase 5 — partly landed, partly blocked, and one item with nothing to carry.**
+
+- **Writes behind explicit configuration — landed.** `Lakehold:Mcp:AllowWrites` plus a read-write
+  credential, as a separate `execute` tool for the annotation reason above.
+- **RFC 9728 protected-resource metadata — landed.** See the authentication section.
+- **An MCP-origin marker on query history — blocked, and not on anything MCP.** A run is attributed to
+  its token id today, which identifies agent traffic only by the convention that an agent gets its own
+  credential. A first-class marker means a column on `QueryRun`, and the control plane has no story for
+  that: `AdditiveSchema` creates *missing tables* on start-up and says in its own remarks that columns
+  added to an existing entity still need a real migration path. Adding one is a control-plane
+  infrastructure change affecting every entity and every existing deployment — the right size of work,
+  but not an MCP change, and it should not be smuggled in as one.
+- **Tasks-based long-running operations — nothing to carry.** SDK 2.0's Tasks extension is the right
+  mechanism for a long-running tool call, and this surface deliberately exposes no long-running
+  operation: maintenance, eject, backup, and restore are all withheld for the reasons above. Building
+  the mechanism before the operation would be speculative. When one is exposed, Tasks is how, and it
+  must be reconciled with `PUBLIC-API.md`'s `202`/`operationId` model rather than invented twice.
+- **The in-product assistant — a separate product.** An assistant in the Angular workbench is an agent
+  that would consume this server like any other client. That is where Agent Framework returns, and it
+  is a UI decision rather than a continuation of this document.
 
 ## Configuration
 
@@ -391,6 +442,8 @@ where Agent Framework returns.
   "Mcp": {
     "Enabled": false,        // closed by default: this surface lets an agent execute SQL
     "Route": "/mcp",
+    "PublicBaseUrl": "",     // required behind a reverse proxy; see below
+    "AllowWrites": false,    // registers the destructive `execute` tool when set
     "MaxRowsPerResult": 200  // 0 or less applies no MCP-specific ceiling, only the engine's
   }
 }
@@ -419,6 +472,16 @@ what is asserted is conformance rather than agreement with a hand-rolled fixture
   asking from above the last change returns nothing, which is what proves a consumer resuming at
   `L + 1` replays rather than skips. An unknown table forwards the engine's own complaint.
 - Every list-shaped tool honours the MCP page ceiling, asserted for changes and snapshots together.
+
+**`McpWriteToolTests`** — the write gates, each on its own host, because `AllowWrites` decides what is
+registered at start-up and so cannot vary within one server.
+- `execute` is **absent** unless the operator enables it, so an upgrade does not silently acquire an
+  agent that can mutate the lakehouse.
+- Enabling it advertises a tool annotated non-read-only and destructive, while `query` stays annotated
+  read-only — the annotations a client trusts are asserted, not just the behaviour behind them.
+- A read-write credential writes, proven by reading the table back rather than by the response.
+- `query` still refuses a write where writes are enabled.
+- A read-only credential is refused, and another tenant is refused without disclosure.
 - A catalog-narrowed credential is shown only the catalog it can reach — the deliberate divergence
   from the HTTP listing route.
 - `describe_schema` returns real columns and omits `ducklake_*` internals, and refuses another tenant
@@ -447,8 +510,10 @@ directly.
 
 ### Still owed
 
-- Protected-resource metadata served when OIDC is configured and absent when it is not — blocked on
-  serving it at all (Phase 2 gap).
+- ~~Protected-resource metadata.~~ Covered: `McpResourceMetadataTests` asserts the document's spec
+  field names, that it needs no credential, that nothing is served without an authority, that the 401
+  challenge cites it — and cites nothing where there is nothing to cite — and that a declared
+  `PublicBaseUrl` overrides what the request saw.
 - An instance credential cannot query. Holds by construction through `CapabilityPolicy`, which is
   covered — but not yet asserted *over MCP*.
 - Cancellation propagating from the transport through the engine.

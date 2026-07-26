@@ -201,6 +201,7 @@ if (oidc.Enabled)
 
 app.MapLakehouseEndpoints();
 app.MapLakeholdMcp();
+app.MapMcpResourceMetadata();
 
 app.LogMaintenanceSchedule();
 

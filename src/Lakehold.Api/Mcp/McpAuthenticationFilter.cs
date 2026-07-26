@@ -33,6 +33,7 @@ public sealed class McpAuthenticationFilter : IEndpointFilter
         var http = context.HttpContext;
         var services = http.RequestServices;
 
+        var oidc = services.GetRequiredService<IOptions<LakeholdOidcOptions>>().Value;
         var bearer = ExtractBearer(http.Request.Headers.Authorization);
         ILakeholdPrincipal? principal = null;
 
@@ -45,16 +46,23 @@ public sealed class McpAuthenticationFilter : IEndpointFilter
                 principal = result.Principal;
             }
         }
-        else if (OidcPrincipal.TryResolve(http.User, services.GetRequiredService<IOptions<LakeholdOidcOptions>>().Value) is { } oidc)
+        else if (OidcPrincipal.TryResolve(http.User, oidc) is { } fromJwt)
         {
-            principal = oidc;
+            principal = fromJwt;
         }
 
         if (principal is null)
         {
             // One opaque refusal for a missing, malformed, unknown, revoked, or expired credential —
-            // the same discipline the HTTP filter keeps, for the same reason.
-            http.Response.Headers.WWWAuthenticate = "Bearer";
+            // the same discipline the HTTP filter keeps, for the same reason. What the challenge adds
+            // is where to go next: RFC 9728 wants the metadata document cited here, which is how a
+            // client that has no credential discovers the authorization server. Only when OIDC is
+            // configured, because otherwise there is no such document to cite.
+            var mcp = services.GetRequiredService<IOptions<McpOptions>>().Value;
+            http.Response.Headers.WWWAuthenticate = oidc.Enabled
+                ? $"Bearer resource_metadata=\"{McpResourceMetadata.AbsoluteUri(http, mcp)}\""
+                : "Bearer";
+
             return Results.Problem(statusCode: StatusCodes.Status401Unauthorized, title: "Unauthorized");
         }
 
