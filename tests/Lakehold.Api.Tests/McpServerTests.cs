@@ -143,7 +143,7 @@ public sealed class McpServerTests : IAsyncLifetime
 
         var names = (await client.ListToolsAsync()).Select(t => t.Name).OrderBy(n => n).ToArray();
 
-        Assert.Equal(["describe_schema", "list_tenants", "query"], names);
+        Assert.Equal(["describe_schema", "list_changes", "list_snapshots", "list_tenants", "query"], names);
     }
 
     [Fact]
@@ -429,6 +429,168 @@ public sealed class McpServerTests : IAsyncLifetime
             async () => await client.ReadResourceAsync("lakehold://other/c/schema"));
 
         Assert.Contains("was not found for tenant 'other'", failure.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task List_snapshots_returns_the_history_newest_first()
+    {
+        await using var client = await ConnectAsync(_demoToken);
+
+        var result = await client.CallToolAsync(
+            "list_snapshots",
+            new Dictionary<string, object?> { ["tenant"] = "demo", ["catalog"] = "analytics" });
+
+        Assert.True(result.IsError is not true, Text(result));
+
+        var snapshots = Payload(result);
+        Assert.True(snapshots.GetArrayLength() > 0);
+
+        var ids = snapshots.EnumerateArray().Select(s => s.GetProperty("snapshotId").GetInt64()).ToArray();
+        Assert.Equal(ids.OrderByDescending(i => i), ids);
+    }
+
+    [Fact]
+    public async Task List_snapshots_refuses_another_tenant_without_disclosing_it()
+    {
+        await using var client = await ConnectAsync(_demoToken);
+
+        var result = await client.CallToolAsync(
+            "list_snapshots",
+            new Dictionary<string, object?> { ["tenant"] = "other", ["catalog"] = "c" });
+
+        Assert.True(result.IsError);
+        Assert.Contains("was not found for tenant 'other'", Text(result), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task List_changes_reports_an_insert_and_bounds_the_range_it_read()
+    {
+        // A real write, then the feed. Omitting toSnapshot must read to the newest snapshot — which is
+        // also what keeps an agent clear of verified behaviour 7, where a range ending before the
+        // table existed raises.
+        await SeedChangeAsync();
+
+        await using var client = await ConnectAsync(_demoToken);
+
+        var result = await client.CallToolAsync(
+            "list_changes",
+            new Dictionary<string, object?>
+            {
+                ["tenant"] = "demo",
+                ["catalog"] = "analytics",
+                ["table"] = "changed",
+                ["fromSnapshot"] = 0,
+            });
+
+        Assert.True(result.IsError is not true, Text(result));
+
+        var page = Payload(result);
+        Assert.Equal("changed", page.GetProperty("table").GetString());
+        Assert.True(page.GetProperty("toSnapshot").GetInt64() >= page.GetProperty("fromSnapshot").GetInt64());
+
+        var changes = page.GetProperty("changes");
+        Assert.True(changes.GetArrayLength() > 0);
+        Assert.Equal("insert", changes[0].GetProperty("change").GetString());
+    }
+
+    [Fact]
+    public async Task List_changes_is_inclusive_at_both_ends()
+    {
+        // Invariant 18 and verified behaviour 6. If the lower bound were exclusive, asking from the
+        // snapshot that made the change would return it — and a consumer resuming at L + 1 would skip
+        // a window rather than replay one. Asking from *above* the change must return nothing.
+        await SeedChangeAsync();
+
+        await using var client = await ConnectAsync(_demoToken);
+
+        var all = await client.CallToolAsync(
+            "list_changes",
+            new Dictionary<string, object?>
+            {
+                ["tenant"] = "demo", ["catalog"] = "analytics", ["table"] = "changed", ["fromSnapshot"] = 0,
+            });
+
+        var last = Payload(all).GetProperty("toSnapshot").GetInt64();
+
+        var after = await client.CallToolAsync(
+            "list_changes",
+            new Dictionary<string, object?>
+            {
+                ["tenant"] = "demo", ["catalog"] = "analytics", ["table"] = "changed",
+                ["fromSnapshot"] = last + 1,
+            });
+
+        Assert.True(after.IsError is not true, Text(after));
+        Assert.Equal(0, Payload(after).GetProperty("changes").GetArrayLength());
+    }
+
+    [Fact]
+    public async Task List_changes_forwards_the_engines_complaint_about_an_unknown_table()
+    {
+        await using var client = await ConnectAsync(_demoToken);
+
+        var result = await client.CallToolAsync(
+            "list_changes",
+            new Dictionary<string, object?>
+            {
+                ["tenant"] = "demo", ["catalog"] = "analytics", ["table"] = "no_such_table",
+                ["fromSnapshot"] = 0,
+            });
+
+        // Forwarded rather than paraphrased: the engine names the problem, and that is what lets an
+        // agent correct itself on the next call.
+        Assert.True(result.IsError);
+        Assert.False(string.IsNullOrWhiteSpace(Text(result)));
+    }
+
+    [Fact]
+    public async Task Every_list_shaped_tool_honours_the_MCP_page_ceiling()
+    {
+        // The fixture's ceiling is 5. A change feed page defaults to 1000 over HTTP and admits 10000 —
+        // right for a consumer writing to a database, wrong for a context window. The ceiling has to
+        // apply to every list-shaped tool, not only to query, or the budget it exists to keep is
+        // defeated by the tool that returns the most rows.
+        await SeedChangeAsync(rows: 12);
+
+        await using var client = await ConnectAsync(_demoToken);
+
+        var changes = await client.CallToolAsync(
+            "list_changes",
+            new Dictionary<string, object?>
+            {
+                ["tenant"] = "demo", ["catalog"] = "analytics", ["table"] = "changed",
+                ["fromSnapshot"] = 0, ["limit"] = 10_000,
+            });
+
+        Assert.True(changes.IsError is not true, Text(changes));
+        Assert.True(Payload(changes).GetProperty("changes").GetArrayLength() <= 5);
+
+        var snapshots = await client.CallToolAsync(
+            "list_snapshots",
+            new Dictionary<string, object?> { ["tenant"] = "demo", ["catalog"] = "analytics", ["limit"] = 500 });
+
+        Assert.True(snapshots.IsError is not true, Text(snapshots));
+        Assert.True(Payload(snapshots).GetArrayLength() <= 5);
+    }
+
+    /// <summary>Creates a table and inserts a row, so the change feed has something to report.</summary>
+    private async Task SeedChangeAsync(int rows = 1)
+    {
+        using var scope = _app.Services.CreateScope();
+        var lakehouse = scope.ServiceProvider.GetRequiredService<LakehouseService>();
+
+        await lakehouse.ExecuteAsync(
+            "demo", "analytics", "CREATE TABLE IF NOT EXISTS changed (i INTEGER)", CancellationToken.None,
+            readOnly: false);
+
+        for (var i = 0; i < rows; i++)
+        {
+            // One statement per row, so each lands in its own snapshot and the history is long enough
+            // to exercise a page ceiling.
+            await lakehouse.ExecuteAsync(
+                "demo", "analytics", $"INSERT INTO changed VALUES ({i})", CancellationToken.None,
+                readOnly: false);
+        }
     }
 
     private static System.Text.Json.JsonElement Payload(ModelContextProtocol.Protocol.CallToolResult result) =>

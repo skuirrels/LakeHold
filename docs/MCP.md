@@ -10,10 +10,10 @@ independently shippable and testable and leaves the product working. Nothing her
 invariant in `AGENT.md`; where a rule already exists, this document says how the MCP surface preserves
 it rather than restating why.
 
-**Status: Phases 1-3 have landed.** The capability rules live in one transport-neutral policy, and the
-endpoint serves three read-only tools — `list_tenants`, `describe_schema`, `query` — plus a schema
-resource, behind a credential it always demands. An agent can now discover what exists rather than
-being told in its prompt.
+**Status: Phases 1-4 have landed.** The capability rules live in one transport-neutral policy, and the
+endpoint serves five read-only tools — `list_tenants`, `describe_schema`, `query`, `list_snapshots`,
+`list_changes` — plus a schema resource, behind a credential it always demands. An agent can discover
+what exists, read it, and ask what changed and when.
 
 It is **off by default**. `Lakehold:Mcp:Enabled` turns it on.
 
@@ -195,8 +195,8 @@ wire endpoint does.
 | `list_tenants` | `Listing` | **Shipped.** Tenants *and* their catalogs, scoped to the principal. A separate `list_catalogs` was specified and then dropped: catalogs come back nested here, so a second tool would answer a question already answered and cost the agent context to read. Stricter than the HTTP listing route in one way — a catalog-narrowed credential sees only its own catalog, because naming one the caller cannot query wastes its next call |
 | `describe_schema` | `TenantData` | **Shipped.** Schemas, tables, columns. `ducklake_*` internals are filtered by `CatalogBrowser` at the source — verified behaviours 2 and 9 in `ARCHITECTURE.md` — which matters more here than in the workbench: a human scrolls past ~28 internal tables, an agent reasons about them |
 | `query` | `TenantData` | **Shipped.** Read-only; see below. A materialising path, so a row cap applies (invariant 6) |
-| `list_snapshots` | `TenantData` | Time travel is shipped here and is *not* shipped by the closest peer. "What did this table look like on Tuesday" is a natural agent question and a differentiated answer |
-| `list_changes` | `TenantData` | The CDC feed, paged. "What changed since snapshot N" is the other natural one. Windows are inclusive at both ends (invariant 18) — the tool must not re-expose that trap to a caller passing arbitrary bounds |
+| `list_snapshots` | `TenantData` | **Shipped.** Time travel, which the closest peer's own roadmap still lists as forthcoming. It also supplies the bounds `list_changes` takes |
+| `list_changes` | `TenantData` | **Shipped.** The CDC feed, paged. Inclusive at both ends (invariant 18, verified behaviour 6), and the tool's *description* says so — an agent that assumes exclusivity skips a window. Omitting the upper bound reads to the newest snapshot, which is also what keeps a caller clear of verified behaviour 7, where a range ending before the table existed raises. The engine's complaint is forwarded verbatim when it does |
 
 **Resources.** `lakehold://{tenant}/{catalog}/schema` carries the same information
 `describe_schema` returns, so a client can pin it as standing context instead of spending a tool call
@@ -334,6 +334,12 @@ purposes, two numbers, one invariant.
 The tool's response states when it truncated, so an agent can narrow its query rather than silently
 reasoning about a prefix of the data.
 
+**The ceiling applies to every list-shaped tool, not only `query`.** This was a review finding: a
+change feed page defaults to 1000 and admits 10000 over HTTP, which are the right numbers for a
+consumer writing to a database and the wrong ones for a context window. A tool that returned them would
+defeat the budget this option exists to keep, so `McpOptions.BoundPageSize` bounds `list_snapshots` and
+`list_changes` by the same number, and a test asserts it for both.
+
 ## Audit
 
 Every statement executed through MCP is recorded in query history against the resolved principal,
@@ -368,8 +374,10 @@ separately specified `list_catalogs` was dropped for the reason given in the too
 now start from `list_tenants` and work down to a query without being told anything in its prompt,
 which is what turns the surface from a proven seam into something usable.
 
-**Phase 4 — the differentiated tools.** `list_snapshots` and `list_changes` — time travel and CDC, the
-two capabilities the competitive research says are genuinely ahead.
+**Phase 4 — the differentiated tools. Landed.** `list_snapshots` and `list_changes` — time travel and
+CDC, the two capabilities `COMPETITIVE-RESEARCH.md` says are genuinely ahead of the closest peer. Both
+emit the same change vocabulary the REST feed and the webhooks use, so an agent and a webhook consumer
+do not read two names for one event.
 
 **Phase 5 — decisions deferred to evidence.** Writes behind explicit configuration; Tasks-based
 long-running operations; an MCP-origin marker on query history; the in-product assistant, which is
@@ -406,6 +414,11 @@ protocol-level tests, not just unit tests of its helpers.
 what is asserted is conformance rather than agreement with a hand-rolled fixture.
 - `tools/list` returns `query` with a description a client can act on.
 - `list_tenants` shows the caller's own tenant and catalogs, and does not name another tenant.
+- `list_snapshots` returns the history newest-first and refuses another tenant without disclosing it.
+- `list_changes` reports an insert, bounds the range it read, and is **inclusive at both ends** —
+  asking from above the last change returns nothing, which is what proves a consumer resuming at
+  `L + 1` replays rather than skips. An unknown table forwards the engine's own complaint.
+- Every list-shaped tool honours the MCP page ceiling, asserted for changes and snapshots together.
 - A catalog-narrowed credential is shown only the catalog it can reach — the deliberate divergence
   from the HTTP listing route.
 - `describe_schema` returns real columns and omits `ducklake_*` internals, and refuses another tenant
@@ -440,8 +453,9 @@ directly.
   covered — but not yet asserted *over MCP*.
 - Cancellation propagating from the transport through the engine.
 - Query-history attribution asserted end to end.
-- The Phase 4 tools, with `list_changes` handling the inclusive-both-ends window (verified
-  behaviours 6 and 7).
+- Verified behaviour 7 asserted directly: a range whose *explicit* end predates the table's creation.
+  The tools default the end to the newest snapshot, so the trap is only reachable by passing
+  `toSnapshot` deliberately, and that path is forwarded but not yet covered.
 
 ## Documentation obligations
 

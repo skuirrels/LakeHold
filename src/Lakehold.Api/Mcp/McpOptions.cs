@@ -32,4 +32,24 @@ public sealed class McpOptions
     ///     the agent narrows its query instead of silently reasoning about a prefix.
     /// </remarks>
     public int MaxRowsPerResult { get; set; } = 200;
+
+    /// <summary>
+    ///     Bounds a requested page size by <see cref="MaxRowsPerResult"/>, so every list-shaped tool
+    ///     honours the same ceiling rather than only the query tool.
+    /// </summary>
+    /// <param name="requested">What the caller asked for.</param>
+    /// <param name="engineCeiling">
+    ///     The ceiling the equivalent HTTP route enforces, which still applies when no MCP-specific
+    ///     one is configured.
+    /// </param>
+    /// <remarks>
+    ///     A change feed page defaults to 1000 and admits 10000 over HTTP. Those are the right numbers
+    ///     for a consumer writing to a database and the wrong ones for a context window, so a tool that
+    ///     returned them would defeat the budget this option exists to keep.
+    /// </remarks>
+    internal int BoundPageSize(int requested, int engineCeiling)
+    {
+        var ceiling = MaxRowsPerResult > 0 ? Math.Min(MaxRowsPerResult, engineCeiling) : engineCeiling;
+        return Math.Clamp(requested, 1, ceiling);
+    }
 }
