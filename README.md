@@ -194,8 +194,9 @@ separate evaluation deployment, add its overlay:
 make demo
 ```
 
-This builds the API and web images from the current checkout before starting them. The site listens
-on port `8080` by default; use `LAKEHOLD_PORT=8081 make demo` when that port is already occupied.
+This refuses tracked local changes, pulls the current branch with `--ff-only`, then builds the API
+and web images before starting them. The site listens on port `8080` by default; use
+`LAKEHOLD_PORT=8081 make demo` when that port is already occupied.
 
 `compose.demo.yaml` owns demo seeding, authentication, and the read-only visitor scope. It defaults
 to `demo/analytics`; `LAKEHOLD_DEMO_TENANT` and `LAKEHOLD_DEMO_CATALOG` can point the overlay at a
