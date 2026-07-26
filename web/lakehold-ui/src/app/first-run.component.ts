@@ -41,15 +41,14 @@ export interface WorkspaceRequest {
             </button>
           </div>
         } @else if (mode() === 'unauthorized') {
-          <h1>This deployment requires a credential</h1>
+          <h1>Sign in to this Lakehold node</h1>
           <p>
-            Authentication is enforced here, so the workbench needs a token before it can show you
-            anything. A node with no tokens mints one on first start and logs it once:
+            This is a private workbench. Enter the API token provided by the person who operates
+            this Lakehold node.
           </p>
-          <pre class="command">docker compose -f compose.production.yaml logs api | grep -i bootstrap</pre>
-          <p>
-            That bootstrap credential provisions workspaces and deliberately cannot read data. Paste
-            it here and the next screen trades it for one that can.
+          <p class="operator-note">
+            <strong>Setting up a new node?</strong> Lakehold writes a one-time bootstrap token to
+            the API startup log. Use it here to create the first workspace and its owner credential.
           </p>
           @if (rejected()) {
             <div class="banner">
@@ -66,10 +65,16 @@ export interface WorkspaceRequest {
               placeholder="lkh_…"
               [value]="token()"
               (input)="token.set($any($event.target).value)"
-              (keydown.enter)="submitToken()" />
+              (keydown.enter)="submitToken()"
+            />
           </label>
           <div class="actions">
-            <button class="btn btn-primary" type="button" [disabled]="!token().trim()" (click)="submitToken()">
+            <button
+              class="btn btn-primary"
+              type="button"
+              [disabled]="!token().trim()"
+              (click)="submitToken()"
+            >
               Sign in
             </button>
           </div>
@@ -88,7 +93,8 @@ export interface WorkspaceRequest {
               spellcheck="false"
               placeholder="acme"
               [value]="slug()"
-              (input)="slug.set($any($event.target).value)" />
+              (input)="slug.set($any($event.target).value)"
+            />
           </label>
 
           <label class="field">
@@ -98,7 +104,8 @@ export interface WorkspaceRequest {
               autocomplete="off"
               placeholder="Acme"
               [value]="displayName()"
-              (input)="displayName.set($any($event.target).value)" />
+              (input)="displayName.set($any($event.target).value)"
+            />
           </label>
 
           <label class="field">
@@ -108,7 +115,8 @@ export interface WorkspaceRequest {
               autocomplete="off"
               spellcheck="false"
               [value]="catalog()"
-              (input)="catalog.set($any($event.target).value)" />
+              (input)="catalog.set($any($event.target).value)"
+            />
           </label>
 
           @if (error(); as message) {
@@ -123,7 +131,8 @@ export interface WorkspaceRequest {
               class="btn btn-primary"
               type="button"
               [disabled]="busy() || !slug().trim() || !catalog().trim()"
-              (click)="submitWorkspace()">
+              (click)="submitWorkspace()"
+            >
               {{ busy() ? 'Creating…' : 'Create workspace' }}
             </button>
             <span class="hint">Creating a workspace needs the bootstrap credential.</span>
@@ -236,7 +245,6 @@ export interface WorkspaceRequest {
         color: var(--text-faint);
       }
 
-      .command,
       .token {
         margin: 0 0 16px;
         padding: 10px 12px;
@@ -246,6 +254,17 @@ export interface WorkspaceRequest {
         border: 1px solid var(--border);
         border-radius: var(--radius-sm);
         overflow-x: auto;
+      }
+
+      .operator-note {
+        padding: 10px 12px;
+        background: var(--surface-0);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
+      }
+
+      .operator-note strong {
+        color: var(--text);
       }
 
       /* Shown once and copied by hand, so it wraps rather than scrolling out of sight and is tinted

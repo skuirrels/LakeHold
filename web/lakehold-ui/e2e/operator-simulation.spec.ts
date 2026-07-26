@@ -1,0 +1,73 @@
+import { expect, test } from '@playwright/test';
+
+test('operator simulation exercises the lakehouse control surfaces', async ({ page }) => {
+  const tenants = page.waitForResponse(
+    (response) => response.url().endsWith('/api/tenants') && response.request().method() === 'GET',
+  );
+  await page.goto('/workbench');
+  expect((await tenants).ok()).toBe(true);
+  await expect(page.locator('.selectors select').nth(0)).toHaveValue('demo');
+  await expect(page.locator('.selectors select').nth(1)).toHaveValue('analytics');
+
+  await test.step('inspect the physical files behind a table', async () => {
+    await page.getByRole('button', { name: 'Storage' }).click();
+    await page.getByRole('button', { name: 'Show data files for main.events' }).click();
+
+    await expect(page.getByRole('heading', { name: /events data files/ })).toBeVisible();
+    await expect(page.locator('.files-panel')).toContainText(/parquet|No Parquet files/i);
+    await page.getByRole('button', { name: 'Close' }).click();
+  });
+
+  await test.step('read the catalog change feed', async () => {
+    await page.getByRole('button', { name: 'Changes' }).click();
+    await page.getByRole('button', { name: 'Read changes' }).click();
+
+    await expect(page.locator('.panel-summary')).toContainText(/snapshots \d+–\d+/);
+    await expect(page.locator('.panel-summary')).toContainText(/change/);
+    await expect(page.getByRole('heading', { name: 'Webhook subscriptions' })).toBeVisible();
+  });
+
+  await test.step('prepare a reversible snapshot restore without applying it', async () => {
+    await page.getByRole('button', { name: 'Snapshots' }).click();
+    await page.getByRole('button', { name: 'Restore…' }).first().click();
+
+    await expect(page.getByLabel('SQL editor')).toHaveValue(/CREATE OR REPLACE TABLE/);
+    await expect(page.getByLabel('SQL editor')).toHaveValue(/AT \(VERSION => \d+\)/);
+  });
+
+  await test.step('flush safely and create a catalog backup', async () => {
+    await page.getByRole('button', { name: 'Flush' }).click();
+    await expect(page.locator('.banner.ok-banner')).toContainText(/flush/i);
+
+    await page.getByRole('button', { name: 'Backup', exact: true }).click();
+    await expect(page.locator('.banner.ok-banner')).toContainText(/backup/i);
+    await page.getByRole('button', { name: 'Backups' }).click();
+
+    await expect(page.getByRole('columnheader', { name: 'Generation' })).toBeVisible();
+    await expect(page.locator('tbody tr').first()).toContainText(/\d{8}T\d{6}Z/);
+    await expect(page.getByRole('button', { name: 'Restore…' }).first()).toBeVisible();
+  });
+
+  await test.step('create and inspect a verified open-format eject', async () => {
+    await page.getByRole('button', { name: 'Eject' }).click();
+    await page.getByRole('button', { name: 'Eject now' }).click();
+
+    await expect(page.locator('lh-eject-panel .ok-banner')).toContainText('Verified.', {
+      timeout: 30_000,
+    });
+    await expect(page.getByRole('columnheader', { name: 'Bundle' })).toBeVisible();
+    await page.locator('button.cell-link').first().click();
+    await expect(page.getByRole('columnheader', { name: 'SHA-256' })).toBeVisible();
+    await expect(page.locator('.bundle-detail tbody tr').first()).toBeVisible();
+  });
+
+  await test.step('inspect scheduled-operation visibility', async () => {
+    await page.getByRole('button', { name: 'Schedule' }).click();
+
+    await expect(
+      page
+        .getByText(/No scheduled runs recorded yet/)
+        .or(page.getByRole('columnheader', { name: 'Job' })),
+    ).toBeVisible();
+  });
+});

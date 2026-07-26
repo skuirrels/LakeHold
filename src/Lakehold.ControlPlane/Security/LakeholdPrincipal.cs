@@ -32,6 +32,9 @@ public interface ILakeholdPrincipal
 
     /// <summary>The role this principal holds within its tenant.</summary>
     TokenRole Role { get; }
+
+    /// <summary>Whether this is the configured credential-less, read-only demo identity.</summary>
+    bool IsDemo { get; }
 }
 
 /// <inheritdoc cref="ILakeholdPrincipal"/>
@@ -48,7 +51,8 @@ public sealed record LakeholdPrincipal(
     string? CatalogName,
     bool IsReadOnly,
     int? TokenId,
-    TokenRole Role = TokenRole.Owner) : ILakeholdPrincipal
+    TokenRole Role = TokenRole.Owner,
+    bool IsDemo = false) : ILakeholdPrincipal
 {
     /// <summary>
     ///     The caller for a request that carried no token. It trusts the route, preserving today's
@@ -63,4 +67,20 @@ public sealed record LakeholdPrincipal(
         CatalogName: null,
         IsReadOnly: false,
         TokenId: null);
+
+    /// <summary>
+    ///     A credential-less visitor constrained to one tenant and catalog and attached read-only.
+    ///     It is treated as an authorised principal rather than as <see cref="Legacy"/>, because the
+    ///     legacy principal deliberately trusts every route and therefore cannot be exposed publicly.
+    /// </summary>
+    public static LakeholdPrincipal Demo(string tenant, string catalog) => new(
+        IsAuthenticated: true,
+        Scope: TokenScope.Tenant,
+        TenantId: null,
+        TenantSlug: tenant,
+        CatalogName: catalog,
+        IsReadOnly: true,
+        TokenId: null,
+        Role: TokenRole.Reader,
+        IsDemo: true);
 }

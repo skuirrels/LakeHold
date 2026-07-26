@@ -25,6 +25,8 @@ export class BackupsPanelComponent {
 
   readonly tenant = input.required<string | null>();
   readonly catalog = input.required<string | null>();
+  /** Lists backup evidence without exposing restore controls to read-only visitors. */
+  readonly readOnly = input(false);
 
   protected readonly backups = signal<BackupGeneration[]>([]);
   /** The generation awaiting a restore target, or null when the form is closed. */
@@ -85,7 +87,9 @@ export class BackupsPanelComponent {
     this.restoreFrom.set(generation);
     this.restoreResult.set(null);
     this.error.set(null);
-    this.restoreTarget.set(`${this.catalog() ?? 'catalog'}-restored-${generation.generation}.ducklake`);
+    this.restoreTarget.set(
+      `${this.catalog() ?? 'catalog'}-restored-${generation.generation}.ducklake`,
+    );
   }
 
   protected cancelRestore(): void {

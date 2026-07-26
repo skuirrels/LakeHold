@@ -185,6 +185,20 @@ Worth knowing:
   make deploy
   ```
 
+### Demo deployment overlay
+
+Demo mode is intentionally absent from the customer production file and `.env.example`. To run the
+separate evaluation deployment, add its overlay:
+
+```bash
+docker compose -f compose.production.yaml -f compose.demo.yaml up -d
+```
+
+`compose.demo.yaml` owns demo seeding, authentication, and the read-only visitor scope. It defaults
+to `demo/analytics`; `LAKEHOLD_DEMO_TENANT` and `LAKEHOLD_DEMO_CATALOG` can point the overlay at a
+different seeded catalog. This does not disable authentication: credential-less requests receive a
+reader scoped to that one catalog, while a valid operator token retains its normal capabilities.
+
 ### Running the app on the host instead
 
 A faster inner loop, if you have the SDK and Node installed. Start only the backing services, then
@@ -387,6 +401,12 @@ compose file turns it on, and any deployment with a published port should:
 { "Lakehold": { "Auth": { "RequireAuthentication": true } } }
 ```
 
+The separate `compose.demo.yaml` overlay configures `Lakehold:Auth:DemoTenant` and
+`Lakehold:Auth:DemoCatalog`. A credential-less request then receives a synthetic reader principal
+scoped to exactly that catalog; writes, maintenance, restore, eject, token administration, and
+subscription changes remain forbidden. Presented credentials are always validated and take
+precedence over demo access.
+
 A node with no tokens mints an instance-scoped one at start-up and logs it **once**. That token
 provisions tenants, catalogs, and other tokens, and deliberately cannot read data — so a leaked admin
 credential is a visible provisioning problem, not a silent data breach.
@@ -565,8 +585,13 @@ Worth knowing:
 
 ### Tests
 
+The full testing strategy and feature-by-feature coverage matrix live in
+[`docs/TESTING.md`](docs/TESTING.md).
+
 ```bash
-dotnet test Lakehold.slnx     # integration tests skip unless their service is configured
+dotnet test Lakehold.slnx
+npm run test:unit --prefix web/lakehold-ui
+npm run test:e2e --prefix web/lakehold-ui
 ```
 
 The backup tests run against real services rather than mocks, because the failures they guard

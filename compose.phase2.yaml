@@ -1,0 +1,53 @@
+# Disposable, production-shaped stack for the Phase 2 operator simulation.
+#
+# Run only through scripts/test-phase2.sh. The script gives this stack its own Compose project and
+# always removes its volumes on exit, so destructive maintenance and restore can be applied without
+# touching the normal lakehold-dev state.
+
+services:
+  api:
+    ports:
+      - "${LAKEHOLD_PHASE2_API_PORT:-6200}:5200"
+      - "${LAKEHOLD_PHASE2_PGWIRE_PORT:-65433}:5433"
+    environment:
+      Lakehold__SeedDemoData: "false"
+      Lakehold__Auth__RequireAuthentication: "true"
+      # A deliberately public test credential. It is valid only inside the disposable state volume.
+      Lakehold__BootstrapToken: "lkh_admin_phase2bootstrapcredential0000000000000000000"
+      Lakehold__Cdc__Enabled: "true"
+      Lakehold__Cdc__PollInterval: "00:00:01"
+      Lakehold__Cdc__DeliveryTimeout: "00:00:03"
+      Lakehold__Cdc__MaxBackoff: "00:00:02"
+      Lakehold__Mcp__Enabled: "true"
+      # The journey proves both write gates: this deployment opt-in and the caller's role.
+      Lakehold__Mcp__AllowWrites: "true"
+      Lakehold__Mcp__MaxRowsPerResult: "20"
+      # Public test-only HMAC key, scoped to the disposable state removed after the run.
+      Lakehouse__EjectSigningKey: "phase2-eject-signing-secret"
+      Lakehold__PgWire__Enabled: "true"
+      Lakehold__PgWire__Port: "5433"
+      Lakehold__PgWire__AllowTokenAuthentication: "true"
+      # The test network is local and disposable. Production token auth must use TLS.
+      Lakehold__PgWire__AllowCleartextPassword: "true"
+    depends_on:
+      webhook:
+        condition: service_healthy
+
+  webhook:
+    image: node:24-alpine
+    working_dir: /receiver
+    command: ["node", "webhook-receiver.mjs"]
+    ports:
+      - "${LAKEHOLD_PHASE2_WEBHOOK_PORT:-6190}:9080"
+    volumes:
+      - ./web/lakehold-ui/e2e/support:/receiver:ro
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:9080/health"]
+      interval: 2s
+      timeout: 2s
+      retries: 15
+
+  pg-client:
+    image: postgres:17-alpine
+    profiles: ["tools"]
+    entrypoint: ["psql"]

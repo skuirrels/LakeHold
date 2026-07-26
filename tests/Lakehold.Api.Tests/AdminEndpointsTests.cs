@@ -83,6 +83,24 @@ public sealed class AdminEndpointsTests : IAsyncLifetime
         Assert.Equal(Path.Combine(_options.Value.DataRoot, "analytics"), stored.DataPath);
     }
 
+    [Theory]
+    [InlineData("main")]
+    [InlineData("MAIN")]
+    [InlineData("system")]
+    [InlineData("temp")]
+    public async Task A_DuckDB_reserved_catalog_name_is_refused_before_it_is_persisted(string name)
+    {
+        await AdminEndpoints.CreateTenantAsync(
+            new CreateTenantRequest("acme", "Acme"), _context, TimeProvider.System, default);
+
+        var result = await AdminEndpoints.CreateCatalogAsync(
+            "acme", new CreateCatalogRequest(name), _context, _options, TimeProvider.System, default);
+
+        var badRequest = Assert.IsType<BadRequest<string>>(Unwrap(result));
+        Assert.Contains("reserved by DuckDB", badRequest.Value, StringComparison.Ordinal);
+        Assert.Equal(0, await _context.Catalogs.CountAsync());
+    }
+
     [Fact]
     public async Task A_token_is_shown_once_listed_without_its_secret_and_revocable()
     {

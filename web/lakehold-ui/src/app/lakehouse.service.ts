@@ -3,6 +3,7 @@ import { Injectable, inject } from '@angular/core';
 import { Observable, throwError } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import {
+  AccessContext,
   BackupGeneration,
   CatalogStorage,
   ChangePage,
@@ -46,6 +47,10 @@ export class ApiError extends Error {
 export class LakehouseService {
   private readonly http = inject(HttpClient);
 
+  getAccess(): Observable<AccessContext> {
+    return this.http.get<AccessContext>(`${API_BASE}/access`).pipe(catchError(toMessage));
+  }
+
   listTenants(): Observable<Tenant[]> {
     return this.http.get<Tenant[]>(`${API_BASE}/tenants`).pipe(catchError(toMessage));
   }
@@ -57,7 +62,9 @@ export class LakehouseService {
   }
 
   getSchemas(tenant: string, catalog: string): Observable<Schema[]> {
-    return this.http.get<Schema[]>(this.catalogUrl(tenant, catalog, 'schemas')).pipe(catchError(toMessage));
+    return this.http
+      .get<Schema[]>(this.catalogUrl(tenant, catalog, 'schemas'))
+      .pipe(catchError(toMessage));
   }
 
   /**
@@ -147,7 +154,10 @@ export class LakehouseService {
    */
   createToken(tenant: string, name: string, role: string): Observable<CreatedToken> {
     return this.http
-      .post<CreatedToken>(`${API_BASE}/tenants/${encodeURIComponent(tenant)}/tokens`, { name, role })
+      .post<CreatedToken>(`${API_BASE}/tenants/${encodeURIComponent(tenant)}/tokens`, {
+        name,
+        role,
+      })
       .pipe(catchError(toMessage));
   }
 
@@ -255,7 +265,9 @@ export class LakehouseService {
 
   getHistory(tenant: string, limit = 30): Observable<QueryRun[]> {
     return this.http
-      .get<QueryRun[]>(`${API_BASE}/tenants/${encodeURIComponent(tenant)}/history`, { params: { limit } })
+      .get<QueryRun[]>(`${API_BASE}/tenants/${encodeURIComponent(tenant)}/history`, {
+        params: { limit },
+      })
       .pipe(catchError(toMessage));
   }
 
@@ -290,6 +302,10 @@ function toMessage(response: HttpErrorResponse): Observable<never> {
   }
 
   return throwError(
-    () => new ApiError(response.message || `Request failed with status ${response.status}.`, response.status),
+    () =>
+      new ApiError(
+        response.message || `Request failed with status ${response.status}.`,
+        response.status,
+      ),
   );
 }

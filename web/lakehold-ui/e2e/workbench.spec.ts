@@ -1,0 +1,76 @@
+import { expect, test } from '@playwright/test';
+
+test.describe('workbench user journeys', () => {
+  test.beforeEach(async ({ page }) => {
+    const tenants = page.waitForResponse(
+      (response) =>
+        response.url().endsWith('/api/tenants') && response.request().method() === 'GET',
+    );
+    await page.goto('/workbench');
+    expect((await tenants).ok()).toBe(true);
+    await expect(page.getByLabel('SQL editor')).toBeVisible();
+    await expect(page.locator('.selectors select').nth(0)).toHaveValue('demo');
+    await expect(page.locator('.selectors select').nth(1)).toHaveValue('analytics');
+  });
+
+  test('runs a query and renders typed results', async ({ page }) => {
+    await page
+      .getByLabel('SQL editor')
+      .fill("SELECT 42::BIGINT AS answer, 'ready' AS status, NULL::VARCHAR AS optional_value");
+    await page.getByRole('button', { name: /^Run/ }).click();
+
+    await expect(page.getByRole('columnheader', { name: /answer/i })).toBeVisible();
+    await expect(page.getByRole('cell', { name: '42', exact: true })).toBeVisible();
+    await expect(page.getByRole('cell', { name: 'ready', exact: true })).toBeVisible();
+    await expect(page.getByRole('cell', { name: 'NULL', exact: true })).toBeVisible();
+    await expect(page.locator('.summary')).toContainText('1 row');
+  });
+
+  test('inserts SQL from the catalog and replays it from history', async ({ page }) => {
+    await page.getByLabel('Filter catalog objects').fill('events');
+    await page.getByRole('button', { name: 'Insert a SELECT for events' }).click();
+
+    await expect(page.getByLabel('SQL editor')).toHaveValue(/FROM main\.events/);
+    await page.getByRole('button', { name: /^Run/ }).click();
+    await expect(page.locator('.summary')).toContainText('rows');
+
+    await page.getByRole('button', { name: 'History' }).click();
+    const historyRow = page.locator('.history-row').filter({ hasText: 'FROM main.events' }).first();
+    await expect(historyRow).toBeVisible();
+    await historyRow.click();
+
+    await expect(page.getByLabel('SQL editor')).toHaveValue(/FROM main\.events/);
+    await expect(page.getByRole('button', { name: 'Results' })).toHaveClass(/active/);
+  });
+
+  test('shows snapshots and storage from the live catalog', async ({ page }) => {
+    await page.getByRole('button', { name: 'Snapshots' }).click();
+    await expect(page.getByRole('columnheader', { name: 'Snapshot' })).toBeVisible();
+    await expect(page.locator('table.snapshots tbody tr').first()).toBeVisible();
+
+    await page.getByRole('button', { name: 'Storage' }).click();
+    await expect(page.getByText('events', { exact: true }).first()).toBeVisible();
+    await expect(page.getByText(/Rows|Files/).first()).toBeVisible();
+  });
+
+  test('keeps destructive maintenance as a cancellable dry run', async ({ page }) => {
+    await page.getByRole('button', { name: 'Expire' }).click();
+
+    await expect(page.getByText('Dry run — nothing was changed.')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Apply for real' })).toBeVisible();
+    await page.getByRole('button', { name: 'Cancel' }).click();
+    await expect(page.getByRole('button', { name: 'Apply for real' })).toBeHidden();
+  });
+
+  test('reports invalid SQL and recovers on the next statement', async ({ page }) => {
+    await page.getByLabel('SQL editor').fill('SELCT definitely_not_valid');
+    await page.getByRole('button', { name: /^Run/ }).click();
+    await expect(page.locator('.error-banner')).toContainText(/syntax|parser/i);
+
+    await page.getByLabel('SQL editor').fill('SELECT 1 AS recovered');
+    await page.getByRole('button', { name: /^Run/ }).click();
+    await expect(page.locator('.error-banner')).toBeHidden();
+    await expect(page.getByRole('columnheader', { name: /recovered/i })).toBeVisible();
+    await expect(page.locator('tbody tr').getByRole('cell').nth(1)).toHaveText('1');
+  });
+});

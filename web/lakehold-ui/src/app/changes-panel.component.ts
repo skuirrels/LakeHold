@@ -34,6 +34,8 @@ export class ChangesPanelComponent {
   readonly catalog = input.required<string | null>();
   /** Base tables as `schema.table`, for the pickers. Owned by the workbench, which loads the tree. */
   readonly tables = input.required<string[]>();
+  /** Hides subscription mutations for reader and demo access. */
+  readonly readOnly = input(false);
 
   protected readonly changes = signal<ChangePage | null>(null);
   protected readonly loading = signal(false);

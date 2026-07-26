@@ -4,11 +4,9 @@
 # compile and pass its tests. Publishing an artifact nobody had built in a clean checkout is worse
 # than publishing none: it moves the failure from a contributor's machine to an operator's node.
 #
-# Integration tests are deliberately not configured here. They skip unless their service variables
-# are set, so this run needs no PostgreSQL and no MinIO — see README.md for running them locally.
-# Their failure modes (object stores having no directories, PostgreSQL attaching nothing behind the
-# catalog) are worth a scheduled job against real services later; a per-PR run against containers
-# would report the same green either way.
+# The fast backend job needs no services. A separate integration job opts into PostgreSQL and MinIO
+# explicitly, so a green pull request means both the isolated suite and the real storage contracts
+# ran. Browser tests use the complete Compose stack and exercise the product through Chromium.
 
 name: CI
 
@@ -33,7 +31,7 @@ jobs:
 
       - uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '10.0.x'
+          dotnet-version: "10.0.x"
 
       - name: Restore
         run: dotnet restore Lakehold.slnx
@@ -45,7 +43,7 @@ jobs:
         run: dotnet test Lakehold.slnx --no-build
 
   frontend:
-    name: Build the website
+    name: Build and unit test the website
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -55,7 +53,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '24'
+          node-version: "24"
           cache: npm
           cache-dependency-path: web/lakehold-ui/package-lock.json
 
@@ -67,3 +65,117 @@ jobs:
 
       - name: Build
         run: npm run build
+
+  backend-integration:
+    name: Test PostgreSQL and S3 integrations
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Configure local test services
+        run: cp .env.example .env
+
+      - name: Start PostgreSQL and MinIO
+        run: |
+          docker compose up -d postgres minio
+          docker compose up minio-bucket
+
+      - name: Run engine tests with every integration enabled
+        run: |
+          dotnet test tests/Lakehold.Engine.Tests/Lakehold.Engine.Tests.csproj \
+            --logger "trx;LogFileName=integration.trx" \
+            --results-directory artifacts/test-results
+          if grep -q 'outcome="NotExecuted"' artifacts/test-results/integration.trx; then
+            echo "An opted-in integration test was skipped."
+            exit 1
+          fi
+
+      - name: Show service logs after a failure
+        if: failure()
+        run: docker compose logs --no-color postgres minio minio-bucket
+
+      - name: Stop test services
+        if: always()
+        run: docker compose down -v
+
+  e2e:
+    name: Test real user journeys in Chromium
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: web/lakehold-ui/package-lock.json
+
+      - name: Install browser test dependencies
+        working-directory: web/lakehold-ui
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+
+      - name: Configure the development stack
+        run: cp .env.example .env
+
+      - name: Start Lakehold
+        run: |
+          docker compose up -d
+          timeout 240 bash -c 'until curl -fsS http://localhost:5399/workbench >/dev/null; do sleep 3; done'
+
+      - name: Run browser journeys
+        working-directory: web/lakehold-ui
+        run: npm run test:e2e
+
+      - name: Upload browser evidence after a failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lakehold-playwright-evidence
+          path: output/playwright/
+          if-no-files-found: ignore
+
+      - name: Show stack logs after a failure
+        if: failure()
+        run: docker compose logs --no-color api ui
+
+      - name: Stop Lakehold
+        if: always()
+        run: docker compose down -v
+
+  phase2:
+    name: Simulate a disposable production operator
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: web/lakehold-ui/package-lock.json
+
+      - name: Install browser test dependencies
+        working-directory: web/lakehold-ui
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+
+      - name: Configure the disposable stack
+        run: cp .env.example .env
+
+      - name: Run the destructive full-system simulation
+        run: npm run test:e2e:phase2 --prefix web/lakehold-ui
+
+      - name: Upload operator evidence after a failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lakehold-phase2-playwright-evidence
+          path: output/playwright/
+          if-no-files-found: ignore

@@ -1,22 +1,34 @@
 <lh-panel-error [title]="errorTitle()" [message]="error()" />
 
 <div class="panel-controls">
-  <button class="btn btn-primary" type="button" [disabled]="ejecting() || !catalog()" (click)="runEject()">
-    {{ ejecting() ? 'Ejecting…' : 'Eject now' }}
-  </button>
+  @if (!readOnly()) {
+    <button
+      class="btn btn-primary"
+      type="button"
+      [disabled]="ejecting() || !catalog()"
+      (click)="runEject()"
+    >
+      {{ ejecting() ? 'Ejecting…' : 'Eject now' }}
+    </button>
 
-  <label class="checkbox">
-    <input type="checkbox" [checked]="includeHistory()"
-           (change)="includeHistory.set($any($event.target).checked)" />
-    <span>Include history</span>
-  </label>
+    <label class="checkbox">
+      <input
+        type="checkbox"
+        [checked]="includeHistory()"
+        (change)="includeHistory.set($any($event.target).checked)"
+      />
+      <span>Include history</span>
+    </label>
+  } @else {
+    <span class="advisory">Existing bundles are view only in read-only access.</span>
+  }
 
   <p class="control-note">
-    An eject bundle re-materialises every table through the catalog, so it applies deletes, collapses
-    superseded rows, and includes anything still inlined — a copy of the data path would do none of
-    those. It reads without writing, and its manifest is only written once every table's re-read row
-    count matches. Include history to copy the metadata catalog too, which is what keeps time travel
-    working after you leave.
+    An eject bundle re-materialises every table through the catalog, so it applies deletes,
+    collapses superseded rows, and includes anything still inlined — a copy of the data path would
+    do none of those. It reads without writing, and its manifest is only written once every table's
+    re-read row count matches. Include history to copy the metadata catalog too, which is what keeps
+    time travel working after you leave.
   </p>
 </div>
 
@@ -24,9 +36,15 @@
   <div class="ok-banner">
     Wrote {{ formatCount(done.tableCount) }} tables and {{ formatCount(done.totalRows) }} rows to
     {{ done.location }}.
-    @if (done.verified) { Verified. }
-    @if (done.isSigned) { Signed. }
-    @if (done.digestDeferred) { Per-file digests deferred — the bundle is on an object store. }
+    @if (done.verified) {
+      Verified.
+    }
+    @if (done.isSigned) {
+      Signed.
+    }
+    @if (done.digestDeferred) {
+      Per-file digests deferred — the bundle is on an object store.
+    }
   </div>
 }
 
@@ -59,7 +77,10 @@
           <td>{{ bundle.includesHistory ? 'yes' : 'data only' }}</td>
           <td>
             @if (!bundle.complete) {
-              <span class="advisory" title="No manifest: this bundle died partway through and is untrusted.">
+              <span
+                class="advisory"
+                title="No manifest: this bundle died partway through and is untrusted."
+              >
                 incomplete
               </span>
             } @else {
@@ -84,7 +105,9 @@
                 <tbody>
                   @for (table of bundle.tables; track table.schema + '.' + table.table) {
                     <tr>
-                      <td><span class="schema-part">{{ table.schema }}.</span>{{ table.table }}</td>
+                      <td>
+                        <span class="schema-part">{{ table.schema }}.</span>{{ table.table }}
+                      </td>
                       <td class="num">{{ formatCount(table.rowCount) }}</td>
                       <td class="num">{{ formatBytes(table.bytes) }}</td>
                       <td class="path" [title]="table.sha256 ?? ''">{{ table.sha256 ?? '—' }}</td>

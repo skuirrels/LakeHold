@@ -6,6 +6,8 @@
 #   make logs         Follow the running stack's logs.
 #   make stop         Stop the stack. The state volume survives.
 #   make backup-state Archive the state volume to a tarball in the working directory.
+#   make test         Run the complete backend, frontend, integration, and browser test suite.
+#   make demo         Start the opt-in demo deployment overlay.
 #
 # This drives compose.production.yaml and never compose.yaml. The development stack bind-mounts
 # source and runs a file watcher, so it has no build step to redo — "rebuild and restart" is not a
@@ -37,11 +39,13 @@ WAIT_TIMEOUT ?= 180
 
 .DEFAULT_GOAL := help
 
-.PHONY: help deploy production check-tree pull build up status logs stop backup-state
+.PHONY: help test demo deploy production check-tree pull build up status logs stop backup-state
 
 help:
 	@echo "Lakehold — make targets"
 	@echo ""
+	@echo "  test          Run every test, including live integrations and both E2E suites"
+	@echo "  demo          Start the opt-in demo deployment overlay"
 	@echo "  deploy        Update this deployment to the current published images"
 	@echo "  production    Update it from source: git pull, rebuild images, restart containers"
 	@echo "  status        Show the running containers and their health"
@@ -52,6 +56,17 @@ help:
 	@echo "  Overrides:    WAIT_TIMEOUT=$(WAIT_TIMEOUT) (seconds to wait for healthy containers)"
 	@echo "                LAKEHOLD_TAG=<version> (which published images deploy pulls)"
 	@echo "                ARCHIVE=<file> (what backup-state writes, in this directory)"
+
+# The test script owns a uniquely named Compose project and removes only that project's volumes.
+# It never reuses or stops the development or production stack, so running the full destructive
+# browser simulation cannot touch a developer's catalog.
+test:
+	@./scripts/test-all.sh
+
+# Demo is deliberately a separate opt-in overlay; the standard production configuration remains
+# authentication-protected and contains no demo settings.
+demo:
+	docker compose -f compose.production.yaml -f compose.demo.yaml up -d
 
 # The published-image path. No git, no build: whatever LAKEHOLD_TAG names is pulled and started.
 # Pinning that to a released version rather than the default `latest` is what makes a redeploy

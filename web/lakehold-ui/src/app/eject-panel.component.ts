@@ -31,6 +31,8 @@ export class EjectPanelComponent {
 
   readonly tenant = input.required<string | null>();
   readonly catalog = input.required<string | null>();
+  /** Lists existing bundles without allowing a public visitor to export the catalog. */
+  readonly readOnly = input(false);
 
   protected readonly bundles = signal<EjectBundle[]>([]);
   protected readonly includeHistory = signal(false);

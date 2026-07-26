@@ -57,13 +57,43 @@ describe('WorkbenchComponent', () => {
 
   describe('first run', () => {
     it('shows sign-in instead of an error when the deployment requires a credential', async () => {
-      api.errors.set('listTenants', new ApiError('Unauthorized', 401));
+      api.errors.set('getAccess', new ApiError('Unauthorized', 401));
 
       await mount();
 
-      expect(text()).toContain('This deployment requires a credential');
+      expect(text()).toContain('Sign in to this Lakehold node');
+      expect(text()).not.toContain('docker compose');
       expect(text()).not.toContain('Could not load workspaces');
       expect(fixture.nativeElement.querySelector('.tabs')).toBeNull();
+    });
+
+    it('opens a friendly read-only demo without exposing mutation controls', async () => {
+      api.access = { mode: 'demo', role: 'reader', readOnly: true };
+      api.backups = [
+        {
+          generation: '20260726T120000Z',
+          createdUtc: '2026-07-26T12:00:00Z',
+          snapshotId: 1,
+          tableCount: 2,
+          complete: true,
+        },
+      ];
+
+      await mount();
+
+      expect(text()).toContain('You’re exploring a live Lakehold demo');
+      expect(text()).toContain('Operator sign in');
+      expect(fixture.nativeElement.querySelector('.maintenance')).toBeNull();
+      expect(fixture.nativeElement.querySelector('[aria-label="SQL editor"]')).not.toBeNull();
+
+      await openTab('Changes');
+      expect(text()).not.toContain('New subscription');
+
+      await openTab('Backups');
+      expect(text()).not.toContain('Restore…');
+
+      await openTab('Eject');
+      expect(text()).not.toContain('Eject now');
     });
 
     it('offers setup when the credential works but the node has no workspaces', async () => {
@@ -129,8 +159,8 @@ describe('WorkbenchComponent', () => {
       await mount();
       await openTab('Changes');
 
-      const options = [...fixture.nativeElement.querySelectorAll('.panel-controls option')].map((o) =>
-        (o as HTMLElement).textContent?.trim(),
+      const options = [...fixture.nativeElement.querySelectorAll('.panel-controls option')].map(
+        (o) => (o as HTMLElement).textContent?.trim(),
       );
       expect(options).toContain('main.orders');
       expect(options).not.toContain('main.revenue_by_country');
@@ -152,7 +182,9 @@ describe('WorkbenchComponent', () => {
       api.failures.set('execute', 'syntax error at or near "SELCT"');
       await mount();
 
-      (fixture.nativeElement.querySelector('.editor-toolbar .btn-primary') as HTMLButtonElement).click();
+      (
+        fixture.nativeElement.querySelector('.editor-toolbar .btn-primary') as HTMLButtonElement
+      ).click();
       await fixture.whenStable();
       expect(text()).toContain('syntax error');
 
@@ -163,7 +195,12 @@ describe('WorkbenchComponent', () => {
 
   describe('maintenance', () => {
     it('runs as a dry run first and waits for confirmation', async () => {
-      api.maintenance = { operation: 'cleanup', detail: 'would delete 3 files', elapsedMilliseconds: 4, dryRun: true };
+      api.maintenance = {
+        operation: 'cleanup',
+        detail: 'would delete 3 files',
+        elapsedMilliseconds: 4,
+        dryRun: true,
+      };
       await mount();
       await maintain('Cleanup');
 
@@ -172,11 +209,18 @@ describe('WorkbenchComponent', () => {
     });
 
     it('commits only once the operator applies it', async () => {
-      api.maintenance = { operation: 'cleanup', detail: 'would delete 3 files', elapsedMilliseconds: 4, dryRun: true };
+      api.maintenance = {
+        operation: 'cleanup',
+        detail: 'would delete 3 files',
+        elapsedMilliseconds: 4,
+        dryRun: true,
+      };
       await mount();
       await maintain('Cleanup');
 
-      (fixture.nativeElement.querySelector('.dry-actions .btn-danger') as HTMLButtonElement).click();
+      (
+        fixture.nativeElement.querySelector('.dry-actions .btn-danger') as HTMLButtonElement
+      ).click();
       await fixture.whenStable();
 
       expect(api.lastArgs('runMaintenance')).toEqual(['demo', 'analytics', 'cleanup', true]);
@@ -197,7 +241,12 @@ describe('WorkbenchComponent', () => {
 
     it('does not refresh anything after a dry run, which changed nothing', async () => {
       api.storage = { ...api.storage, tables: [tableStorage()] };
-      api.maintenance = { operation: 'expire', detail: 'would drop 2', elapsedMilliseconds: 1, dryRun: true };
+      api.maintenance = {
+        operation: 'expire',
+        detail: 'would drop 2',
+        elapsedMilliseconds: 1,
+        dryRun: true,
+      };
       await mount();
       await openTab('Storage');
       const before = api.countOf('getStorage');
@@ -220,9 +269,16 @@ describe('WorkbenchComponent', () => {
 
   describe('snapshot restore', () => {
     it('loads a reversible per-table statement into the editor', async () => {
-      api.schemas = [{ name: 'main', tables: [{ name: 'orders', kind: 'BASE TABLE', columns: [] }] }];
+      api.schemas = [
+        { name: 'main', tables: [{ name: 'orders', kind: 'BASE TABLE', columns: [] }] },
+      ];
       api.snapshots = [
-        { snapshotId: 12, committedAt: '2026-07-26T00:00:00Z', schemaVersion: 4, commitMessage: null },
+        {
+          snapshotId: 12,
+          committedAt: '2026-07-26T00:00:00Z',
+          schemaVersion: 4,
+          commitMessage: null,
+        },
       ];
 
       await mount();
@@ -257,7 +313,9 @@ describe('WorkbenchComponent', () => {
       await openTab('Storage');
       expect(api.lastArgs('getStorage')).toEqual(['demo', 'analytics']);
 
-      const select = [...fixture.nativeElement.querySelectorAll('.selectors select')].at(-1) as HTMLSelectElement;
+      const select = [...fixture.nativeElement.querySelectorAll('.selectors select')].at(
+        -1,
+      ) as HTMLSelectElement;
       select.value = 'archive';
       select.dispatchEvent(new Event('change'));
       await fixture.whenStable();

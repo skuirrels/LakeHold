@@ -19,6 +19,12 @@ public static class LakehouseEndpoints
     {
         ArgumentNullException.ThrowIfNull(app);
 
+        app.MapGet("/api/access", GetAccess)
+            .WithTags("Lakehouse")
+            .AddEndpointFilter<LakeholdAuthorizationFilter>()
+            .RequireCapability(Capability.Listing)
+            .WithSummary("Describes the caller's effective workbench access.");
+
         // Every tenant-scoped path shares one authentication check: the bearer token is resolved to a
         // principal and the route's tenant and catalog are validated against it. See
         // docs/AUTHENTICATION.md; today the filter is permissive for token-less requests.
@@ -84,9 +90,11 @@ public static class LakehouseEndpoints
             .WithSummary("Lists the catalog's change subscriptions.");
 
         tenants.MapPost("/{tenantSlug}/catalogs/{catalogName}/subscriptions", CreateSubscriptionAsync)
+            .RequireCapability(Capability.TenantWrite)
             .WithSummary("Creates a webhook subscription to the catalog's change feed.");
 
         tenants.MapDelete("/{tenantSlug}/catalogs/{catalogName}/subscriptions/{id:int}", DeleteSubscriptionAsync)
+            .RequireCapability(Capability.TenantWrite)
             .WithSummary("Deletes a change subscription.");
 
         // Outside the /api/tenants group, so it carries the filter itself: the run log names every
@@ -100,6 +108,21 @@ public static class LakehouseEndpoints
             .WithSummary("Recent scheduled maintenance runs, scoped to what the credential may see.");
 
         return app;
+    }
+
+    private static Ok<AccessDto> GetAccess(HttpContext http)
+    {
+        var principal = http.GetLakeholdPrincipal();
+        var mode = principal.IsDemo
+            ? "demo"
+            : principal.IsAuthenticated
+                ? "authenticated"
+                : "open";
+
+        return TypedResults.Ok(new AccessDto(
+            mode,
+            principal.Role.ToString().ToLowerInvariant(),
+            principal.IsReadOnly));
     }
 
     private static async Task<Ok<IReadOnlyList<TenantDto>>> ListTenantsAsync(
@@ -155,7 +178,14 @@ public static class LakehouseEndpoints
             // The token id is recorded on the run for the audit trail.
             var principal = http.GetLakeholdPrincipal();
             var result = await lakehouse
-                .ExecuteAsync(tenantSlug, catalogName, request.Sql, cancellationToken, principal.IsReadOnly, principal.TokenId)
+                .ExecuteAsync(
+                    tenantSlug,
+                    catalogName,
+                    request.Sql,
+                    cancellationToken,
+                    principal.IsReadOnly,
+                    principal.TokenId,
+                    recordHistory: !principal.IsDemo)
                 .ConfigureAwait(false);
 
             return TypedResults.Ok(new QueryResponse(

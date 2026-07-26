@@ -1,5 +1,6 @@
 import { Observable, of, throwError } from 'rxjs';
 import {
+  AccessContext,
   BackupGeneration,
   CatalogStorage,
   ChangePage,
@@ -30,8 +31,18 @@ import {
 export class FakeLakehouseService {
   readonly calls: { method: string; args: unknown[] }[] = [];
 
-  storage: CatalogStorage = { tables: [], targetFileSizeBytes: null, advisoryFileSizeBytes: 16_000_000 };
-  files: TableFiles = { schemaName: 'main', tableName: 't', snapshotId: null, truncated: false, files: [] };
+  storage: CatalogStorage = {
+    tables: [],
+    targetFileSizeBytes: null,
+    advisoryFileSizeBytes: 16_000_000,
+  };
+  files: TableFiles = {
+    schemaName: 'main',
+    tableName: 't',
+    snapshotId: null,
+    truncated: false,
+    files: [],
+  };
   snapshots: Snapshot[] = [];
   changes: ChangePage = {
     schema: 'main',
@@ -115,8 +126,13 @@ export class FakeLakehouseService {
 
   // ---- Surfaces the workbench itself uses --------------------------------------------------
 
+  access: AccessContext = { mode: 'open', role: 'owner', readOnly: false };
   tenants: Tenant[] = [
-    { slug: 'demo', displayName: 'Demo workspace', catalogs: [{ name: 'analytics', dataPath: '/d', isReadOnly: false }] },
+    {
+      slug: 'demo',
+      displayName: 'Demo workspace',
+      catalogs: [{ name: 'analytics', dataPath: '/d', isReadOnly: false }],
+    },
   ];
   schemas: Schema[] = [];
   history: QueryRun[] = [];
@@ -128,8 +144,17 @@ export class FakeLakehouseService {
     rowsAffected: null,
   };
   /** What the next maintenance call reports. `dryRun` drives the confirmation affordance. */
-  maintenance: MaintenanceResult = { operation: 'flush', detail: 'done', elapsedMilliseconds: 1, dryRun: false };
+  maintenance: MaintenanceResult = {
+    operation: 'flush',
+    detail: 'done',
+    elapsedMilliseconds: 1,
+    dryRun: false,
+  };
   createdToken: CreatedToken = { id: 1, name: 'workbench', token: 'lkh_new-owner-token' };
+
+  getAccess(...args: unknown[]): Observable<AccessContext> {
+    return this.answer('getAccess', args, () => this.access);
+  }
 
   listTenants(...args: unknown[]): Observable<Tenant[]> {
     return this.answer('listTenants', args, () => this.tenants);

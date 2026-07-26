@@ -92,7 +92,7 @@ public sealed class Duckling : IAsyncDisposable
 
         // Validate before building anything: the catalog name reaches ATTACH, which cannot be
         // parameterised, so an invalid descriptor must fail before a connection is opened.
-        _ = SqlIdentifier.Quote(catalog.CatalogName, nameof(catalog));
+        _ = SqlIdentifier.ValidateCatalogName(catalog.CatalogName, nameof(catalog));
 
         var builder = new DbContextOptionsBuilder<LakeContext>();
         builder.UseDuckDB(
