@@ -1,0 +1,44 @@
+:host {
+  display: block;
+}
+
+.storage tr.selected {
+  background: var(--surface-2, var(--surface-1));
+}
+
+.table-cell {
+  white-space: nowrap;
+}
+
+/* Pending flush is information, not a warning: rows are safely committed, they are just not Parquet
+   yet. Colouring it like fragmentation would train the operator to ignore both. */
+.advisory-flush {
+  border-color: var(--info);
+  color: var(--info);
+}
+
+.files-panel {
+  border-top: 1px solid var(--border);
+  background: var(--surface-1);
+}
+
+.panel-head h3 {
+  font-family: var(--mono);
+}
+
+.files-sub {
+  color: var(--text-faint);
+  margin-left: 8px;
+}
+
+.files-root {
+  display: inline-block;
+  max-width: 52ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: bottom;
+  margin-left: 10px;
+  color: var(--text-faint);
+  font-size: 11px;
+}

@@ -19,6 +19,12 @@ public sealed record BackupGeneration(string Generation, string Location, Backup
 }
 
 /// <summary>Outcome of a restore.</summary>
+/// <param name="MetadataPath">
+///     Where the rebuilt catalog was actually written, resolved to an absolute path. The caller's
+///     own string is deliberately not echoed back: a relative target resolves against the server's
+///     working directory, so telling an operator under recovery pressure that their catalog is at
+///     <c>restored.ducklake</c> is an answer they cannot act on.
+/// </param>
 public sealed record CatalogRestoreResult(
     string MetadataPath,
     string Generation,
@@ -184,6 +190,16 @@ public static class CatalogRestore
     {
         ArgumentNullException.ThrowIfNull(options);
         ArgumentException.ThrowIfNullOrWhiteSpace(targetMetadataPath);
+
+        // Resolved once, up front, so every path below — the refusal message, the directory created,
+        // the ATTACH, and the reported result — names the same file. A restored catalog nobody can
+        // find is barely a restored catalog, and recovery is exactly when a relative path echoed back
+        // unresolved costs the most. A URI is left alone: DuckDB cannot ATTACH a database over an
+        // object store, so one here is a caller error that the attach itself reports precisely.
+        if (!StorageLocation.IsRemote(targetMetadataPath))
+        {
+            targetMetadataPath = Path.GetFullPath(targetMetadataPath);
+        }
 
         var candidates = await ListGenerationsAsync(options, catalogName, configure, cancellationToken)
             .ConfigureAwait(false);

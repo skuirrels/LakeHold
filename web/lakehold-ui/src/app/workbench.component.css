@@ -506,6 +506,8 @@
 
 /* Snapshots */
 
+/* The snapshots panel is the one table still owned by the workbench; the rest moved out with their
+   panels into `panel-shared.css`. */
 .snapshots {
   width: 100%;
   border-collapse: collapse;

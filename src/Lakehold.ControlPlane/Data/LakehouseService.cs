@@ -221,6 +221,36 @@ public sealed class LakehouseService(
         return await CatalogBrowser.ReadSchemasAsync(duckling, cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>Returns the storage footprint of a tenant's catalog, table by table.</summary>
+    /// <remarks>
+    ///     A read, so it declares no more than <c>TenantData</c> and needs no writable attachment: a
+    ///     reader who cannot run compaction can still see that compaction is needed.
+    /// </remarks>
+    public async Task<CatalogStorageInfo> GetStorageAsync(
+        string tenantSlug,
+        string catalogName,
+        CancellationToken cancellationToken)
+    {
+        var (duckling, _) = await ResolveAsync(tenantSlug, catalogName, cancellationToken).ConfigureAwait(false);
+        return await StorageBrowser.ReadAsync(duckling, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>Lists one table's data files, optionally as they stood at a given snapshot.</summary>
+    public async Task<TableFileList> GetTableFilesAsync(
+        string tenantSlug,
+        string catalogName,
+        string schema,
+        string table,
+        long? snapshotId,
+        int maxRows,
+        CancellationToken cancellationToken)
+    {
+        var (duckling, _) = await ResolveAsync(tenantSlug, catalogName, cancellationToken).ConfigureAwait(false);
+        return await StorageBrowser
+            .ListFilesAsync(duckling, schema, table, snapshotId, maxRows, cancellationToken)
+            .ConfigureAwait(false);
+    }
+
     /// <summary>Returns a tenant catalog's snapshot history, newest first.</summary>
     public async Task<IReadOnlyList<SnapshotInfo>> GetSnapshotsAsync(
         string tenantSlug,
@@ -372,6 +402,19 @@ public sealed class LakehouseService(
     }
 
     /// <summary>Rebuilds a catalog from a backup into a new metadata file.</summary>
+    /// <param name="targetMetadataPath">
+    ///     Where to write the rebuilt catalog. A bare name or relative path is taken as relative to
+    ///     <see cref="LakehouseOptions.MetadataRoot"/>, so it lands beside the catalogs it belongs
+    ///     with; an absolute path is used as given.
+    /// </param>
+    /// <remarks>
+    ///     The anchor is deliberate. Left to the framework a relative target resolves against the
+    ///     server's working directory, which is wherever the API process happened to be started —
+    ///     next to the binary in development, and somewhere no operator would look under Docker. A
+    ///     restore that succeeds and leaves the catalog somewhere unexpected is a bad outcome for an
+    ///     operation whose entire purpose is recovery. <c>MetadataRoot</c> is where provisioning puts
+    ///     every catalog's metadata file, so it is the directory a bare name already means.
+    /// </remarks>
     public async Task<CatalogRestoreResult> RestoreBackupAsync(
         string tenantSlug,
         string catalogName,
@@ -381,8 +424,12 @@ public sealed class LakehouseService(
     {
         var resolved = await ResolveCatalogAsync(tenantSlug, catalogName, cancellationToken).ConfigureAwait(false);
 
+        var target = string.IsNullOrWhiteSpace(targetMetadataPath) || Path.IsPathRooted(targetMetadataPath)
+            ? targetMetadataPath
+            : Path.Combine(_options.MetadataRoot, targetMetadataPath);
+
         return await CatalogRestore
-            .RestoreAsync(_options, catalogName, generation, targetMetadataPath, resolved.Descriptor.DataPath, cancellationToken)
+            .RestoreAsync(_options, catalogName, generation, target, resolved.Descriptor.DataPath, cancellationToken)
             .ConfigureAwait(false);
     }
 

@@ -69,6 +69,37 @@ public static class SqlIdentifier
     }
 
     /// <summary>
+    ///     Escapes <paramref name="value"/> as a double-quoted SQL identifier.
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///         The counterpart to <see cref="Quote"/>, and used where the allow-list is the wrong
+    ///         tool: a name that came <em>out</em> of the catalog and is being put back into a
+    ///         statement. Tenants create tables called <c>order-items</c>, <c>my.table</c>, and
+    ///         <c>select</c>, DuckLake stores all three, and refusing to name one is not a safety
+    ///         property — it is a read that fails on a catalog the engine is perfectly happy with.
+    ///     </para>
+    ///     <para>
+    ///         <see cref="Quote"/> stays the right choice at a trust boundary, where a malformed
+    ///         name should be rejected rather than escaped. This one is for the other direction, and
+    ///         escapes the way the SQL standard says: embedded double quotes are doubled. A NUL is
+    ///         rejected outright, exactly as in <see cref="Literal"/>, because DuckDB's parser treats
+    ///         it as a terminator and would silently truncate the statement.
+    ///     </para>
+    /// </remarks>
+    public static string QuoteName(string value)
+    {
+        ArgumentNullException.ThrowIfNull(value);
+
+        if (value.Contains('\0', StringComparison.Ordinal))
+        {
+            throw new ArgumentException("SQL identifiers cannot contain NUL.", nameof(value));
+        }
+
+        return $"\"{value.Replace("\"", "\"\"", StringComparison.Ordinal)}\"";
+    }
+
+    /// <summary>
     ///     Escapes <paramref name="value"/> as a single-quoted SQL string literal.
     /// </summary>
     /// <remarks>

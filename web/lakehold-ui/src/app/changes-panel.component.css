@@ -1,0 +1,39 @@
+:host {
+  display: block;
+}
+
+/* An update is two rows sharing a row id, so the pre-image is dimmed rather than coloured like a
+   delete — it is not a deletion, and colouring it as one misreads the feed. */
+.change-type {
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.ct-insert {
+  color: var(--info);
+}
+
+.ct-delete {
+  color: var(--warn);
+}
+
+.ct-update_preimage {
+  color: var(--text-faint);
+}
+
+.ct-update_postimage {
+  color: var(--accent);
+}
+
+.subs {
+  border-top: 1px solid var(--border);
+  margin-top: 10px;
+}
+
+.sub-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 14px;
+  padding: 0 14px 12px;
+}

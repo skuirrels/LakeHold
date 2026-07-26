@@ -1,11 +1,13 @@
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Lakehold.Api.Auth;
 using Lakehold.Api.Scheduling;
 using Lakehold.ControlPlane.Data;
 using Lakehold.ControlPlane.Model;
 using Lakehold.ControlPlane.Security;
 using Lakehold.Engine.Catalog;
+using Lakehold.Engine.Configuration;
 
 namespace Lakehold.Api.Endpoints;
 
@@ -39,6 +41,18 @@ public static class LakehouseEndpoints
 
         tenants.MapGet("/{tenantSlug}/catalogs/{catalogName}/snapshots", GetSnapshotsAsync)
             .WithSummary("Returns the catalog's snapshot history for time travel.");
+
+        // TenantData, not TenantOwner. Maintenance is the owner's to authorise because it destroys or
+        // exports; knowing how large a table is, is not. A reader who cannot press Compact should
+        // still be able to see that Compact is needed. See docs/UI.md.
+        tenants.MapGet("/{tenantSlug}/catalogs/{catalogName}/storage", GetStorageAsync)
+            .WithSummary("Returns the catalog's storage footprint: sizes, file counts, and maintenance advice.");
+
+        // Schema and table are query parameters rather than route segments: a table name may contain
+        // a slash or a dot, and encoding those into the path invites every router and proxy between
+        // here and the browser to disagree about what the name was.
+        tenants.MapGet("/{tenantSlug}/catalogs/{catalogName}/storage/files", GetTableFilesAsync)
+            .WithSummary("Lists one table's Parquet data files and their paired delete files.");
 
         // Maintenance, restore, and eject change or export the whole catalog: owner operations, not
         // something a reader or editor credential authorises. See docs/AUTHENTICATION.md phase 4.
@@ -190,6 +204,101 @@ public static class LakehouseEndpoints
         catch (CatalogNotFoundException ex)
         {
             return TypedResults.NotFound(ex.Message);
+        }
+    }
+
+    /// <summary>Returns the catalog's storage footprint with its maintenance advisories.</summary>
+    /// <remarks>
+    ///     The advisories are computed here rather than in the engine or the browser so that one place
+    ///     owns the threshold, and so a second consumer — an agent tool, a CLI — reaches the same
+    ///     verdict as the workbench does.
+    /// </remarks>
+    internal static async Task<Results<Ok<CatalogStorageDto>, NotFound<string>>> GetStorageAsync(
+        string tenantSlug,
+        string catalogName,
+        LakehouseService lakehouse,
+        IOptions<LakehouseOptions> options,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var storage = await lakehouse
+                .GetStorageAsync(tenantSlug, catalogName, cancellationToken)
+                .ConfigureAwait(false);
+
+            // The catalog's own setting wins when it has one; the deployment's floor stands in when
+            // it does not. Reported alongside the verdict so the basis of the advice is visible.
+            var advisory = storage.TargetFileSizeBytes ?? options.Value.CompactionAdvisoryBytes;
+
+            return TypedResults.Ok(new CatalogStorageDto(
+                [
+                    .. storage.Tables.Select(t => new TableStorageDto(
+                        t.SchemaName,
+                        t.TableName,
+                        t.RowCount,
+                        t.InlinedRows,
+                        t.FileCount,
+                        t.FileSizeBytes,
+                        t.DeleteFileCount,
+                        t.DeleteFileSizeBytes,
+                        t.AverageFileSizeBytes,
+                        t.InlinedRows > 0,
+                        // One file cannot be merged with anything, so a small single file is not
+                        // fragmentation — it is just a small table, and advising compaction on it
+                        // would train the operator to ignore the signal.
+                        t.FileCount > 1 && t.AverageFileSizeBytes < advisory)),
+                ],
+                storage.TargetFileSizeBytes,
+                advisory));
+        }
+        catch (CatalogNotFoundException ex)
+        {
+            return TypedResults.NotFound(ex.Message);
+        }
+    }
+
+    /// <summary>Lists one table's data files, optionally as they stood at a given snapshot.</summary>
+    internal static async Task<Results<Ok<TableFilesDto>, NotFound<string>, BadRequest<string>>> GetTableFilesAsync(
+        string tenantSlug,
+        string catalogName,
+        string table,
+        LakehouseService lakehouse,
+        CancellationToken cancellationToken,
+        string schema = "main",
+        long? snapshot = null,
+        int limit = 1000)
+    {
+        try
+        {
+            var files = await lakehouse
+                .GetTableFilesAsync(
+                    tenantSlug, catalogName, schema, table, snapshot,
+                    Math.Clamp(limit, 1, 10_000), cancellationToken)
+                .ConfigureAwait(false);
+
+            return TypedResults.Ok(new TableFilesDto(
+                files.SchemaName,
+                files.TableName,
+                files.SnapshotId,
+                files.Truncated,
+                [
+                    .. files.Files.Select(f => new DataFileDto(
+                        f.DataFile, f.DataFileSizeBytes, f.DeleteFile, f.DeleteFileSizeBytes)),
+                ]));
+        }
+        catch (CatalogNotFoundException ex)
+        {
+            return TypedResults.NotFound(ex.Message);
+        }
+        catch (ArgumentException ex)
+        {
+            return TypedResults.BadRequest(ex.Message);
+        }
+        catch (DuckDB.NET.Data.DuckDBException ex)
+        {
+            // e.g. an unknown table, or a snapshot predating the table's creation. The engine names
+            // the problem precisely; forward it rather than replacing it with a generic failure.
+            return TypedResults.BadRequest(ex.Message);
         }
     }
 

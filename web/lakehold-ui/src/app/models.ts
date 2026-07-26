@@ -66,6 +66,57 @@ export interface Snapshot {
   commitMessage: string | null;
 }
 
+/** One table's physical footprint in the storage view. */
+export interface TableStorage {
+  schemaName: string;
+  tableName: string;
+  /** Live rows, as `count(*)` would report: deletes subtracted, inlined rows included. */
+  rowCount: number;
+  /**
+   * Rows committed but not yet written to Parquet. The only thing distinguishing a table whose data
+   * is entirely inlined from an empty one — both report zero files.
+   */
+  inlinedRows: number;
+  fileCount: number;
+  fileSizeBytes: number;
+  deleteFileCount: number;
+  deleteFileSizeBytes: number;
+  /** Mean bytes per data file, or null when there are no files. */
+  averageFileSizeBytes: number | null;
+  /** Whether `flush` has work to do. Advisory. */
+  needsFlush: boolean;
+  /** Whether the table has drifted into the small-file problem. Advisory. */
+  needsCompaction: boolean;
+}
+
+/** A catalog's storage footprint. */
+export interface CatalogStorage {
+  tables: TableStorage[];
+  /** The catalog's own `target_file_size`, or null when it has never been set. */
+  targetFileSizeBytes: number | null;
+  /** The threshold `needsCompaction` was computed against, so the advice shows its basis. */
+  advisoryFileSizeBytes: number;
+}
+
+/** One Parquet data file in the table-detail panel. */
+export interface DataFile {
+  dataFile: string;
+  dataFileSizeBytes: number;
+  /** The merge-on-read delete file paired to this data file, or null when it has none. */
+  deleteFile: string | null;
+  deleteFileSizeBytes: number | null;
+}
+
+/** A table's data files at one snapshot. */
+export interface TableFiles {
+  schemaName: string;
+  tableName: string;
+  /** The snapshot read, or null for the current one. */
+  snapshotId: number | null;
+  truncated: boolean;
+  files: DataFile[];
+}
+
 export interface MaintenanceResult {
   operation: string;
   detail: string;
@@ -101,4 +152,108 @@ export interface CreatedToken {
   id: number;
   name: string;
   token: string;
+}
+
+/** A backup generation available to restore. */
+export interface BackupGeneration {
+  generation: string;
+  createdUtc: string | null;
+  snapshotId: number | null;
+  tableCount: number;
+  /**
+   * False when the generation has no manifest — it died partway through, and restoring it could
+   * silently reinstate deleted rows. The API refuses to restore one.
+   */
+  complete: boolean;
+}
+
+/** Outcome of a restore. */
+export interface RestoreResult {
+  metadataPath: string;
+  generation: string;
+  tablesRestored: number;
+  rowsRestored: number;
+}
+
+/** An attested table inside an eject bundle. */
+export interface EjectedTable {
+  schema: string;
+  table: string;
+  rowCount: number;
+  sha256: string | null;
+  bytes: number | null;
+}
+
+/** An eject bundle on disk. */
+export interface EjectBundle {
+  bundle: string;
+  createdUtc: string | null;
+  snapshotId: number | null;
+  includesHistory: boolean;
+  isSigned: boolean;
+  /** False when the bundle has no manifest — it died partway and is untrusted. */
+  complete: boolean;
+  tables: EjectedTable[];
+}
+
+/** Outcome of an eject. */
+export interface EjectResult {
+  location: string;
+  tableCount: number;
+  totalRows: number;
+  verified: boolean;
+  /** True when per-file digests were skipped because the bundle is on an object store. */
+  digestDeferred: boolean;
+  isSigned: boolean;
+  includesHistory: boolean;
+}
+
+/** One row-level change from the CDC feed. */
+export interface Change {
+  snapshotId: number;
+  rowId: number;
+  /** `insert`, `delete`, `update_preimage`, or `update_postimage`. */
+  changeType: string;
+  row: Record<string, unknown>;
+}
+
+/** A page of row-level changes. */
+export interface ChangePage {
+  schema: string;
+  table: string;
+  fromSnapshot: number;
+  toSnapshot: number;
+  truncated: boolean;
+  changes: Change[];
+}
+
+/**
+ * A change subscription.
+ *
+ * Carries no signing secret: it is write-only and no endpoint returns it after creation. Delivery
+ * state is included because a subscription you cannot observe is one you do not trust.
+ */
+export interface Subscription {
+  id: number;
+  catalog: string;
+  schema: string;
+  table: string | null;
+  endpointUrl: string;
+  active: boolean;
+  lastDeliveredSnapshot: number;
+  consecutiveFailures: number;
+  lastAttemptUtc: string | null;
+  lastError: string | null;
+  createdUtc: string;
+}
+
+/** A recent scheduled maintenance run, across every tenant the credential may see. */
+export interface ScheduledRun {
+  job: string;
+  tenant: string;
+  catalog: string;
+  startedUtc: string;
+  elapsedMilliseconds: number;
+  succeeded: boolean;
+  detail: string;
 }

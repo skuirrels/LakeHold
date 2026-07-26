@@ -1,0 +1,101 @@
+<lh-panel-error [title]="errorTitle()" [message]="error()" />
+
+<div class="panel-controls">
+  <button class="btn btn-primary" type="button" [disabled]="ejecting() || !catalog()" (click)="runEject()">
+    {{ ejecting() ? 'Ejecting…' : 'Eject now' }}
+  </button>
+
+  <label class="checkbox">
+    <input type="checkbox" [checked]="includeHistory()"
+           (change)="includeHistory.set($any($event.target).checked)" />
+    <span>Include history</span>
+  </label>
+
+  <p class="control-note">
+    An eject bundle re-materialises every table through the catalog, so it applies deletes, collapses
+    superseded rows, and includes anything still inlined — a copy of the data path would do none of
+    those. It reads without writing, and its manifest is only written once every table's re-read row
+    count matches. Include history to copy the metadata catalog too, which is what keeps time travel
+    working after you leave.
+  </p>
+</div>
+
+@if (result(); as done) {
+  <div class="ok-banner">
+    Wrote {{ formatCount(done.tableCount) }} tables and {{ formatCount(done.totalRows) }} rows to
+    {{ done.location }}.
+    @if (done.verified) { Verified. }
+    @if (done.isSigned) { Signed. }
+    @if (done.digestDeferred) { Per-file digests deferred — the bundle is on an object store. }
+  </div>
+}
+
+@if (error() && bundles().length === 0) {
+  <!-- The error banner above is the complete state; an unread list is not an empty list. -->
+} @else if (bundles().length === 0) {
+  <p class="placeholder">No eject bundles yet.</p>
+} @else {
+  <table>
+    <thead>
+      <tr>
+        <th scope="col">Bundle</th>
+        <th scope="col">Created</th>
+        <th scope="col" class="num">Snapshot</th>
+        <th scope="col">History</th>
+        <th scope="col">Signed</th>
+        <th scope="col" class="num">Tables</th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (bundle of bundles(); track bundle.bundle) {
+        <tr>
+          <td>
+            <button class="cell-link" type="button" (click)="toggleBundle(bundle.bundle)">
+              {{ bundle.bundle }}
+            </button>
+          </td>
+          <td>{{ bundle.createdUtc ? formatTime(bundle.createdUtc) : '—' }}</td>
+          <td class="num">{{ bundle.snapshotId ?? '—' }}</td>
+          <td>{{ bundle.includesHistory ? 'yes' : 'data only' }}</td>
+          <td>
+            @if (!bundle.complete) {
+              <span class="advisory" title="No manifest: this bundle died partway through and is untrusted.">
+                incomplete
+              </span>
+            } @else {
+              {{ bundle.isSigned ? 'yes' : 'no' }}
+            }
+          </td>
+          <td class="num">{{ formatCount(bundle.tables.length) }}</td>
+        </tr>
+
+        @if (openBundle() === bundle.bundle && bundle.tables.length > 0) {
+          <tr>
+            <td colspan="6" class="bundle-detail">
+              <table>
+                <thead>
+                  <tr>
+                    <th scope="col">Table</th>
+                    <th scope="col" class="num">Rows</th>
+                    <th scope="col" class="num">Bytes</th>
+                    <th scope="col">SHA-256</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (table of bundle.tables; track table.schema + '.' + table.table) {
+                    <tr>
+                      <td><span class="schema-part">{{ table.schema }}.</span>{{ table.table }}</td>
+                      <td class="num">{{ formatCount(table.rowCount) }}</td>
+                      <td class="num">{{ formatBytes(table.bytes) }}</td>
+                      <td class="path" [title]="table.sha256 ?? ''">{{ table.sha256 ?? '—' }}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </td>
+          </tr>
+        }
+      }
+    </tbody>
+  </table>
+}

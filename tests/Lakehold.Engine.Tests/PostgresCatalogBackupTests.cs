@@ -24,7 +24,14 @@ namespace Lakehold.Engine.Tests;
 ///         Gated on <c>LAKEHOLD_TEST_POSTGRES</c> — a libpq connection string — and skipped when it
 ///         is unset, so the default <c>dotnet test</c> run needs no external services.
 ///     </para>
+///     <para>
+///         Shares <see cref="PostgresMetadata.CollectionName"/> with every other PostgreSQL-backed
+///         suite. They all reset the same database's <c>public</c> schema on the way in, and xUnit
+///         runs test classes in parallel by default, so without the collection they would race and
+///         fail intermittently in a way that reads as a product bug.
+///     </para>
 /// </remarks>
+[Collection(PostgresMetadata.CollectionName)]
 public sealed class PostgresCatalogBackupTests : IAsyncLifetime
 {
     private const string ConnectionVariable = "LAKEHOLD_TEST_POSTGRES";
@@ -238,60 +245,11 @@ public sealed class PostgresCatalogBackupTests : IAsyncLifetime
         });
     }
 
-    /// <summary>Drops everything this suite creates in the shared PostgreSQL database.</summary>
-    private async Task ResetMetadataAsync()
-    {
-        var parts = ParseConnection(_connection!);
-
-        await using var connection = new DuckDBConnection("Data Source=:memory:");
-        await connection.OpenAsync();
-
-        await Execute(connection, "INSTALL postgres; LOAD postgres;");
-        await Execute(
-            connection,
-            $"""
-            CREATE OR REPLACE SECRET reset_creds (
-                TYPE postgres,
-                HOST '{parts["host"]}',
-                PORT {parts["port"]},
-                DATABASE '{parts["dbname"]}',
-                USER '{parts["user"]}',
-                PASSWORD '{parts["password"]}');
-            """);
-        await Execute(connection, "ATTACH '' AS reset_pg (TYPE postgres, SECRET reset_creds);");
-
-        foreach (var statement in new[]
-        {
-            "DROP SCHEMA IF EXISTS public CASCADE",
-            "CREATE SCHEMA public",
-            $"DROP SCHEMA IF EXISTS {MaintenanceLease.SchemaName} CASCADE",
-        })
-        {
-            await Execute(connection, $"CALL postgres_execute('reset_pg', '{statement}')");
-        }
-    }
-
-    private static async Task Execute(DuckDBConnection connection, string sql)
-    {
-        await using var command = connection.CreateCommand();
-        command.CommandText = sql;
-        await command.ExecuteNonQueryAsync();
-    }
+    /// <summary>Drops everything these suites create in the shared PostgreSQL database.</summary>
+    private Task ResetMetadataAsync() => PostgresMetadata.ResetAsync(_connection!);
 
     private static Dictionary<string, string> ParseConnection(string connection)
-    {
-        var parsed = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var pair in connection.Split(' ', StringSplitOptions.RemoveEmptyEntries))
-        {
-            var split = pair.Split('=', 2);
-            if (split.Length == 2)
-            {
-                parsed[split[0]] = split[1];
-            }
-        }
-
-        return parsed;
-    }
+        => PostgresMetadata.ParseConnection(connection);
 
     private static async Task Run(Duckling duckling, string sql)
         => await duckling.ExecuteQueryAsync(sql, CancellationToken.None);

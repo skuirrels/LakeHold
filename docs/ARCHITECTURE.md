@@ -292,6 +292,8 @@ readable by Spark, Trino, or Snowflake.
 | RBAC beyond tenancy | ✅ | ✅ | ✅ | ✅ | ⚠️ | ⚠️ owner/editor/reader per token |
 | Web SQL IDE | ✅ mature | ✅ | ✅ | ✅ | ❌ add Superset | ✅ Monaco, focused |
 | Catalog explorer | ✅ | ✅ | ✅ | ✅ | ⚠️ | ✅ |
+| Storage / table detail UI | ⚠️ | ✅ file count, size, layout | ✅ | ✅ | ⚠️ Iceberg tooling | ✅ files, sizes, advisories |
+| Column profiling UI | ✅ Column Explorer | ✅ | ✅ | ⚠️ | ❌ | ❌ deferred |
 | Time travel / snapshots | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | CDC / change feeds | ⚠️ limited | ✅ CDF | ✅ streams | ⚠️ | ⚠️ | ✅ typed feed + webhooks |
 | CDC without a separate pipeline (no Debezium/Kafka) | ⚠️ | ❌ | ❌ | ❌ | ❌ | ✅ **unique** |
@@ -323,11 +325,21 @@ too: API tokens, OIDC, and roles, all specified and implemented per
 validated against it.
 
 Those are two different claims and the matrix previously ran them together. The engine-level boundary
-was always real; the product-level guarantee a security review asks about now exists as well. The row
-stays ⚠️ rather than ✅ for one reason: `Lakehold:Auth:RequireAuthentication` defaults to **false**, so
-a deployment that does not set it still accepts token-less requests and trusts the route. Enforcement
-is available and tested; making it mandatory is the operator's switch to throw, and until a
-deployment throws it the honest reading of the row is "partial".
+was always real; the product-level guarantee a security review asks about now exists as well. Both
+that row and the authentication row stay ⚠️ rather than ✅ for one reason:
+`Lakehold:Auth:RequireAuthentication` defaults to **false**, so a deployment that does not set it
+still accepts token-less requests and trusts the route. Enforcement is available and tested; making
+it mandatory is the operator's switch to throw, and until a deployment throws it the honest reading
+of the row is "partial".
+
+**On the storage row.** The workbench reads the physical layer — per-table sizes, Parquet file counts,
+delete-file overhead, and a per-file list with an as-of snapshot selector — from DuckLake's own
+metadata rather than by listing the data path. It is the surface that makes the maintenance controls
+two rows above *decidable* rather than a guess, and the as-of selector is an answer the DuckDB-family
+tools cannot give because they have no snapshot to select. Its reasoning, and why a raw object
+browser is deliberately not built, are in [`UI.md`](UI.md). Column profiling is the one UI capability
+here that is deferred rather than declined; it is also the least differentiated, since MotherDuck and
+the DuckDB local UI both do it well.
 
 **Reading the matrix.** No competitor holds *all three* of {runs entirely in your infra, table data
 readable with no vendor catalog, .NET/EF Core model integration}. MotherDuck matches the format and
