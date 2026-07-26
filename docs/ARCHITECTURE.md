@@ -1,8 +1,8 @@
-# Lakehold — architecture and positioning
+# LakeHold — architecture and positioning
 
 ## What it is
 
-Lakehold is an open-source lakehouse platform: a tenant-aware query service, catalog, and web IDE
+LakeHold is an open-source lakehouse platform: a tenant-aware query service, catalog, and web IDE
 built on **DuckDB** (the engine) and **DuckLake** (the open table format), with a .NET backend and an
 Angular frontend. Tenant-scoped identity exists today, but the node-local session and artifact layout
 is not yet safe for shared adversarial multi-tenancy when tenants reuse a catalog name; the release
@@ -25,14 +25,14 @@ MotherDuck is a hosted service. Your data goes to their account, and the compute
 theirs. That is disqualifying for regulated industries, data-residency requirements, and anyone
 whose security review asks "where does the data live?"
 
-Lakehold deploys into your environment — laptop, single VM, Kubernetes, or an air-gapped network.
+LakeHold deploys into your environment — laptop, single VM, Kubernetes, or an air-gapped network.
 The default deployment stores data in your own object store (BYOB is the *only* mode, not a paid
 add-on). There is no vendor-hosted control plane in the loop.
 
 ### 2. Open format, no lock-in
 
 DuckLake stores table data as plain Parquet files and metadata as ordinary SQL tables (DuckDB file
-or PostgreSQL). Both halves are readable without Lakehold running.
+or PostgreSQL). Both halves are readable without LakeHold running.
 
 The Parquet is genuinely Parquet, and we checked with a reader that has nothing to do with DuckDB.
 Apache Arrow (pyarrow 25) reports `PAR1` framing, format version 1.0, standard `INT64` / `BYTE_ARRAY`
@@ -80,8 +80,8 @@ that, and raised Business from $100 to $250/month. Compute is still billed per s
 
 That cuts both ways and the honest reading matters more than the convenient one. **At the low end
 MotherDuck now wins on price**: a hobbyist or a small team inside those caps pays nothing, and
-Lakehold costs whatever the smallest VM costs. The argument only turns at the point where usage
-exceeds the free envelope or a second environment is needed, and it turns hard — Lakehold's cost is
+LakeHold costs whatever the smallest VM costs. The argument only turns at the point where usage
+exceeds the free envelope or a second environment is needed, and it turns hard — LakeHold's cost is
 the VM and the bucket regardless of how much is queried, and a single 8-core node serves a meaningful
 analytics workload because DuckDB is genuinely that efficient.
 
@@ -93,7 +93,7 @@ variable that scales with curiosity; a VM is a line item that does not.
 Stated plainly, because a positioning document that only lists strengths is marketing, not
 engineering:
 
-| MotherDuck advantage | Reality for Lakehold |
+| MotherDuck advantage | Reality for LakeHold |
 |---|---|
 | Zero operations | You run it. We ship containers and compose, but you own uptime. |
 | Elastic scale-out | Bounded by node size. Read replicas help reads; writes are single-writer. |
@@ -174,7 +174,7 @@ Established by running DuckDB 1.5.3 + DuckLake, not read from documentation:
 
 1. **Small writes are inlined into the metadata catalog, not written as Parquet.** A two-row insert
    produced zero data files; 200k rows produced one Parquet file. Claim 2 above therefore depends
-   on an explicit `ducklake_flush_inlined_data` step, which Lakehold exposes as a maintenance
+   on an explicit `ducklake_flush_inlined_data` step, which LakeHold exposes as a maintenance
    operation rather than leaving to chance.
 2. **DuckLake's internal tables are visible in `information_schema`** alongside user tables
    (`ducklake_snapshot`, `ducklake_table`, …). The catalog explorer must filter them or the UI
@@ -226,7 +226,7 @@ Established on DuckDB 1.5.4, and a correction to point 2 above:
 
 ## Competitive landscape
 
-Lakehold's category is "self-hostable open-format lakehouse." That places it against three groups
+LakeHold's category is "self-hostable open-format lakehouse." That places it against three groups
 of competitors, and the honest positioning differs for each.
 
 The evidence behind this section — what each competitor shipped and when, the DuckLake roadmap, and
@@ -246,7 +246,7 @@ the position derived from it.
   "runs entirely in your environment" or ".NET-native" ones.
 - **Self-hostable open stacks — Dremio, and the DIY Iceberg assembly** (Trino/Spark + a REST
   catalog such as Nessie, Polaris, or Lakekeeper + a BI layer such as Superset). These share
-  Lakehold's self-host + open-format ground, so differentiation here is *operational simplicity*
+  LakeHold's self-host + open-format ground, so differentiation here is *operational simplicity*
   (one .NET service and a DuckDB file vs. a JVM cluster and a separate catalog service), single-node
   efficiency, and the .NET/EF Core model integration none of them offer. Dremio Community is the
   sharpest direct competitor: self-hostable, Iceberg-based, catalog branching via Nessie, a web UI,
@@ -254,7 +254,7 @@ the position derived from it.
 - **Self-host OLAP alternatives — ClickHouse, StarRocks, Apache Doris.** Extremely fast and
   self-hostable, but built on their own storage engines (MergeTree, etc.), not an open lakehouse
   table catalog. They can *read* Iceberg/Delta externally, but the durable table format is
-  proprietary to the engine — the opposite of Lakehold's "every byte is Parquet you can read without
+  proprietary to the engine — the opposite of LakeHold's "every byte is Parquet you can read without
   us" guarantee. Relevant as raw-speed alternatives, not as open-format lakehouses.
 
 ### The upstream that is also a competitor
@@ -265,20 +265,20 @@ in late 2026 — makes a DuckDB database remotely accessible to multiple clients
 integrated into DuckLake so that **DuckDB itself can serve as a remote catalog server**.
 
 The honest reading is that *remote access to a DuckLake catalog* is being commoditised by the engine
-vendor. Lakehold never claimed it as a differentiator — the wire endpoint is documented as parity
+vendor. LakeHold never claimed it as a differentiator — the wire endpoint is documented as parity
 ([`POSTGRES-WIRE.md`](POSTGRES-WIRE.md)) — but the surrounding argument now has to be made explicitly
 rather than assumed. What a catalog server does not carry is tenancy, credentials, audit, maintenance
 policy, verified eject, and the change feed. **The control plane is the product**; remote reachability
 is table stakes underneath it.
 
-Two things follow. Whether Lakehold speaks Quack alongside the PostgreSQL wire protocol is an open
+Two things follow. Whether LakeHold speaks Quack alongside the PostgreSQL wire protocol is an open
 decision with a real deadline, and it is a parity question, not a differentiation one. And it changes
 nothing about USP 5: Quack is not the Iceberg REST Catalog and does not make a DuckLake table
 readable by Spark, Trino, or Snowflake.
 
 ## Feature / capability matrix
 
-| Capability | MotherDuck | Databricks | Snowflake | Dremio (self-host) | DIY Iceberg stack | Lakehold |
+| Capability | MotherDuck | Databricks | Snowflake | Dremio (self-host) | DIY Iceberg stack | LakeHold |
 |---|---|---|---|---|---|---|
 | Runs entirely in your infra / air-gapped | ❌ | ❌ hosted control plane | ❌ | ✅ | ✅ | ✅ |
 | BYO object store as default | ⚠️ paid | ⚠️ | ❌ | ✅ | ✅ | ✅ |
@@ -388,7 +388,7 @@ does not need a flush first, unlike a raw copy of the data path.
 
 ### 2. Debezium-free CDC — shipped
 
-DuckLake already records what each snapshot changed. Lakehold turns that into two subscribe-able
+DuckLake already records what each snapshot changed. LakeHold turns that into two subscribe-able
 surfaces without a second pipeline: a **pull** API returning typed change pages, and **push**
 webhooks fired per new snapshot.
 
@@ -415,7 +415,7 @@ from the changes API — one large backfill cannot wedge every consumer behind i
 
 Package the Duckling/`LakeContext` path as a library so a .NET app runs a single-tenant lakehouse
 in-process (edge, desktop, air-gapped appliance, integration tests), then points identical code at a
-Lakehold server with no query changes. This is the self-hostable answer to MotherDuck's dual
+LakeHold server with no query changes. This is the self-hostable answer to MotherDuck's dual
 local↔cloud execution, and it is only possible because the data plane is already a model-less .NET
 `DbContext` rather than a JVM cluster. Would need to keep the isolation boundary structural
 (invariant 4) and the writer serialised (invariant 5) in-process.
@@ -454,7 +454,7 @@ The openness story is currently *batch*: eject a bundle, then read it. The quest
 whether Spark, Trino, Snowflake, or Databricks can read the tables **live**, without an export step.
 
 Serving the Iceberg REST Catalog protocol from `Lakehold.Api` — read-only first — would let any
-IRC-speaking engine attach to a Lakehold catalog directly, using the same tenant-scoped attachment
+IRC-speaking engine attach to a LakeHold catalog directly, using the same tenant-scoped attachment
 boundary the query path already enforces.
 
 **DuckLake 0.3's Iceberg support is not this feature, and assuming otherwise is the trap.** What 0.3
@@ -463,7 +463,7 @@ Iceberg table's snapshots as DuckLake. Both are migrations between the two forma
 DuckDB and pointed at an Iceberg catalog that already exists. Neither makes a live DuckLake table
 readable by an external engine, which is the thing this USP claims.
 
-So the endpoint is a **translation layer Lakehold would own**, and its hard part is stated in
+So the endpoint is a **translation layer LakeHold would own**, and its hard part is stated in
 "Open format, no lock-in" above: DuckLake deletes are merge-on-read sidecars with a DuckLake-specific
 schema, and files written by an `UPDATE` carry `_ducklake_internal_*` columns. Presenting that state
 as Iceberg means either mapping the sidecars onto Iceberg positional deletes and projecting the
@@ -473,7 +473,7 @@ Iceberg's delete representation is **unverified** and is the first thing to test
 inclusive-range and `COPY` behaviours were tested before CDC and eject were built.
 
 This is the answer to the DIY Iceberg stack specifically. Rather than competing with that ecosystem,
-Lakehold joins it: the Parquet is already theirs to read, and IRC is the wire format that says so.
+LakeHold joins it: the Parquet is already theirs to read, and IRC is the wire format that says so.
 
 Worth stating plainly: **this is a different axis from the Postgres wire protocol**, not a competitor
 to it. Postgres wire unlocks BI clients — Tableau, Power BI, Metabase, DBeaver — and is *parity*,

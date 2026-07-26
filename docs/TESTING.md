@@ -1,6 +1,6 @@
-# Testing Lakehold
+# Testing LakeHold
 
-Lakehold uses three layers of automated evidence. A change is not “covered” merely because one
+LakeHold uses three layers of automated evidence. A change is not “covered” merely because one
 layer is green: each catches a different class of failure.
 
 | Layer              | What it proves                                                                            | Command                                                                                                 |
@@ -90,7 +90,7 @@ cleanup, or restore.
 ## `/compare` claim coverage
 
 `e2e/compare-capabilities.spec.ts` is the guardrail for the comparison page. It reads the rendered
-Lakehold column and requires an exact match with `e2e/support/compare-capabilities.ts`, including
+LakeHold column and requires an exact match with `e2e/support/compare-capabilities.ts`, including
 the tone assigned to every row. A new or reworded claim therefore fails until it names current test
 evidence. The same test also follows the decision guidance and workbench call to action.
 
@@ -98,7 +98,7 @@ The contract deliberately distinguishes a simulated capability from a deployment
 limitation, and roadmap work. A planned or unavailable feature must stay labelled that way; it
 cannot satisfy the contract by pointing at an unrelated passing test.
 
-| Lakehold comparison row       | Automated proof                                                                 |
+| LakeHold comparison row       | Automated proof                                                                 |
 | ----------------------------- | ------------------------------------------------------------------------------- |
 | Deployment                    | Phase 2 builds, boots, operates, and removes a production-shaped local node     |
 | Where your data lives         | Phase 2 local state plus opted-in live S3 integration                           |

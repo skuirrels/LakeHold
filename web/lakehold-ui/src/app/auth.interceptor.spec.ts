@@ -24,7 +24,7 @@ describe('authInterceptor', () => {
 
   afterEach(() => requests.verify());
 
-  it('attaches the bearer token to Lakehold API requests', () => {
+  it('attaches the bearer token to LakeHold API requests', () => {
     auth.setToken('lkh_demo_secret');
 
     http.get('/api/tenants').subscribe();

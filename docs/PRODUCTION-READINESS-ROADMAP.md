@@ -1,8 +1,8 @@
-# Lakehold production-readiness roadmap
+# LakeHold production-readiness roadmap
 
 ## Readiness conclusion
 
-Lakehold has a strong technical foundation: a clear control-plane/data-plane split, typed APIs,
+LakeHold has a strong technical foundation: a clear control-plane/data-plane split, typed APIs,
 cancellable streaming queries, bounded materialised results, dry-run destructive maintenance,
 verified backup/eject manifests, structured telemetry, real-engine integration tests, and non-root
 production images with health checks and resource limits.
@@ -104,7 +104,7 @@ and outbound network access without relying on a fragile SQL keyword parser.
 ### Exit gate
 
 Adversarial SQL cannot read, attach, alter, overwrite, or transmit another tenant's data or
-Lakehold's control-plane/runtime files, even when paths and catalog names are known.
+LakeHold's control-plane/runtime files, even when paths and catalog names are known.
 
 ## Phase 4 — Secure webhook delivery
 
@@ -200,7 +200,7 @@ and a failed migration cannot silently leave a partially upgraded control plane.
 
 ### Final readiness gate
 
-Call Lakehold production-ready for shared multi-tenancy only after Phases 1–6 are complete and a
+Call LakeHold production-ready for shared multi-tenancy only after Phases 1–6 are complete and a
 release candidate passes an adversarial isolation review and a clean-machine recovery drill.
 Phases 7–8 should complete before promising durable upgrades and publishing broad production
 guidance.

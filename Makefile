@@ -1,13 +1,13 @@
 # Lakehold operations.
 #
 #   make deploy       Update this deployment to the current published images.
-#   make production   Update it from source instead: pull the repository, rebuild, restart.
+#   make production   Update the private workbench and services from source.
 #   make status       What is running, and whether it is healthy.
 #   make logs         Follow the running stack's logs.
 #   make stop         Stop the stack. The state volume survives.
 #   make backup-state Archive the state volume to a tarball in the working directory.
 #   make test         Run the complete backend, frontend, integration, and browser test suite.
-#   make demo         Pull, build, and start the opt-in demo deployment overlay.
+#   make demo         Pull, build, and start the opt-in public website and demo workbench.
 #
 # This drives compose.production.yaml and never compose.yaml. The development stack bind-mounts
 # source and runs a file watcher, so it has no build step to redo — "rebuild and restart" is not a
@@ -46,9 +46,9 @@ help:
 	@echo "Lakehold — make targets"
 	@echo ""
 	@echo "  test          Run every test, including live integrations and both E2E suites"
-	@echo "  demo          Pull, build, and start the opt-in demo deployment overlay"
+	@echo "  demo          Pull, build, and start the public website and demo workbench"
 	@echo "  deploy        Update this deployment to the current published images"
-	@echo "  production    Update it from source: git pull, rebuild images, restart containers"
+	@echo "  production    Update the private workbench and services from source"
 	@echo "  status        Show the running containers and their health"
 	@echo "  logs          Follow the stack's logs"
 	@echo "  stop          Stop the stack, keeping the state volume"
@@ -65,13 +65,14 @@ help:
 test:
 	@./scripts/test-all.sh
 
-# Demo is deliberately a separate opt-in overlay; the standard production configuration remains
-# authentication-protected and contains no demo settings. The build overlay is required here so
-# this target runs the current checkout rather than whichever published images happen to be cached.
+# Demo is deliberately a separate opt-in overlay; it is the only target that enables the public
+# website. The standard production configuration serves the authentication-protected workbench and
+# contains no demo settings. The build overlay is required here so this target runs the current
+# checkout rather than whichever published images happen to be cached.
 # As with `production`, local tracked changes fail before pulling so an update can never overwrite
 # an uncommitted deployment-host edit.
 demo: check-tree pull build
-	@echo "==> restarting changed containers with demo access"
+	@echo "==> restarting changed containers with the public website and demo access"
 	$(COMPOSE_DEMO) up -d --remove-orphans --wait --wait-timeout $(WAIT_TIMEOUT)
 	@$(COMPOSE_DEMO) ps
 	@echo ""
@@ -89,7 +90,7 @@ deploy:
 
 production: check-tree pull build up status
 	@echo ""
-	@echo "==> deployed $(BRANCH) at $$(git rev-parse --short HEAD)"
+	@echo "==> deployed private workbench from $(BRANCH) at $$(git rev-parse --short HEAD)"
 
 # A deploy host should be a clean checkout. Local edits to tracked files mean either someone
 # debugged in production and forgot, or the pull is about to fail halfway; both are worth stopping

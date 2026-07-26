@@ -17,7 +17,8 @@ trap cleanup EXIT
 export LAKEHOLD_PORT="${LAKEHOLD_PHASE2_UI_PORT:-6399}"
 
 cleanup
-docker compose -p "$compose_project" "${compose_files[@]}" up --detach --build --wait api web webhook
+docker compose -p "$compose_project" "${compose_files[@]}" \
+  up --detach --build --wait api workbench webhook
 
 LAKEHOLD_PHASE2=1 \
 LAKEHOLD_E2E_BASE_URL="${LAKEHOLD_E2E_BASE_URL:-http://127.0.0.1:6399}" \

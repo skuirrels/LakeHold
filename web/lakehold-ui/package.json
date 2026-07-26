@@ -1,13 +1,14 @@
 {
   "name": "lakehold-ui",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
-    "test": "ng test",
-    "test:unit": "ng test --watch=false",
+    "test": "npm run test:brand && ng test",
+    "test:brand": "../../scripts/check-brand-casing.sh",
+    "test:unit": "npm run test:brand && ng test --watch=false",
     "test:e2e": "playwright test",
     "test:e2e:demo": "../../scripts/test-demo.sh",
     "test:e2e:phase2": "../../scripts/test-phase2.sh",

@@ -1,4 +1,4 @@
-# Lakehold
+# LakeHold
 
 **An open-source lakehouse platform built on DuckDB and DuckLake, with a .NET backend and an
 Angular frontend.**
@@ -9,7 +9,7 @@ Angular frontend.**
 > own infrastructure, stores every byte as open Parquet you can read without us, and speaks .NET
 > natively.
 
-Lakehold is the self-hostable answer to MotherDuck. It provides a tenant-aware query service, a
+LakeHold is the self-hostable answer to MotherDuck. It provides a tenant-aware query service, a
 catalog, and a web SQL IDE over [DuckLake](https://ducklake.select) — an open table format that
 stores tables as ordinary Parquet files and metadata as ordinary SQL.
 
@@ -23,7 +23,7 @@ production profile until the isolation gates in the
 
 ## Why
 
-| | MotherDuck | Lakehold |
+| | MotherDuck | LakeHold |
 |---|---|---|
 | Deployment | Hosted only | **Self-hosted: laptop, VM, k8s, air-gapped** |
 | Storage | Managed; BYO bucket on paid tiers | **Your bucket, always** |
@@ -95,13 +95,10 @@ curl -O https://raw.githubusercontent.com/skuirrels/LakeHold/main/compose.produc
 docker compose -f compose.production.yaml up -d
 ```
 
-→ the website on <http://localhost:8080>
+→ the private Workbench on <http://localhost:8080/workbench>. `/` redirects there; the public
+landing, comparison, documentation, and provider pages are not served by a standard installation.
 
-> **Until this repository has its first `v*` tag there is nothing in the registry to pull**, and the
-> command above fails on a missing manifest. Deploy from source in the meantime — the build override
-> below does exactly that.
-
-Then read the bootstrap token out of the log and open the site — the workbench walks the rest:
+Then read the bootstrap token out of the log and open the Workbench, which walks the rest:
 
 ```bash
 docker compose -f compose.production.yaml logs api | grep -i bootstrap
@@ -119,11 +116,11 @@ the build override, which supplies a build context for each image:
 docker compose -f compose.production.yaml -f compose.build.yaml up -d --build
 ```
 
-`make production` is that path as a repeatable deploy: it refuses to run if tracked files have been
-edited on the host, pulls `--ff-only` so a deployment can never invent a merge commit, and rebuilds
-before it restarts anything — a broken build leaves the current containers serving traffic. `--wait`
-means it exits non-zero unless both healthchecks pass, so a container that starts and immediately
-crashes fails the deploy rather than reporting success.
+`make production` is that path as a repeatable private deployment: it refuses to run if tracked
+files have been edited on the host, pulls `--ff-only` so a deployment can never invent a merge
+commit, and rebuilds before it restarts anything — a broken build leaves the current containers
+serving traffic. `--wait` means it exits non-zero unless both healthchecks pass, so a container that
+starts and immediately crashes fails the deploy rather than reporting success.
 
 | | Development (`compose.yaml`) | Production (`compose.production.yaml`) |
 |---|---|---|
@@ -132,25 +129,24 @@ crashes fails the deploy rather than reporting success.
 | Authentication | Off unless you turn it on | **Required** unless you turn it off |
 | Source | Bind-mounted, hot reloads | Not present in the image |
 | Runs as | root | Non-root (`app`, `nginx`) |
-| Website | Angular dev server | Prerendered bundle behind nginx |
-| API port | Published on `:5200` | **Not published** — reached through the site's own origin |
+| Browser UI | Angular dev server and public pages | **Private Workbench only** |
+| API port | Published on `:5200` | **Not published** — reached through the Workbench origin |
 | Demo data | Seeded on first run | Never |
 | State | Named volume | Named volume, `/var/lib/lakehold` |
 
 Worth knowing:
 
-- **The API is not exposed to the host.** nginx serves the site and proxies `/api` on the same
+- **The API is not exposed to the host.** nginx serves the Workbench and proxies `/api` on the same
   origin, which removes CORS from the deployment and leaves one published port. Publish the API
   yourself if something outside the compose network needs it.
-- **The marketing pages are prerendered.** `ng build` emits real HTML for `/`, `/compare`, and
-  `/docs` so crawlers and link unfurlers do not have to execute JavaScript to see the content; the
-  authenticated workbench stays client-rendered and `noindex`. Adding a public route means adding it
-  to `public/sitemap.xml` and giving it a `data.seo` description in `app.routes.ts`. Unmatched paths
-  fall back to `index.csr.html`, never to a prerendered page.
+- **The public pages are demo-only.** The image contains the prerendered landing, comparison,
+  documentation, and provider pages, but the production nginx mode cannot serve them: `/` redirects
+  to `/workbench` and public or unknown routes return 404. `make demo` explicitly selects the
+  website mode that exposes those pages.
 - **Demo seeding is off.** `Lakehold:SeedDemoData` defaults to the environment, so a production node
   never invents a `demo` tenant holding 250,000 rows. Schema initialisation still runs — that is
   what creates tables added since a database was first initialised.
-- **Nothing else is in the file.** No PostgreSQL, no MinIO: Lakehold defaults to local-file metadata
+- **Nothing else is in the file.** No PostgreSQL, no MinIO: LakeHold defaults to local-file metadata
   and a local data path, so neither is required. Point configuration at whatever you already run
   rather than at a single-container database this stack would imply was production-grade.
 - **The image is architecture-pruned.** Publishing for the target RID drops the Windows and macOS
@@ -167,7 +163,7 @@ Worth knowing:
   `LAKEHOLD_REQUIRE_AUTH=false` to go back to trusting the route — knowing that it means anyone who
   reaches `:8080` is every tenant.
 - **The first credential comes out of the log.** A node with no tokens mints an instance-scoped
-  bootstrap token on first start and logs it once. Open the site and the workbench asks for it, then
+  bootstrap token on first start and logs it once. Open the Workbench and it asks for it, then
   trades it for a token that can actually read — provisioning and querying are deliberately different
   capabilities. [Authentication](#authentication) has the same three steps as `curl`, if you would
   rather script it.
@@ -177,7 +173,7 @@ Worth knowing:
 - **Back the state volume up with `make backup-state`.** It is the catalog, the Parquet, the backup
   generations, and the eject bundles — the only thing in the stack that cannot be rebuilt. The
   archive is a file copy, so stop the stack first if it has to be restorable with certainty; the
-  catalog-consistent tools are Lakehold's own backup and eject. Restore is deliberately manual:
+  catalog-consistent tools are LakeHold's own backup and eject. Restore is deliberately manual:
   ```bash
   make stop
   docker run --rm -v lakehold_lakehold-state:/state -v "$PWD":/archive alpine \
@@ -187,21 +183,23 @@ Worth knowing:
 
 ### Demo deployment overlay
 
-Demo mode is intentionally absent from the customer production file and `.env.example`. To run the
-separate evaluation deployment, add its overlay:
+Demo mode is intentionally absent from the customer production file and `.env.example`. It is the
+only deployment target that enables the public website. To run that separate evaluation deployment,
+add its overlay:
 
 ```bash
 make demo
 ```
 
 This refuses tracked local changes, pulls the current branch with `--ff-only`, then builds the API
-and web images before starting them. The site listens on port `8080` by default; use
+and UI images before starting them in website mode. The site listens on port `8080` by default; use
 `LAKEHOLD_PORT=8081 make demo` when that port is already occupied.
 
-`compose.demo.yaml` owns demo seeding, authentication, and the read-only visitor scope. It defaults
-to `demo/analytics`; `LAKEHOLD_DEMO_TENANT` and `LAKEHOLD_DEMO_CATALOG` can point the overlay at a
-different seeded catalog. This does not disable authentication: credential-less requests receive a
-reader scoped to that one catalog, while a valid operator token retains its normal capabilities.
+`compose.demo.yaml` owns the website mode, demo seeding, authentication, and the read-only visitor
+scope. It defaults to `demo/analytics`; `LAKEHOLD_DEMO_TENANT` and `LAKEHOLD_DEMO_CATALOG` can point
+the overlay at a different seeded catalog. This does not disable authentication: credential-less
+requests receive a reader scoped to that one catalog, while a valid operator token retains its
+normal capabilities.
 
 ### Running the app on the host instead
 
@@ -266,12 +264,12 @@ duckdb -c "SELECT event_type, count(*), sum(revenue)
            GROUP BY 1"
 ```
 
-No DuckLake extension, no Lakehold, no metadata catalog — just Parquet. See
+No DuckLake extension, no LakeHold, no metadata catalog — just Parquet. See
 [`docs/EXIT-PATH.md`](docs/EXIT-PATH.md).
 
 One caveat worth knowing: **DuckLake inlines small commits into the metadata catalog rather than
 writing Parquet immediately.** A two-row insert produces no data files. Run the **Flush**
-maintenance operation (or `ducklake_flush_inlined_data`) to force them out. Lakehold surfaces this
+maintenance operation (or `ducklake_flush_inlined_data`) to force them out. LakeHold surfaces this
 as a first-class control precisely because the guarantee depends on it.
 
 Flush and compaction commit their snapshots with a `lakehold maintenance: …` message, so the snapshot
@@ -319,7 +317,7 @@ SHA-256 digests, and an HMAC signature when a key is configured:
 }
 ```
 
-Verify a bundle with no Lakehold and no .NET in the loop:
+Verify a bundle with no LakeHold and no .NET in the loop:
 
 ```bash
 duckdb -c "SELECT count(*) FROM read_parquet('…/data/main/events.parquet')"
@@ -332,7 +330,7 @@ Because it only reads, an eject never mutates the catalog and works on a read-on
 
 ## Change data capture, without a pipeline
 
-DuckLake already records what each snapshot changed, so Lakehold exposes it directly rather than
+DuckLake already records what each snapshot changed, so LakeHold exposes it directly rather than
 asking you to run Debezium and Kafka to get it back out. Two surfaces, same source.
 
 **Pull** — typed change pages:
@@ -463,7 +461,7 @@ The full design, including what is deliberately still open, is in
 
 ## The PostgreSQL wire endpoint
 
-Lakehold speaks the PostgreSQL wire protocol, so a client that already speaks Postgres connects to a
+LakeHold speaks the PostgreSQL wire protocol, so a client that already speaks Postgres connects to a
 catalog with no `.mez` file, driver, or plugin involved. It is off by default — it opens a database
 port — and enabling it without a password refuses to start.
 
@@ -492,7 +490,7 @@ psql "host=localhost port=5433 dbname=analytics user=demo"
 
 The mapping is the part to remember: **user is the tenant, database is the catalog.**
 
-| Postgres | Lakehold |
+| Postgres | LakeHold |
 |---|---|
 | `Username=demo` | tenant slug |
 | `Database=analytics` | catalog name |
@@ -547,7 +545,7 @@ Worth knowing:
 ## Backup, restore, and scheduling
 
 The metadata catalog is the one part of a DuckLake deployment that is not already an open format, so
-Lakehold exports it to Parquet on a schedule and can rebuild a catalog from that export.
+LakeHold exports it to Parquet on a schedule and can rebuild a catalog from that export.
 
 ```jsonc
 {
@@ -666,7 +664,7 @@ resources, OAuth protected-resource metadata, and operator-gated writes. See
 API enforcement is opt-in per deployment via `Lakehold:Auth:RequireAuthentication`, while MCP always
 requires a credential.
 
-Next: an Iceberg REST Catalog endpoint so Spark, Trino, and Snowflake read Lakehold tables live with
+Next: an Iceberg REST Catalog endpoint so Spark, Trino, and Snowflake read LakeHold tables live with
 no export, a `Lakehold.Client` package whose typed change stream turns the CDC feed into
 `ChangeEvent<T>` in your own model, and read-only share links.
 

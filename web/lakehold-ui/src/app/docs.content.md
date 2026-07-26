@@ -1,6 +1,6 @@
-# Getting started with Lakehold
+# Getting started with LakeHold
 
-Lakehold is a self-hostable, tenant-aware lakehouse built on DuckDB and DuckLake. This guide takes
+LakeHold is a self-hostable, tenant-aware lakehouse built on DuckDB and DuckLake. This guide takes
 you from an empty checkout to a running warehouse, then walks every feature — what it does, how to
 reach it, and what it is for. Tenant identity and credentials are scoped today; the current
 node-local session and artifact layout is for trusted evaluation or a one-tenant production profile,
@@ -68,14 +68,14 @@ npm run build --prefix web/lakehold-ui
 
 ## The tools you'll use
 
-There are five ways into a Lakehold catalog. They resolve through the same capability and session
+There are five ways into a LakeHold catalog. They resolve through the same capability and session
 boundaries, so you can mix them freely. MCP is stricter than the development HTTP API: it always
 requires a credential.
 
 | Tool | What it is | Best for |
 |---|---|---|
 | **The workbench** | A browser SQL IDE for exploring a catalog, running statements, browsing history and snapshots, and triggering maintenance. Ships seeded. | Exploration and operations. |
-| **A Postgres client** | Lakehold speaks the PostgreSQL wire protocol, so `psql`, DBeaver, or Npgsql connect to a catalog with no driver or plugin. The user is the tenant and the database is the catalog. | Existing SQL clients and streamed results. |
+| **A Postgres client** | LakeHold speaks the PostgreSQL wire protocol, so `psql`, DBeaver, or Npgsql connect to a catalog with no driver or plugin. The user is the tenant and the database is the catalog. | Existing SQL clients and streamed results. |
 | **.NET & EF Core** | Through `DuckDB.EFCoreProvider` your application model and your lake tables are one model. | .NET applications on the same schema. |
 | **The HTTP API** | Minimal-API endpoints for queries, schemas, history, snapshots, maintenance, eject, backup/restore, and change-feed subscriptions. | Automation and integration. |
 | **MCP** | An authenticated Model Context Protocol server with tenant discovery, schema, snapshots, changes, query resources/tools, and optional operator-gated writes. Enable it with `Lakehold:Mcp:Enabled`; writes additionally require `AllowWrites` and a write-capable credential. | AI agents that need discoverable, capability-scoped lakehouse access. |
@@ -404,7 +404,7 @@ from before it existed, and column constraints or defaults added since are not c
 
 ## Data operations in depth
 
-These are the features that make Lakehold a lakehouse rather than a query box. Each has a panel in
+These are the features that make LakeHold a lakehouse rather than a query box. Each has a panel in
 the workbench, described above; this section is what those panels are doing and the routes to drive
 them from your own code. They all sit under `/api/tenants/{tenant}/catalogs/{catalog}/`.
 
@@ -462,7 +462,7 @@ absolute path that was actually written.
 
 `GET …/changes` · `…/subscriptions`
 
-DuckLake already records what each snapshot changed, so Lakehold exposes it directly: a typed pull
+DuckLake already records what each snapshot changed, so LakeHold exposes it directly: a typed pull
 API for change pages, and outbound webhooks fired per new snapshot and signed with HMAC-SHA256.
 Updates arrive as a paired pre-image and post-image sharing a row id, so you can take net effect or
 diff them. No Debezium, no Kafka, no second pipeline.
@@ -488,7 +488,7 @@ query. Results stream to the socket rather than being materialised, so the row c
 
 ## .NET and EF Core
 
-Lakehold is built on `DuckDB.EFCoreProvider`, so your application model and your lakehouse tables can
+LakeHold is built on `DuckDB.EFCoreProvider`, so your application model and your lakehouse tables can
 be the same EF Core model — no transformation layer, no schema drift. The split is by whether the
 workload has a known shape:
 
@@ -505,7 +505,7 @@ you can add to a `csproj`.
 
 ## Authentication
 
-Lakehold authenticates with **API tokens**. A token names one tenant, may be narrowed to a single
+LakeHold authenticates with **API tokens**. A token names one tenant, may be narrowed to a single
 catalog, carries a role (`owner`, `editor`, `reader`), and can be revoked — which closes the HTTP API
 and the PostgreSQL wire endpoint together.
 
@@ -546,9 +546,10 @@ curl -X POST $API/tenants/acme/tokens -H "Authorization: Bearer $ADMIN" \
   -d '{"name":"bi","role":"reader","catalogName":"analytics"}'
 ```
 
-**Mind the port.** The production stack does not publish the API — nginx serves the site on `:8080`
-and proxies `/api` on the same origin, so provisioning goes there. On the development stack the API
-is published directly and the base URL is `http://localhost:5200/api` instead. Every `$API` in this
+**Mind the port.** The production stack does not publish the API — nginx serves only the private
+Workbench at `:8080/workbench` and proxies `/api` on the same origin, so provisioning goes there.
+The public website routes are enabled only by `make demo`. On the development stack the API is
+published directly and the base URL is `http://localhost:5200/api` instead. Every `$API` in this
 section is one or the other.
 
 Set `Lakehold__BootstrapToken` if your platform injects credentials and cannot scrape a log.
@@ -574,7 +575,7 @@ with `GET /api/tenants/{tenant}/tokens`, which shows the role and never the secr
 
 A `reader` token does not get a permission check that clever SQL might route around — its catalog is
 attached **read-only**, so a write fails in the engine itself. That is the same reasoning behind
-Lakehold's isolation model: a session can only reference the catalog attached to it.
+LakeHold's isolation model: a session can only reference the catalog attached to it.
 
 ### Revoking
 

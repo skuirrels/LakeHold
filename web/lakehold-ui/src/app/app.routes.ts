@@ -12,7 +12,7 @@ import { Routes } from '@angular/router';
 export const routes: Routes = [
   {
     path: '',
-    title: 'Lakehold — a feature-rich DuckDB lakehouse you host yourself',
+    title: 'LakeHold — a feature-rich DuckDB lakehouse you host yourself',
     data: {
       seo: {
         description:
@@ -23,22 +23,22 @@ export const routes: Routes = [
   },
   {
     path: 'compare',
-    title: 'Lakehold vs MotherDuck, ClickHouse, and the cloud warehouses',
+    title: 'LakeHold vs MotherDuck, ClickHouse, and the cloud warehouses',
     data: {
       seo: {
         description:
-          'How Lakehold compares with MotherDuck, ClickHouse, Snowflake, and Databricks on data ownership, open storage, self-hosting, and cost — including where it loses.',
+          'How LakeHold compares with MotherDuck, ClickHouse, Snowflake, and Databricks on data ownership, open storage, self-hosting, and cost — including where it loses.',
       },
     },
     loadComponent: () => import('./comparison.component').then((m) => m.ComparisonComponent),
   },
   {
     path: 'docs',
-    title: 'Documentation — get started with Lakehold',
+    title: 'Documentation — get started with LakeHold',
     data: {
       seo: {
         description:
-          'Run Lakehold with Docker Compose, query a catalog from the workbench, travel through snapshots, and use eject, backup, CDC, and the PostgreSQL wire endpoint.',
+          'Run LakeHold with Docker Compose, query a catalog from the workbench, travel through snapshots, and use eject, backup, CDC, and the PostgreSQL wire endpoint.',
       },
     },
     loadComponent: () => import('./docs.component').then((m) => m.DocsComponent),
@@ -49,7 +49,7 @@ export const routes: Routes = [
     data: {
       seo: {
         description:
-          'The EF Core 10 provider Lakehold runs on: native LINQ and writes on DuckDB, DuckLake catalogs with time travel, and hot-to-cold Parquet tiers on S3, GCS, or Azure.',
+          'The EF Core 10 provider LakeHold runs on: native LINQ and writes on DuckDB, DuckLake catalogs with time travel, and hot-to-cold Parquet tiers on S3, GCS, or Azure.',
       },
     },
     loadComponent: () => import('./provider.component').then((m) => m.ProviderComponent),
@@ -67,7 +67,7 @@ export const routes: Routes = [
   },
   {
     path: 'workbench',
-    title: 'Workbench — Lakehold',
+    title: 'Workbench — LakeHold',
     // Behind authentication and meaningless without a running instance, so it stays out of the index.
     data: {
       seo: {

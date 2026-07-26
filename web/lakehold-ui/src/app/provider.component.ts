@@ -5,10 +5,10 @@ import { BrandMarkComponent } from './brand-mark.component';
 /**
  * The DuckDB.EFCoreProvider surface: the provider's value proposition.
  *
- * The provider is a separate package with its own repository, but it is the data plane Lakehold is
+ * The provider is a separate package with its own repository, but it is the data plane LakeHold is
  * built on, so its documentation is served from this site rather than from a second one. This page
  * is the pitch only — the reference prose is `ProviderDocsComponent` at `/provider/docs`, kept apart
- * so that a "Docs" link never has to mean the provider's documentation on one page and Lakehold's on
+ * so that a "Docs" link never has to mean the provider's documentation on one page and LakeHold's on
  * the next.
  */
 @Component({
@@ -67,7 +67,7 @@ export class ProviderComponent {
     {
       label: 'C — Lakehouse',
       title: 'DuckLake catalog',
-      body: 'Tracked writes, commit metadata, named-secret shares, and independent read-only contexts against a shared catalog. This is the profile Lakehold uses.',
+      body: 'Tracked writes, commit metadata, named-secret shares, and independent read-only contexts against a shared catalog. This is the profile LakeHold uses.',
       code: 'options.UseDuckLake("catalog/analytics.ducklake")',
       featured: false,
     },

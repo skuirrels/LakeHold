@@ -42,7 +42,7 @@ export class ApiError extends Error {
   }
 }
 
-/** Typed client for the Lakehold API. */
+/** Typed client for the LakeHold API. */
 @Injectable({ providedIn: 'root' })
 export class LakehouseService {
   private readonly http = inject(HttpClient);
@@ -285,7 +285,7 @@ export class LakehouseService {
  */
 function toMessage(response: HttpErrorResponse): Observable<never> {
   if (response.status === 0) {
-    return throwError(() => new ApiError('Cannot reach the Lakehold API. Is it running?', 0));
+    return throwError(() => new ApiError('Cannot reach the LakeHold API. Is it running?', 0));
   }
 
   const body: unknown = response.error;

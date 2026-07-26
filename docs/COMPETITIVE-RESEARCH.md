@@ -1,7 +1,7 @@
 # Competitive research — July 2026
 
 A dated snapshot of what competitors shipped, what the DuckLake ecosystem is building, and what
-users are actually asking for. [`ARCHITECTURE.md`](ARCHITECTURE.md) states Lakehold's *position*;
+users are actually asking for. [`ARCHITECTURE.md`](ARCHITECTURE.md) states LakeHold's *position*;
 this document is the evidence behind it and the record of when that evidence was gathered.
 
 **Read it as perishable.** Every claim below is anchored to a date and a source. A row in the
@@ -34,11 +34,11 @@ The load-bearing detail is not the protocol. It is that Quack is planned to be *
 DuckLake so that DuckDB itself can act as a remotely-accessible catalog server**. An open discussion
 on the DuckLake tracker asks whether "Quack server as shared DuckLake catalog in a multi-tenant SaaS
 environment" is the right pattern
-([discussion #1315](https://github.com/duckdb/ducklake/discussions/1315)) — that is Lakehold's
+([discussion #1315](https://github.com/duckdb/ducklake/discussions/1315)) — that is LakeHold's
 category, being asked upstream, and as of this writing unanswered.
 
 **What this changes.** *Remote access to a DuckLake catalog* stops being a differentiator once it is
-a core extension. It was never one Lakehold claimed loudly — the wire endpoint is documented as
+a core extension. It was never one LakeHold claimed loudly — the wire endpoint is documented as
 parity, not differentiation ([`POSTGRES-WIRE.md`](POSTGRES-WIRE.md)) — but the surrounding argument
 has to be stated deliberately rather than assumed: what Quack does not carry is tenancy, credentials,
 audit, maintenance policy, verified eject, or the change feed. Those are the control plane, and the
@@ -48,7 +48,7 @@ control plane is the product.
 engines. Spark, Trino, and Snowflake do not learn to read a DuckLake table because DuckDB grew a
 remote protocol. USP 5 is untouched by this.
 
-**Open decision, recorded here rather than resolved.** Whether Lakehold serves Quack alongside the
+**Open decision, recorded here rather than resolved.** Whether LakeHold serves Quack alongside the
 PostgreSQL wire endpoint is a real question with a real deadline — DuckDB 2.0. The PG endpoint
 unlocks BI tools; Quack would unlock DuckDB clients at native speed. Both are parity plays. Neither
 is USP 5. This document's recommendation is to *decide before 2.0 lands*, not to build now.
@@ -57,7 +57,7 @@ is USP 5. This document's recommendation is to *decide before 2.0 lands*, not to
 
 **v1.0 shipped April 2026** — production-ready specification, extension, and a backward-compatibility
 guarantee. **v1.1 is expected September 2026.** Format-stability risk, which was a live concern when
-Lakehold picked DuckLake, is materially reduced.
+LakeHold picked DuckLake, is materially reduced.
 
 The [published roadmap](https://ducklake.select/roadmap) splits into two tiers, and the split matters
 more than the contents:
@@ -73,7 +73,7 @@ more than the contents:
 | | `PRIMARY KEY` syntax without enforcement, fixed-size arrays |
 | | PostgreSQL round-trip reduction, MySQL robustness |
 
-Three of those bolded items appear on Lakehold's own roadmap as Lakehold features: catalog branching,
+Three of those bolded items appear on LakeHold's own roadmap as LakeHold features: catalog branching,
 RBAC beyond tenancy, and — implicitly, via the semantic layer — materialized views. They sit in the
 *unfunded* tier upstream, so nothing is imminent, but the ownership question is worth settling before
 building: a feature the format may absorb is a poor place to spend a differentiation budget, while a
@@ -106,7 +106,7 @@ the catalog. The public comparison page must therefore distinguish hosted *catal
 
 **The dbt Cloud integration arrived through their PostgreSQL endpoint.** That is independent
 confirmation that a PG wire surface is an *integration* surface and not merely a BI convenience —
-the same endpoint Lakehold already ships. The parity framing in `POSTGRES-WIRE.md` is right, and the
+the same endpoint LakeHold already ships. The parity framing in `POSTGRES-WIRE.md` is right, and the
 value of that parity is higher than "BI tools can connect" implies.
 
 **Time travel is not the gap it was assumed to be.** MotherDuck ships `CREATE SNAPSHOT`,
@@ -123,7 +123,7 @@ previously scored them ✅ on that row; it was wrong and is corrected.
 
 **MCP is a first-class product surface.** The
 [managed MCP server](https://motherduck.com/product/mcp-server/) gives agents read-only access by
-default on isolated compute and exposes the SQL it executes. Lakehold's comparison should claim its
+default on isolated compute and exposes the SQL it executes. LakeHold's comparison should claim its
 own authentication and two-gate write policy, not pretend the competing surface is absent.
 
 ## 4. Dremio, Databricks, Snowflake
@@ -194,12 +194,12 @@ a self-host operator getting hurt by maintenance:
   ([#1084](https://github.com/duckdb/ducklake/issues/1084))
 - `merge_adjacent_files` leaking memory when empty tables are present (#929)
 
-Lakehold already sits directly on this surface: explicit maintenance operations, dry-run by default
+LakeHold already sits directly on this surface: explicit maintenance operations, dry-run by default
 (invariant 10), per-catalog leasing (invariant 14), and scheduling. That is the right shape; the
 finding is that the *hard* parts — bounded cleanup, per-table expiry, correctness under concurrent
 commit — are unsolved upstream and painful in practice.
 
-Note the overlap with Lakehold's own guarantees. #1084 (deleted rows reappearing where inlined
+Note the overlap with LakeHold's own guarantees. #1084 (deleted rows reappearing where inlined
 tombstones and Parquet overlap) is the same class of failure that invariants 12 and 15 exist to
 prevent, and #300 (orphans from failed inserts) is exactly what invariant 11 keeps backups clear of.
 The exit path is not just a differentiator here; it is protection against a live upstream bug class.
@@ -217,12 +217,12 @@ From the 2026 State of Data Engineering and adjacent reporting, for direction on
 - Silent data-quality issues persisting for days without observability tooling; ingestion
   reliability as the recurring complaint; "streaming-first" as the stated architectural direction.
 
-## 6. What follows for Lakehold
+## 6. What follows for LakeHold
 
 Recommendations, not commitments. Each names the evidence above that produced it.
 
 **MCP is shipped; lead with how it authenticates and refuses.** Every competitor shipped one this
-year, but Lakehold has a claim none of them can make: **capability is attachment** (invariants 4 and
+year, but LakeHold has a claim none of them can make: **capability is attachment** (invariants 4 and
 20), so a read-only agent token yields a read-only *attachment* and a write fails in the engine.
 Write execution adds a separate operator switch and still requires a writer credential. Given the
 practitioner complaint that MCP authentication models are where servers actually differ, those
@@ -236,11 +236,11 @@ this, and DuckLake 0.3's Iceberg support is a copy, not a serving path — the t
 already names.
 
 **Decide the Quack position before DuckDB 2.0.** Not necessarily build. The decision has a date on
-it, and it is the one item in this research that can move Lakehold's positioning out from under it.
+it, and it is the one item in this research that can move LakeHold's positioning out from under it.
 
 **Treat maintenance-at-scale as a workstream, not a background chore.** Section 5's operational
 cluster is the clearest underserved need found anywhere in this research, it lands on a surface
-Lakehold already owns, and being demonstrably safer than raw DuckLake is a claim supportable with
+LakeHold already owns, and being demonstrably safer than raw DuckLake is a claim supportable with
 tests rather than with positioning.
 
 **Promote the semantic layer out of "Later".** It has stopped being a BI nicety and become the

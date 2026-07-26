@@ -55,8 +55,10 @@ if [[ ! -x "$ui_root/node_modules/.bin/playwright" ]]; then
   exit 1
 fi
 npm --prefix "$ui_root" run test:e2e:install
-npm --prefix "$ui_root" run test:unit
-npm --prefix "$ui_root" run build
+# Angular's local persistent cache is a developer optimisation, not test evidence. CI mode disables
+# it, avoiding native LMDB cache corruption making two identical `make test` runs disagree.
+CI=1 npm --prefix "$ui_root" run test:unit
+CI=1 npm --prefix "$ui_root" run build
 
 echo "==> starting disposable PostgreSQL and S3 integrations"
 cleanup_stack
@@ -78,16 +80,17 @@ fi
 
 echo "==> starting a fresh seeded application for browser journeys"
 docker compose -p "$compose_project" "${compose_files[@]}" \
-  up --detach --build --wait api web
+  up --detach --build --wait api workbench
 
-echo "==> running normal browser journeys"
+echo "==> running private-workbench browser journeys"
+LAKEHOLD_WORKBENCH_ONLY=1 \
 LAKEHOLD_E2E_BASE_URL="http://127.0.0.1:$ui_port" \
-  npm --prefix "$ui_root" run test:e2e
+  npm --prefix "$ui_root" run test:e2e -- --grep-invert "@website"
 
 echo "==> removing the normal test stack"
 cleanup_stack
 
-echo "==> running the read-only demo journey"
+echo "==> running the public website and read-only demo journeys"
 npm --prefix "$ui_root" run test:e2e:demo
 
 echo "==> running the disposable production-operator journey"

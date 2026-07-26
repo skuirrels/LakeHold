@@ -1,6 +1,6 @@
-# Lakehold UI
+# LakeHold UI
 
-Angular 22 workbench and public site for Lakehold. The root
+Angular 22 Workbench and demo-only public site for LakeHold. The root
 [`README.md`](../../README.md) contains the complete development and deployment guide; this file
 covers the frontend-only loop.
 
@@ -8,7 +8,7 @@ covers the frontend-only loop.
 
 - Node.js 20 or newer
 - npm 11 (the repository pins the package-manager release in `package.json`)
-- The Lakehold API on `http://localhost:5200` for workbench requests
+- The LakeHold API on `http://localhost:5200` for workbench requests
 
 Install the locked dependency graph:
 
@@ -41,7 +41,9 @@ npm run build
 ```
 
 The static output is written under `dist/lakehold-ui/`. Public routes are prerendered; the
-authenticated workbench remains client-rendered.
+authenticated Workbench remains client-rendered. The container defaults to `LAKEHOLD_UI_MODE=workbench`,
+which serves only `/workbench`, `/api`, and static UI assets. `compose.demo.yaml` is the sole
+deployment overlay that selects `LAKEHOLD_UI_MODE=website` and exposes the prerendered routes.
 
 ## Scaffolding
 

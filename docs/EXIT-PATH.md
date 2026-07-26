@@ -1,11 +1,11 @@
 # The exit path
 
-A lock-in claim is only credible if it is tested. This document records how to leave Lakehold and
+A lock-in claim is only credible if it is tested. This document records how to leave LakeHold and
 what we verified, so the "open format" claim in the README is falsifiable rather than decorative.
 
 ## What is on disk
 
-A Lakehold catalog is two things, both open:
+A LakeHold catalog is two things, both open:
 
 | Component | Format | Readable by |
 |---|---|---|
@@ -30,7 +30,7 @@ The layout is per-table, so a glob must target one table's directory. A `**/*.pa
 the whole data path unions files with different schemas by position, which either errors or
 silently produces nonsense — verified, and a mistake worth avoiding in your own migration scripts.
 
-## Verified: read the data with no Lakehold in the loop
+## Verified: read the data with no LakeHold in the loop
 
 Against the seeded demo catalog, using plain DuckDB with **no `ducklake` extension loaded**:
 
@@ -72,7 +72,7 @@ not see them.
 CALL ducklake_flush_inlined_data('analytics');
 ```
 
-or press **Flush** in the workbench toolbar. Lakehold exposes this as a first-class maintenance
+or press **Flush** in the workbench toolbar. LakeHold exposes this as a first-class maintenance
 operation rather than hiding it, because the open-format guarantee depends on it. A deployment that
 makes the claim publicly should flush on a schedule.
 
@@ -162,7 +162,7 @@ Verified against ground truth on the scenario above:
 ### Better: back the catalog up *into the bucket*, as Parquet
 
 Everything above describes recovering table contents from data files alone. There is a far better
-option, and Lakehold ships it: **export the metadata catalog to Parquet next to the data it
+option, and LakeHold ships it: **export the metadata catalog to Parquet next to the data it
 describes.** The bucket then holds everything needed to reconstitute the lakehouse, with no separate
 backup system involved — which is the point of bring-your-own-bucket.
 
@@ -242,7 +242,7 @@ Verified against PostgreSQL 17 and DuckDB 1.5.3, in
 
 `pg_dump` remains the right tool for point-in-time recovery of the PostgreSQL server itself. It is
 not a substitute for this: a dump restores *into PostgreSQL*, whereas the Parquet backup restores
-into a file you can open with the `duckdb` CLI and no Lakehold at all.
+into a file you can open with the `duckdb` CLI and no LakeHold at all.
 
 Two mechanical notes:
 
@@ -297,7 +297,7 @@ interrupted or incorrect export cannot present itself as a finished one, exactly
 generation without its manifest is refused by restore.
 
 The manifest records per-table row counts and SHA-256 digests, so step 6 below ("verify row counts")
-is machine-checkable after the fact, by anyone, without Lakehold:
+is machine-checkable after the fact, by anyone, without LakeHold:
 
 ```bash
 duckdb -c "SELECT count(*) FROM read_parquet('…/data/main/events.parquet')"
@@ -306,7 +306,7 @@ sha256sum …/data/main/events.parquet     # compare against MANIFEST.json
 
 Set `Lakehouse:EjectSigningKey` and the manifest also carries an HMAC-SHA256 signature over those
 counts and digests, so the attestation is tamper-evident and not merely present. Verifying it needs
-only the shared key and the documented field order — no Lakehold, no .NET.
+only the shared key and the documented field order — no LakeHold, no .NET.
 
 `includeHistory: true` additionally copies the metadata catalog into `catalog/`, which is what
 preserves snapshots and time travel. The data half is reader-agnostic without it; **history is not**.
@@ -317,7 +317,7 @@ rows.
 
 ## Full migration checklist
 
-Do this by hand only if you are migrating *without* Lakehold running — otherwise run an eject, which
+Do this by hand only if you are migrating *without* LakeHold running — otherwise run an eject, which
 performs and verifies every step.
 
 1. **Back up the catalog** — the Backup button. This covers PostgreSQL metadata as well as local

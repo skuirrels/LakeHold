@@ -1,9 +1,9 @@
 import { expect, test } from '@playwright/test';
 
 const pages = [
-  { path: '/', heading: 'A feature-rich lakehouse. You host it yourself.', title: /Lakehold/ },
-  { path: '/compare', heading: /Compare|Lakehold/, title: /Lakehold vs/ },
-  { path: '/docs', heading: /Lakehold/, title: /Documentation/ },
+  { path: '/', heading: 'A feature-rich lakehouse. You host it yourself.', title: /LakeHold/ },
+  { path: '/compare', heading: /Compare|LakeHold/, title: /LakeHold vs/ },
+  { path: '/docs', heading: /LakeHold/, title: /Documentation/ },
   {
     path: '/provider',
     heading: /DuckDB, DuckLake & Parquet, Provider for \.NET\./,
@@ -12,7 +12,7 @@ const pages = [
   { path: '/provider/docs', heading: /DuckDB\.EFCoreProvider/, title: /documentation/i },
 ];
 
-test.describe('public product pages', () => {
+test.describe('@website public product pages', () => {
   for (const page of pages) {
     test(`${page.path} renders its primary content`, async ({ page: browser }) => {
       const response = await browser.goto(page.path);
