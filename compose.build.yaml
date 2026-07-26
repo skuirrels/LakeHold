@@ -19,7 +19,7 @@ services:
       context: .
       dockerfile: src/Lakehold.Api/Dockerfile
 
-  web:
+  workbench:
     build:
       context: .
       dockerfile: web/lakehold-ui/Dockerfile

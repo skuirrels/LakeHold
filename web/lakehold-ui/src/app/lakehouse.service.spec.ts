@@ -97,7 +97,7 @@ describe('LakehouseService', () => {
     http.expectOne('/api/tenants').error(new ProgressEvent('network'));
 
     await expect(result).rejects.toMatchObject({
-      message: 'Cannot reach the Lakehold API. Is it running?',
+      message: 'Cannot reach the LakeHold API. Is it running?',
       status: 0,
     } satisfies Partial<ApiError>);
   });

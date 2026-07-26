@@ -1,11 +1,11 @@
-# Lakehold repository guidance
+# LakeHold repository guidance
 
 This file is the durable working context for coding agents in this repository. Keep it aligned with
 the live code and with `README.md` and `docs/ARCHITECTURE.md` when the architecture changes.
 
 ## Product and stack
 
-Lakehold is a self-hostable, multi-tenant lakehouse built on DuckDB and DuckLake. It deliberately
+LakeHold is a self-hostable, multi-tenant lakehouse built on DuckDB and DuckLake. It deliberately
 trades managed elasticity for infrastructure control, open Parquet storage, and first-class .NET
 integration.
 
@@ -34,7 +34,7 @@ integration.
   both the in-app page and the getting-started guide read on GitHub — edit it, not two copies.
   The DuckDB.EFCoreProvider surface follows the same split across two routes: `/provider` is the
   pitch and `/provider/docs` renders `src/app/provider.content.md`. They are separate pages so that
-  a "Docs" link never means the provider's documentation on one page and Lakehold's on the next; the
+  a "Docs" link never means the provider's documentation on one page and LakeHold's on the next; the
   provider pages name both destinations. A new route needs an entry in `public/sitemap.xml` too.
 - `docs/ARCHITECTURE.md`: architectural rationale and current product boundaries.
 - `docs/EXIT-PATH.md`: verified open-format exit procedure and Parquet caveats. Eject automates that
@@ -54,7 +54,7 @@ integration.
 - `docs/MCP.md`: the phased spec and running record for the MCP server under `src/Lakehold.Api/Mcp/`.
   Phases 1-4 have landed: five read-only tools and a schema resource, off unless
   `Lakehold:Mcp:Enabled`. Records why the dependency is the MCP C# SDK and *not* Microsoft Agent
-  Framework (Lakehold is the server, not the agent), which tools are deliberately withheld from an
+  Framework (LakeHold is the server, not the agent), which tools are deliberately withheld from an
   agent and why, and how to connect Claude Code and Codex. Read it before adding an agent-reachable
   surface.
 - `docs/UI.md`: the phased spec for the web surfaces beyond the SQL IDE — specified, not yet
@@ -87,7 +87,7 @@ Preserve these unless the task explicitly changes the architecture and updates i
    must never go through EF's raw-SQL formatting, which reads braces in struct and map literals as
    format placeholders.
 5. A Duckling owns a non-thread-safe `DbContext` and a single-writer DuckDB instance. Query and
-   maintenance access must remain serialised through the session gate. The gate is now a Lakehold
+   maintenance access must remain serialised through the session gate. The gate is now a LakeHold
    choice rather than a provider constraint — reads scale when each concurrent operation owns a
    separate context and connection, measured in `docs/PROVIDER-FEEDBACK.md` — but it stays until a
    per-tenant read pool exists to replace it. Any such pool is for PostgreSQL metadata: the provider
@@ -182,6 +182,10 @@ the runtime behavior consistent whenever maintenance or storage semantics change
 
 ## Coding conventions
 
+- The human-facing product name is **LakeHold**. Website copy, page titles, metadata, README prose,
+  and documentation must use that capitalisation. Preserve the existing `Lakehold` spelling in
+  technical identifiers such as .NET namespaces and projects, configuration keys
+  (`Lakehold:Auth`, `Lakehold__...`), image/repository paths, URLs, and filenames.
 - Nullable reference types, implicit usings, current language features, code-style enforcement,
   latest recommended analysis, and warnings-as-errors are enabled centrally.
 - Follow existing namespaces, file-scoped namespace style, typed minimal-API results, and concise
@@ -218,8 +222,10 @@ Configuration is split by whether a value is a secret, and new settings must fol
 is the common mistake: if every developer would set it identically, it belongs in source control.
 
 `compose.production.yaml` is the deployment stack: images pulled from GHCR, non-root, no source, no
-watcher, the API unpublished behind nginx, demo seeding off, and — unlike the application default —
-authentication required. It is self-contained so that installing is a download rather than a build;
+watcher, the API unpublished behind nginx, public website routes disabled, demo seeding off, and —
+unlike the application default — authentication required. It serves the private Workbench only;
+`compose.demo.yaml` is the sole overlay that selects website mode and exposes the public routes. The
+production file is self-contained so that installing is a download rather than a build;
 `compose.build.yaml` is the override that adds a build context for a from-source deploy, and the two
 Dockerfiles are published for amd64 and arm64 by `.github/workflows/release.yml` on a `v*` tag. Keep
 the image names in the compose file and the workflow in step. `compose.yaml` runs the whole *development*
@@ -313,4 +319,3 @@ time.
   on a shared checkout means committing someone else's in-progress work under your message. Name the
   paths you changed, and read `git diff --cached` before committing.
 - Report what changed, what was verified, and any remaining uncertainty or unverified runtime path.
-

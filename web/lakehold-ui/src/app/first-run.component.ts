@@ -41,13 +41,13 @@ export interface WorkspaceRequest {
             </button>
           </div>
         } @else if (mode() === 'unauthorized') {
-          <h1>Sign in to this Lakehold node</h1>
+          <h1>Sign in to this LakeHold node</h1>
           <p>
             This is a private workbench. Enter the API token provided by the person who operates
-            this Lakehold node.
+            this LakeHold node.
           </p>
           <p class="operator-note">
-            <strong>Setting up a new node?</strong> Lakehold writes a one-time bootstrap token to
+            <strong>Setting up a new node?</strong> LakeHold writes a one-time bootstrap token to
             the API startup log. Use it here to create the first workspace and its owner credential.
           </p>
           @if (rejected()) {

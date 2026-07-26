@@ -5,8 +5,8 @@ import { compareCapabilities } from './support/compare-capabilities';
 
 const repoRoot = resolve(process.cwd(), '../..');
 
-test.describe('/compare capability contract', () => {
-  test('every rendered Lakehold claim has current evidence', async ({ page }) => {
+test.describe('@website /compare capability contract', () => {
+  test('every rendered LakeHold claim has current evidence', async ({ page }) => {
     await page.goto('/compare');
 
     const rendered = await page.locator('.matrix tbody tr').evaluateAll((rows) =>
@@ -57,7 +57,7 @@ test.describe('/compare capability contract', () => {
         has: page.getByRole('heading', { name: `vs ${competitor}` }),
       });
       await expect(section).toBeVisible();
-      await expect(section.getByRole('heading', { name: 'Choose Lakehold when' })).toBeVisible();
+      await expect(section.getByRole('heading', { name: 'Choose LakeHold when' })).toBeVisible();
       await expect(section.locator('article.win li').first()).toBeVisible();
       await expect(section.locator('article.lose li').first()).toBeVisible();
     }

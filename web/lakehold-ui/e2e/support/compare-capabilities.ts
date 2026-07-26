@@ -24,7 +24,7 @@ export interface CompareCapability {
 }
 
 /**
- * Executable traceability contract for every Lakehold cell in the /compare matrix.
+ * Executable traceability contract for every LakeHold cell in the /compare matrix.
  *
  * This intentionally duplicates the reader-facing text. If marketing copy changes, the browser
  * test fails until the new claim is assigned concrete evidence. A declared limitation or roadmap
@@ -40,7 +40,7 @@ export const compareCapabilities: readonly CompareCapability[] = [
       {
         lane: 'deployment-contract',
         path: 'scripts/test-phase2.sh',
-        marker: 'up --detach --build --wait api web webhook',
+        marker: 'up --detach --build --wait api workbench webhook',
         proves: 'A production-shaped node is built and operated entirely from local containers.',
       },
     ],
@@ -118,7 +118,7 @@ export const compareCapabilities: readonly CompareCapability[] = [
         lane: 'backend',
         path: 'tests/Lakehold.Engine.Tests/CatalogEjectTests.cs',
         marker: 'Eject_manifest_row_counts_match_an_independent_reader',
-        proves: 'A plain DuckDB Parquet reader verifies every exported table without Lakehold.',
+        proves: 'A plain DuckDB Parquet reader verifies every exported table without LakeHold.',
       },
     ],
   },

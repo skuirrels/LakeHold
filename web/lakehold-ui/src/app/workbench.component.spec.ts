@@ -61,7 +61,7 @@ describe('WorkbenchComponent', () => {
 
       await mount();
 
-      expect(text()).toContain('Sign in to this Lakehold node');
+      expect(text()).toContain('Sign in to this LakeHold node');
       expect(text()).not.toContain('docker compose');
       expect(text()).not.toContain('Could not load workspaces');
       expect(fixture.nativeElement.querySelector('.tabs')).toBeNull();
@@ -81,7 +81,7 @@ describe('WorkbenchComponent', () => {
 
       await mount();
 
-      expect(text()).toContain('You’re exploring a live Lakehold demo');
+      expect(text()).toContain('You’re exploring a live LakeHold demo');
       expect(text()).toContain('Operator sign in');
       expect(fixture.nativeElement.querySelector('.maintenance')).toBeNull();
       expect(fixture.nativeElement.querySelector('[aria-label="SQL editor"]')).not.toBeNull();

@@ -62,7 +62,7 @@ protecting rows within a catalog (row/column security, which stays on the far ro
 
 The obvious instinct is OIDC first, because humans log in. It is the wrong order here.
 
-Lakehold's pitch includes **air-gapped deployment**. An OIDC-first design makes an identity provider
+LakeHold's pitch includes **air-gapped deployment**. An OIDC-first design makes an identity provider
 a hard dependency of a product whose entire argument is that it does not need anyone else's
 infrastructure. Tokens need nothing external, work identically on a laptop and in a sealed network,
 and are what the machine consumers already need: CI, the CLI, the future `Lakehold.Client`, and the
@@ -88,7 +88,7 @@ revisiting once tokens exist, since `MaxRowsPerResult` and the statement timeout
 per-node rather than per-principal.
 
 Not taken: grants as SQL objects. ClickHouse can do that because its catalog *is* the database.
-Lakehold's control plane is the natural home, and access rules living inside DuckLake would have to
+LakeHold's control plane is the natural home, and access rules living inside DuckLake would have to
 survive backup, restore, and eject — three operations that would then all need to reason about
 security state.
 
@@ -422,7 +422,7 @@ To settle before or during the step they block, not before starting:
 
 1. **How does the workbench hold a token?** *Partly resolved.* It holds one in `sessionStorage`,
    cleared when the tab closes, sent only to `/api`. That is deliberately not `localStorage`, and
-   deliberately not the final answer: OIDC (phase 3) is, because it keeps a long-lived Lakehold
+   deliberately not the final answer: OIDC (phase 3) is, because it keeps a long-lived LakeHold
    credential out of the browser entirely. A short-lived cookie exchanged for a token remains the
    other option if operators want the workbench usable without an IdP.
 2. **Do tokens scope to a catalog, or only to a tenant?** *Resolved: both, layered.* A token belongs
@@ -722,7 +722,7 @@ on upgrade, which is a decision to make per deployment rather than one to inheri
 
 - **Question 1 remains partly open.** The workbench holds a bearer token in `sessionStorage`, which is
   better than `localStorage` but is still the interim answer. The durable one is OIDC (step 8), where
-  the browser never holds a long-lived Lakehold credential, or a short-lived cookie exchanged for a
+  the browser never holds a long-lived LakeHold credential, or a short-lived cookie exchanged for a
   token.
 - **Question 3 (per-principal quotas)** is untouched. `MaxRowsPerResult` and the statement timeout
   remain per-node. The entity does not make it awkward to add.

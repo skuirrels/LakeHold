@@ -1,6 +1,6 @@
 # The workbench and what sits beside it
 
-The plan for the web surfaces Lakehold needs beyond its SQL IDE — principally the **physical layer**:
+The plan for the web surfaces LakeHold needs beyond its SQL IDE — principally the **physical layer**:
 how much a table weighs, how many Parquet files it is spread across, how much of it is delete-file
 overhead, and therefore whether the maintenance buttons already in the toolbar are worth pressing.
 
@@ -23,7 +23,7 @@ hidden from *enumeration* but not from a targeted read.
 Surveyed across Databricks Catalog Explorer, MotherDuck, the DuckDB local UI, Dremio, and the Iceberg
 maintenance tooling grown up around Polaris and Nessie. The surfaces are strikingly consistent:
 
-| Surface | The question it answers | Who ships it | Lakehold today |
+| Surface | The question it answers | Who ships it | LakeHold today |
 |---|---|---|---|
 | SQL IDE | "Run this" | Everyone | ✅ workbench |
 | Catalog tree | "What tables, what columns" | Everyone | ✅ `catalog-explorer` |
@@ -39,7 +39,7 @@ Two findings from that survey carry the rest of this document.
 table-details page leads with file count, data size, and partition columns; the whole Iceberg
 maintenance-tooling category exists to render file-size distribution and classify tables
 healthy/warning/critical from it. The DuckDB local UI and MotherDuck skip it entirely — correctly, for
-what they are. They are single-node analysis tools where nobody *operates* the storage. Lakehold is the
+what they are. They are single-node analysis tools where nobody *operates* the storage. LakeHold is the
 one in this family where somebody does.
 
 **Nobody converged on a file browser.** Databricks has one only for Volumes, which are explicitly
@@ -58,7 +58,7 @@ with no way to know whether the table is three files or three thousand. They pre
 knowing whether anything is inlined. They press **Cleanup** and judge a destructive operation by a
 dry-run text blob.
 
-Lakehold's stated trade is managed elasticity *for infrastructure control*. An operator cannot exercise
+LakeHold's stated trade is managed elasticity *for infrastructure control*. An operator cannot exercise
 control over a layer they cannot see, and explicit dry-run-by-default maintenance (invariant 10) is only
 as good as the evidence available for the decision. The storage view is what makes the surface already
 built **decidable**.
@@ -296,7 +296,7 @@ In the spirit of `POSTGRES-WIRE.md`'s equivalent section.
 
 | Not built | Why |
 |---|---|
-| Lineage graph | Unity Catalog's governance moat. It needs a query graph Lakehold does not collect, and it is not why a self-hoster chooses this product |
+| Lineage graph | Unity Catalog's governance moat. It needs a query graph LakeHold does not collect, and it is not why a self-hoster chooses this product |
 | Usage insights — top readers, query patterns | Same. Query history already answers the narrow version |
 | Grants / permissions editor | Roles and tokens are administered through the API and `AUTHENTICATION.md`. A UI that mints credentials is a surface worth designing deliberately, later, not as a corner of the workbench |
 | File upload / "add data" ingest UI | Managed ingestion is on the roadmap as connectors, not as a drag-and-drop |

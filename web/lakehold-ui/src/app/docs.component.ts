@@ -5,7 +5,7 @@ import { MarkdownPage } from './markdown-page';
 import content from './docs.content.md';
 
 /**
- * Documentation surface: how to run Lakehold, which tool to reach for, and what every feature in
+ * Documentation surface: how to run LakeHold, which tool to reach for, and what every feature in
  * the workbench and the API is for.
  *
  * The prose lives in `docs.content.md`, the single source shared with the copy read on GitHub, and

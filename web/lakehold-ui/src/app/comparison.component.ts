@@ -179,7 +179,7 @@ export class ComparisonComponent {
     {
       name: 'MotherDuck',
       summary:
-        'The closest comparison: the same engine and the same table format, with a different control model. MotherDuck hosts the catalog and can manage storage and compute; Lakehold puts the whole service under your control. Query semantics are otherwise close — a query that runs on one generally runs on the other.',
+        'The closest comparison: the same engine and the same table format, with a different control model. MotherDuck hosts the catalog and can manage storage and compute; LakeHold puts the whole service under your control. Query semantics are otherwise close — a query that runs on one generally runs on the other.',
       chooseUs: [
         'Data residency, a security review, or an air-gapped network rules out a hosted service.',
         'You want the metadata catalog under your control rather than hosted by another service.',
@@ -188,8 +188,8 @@ export class ComparisonComponent {
         'A predictable VM bill beats per-second billing for your workload.',
       ],
       chooseThem: [
-        'You need per-user accounts and row- or column-level permissions with a console to administer them — Lakehold authenticates with tenant-scoped API tokens, OIDC, and three roles, but per-user administration is not a product surface yet.',
-        'You need a shared multi-tenant production service today — Lakehold still has same-name catalog isolation work to complete.',
+        'You need per-user accounts and row- or column-level permissions with a console to administer them — LakeHold authenticates with tenant-scoped API tokens, OIDC, and three roles, but per-user administration is not a product surface yet.',
+        'You need a shared multi-tenant production service today — LakeHold still has same-name catalog isolation work to complete.',
         'You want zero operations and nothing to run.',
         'You need to scale past a single node without re-architecting.',
         'Hybrid local-and-cloud dual execution is valuable to you — it is genuinely clever and we have not replicated it.',
@@ -200,7 +200,7 @@ export class ComparisonComponent {
     {
       name: 'ClickHouse',
       summary:
-        'The strongest alternative if self-hosting is the requirement, and on raw scale and concurrency it beats us outright. The real difference is storage philosophy: ClickHouse owns its on-disk format, Lakehold leaves plain Parquet in your bucket.',
+        'The strongest alternative if self-hosting is the requirement, and on raw scale and concurrency it beats us outright. The real difference is storage philosophy: ClickHouse owns its on-disk format, LakeHold leaves plain Parquet in your bucket.',
       chooseUs: [
         'You want an open Parquet and DuckLake storage contract with a verified eject path.',
         'You need transactions, snapshots, and time travel over your tables.',

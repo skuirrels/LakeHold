@@ -12,7 +12,7 @@ import { BrandMarkComponent } from './brand-mark.component';
       <header class="nav">
         <div class="brand">
           <lh-brand-mark class="mark" />
-          Lakehold
+          LakeHold
         </div>
         <nav class="nav-links">
           <a routerLink="/docs">Docs</a>
@@ -23,8 +23,8 @@ import { BrandMarkComponent } from './brand-mark.component';
             href="https://github.com/skuirrels/LakeHold"
             target="_blank"
             rel="noopener noreferrer"
-            aria-label="Lakehold on GitHub"
-            title="Lakehold on GitHub"
+            aria-label="LakeHold on GitHub"
+            title="LakeHold on GitHub"
           >
             <svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
               <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.42 7.42 0 0 1 2-.27c.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z" />
@@ -126,7 +126,7 @@ import { BrandMarkComponent } from './brand-mark.component';
 
         <div class="compare-grid">
           <div class="col win">
-            <h3>Choose Lakehold when</h3>
+            <h3>Choose LakeHold when</h3>
             <ul>
               <li>Data residency or a security review rules out a hosted warehouse.</li>
               <li>You want your tables as open Parquet in a bucket you control.</li>
@@ -214,14 +214,14 @@ export class LandingComponent {
     {
       tag: 'Compatibility',
       title: 'A PostgreSQL wire endpoint, so SQL clients connect directly',
-      body: 'Lakehold speaks the PostgreSQL wire protocol, so a client that already speaks Postgres connects to a catalog with no .mez file, driver, or plugin. The user is the tenant and the database is the catalog, and every statement resolves through the same tenant check, session gate, and query history as an HTTP query, so client traffic is visible in the history for the first time. The 10,000-row ceiling does not apply: rows are encoded straight to the socket rather than materialised, so a result streams instead of being silently truncated.',
+      body: 'LakeHold speaks the PostgreSQL wire protocol, so a client that already speaks Postgres connects to a catalog with no .mez file, driver, or plugin. The user is the tenant and the database is the catalog, and every statement resolves through the same tenant check, session gate, and query history as an HTTP query, so client traffic is visible in the history for the first time. The 10,000-row ceiling does not apply: rows are encoded straight to the socket rather than materialised, so a result streams instead of being silently truncated.',
       caveat:
         'psql, DBeaver, and Npgsql work today. Power BI does not yet: it reads the server’s type catalogue when connecting, and DuckDB leaves pg_type.typreceive empty, so the driver’s own join comes back with nothing. That is fixable in our compatibility shim rather than in DuckDB, and it is measured rather than guessed — see docs/POSTGRES-WIRE.md. Off by default, with TLS and per-tenant credentials.',
     },
     {
       tag: 'Integration',
       title: 'Change data capture, with nothing extra to run',
-      body: 'DuckLake already records what each snapshot changed, so Lakehold exposes it directly: a typed pull API for change pages, and outbound webhooks fired per new snapshot and signed with HMAC-SHA256 over a timestamped base. Updates arrive as a paired pre-image and post-image sharing a row id, so you can take net effect or diff them. No Debezium, no Kafka, no second pipeline.',
+      body: 'DuckLake already records what each snapshot changed, so LakeHold exposes it directly: a typed pull API for change pages, and outbound webhooks fired per new snapshot and signed with HMAC-SHA256 over a timestamped base. Updates arrive as a paired pre-image and post-image sharing a row id, so you can take net effect or diff them. No Debezium, no Kafka, no second pipeline.',
       caveat:
         'Delivery is at-least-once. The cursor advances one snapshot at a time and only after a 2xx, so a failing consumer replays rather than skips — make your handler idempotent on (snapshot, row, change type).',
     },
@@ -243,7 +243,7 @@ export class LandingComponent {
       title: 'Backups can live in your bucket',
       body: 'The backup root can be an s3:// prefix. Listing generations, reading manifests, and restoring from a bucket are all verified against a live S3 endpoint.',
       caveat:
-        'Retention cannot prune a bucket — DuckDB has no delete for object stores. Set a lifecycle rule on the prefix. Lakehold reports "retention deferred" rather than a "0 pruned" that would read as though it had run.',
+        'Retention cannot prune a bucket — DuckDB has no delete for object stores. Set a lifecycle rule on the prefix. LakeHold reports "retention deferred" rather than a "0 pruned" that would read as though it had run.',
     },
     {
       tag: 'Operations',
@@ -264,14 +264,14 @@ export class LandingComponent {
     {
       tag: 'Interop',
       title: 'An Iceberg REST endpoint, so other engines read you live',
-      body: 'Eject proves the data is portable, but it is a batch artifact. Serving the Iceberg REST Catalog protocol would let Spark, Trino, Snowflake, or DuckDB attach to a Lakehold catalog directly and read it live, with no export step and the same per-tenant boundary the query path already enforces.',
+      body: 'Eject proves the data is portable, but it is a batch artifact. Serving the Iceberg REST Catalog protocol would let Spark, Trino, Snowflake, or DuckDB attach to a LakeHold catalog directly and read it live, with no export step and the same per-tenant boundary the query path already enforces.',
       caveat:
         'DuckLake’s Iceberg support is a copy between formats, not this — the translation is ours to write, and whether merge-on-read delete sidecars map cleanly onto Iceberg deletes is unverified. That test comes before the promise.',
     },
     {
       tag: '.NET',
       title: 'A client package with a typed change stream',
-      body: 'The EF Core model already describes both your application and your lake. A Lakehold client would make that installable: migrations that define lake tables, results deserialised into your own entity types, and the change feed surfaced as ChangeEvent<T> with pre-image and post-image already paired into Before and After.',
+      body: 'The EF Core model already describes both your application and your lake. A LakeHold client would make that installable: migrations that define lake tables, results deserialised into your own entity types, and the change feed surfaced as ChangeEvent<T> with pre-image and post-image already paired into Before and After.',
       caveat:
         'Today there is no client package — the .NET story is a property of the architecture and the provider, not something you can add to a csproj yet.',
     },

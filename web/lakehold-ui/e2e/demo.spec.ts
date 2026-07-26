@@ -9,9 +9,17 @@ test.describe('demo workbench', () => {
   }) => {
     const baseURL = process.env['LAKEHOLD_E2E_BASE_URL'] ?? 'http://127.0.0.1:6599';
 
+    await page.goto('/');
+    await expect(page).toHaveURL(/\/$/);
+    await expect(
+      page.getByRole('heading', {
+        name: 'A feature-rich lakehouse. You host it yourself.',
+      }),
+    ).toBeVisible();
+
     await page.goto('/workbench');
 
-    await expect(page.getByText('You’re exploring a live Lakehold demo')).toBeVisible();
+    await expect(page.getByText('You’re exploring a live LakeHold demo')).toBeVisible();
     await expect(page.getByLabel('Workspace')).toHaveValue('demo');
     await expect(page.locator('.selectors').getByLabel('Catalog')).toHaveValue('analytics');
     await expect(page.getByLabel('SQL editor')).toBeVisible();

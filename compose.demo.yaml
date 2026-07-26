@@ -16,3 +16,9 @@ services:
       Lakehold__Auth__RequireAuthentication: "true"
       Lakehold__Auth__DemoTenant: ${LAKEHOLD_DEMO_TENANT:-demo}
       Lakehold__Auth__DemoCatalog: ${LAKEHOLD_DEMO_CATALOG:-analytics}
+
+  workbench:
+    environment:
+      # Demo is the only deployment mode that exposes the public landing, comparison,
+      # documentation, and provider pages alongside the read-only workbench.
+      LAKEHOLD_UI_MODE: website

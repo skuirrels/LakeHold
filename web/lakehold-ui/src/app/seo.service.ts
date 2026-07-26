@@ -55,7 +55,7 @@ export class SeoService {
     this.setTag('property', 'og:description', description);
     this.setTag('property', 'og:url', url);
     this.setTag('property', 'og:type', 'website');
-    this.setTag('property', 'og:site_name', 'Lakehold');
+    this.setTag('property', 'og:site_name', 'LakeHold');
     this.setTag('property', 'og:image', `${SITE_ORIGIN}/icons/og-image.png`);
     this.setTag('name', 'twitter:card', 'summary_large_image');
     this.setTag('name', 'twitter:title', title);

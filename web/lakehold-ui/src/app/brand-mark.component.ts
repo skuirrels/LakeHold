@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 
 /**
- * The Lakehold brand mark, shared by every page header so the six copies of the artwork cannot
+ * The LakeHold brand mark, shared by every page header so the six copies of the artwork cannot
  * drift apart. Callers keep their own `.brand` layout and `.mark` styling: the host is an inline
  * flex box, which behaves as the bare `<svg>` did as a flex child, and a `.mark` class placed on
  * the element still matches it from the surrounding page's stylesheet.

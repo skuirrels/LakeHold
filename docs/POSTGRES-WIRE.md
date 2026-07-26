@@ -1,6 +1,6 @@
 # The PostgreSQL wire endpoint
 
-Lakehold speaks enough of the PostgreSQL frontend/backend protocol for Power BI, Tableau, Metabase,
+LakeHold speaks enough of the PostgreSQL frontend/backend protocol for Power BI, Tableau, Metabase,
 DBeaver, `psql`, and Npgsql to connect to a tenant's catalog as though it were a Postgres database.
 
 This document is the specification and the record of what is and is not implemented. It is the
@@ -17,11 +17,11 @@ reason, and Power BI worked against it out of the box.
 
 ## Connection model
 
-| Postgres concept | Lakehold concept |
+| Postgres concept | LakeHold concept |
 |---|---|
 | `user` | tenant slug |
 | `database` | catalog name |
-| password | a Lakehold API token, or a per-tenant secret from configuration |
+| password | a LakeHold API token, or a per-tenant secret from configuration |
 | session | one `Duckling`, resolved exactly as an HTTP query resolves |
 
 ```
@@ -35,7 +35,7 @@ its `user`/`database` pair resolved to, and no SQL it submits is inspected to en
 
 ## Authentication
 
-Two credential schemes are supported, and they coexist: **Lakehold API tokens**, shared with the HTTP
+Two credential schemes are supported, and they coexist: **LakeHold API tokens**, shared with the HTTP
 API, and **per-tenant passwords** from configuration. Tokens are the better answer — see
 [`AUTHENTICATION.md`](AUTHENTICATION.md) — because they are issued, revocable, and carry capability;
 the configured passwords predate them and remain for deployments that have not moved.
@@ -47,7 +47,7 @@ the configured passwords predate them and remain for deployments that have not m
 "Lakehold": { "PgWire": { "AllowTokenAuthentication": true } }
 ```
 
-With this set, a client presents a Lakehold API token as its password and the server verifies it
+With this set, a client presents a LakeHold API token as its password and the server verifies it
 against the same store the HTTP API uses. The consequence that matters: **revoking a credential
 closes the BI tool and the API together**, rather than leaving a BI tool connected with a credential
 the API has already refused.
@@ -285,7 +285,7 @@ A wire connection does **not** own a `Duckling`. It resolves one per statement t
 - The session gate still serialises access (invariant 5). Two Power BI refreshes against one catalog
   queue rather than race.
 - Query history and audit still record every statement, including the introspection ones — which is
-  the first time BI traffic has been visible in Lakehold's own history at all.
+  the first time BI traffic has been visible in LakeHold's own history at all.
 
 The cost is that a connection carries no session state: temporary tables and `SET` values do not
 survive between statements. For BI traffic, which is stateless read queries, this is invisible. It is

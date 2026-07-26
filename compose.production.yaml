@@ -2,7 +2,7 @@
 #
 #   curl -O https://raw.githubusercontent.com/skuirrels/LakeHold/main/compose.production.yaml
 #   docker compose -f compose.production.yaml up -d
-#   → http://localhost:8080
+#   → private workbench at http://localhost:8080/workbench
 #
 # This file is self-contained on purpose: it names published images, so it is the whole install. No
 # clone, no .NET SDK, no Node, and no build on the host that is about to serve traffic. To run it
@@ -31,7 +31,7 @@ services:
     image: ghcr.io/${LAKEHOLD_REGISTRY_NAMESPACE:-skuirrels}/lakehold-api:${LAKEHOLD_TAG:-latest}
     restart: unless-stopped
 
-    # Not published. The browser reaches the API through the website's own origin, so the only way
+    # Not published. The browser reaches the API through the workbench's own origin, so the only way
     # in is the port below, and the API is not exposed to the host network at all. Publish
     # "${API_PORT:-5200}:5200" if a client outside the compose network needs it directly.
     expose:
@@ -77,9 +77,14 @@ services:
         max-size: "10m"
         max-file: "3"
 
-  web:
+  workbench:
     image: ghcr.io/${LAKEHOLD_REGISTRY_NAMESPACE:-skuirrels}/lakehold-web:${LAKEHOLD_TAG:-latest}
     restart: unless-stopped
+
+    environment:
+      # The standard installation serves the private workbench and its API proxy only. Public
+      # marketing routes are enabled exclusively by compose.demo.yaml.
+      LAKEHOLD_UI_MODE: workbench
 
     ports:
       - "${LAKEHOLD_PORT:-8080}:8080"

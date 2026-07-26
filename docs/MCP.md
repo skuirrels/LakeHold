@@ -27,7 +27,7 @@ layers. [`COMPETITIVE-RESEARCH.md`](COMPETITIVE-RESEARCH.md) records the converg
 primary compute unit, MCP as the protocol layer beneath them. On that axis this is parity, and parity
 arriving late.
 
-The differentiator is not that Lakehold has an MCP server. It is *how it refuses*.
+The differentiator is not that LakeHold has an MCP server. It is *how it refuses*.
 
 ### Capability is attachment — restated for agents
 
@@ -35,7 +35,7 @@ Every competing MCP server enforces agent safety in a policy layer above the SQL
 something, a guard inspects the request, and the guard decides. That guard is inspecting text a
 language model generated, which is the losing game invariant 4 exists to avoid.
 
-Lakehold does not have to play it:
+LakeHold does not have to play it:
 
 > An MCP tool declares a `Capability` exactly as a route does, and the same policy that guards
 > the HTTP API enforces it. A read-only agent credential produces a read-only **attachment**, so an
@@ -63,11 +63,11 @@ existing DI container, authentication, logging, and OpenTelemetry wiring.
 
 **Microsoft Agent Framework (`Microsoft.Agents.AI`) is deliberately *not* used**, and the distinction
 is worth recording because it is easy to get backwards. Agent Framework builds *agents*: orchestration,
-chat loops, tool selection, and **consuming** MCP servers. Lakehold's job here is the inverse — to
+chat loops, tool selection, and **consuming** MCP servers. LakeHold's job here is the inverse — to
 **be** the server an agent connects to. The two are complementary layers, not competing choices.
 
 Agent Framework becomes the right tool for exactly one future feature: an in-product assistant in the
-Angular workbench, which would be an agent, and which would consume Lakehold's own MCP server like any
+Angular workbench, which would be an agent, and which would consume LakeHold's own MCP server like any
 other client. That is a UI product and a separate decision. It is out of scope here.
 
 ## Version and timing
@@ -167,7 +167,7 @@ enable enforcement. For a surface whose entire purpose is letting an autonomous 
 
 Two credential schemes are accepted, and they coexist — the same shape `PgWire` settled on:
 
-### Lakehold API tokens
+### LakeHold API tokens
 
 An `lkh_`-prefixed token presented as `Authorization: Bearer`. This is what works today with Claude
 Code and any client that can set a header, it reuses `ApiTokenAuthenticator` unchanged, and revoking
@@ -181,7 +181,7 @@ The 2026 specification requires an MCP server to be a formal OAuth 2.1 resource 
 `WWW-Authenticate` challenges pointing clients at the authorization server. Both halves are served.
 
 The document names the MCP endpoint as the `resource`, the configured issuer under
-`authorization_servers`, and `header` as the only supported bearer method — Lakehold reads a credential
+`authorization_servers`, and `header` as the only supported bearer method — LakeHold reads a credential
 from the `Authorization` header and nowhere else, never a query parameter, which would put it in access
 logs and referrers. It is **unauthenticated by design**: a client reads it *because* it has no
 credential yet, so requiring one would be circular, and it discloses only an issuer and a resource,
@@ -204,7 +204,7 @@ exposed API and for local development.
 
 It is written as an ordinary endpoint rather than by registering the SDK's `McpAuthenticationHandler`,
 and that is a deliberate choice. The handler is an ASP.NET Core authentication *scheme* that serves the
-document and the challenge from the middleware's challenge path — but Lakehold does not authenticate
+document and the challenge from the middleware's challenge path — but LakeHold does not authenticate
 through that pipeline. Identity is resolved by an endpoint filter, and a second scheme overlapping that
 filter would be two things deciding one question. The document is the contract, not the mechanism, so
 it is emitted directly and serialised through the SDK's own `ProtectedResourceMetadata` type, which
@@ -239,13 +239,13 @@ no second path to get wrong.
 protocol.
 
 **Transport** is Streamable HTTP. Given the 2026-07-28 revision removes sessions, there is no
-server-side session state to design. A stdio shim is not shipped: Lakehold is a server, and remote MCP
+server-side session state to design. A stdio shim is not shipped: LakeHold is a server, and remote MCP
 is what its clients speak.
 
 ### Connecting a client
 
 The endpoint speaks Streamable HTTP at `Lakehold:Mcp:Route` (default `/mcp`) and authenticates with
-an ordinary Lakehold API token in an `Authorization: Bearer` header. Issue one scoped to what the
+an ordinary LakeHold API token in an `Authorization: Bearer` header. Issue one scoped to what the
 agent should reach — a catalog-narrowed, reader-role token is the right default, and it costs nothing
 because the surface forces a read-only attachment anyway:
 
@@ -297,13 +297,13 @@ tool_timeout_sec = 60.0
 ```
 
 `env_http_headers = { "Authorization" = "LAKEHOLD_AUTH_HEADER" }` is the alternative when a header
-has to be sent verbatim, and `enabled_tools = ["query"]` pins the surface even if a later Lakehold
+has to be sent verbatim, and `enabled_tools = ["query"]` pins the surface even if a later LakeHold
 version adds tools.
 
 #### Anything else
 
 Any MCP client that speaks Streamable HTTP and can set a request header will connect; there is
-nothing Lakehold-specific in the handshake. Over plain HTTP the token crosses the wire in the clear,
+nothing LakeHold-specific in the handshake. Over plain HTTP the token crosses the wire in the clear,
 so terminate TLS in front of the API exactly as you would for the REST surface.
 
 ### First contact: the catalog must already exist

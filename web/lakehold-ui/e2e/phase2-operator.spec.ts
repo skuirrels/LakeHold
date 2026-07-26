@@ -35,7 +35,7 @@ test.describe('disposable operator simulation', () => {
     await test.step('reject a bad credential, then bootstrap a fresh production node', async () => {
       await page.goto('/workbench');
       await expect(
-        page.getByRole('heading', { name: 'Sign in to this Lakehold node' }),
+        page.getByRole('heading', { name: 'Sign in to this LakeHold node' }),
       ).toBeVisible();
 
       const firstRun = page.locator('lh-first-run');
@@ -316,6 +316,7 @@ test.describe('disposable operator simulation', () => {
         page,
         `SELECT count(*) AS rows_at_snapshot FROM phase2_events AT (VERSION => ${restoreSnapshot})`,
       );
+      await expect(page.locator('lh-result-grid thead')).toContainText('rows_at_snapshot');
       await expect(page.locator('lh-result-grid tbody tr').first().locator('td').nth(1)).toHaveText(
         '1',
       );
@@ -335,6 +336,7 @@ test.describe('disposable operator simulation', () => {
       await runSql(page, targetedRestore);
 
       await runSql(page, 'SELECT count(*) AS rows_after_restore FROM phase2_events');
+      await expect(page.locator('lh-result-grid thead')).toContainText('rows_after_restore');
       await expect(page.locator('lh-result-grid tbody tr').first().locator('td').nth(1)).toHaveText(
         '1',
       );
