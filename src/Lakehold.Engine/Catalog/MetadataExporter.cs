@@ -314,8 +314,14 @@ public static class MetadataExporter
     ///         convention held exactly, and the listing is what disappeared — taking backup, restore,
     ///         and eject with it, since all three read the metadata tables directly.
     ///     </para>
+    ///     <para>
+    ///         Internal rather than private because <see cref="StorageBrowser"/> needs the same alias
+    ///         to read row counts. Exactly one place should know how DuckLake attaches its own metadata.
+    ///     </para>
     /// </remarks>
-    private static async Task<string> ResolveMetadataAliasAsync(Duckling duckling, CancellationToken cancellationToken)
+    /// <param name="duckling">The session whose metadata attachment is being located.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    internal static async Task<string> ResolveMetadataAliasAsync(Duckling duckling, CancellationToken cancellationToken)
     {
         var catalogName = duckling.Catalog.CatalogName;
 

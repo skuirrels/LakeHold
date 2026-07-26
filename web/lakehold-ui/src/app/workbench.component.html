@@ -131,12 +131,27 @@
           <button type="button" class="tab" [class.active]="tab() === 'snapshots'" (click)="showTab('snapshots')">
             Snapshots
           </button>
+          <button type="button" class="tab" [class.active]="tab() === 'storage'" (click)="showTab('storage')">
+            Storage
+          </button>
+          <button type="button" class="tab" [class.active]="tab() === 'changes'" (click)="showTab('changes')">
+            Changes
+          </button>
+          <button type="button" class="tab" [class.active]="tab() === 'backups'" (click)="showTab('backups')">
+            Backups
+          </button>
+          <button type="button" class="tab" [class.active]="tab() === 'ejects'" (click)="showTab('ejects')">
+            Eject
+          </button>
+          <button type="button" class="tab" [class.active]="tab() === 'schedule'" (click)="showTab('schedule')">
+            Schedule
+          </button>
         </div>
 
         <div class="output-body">
           @if (error(); as message) {
             <div class="banner error-banner">
-              <strong>Query failed</strong>
+              <strong>{{ errorTitle() }}</strong>
               <pre>{{ message }}</pre>
             </div>
           }
@@ -222,6 +237,29 @@
                   </tbody>
                 </table>
               }
+            }
+
+            @case ('storage') {
+              <lh-storage-panel [tenant]="tenantSlug()" [catalog]="catalogName()" />
+            }
+
+            @case ('changes') {
+              <lh-changes-panel
+                [tenant]="tenantSlug()"
+                [catalog]="catalogName()"
+                [tables]="baseTables()" />
+            }
+
+            @case ('backups') {
+              <lh-backups-panel [tenant]="tenantSlug()" [catalog]="catalogName()" />
+            }
+
+            @case ('ejects') {
+              <lh-eject-panel [tenant]="tenantSlug()" [catalog]="catalogName()" />
+            }
+
+            @case ('schedule') {
+              <lh-schedule-panel />
             }
           }
         </div>

@@ -99,8 +99,14 @@ Preserve these unless the task explicitly changes the architecture and updates i
    endpoint uses, honours the same purpose by construction and so does not apply it: rows are encoded
    to the socket and forgotten. Do not add the cap back to a streaming path, and do not remove it
    from a materialising one.
-7. Catalog and extension identifiers cannot always be parameterised. Validate and quote them with
-   `SqlIdentifier`; parameterise ordinary values wherever the underlying API permits it.
+7. Catalog and extension identifiers cannot always be parameterised. Use `SqlIdentifier`, and pick
+   the right half of it: `Quote` **validates** a bare identifier against an allow-list and returns it
+   *unquoted*, for a trust boundary where a malformed name should be rejected — a catalog name from a
+   control-plane record, an extension name. `QuoteName` **escapes** into a double-quoted identifier,
+   for a name that came out of the catalog and is going back into a statement. Tenants create tables
+   called `order-items`, `my.table`, and `select`; DuckLake stores all three, so validating one of
+   those is not a safety property, it is a read that fails on a catalog the engine is happy with.
+   Parameterise ordinary values wherever the underlying API permits it.
 8. Object-store credentials belong in provider connection configuration. Never persist them in a
    catalog, options object, response, source file, or log.
 9. Read-only additional catalogs must remain read-only. Do not widen write access to implement
@@ -259,15 +265,24 @@ dotnet run --project src/Lakehold.Api
 npm start --prefix web/lakehold-ui
 ```
 
-`tests/Lakehold.Engine.Tests` covers catalog backup and restore. There are no frontend `*.spec.ts`
-files yet. For every code change, run at least the affected build above, the narrow relevant tests
-first, and the complete suite before handoff. For changes to tenant isolation, query streaming,
-maintenance, storage, seeding, or the exit path, add focused tests rather than treating compilation
-as sufficient proof.
+`tests/Lakehold.Engine.Tests` covers catalog backup, restore, and the storage view. The frontend has
+`*.spec.ts` suites for the workbench panels, run by the Angular unit-test builder on Vitest. For every
+code change, run at least the affected build above, the narrow relevant tests first, and the complete
+suite before handoff. For changes to tenant isolation, query streaming, maintenance, storage, seeding,
+or the exit path, add focused tests rather than treating compilation as sufficient proof.
 
 ```bash
 dotnet test Lakehold.slnx
 ```
+
+```bash
+npm test --prefix web/lakehold-ui
+```
+
+A component test earns its place by failing when the behaviour breaks: the panels' hardest bugs —
+a signal effect that re-runs and undoes its own work, an error banner left over from another panel —
+pass the type checker and the production build. Mutate the source and confirm the test goes red before
+trusting it.
 
 Integration tests skip unless their service is configured, so the default run needs no Docker. The
 environment variables and container commands are in `README.md`. Run them before changing backup,

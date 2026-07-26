@@ -93,6 +93,72 @@ public sealed record SchemaDto(string Name, IReadOnlyList<SchemaTableDto> Tables
 /// <summary>A catalog snapshot.</summary>
 public sealed record SnapshotDto(long SnapshotId, DateTimeOffset CommittedAt, long SchemaVersion, string? CommitMessage);
 
+/// <summary>One table's physical footprint in the storage view.</summary>
+/// <param name="RowCount">
+///     Live rows, as <c>SELECT count(*)</c> would report: merge-on-read deletes subtracted, rows
+///     still inlined in the metadata catalog included.
+/// </param>
+/// <param name="InlinedRows">
+///     Rows committed but not yet written to Parquet. The only thing distinguishing a table whose
+///     data is entirely inlined from an empty one — both report zero files.
+/// </param>
+/// <param name="AverageFileSizeBytes">Mean bytes per data file, or null when there are no files.</param>
+/// <param name="NeedsFlush">
+///     Whether <c>flush</c> has work to do. Advisory, and the reason the Flush button is no longer
+///     a guess.
+/// </param>
+/// <param name="NeedsCompaction">
+///     Whether the table has drifted into the small-file problem — more than one file, averaging
+///     below the catalog's <c>target_file_size</c> or the deployment's advisory floor. Advisory only.
+/// </param>
+public sealed record TableStorageDto(
+    string SchemaName,
+    string TableName,
+    long RowCount,
+    long InlinedRows,
+    long FileCount,
+    long FileSizeBytes,
+    long DeleteFileCount,
+    long DeleteFileSizeBytes,
+    long? AverageFileSizeBytes,
+    bool NeedsFlush,
+    bool NeedsCompaction);
+
+/// <summary>A catalog's storage footprint.</summary>
+/// <param name="TargetFileSizeBytes">
+///     The catalog's configured <c>target_file_size</c>, or null when it has never been set. Null is
+///     reported rather than guessed — DuckLake's built-in default is not exposed anywhere — and
+///     <paramref name="AdvisoryFileSizeBytes"/> is what the advisory actually used.
+/// </param>
+/// <param name="AdvisoryFileSizeBytes">
+///     The threshold <c>NeedsCompaction</c> was computed against, so a caller can see the basis of
+///     the advice rather than having to trust it.
+/// </param>
+public sealed record CatalogStorageDto(
+    IReadOnlyList<TableStorageDto> Tables,
+    long? TargetFileSizeBytes,
+    long AdvisoryFileSizeBytes);
+
+/// <summary>One Parquet data file in the table-detail panel.</summary>
+/// <param name="DeleteFile">
+///     The merge-on-read delete file paired to this data file, or null when it has none.
+/// </param>
+public sealed record DataFileDto(
+    string DataFile,
+    long DataFileSizeBytes,
+    string? DeleteFile,
+    long? DeleteFileSizeBytes);
+
+/// <summary>A table's data files at one snapshot.</summary>
+/// <param name="SnapshotId">The snapshot read, or null for the current one.</param>
+/// <param name="Truncated">Whether the list stops short of the table's real file count.</param>
+public sealed record TableFilesDto(
+    string SchemaName,
+    string TableName,
+    long? SnapshotId,
+    bool Truncated,
+    IReadOnlyList<DataFileDto> Files);
+
 /// <summary>Outcome of a maintenance operation.</summary>
 /// <param name="DryRun">
 ///     True when the operation only reported what it would do. Destructive operations default to

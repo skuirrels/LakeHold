@@ -80,7 +80,8 @@ gate, and query history, so you can mix them freely.
 
 The browser workbench is the fastest way to explore a catalog and run maintenance. It is laid out top
 to bottom: a workspace and catalog picker, a schema explorer on the left, a SQL editor, and a tabbed
-output pane below it.
+output pane below it with eight panels — **Results**, **History**, **Snapshots**, **Storage**,
+**Changes**, **Backups**, **Eject**, and **Schedule**.
 
 ### Workspace and catalog pickers — *top bar*
 
@@ -121,6 +122,66 @@ Lists the catalog's DuckLake snapshots with their commit time and schema version
 `AT (VERSION => n)` clause to copy into a query, and a **Restore…** action that loads a ready-to-run
 statement to roll a table back to that snapshot. See [Time travel](#time-travel) below for how
 querying the past works and what you can do with it.
+
+### Storage — *Output → Storage*
+
+What each table physically weighs: live rows, total size, Parquet file count, average file size,
+delete-file overhead — and, in the last column, whether the maintenance buttons above are worth
+pressing.
+
+Two advisories appear there:
+
+- **Flush pending** — the table holds rows that are committed but not yet written to Parquet. This is
+  also the only thing separating a table whose data is entirely inlined from an empty one: both report
+  zero files, so without the row count a table with data in it would read as empty.
+- **Fragmented** — the table has drifted into the small-file problem: more than one file, averaging
+  below the catalog's `target_file_size` (or the deployment's advisory floor when it has never set
+  one). A *single* small file is never flagged, because a lone file cannot be merged with anything.
+
+Select a table to open its **file list**: real paths, real byte counts, each data file paired with the
+delete file that applies to it, largest first. An **as of** selector re-reads the list at any earlier
+snapshot, so "what did this table's storage look like on Tuesday" is one click.
+
+> Every figure comes from DuckLake's own catalog, never from listing the data path. A directory
+> listing would show orphaned files and live data identically, and enumerating an object store is an
+> unbounded `LIST` that times out at scale. A snapshot predating the table's creation is reported as
+> an error rather than an empty list — an empty list would be a different and false statement.
+
+### Changes — *Output → Changes*
+
+The row-level change feed and the webhook subscriptions that push it, in one place: a subscription's
+last delivered snapshot only means something next to the snapshots the feed is showing.
+
+Pick a table and a starting snapshot to read what changed. An update arrives as a **pre-image and
+post-image pair** sharing a row id, styled differently from a delete, so you can take either the net
+effect or the diff. Below the feed, create a subscription with an endpoint URL and a signing secret,
+or delete one — deletion asks first. Consecutive failures and the last error are shown per
+subscription, because a subscription you cannot observe is one you cannot trust.
+
+### Backups — *Output → Backups*
+
+Every backup generation, newest first, with its snapshot and table count. A complete generation offers
+**Restore…**; an incomplete one is marked and offers nothing, because a generation with no manifest
+died partway through and restoring it could silently reinstate deleted rows.
+
+Restore always writes a **new** catalog file and never overwrites, so the catalog you are rescuing is
+untouched whatever happens. A bare file name lands beside the server's other catalogs; an absolute
+path is used as given. The result reports the absolute path it actually wrote.
+
+### Eject — *Output → Eject*
+
+The bundles written by the exit path, newest first. Expand one to see its per-table attestation: row
+counts and SHA-256 digests, and whether the bundle is signed. A bundle with no manifest is marked
+untrusted rather than listed as if it were usable.
+
+Eject has no dry run — it only ever writes a new bundle and never touches the catalog — and an
+**include history** option decides whether the metadata catalog travels with the data so time travel
+survives the export.
+
+### Schedule — *Output → Schedule*
+
+The scheduled maintenance run log: which job ran against which workspace and catalog, when, how long
+it took, and whether it succeeded. Scoped to what your credential is allowed to see.
 
 ### Maintenance operations — *top bar → Maintenance*
 
@@ -335,11 +396,29 @@ from before it existed, and column constraints or defaults added since are not c
 
 ---
 
-## Data operations beyond the workbench
+## Data operations in depth
 
-These are the features that make Lakehold a lakehouse rather than a query box. Today they are driven
-over the HTTP API; the routes below all sit under
-`/api/tenants/{tenant}/catalogs/{catalog}/`.
+These are the features that make Lakehold a lakehouse rather than a query box. Each has a panel in
+the workbench, described above; this section is what those panels are doing and the routes to drive
+them from your own code. They all sit under `/api/tenants/{tenant}/catalogs/{catalog}/`.
+
+### Storage and table detail
+
+`GET …/storage` · `GET …/storage/files?schema=&table=&snapshot=&limit=`
+
+The figures behind the Storage panel, from DuckLake's own metadata rather than a directory listing.
+The rollup carries per-table row counts, inlined rows, file counts and sizes, delete-file overhead,
+and the two advisories; the response also reports the threshold each compaction verdict was computed
+against, so a caller can check the reasoning rather than trust it. Schema and table are query
+parameters, not path segments, because a table name may contain a dot or a slash.
+
+Both are reads and both need only `TenantData` — knowing how large a table is, is not the owner's
+decision to authorise, even though pressing Compact is. Encryption-key columns are never projected
+into a response.
+
+> **Caveat.** The file list returns one row per file and is capped, reporting `truncated` when it
+> stops short. A snapshot predating the table's creation is a `400` carrying the engine's own
+> message, not an empty list.
 
 ### Eject — the exit path in one call
 
@@ -365,6 +444,10 @@ The metadata catalog is exported to Parquet on a schedule and can rebuild a work
 export — row counts, deletions, updated values, views, and `AT (VERSION => n)` time travel all
 intact. The backup root can be an `s3://` prefix. A catalog whose metadata lives in PostgreSQL
 restores into a plain DuckDB file, so it is an exit path from the catalog database, not just a copy.
+
+A relative target path is resolved against the server's metadata root, so a bare file name lands
+beside the catalogs it belongs with; an absolute path is used as given, and the response reports the
+absolute path that was actually written.
 
 > **Caveat.** Restore never overwrites an existing catalog, and refuses an export with no completion
 > manifest — a partial export missing `ducklake_delete_file` would silently reinstate deleted rows.
@@ -546,5 +629,7 @@ The design docs go deeper than this guide.
 | [`docs/EXIT-PATH.md`](https://github.com/skuirrels/LakeHold/blob/main/docs/EXIT-PATH.md) | The verified open-format exit procedure that eject automates. |
 | [`docs/POSTGRES-WIRE.md`](https://github.com/skuirrels/LakeHold/blob/main/docs/POSTGRES-WIRE.md) | The wire protocol surface and what is deliberately unimplemented. |
 | [`docs/AUTHENTICATION.md`](https://github.com/skuirrels/LakeHold/blob/main/docs/AUTHENTICATION.md) | The phased plan for API authentication and tenant identity. |
+| [`docs/UI.md`](https://github.com/skuirrels/LakeHold/blob/main/docs/UI.md) | The web surfaces beyond the SQL IDE, and why a raw object browser is not one of them. |
+| [`docs/MCP.md`](https://github.com/skuirrels/LakeHold/blob/main/docs/MCP.md) | The MCP server, the tools an agent gets, and the ones deliberately withheld. |
 | [`docs/PROVIDER-FEEDBACK.md`](https://github.com/skuirrels/LakeHold/blob/main/docs/PROVIDER-FEEDBACK.md) | Provider capabilities and why the data plane uses its dynamic API. |
 | [`README.md`](https://github.com/skuirrels/LakeHold/blob/main/README.md) | Build, run, and the full set of environment variables and test commands. |

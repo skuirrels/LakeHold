@@ -1,0 +1,47 @@
+:host {
+  display: block;
+}
+
+/* Restore is the one action here that creates a new catalog, so it is set apart rather than inlined
+   into the table it acts on. */
+.restore-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+  padding: 14px;
+  margin: 14px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface-1);
+}
+
+.restore-lead {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--text-muted);
+  max-width: 82ch;
+}
+
+.restore-form .field {
+  align-items: flex-start;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.restore-form input {
+  width: min(560px, 100%);
+}
+
+.restore-form .hint {
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--text-faint);
+}
+
+.restore-actions {
+  display: flex;
+  gap: 8px;
+}

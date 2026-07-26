@@ -1,0 +1,14 @@
+:host {
+  display: block;
+}
+
+.bundle-detail {
+  padding: 0 0 0 24px;
+  background: var(--surface-0);
+}
+
+/* The nested attestation table sits inside a cell, so its own bottom rule would double up with the
+   row's. */
+.bundle-detail tr:last-child td {
+  border-bottom: none;
+}

@@ -1,14 +1,20 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal, viewChild } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { Observable, of, throwError } from 'rxjs';
 import { catchError, switchMap } from 'rxjs/operators';
 import { AuthService } from './auth.service';
+import { BackupsPanelComponent } from './backups-panel.component';
 import { BrandMarkComponent } from './brand-mark.component';
 import { CatalogExplorerComponent } from './catalog-explorer.component';
+import { ChangesPanelComponent } from './changes-panel.component';
+import { EjectPanelComponent } from './eject-panel.component';
 import { FirstRunComponent, FirstRunMode, WorkspaceRequest } from './first-run.component';
+import { formatTime } from './format';
 import { ApiError, LakehouseService } from './lakehouse.service';
 import { MaintenanceOperation, QueryResponse, QueryRun, Schema, Snapshot, Tenant } from './models';
 import { ResultGridComponent } from './result-grid.component';
+import { SchedulePanelComponent } from './schedule-panel.component';
+import { StoragePanelComponent } from './storage-panel.component';
 
 const STARTER_SQL = `-- Aggregate 250k rows in a few milliseconds.
 SELECT
@@ -20,18 +26,41 @@ WHERE event_type = 'purchase'
 GROUP BY country
 ORDER BY revenue DESC;`;
 
-type BottomTab = 'results' | 'history' | 'snapshots';
+type BottomTab =
+  | 'results'
+  | 'history'
+  | 'snapshots'
+  | 'storage'
+  | 'backups'
+  | 'ejects'
+  | 'changes'
+  | 'schedule';
 
-/** The SQL IDE: catalog explorer, editor, results, history, and catalog maintenance. */
+/**
+ * The SQL IDE.
+ *
+ * This component owns the chrome — workspace and catalog selectors, the maintenance buttons, the
+ * credential popover, the editor, and the tab strip — plus the three panels that belong to running a
+ * statement: results, history, and snapshots. Everything else below the editor is its own component,
+ * one per tab, each owning its own state, its own requests, and its own error banner.
+ *
+ * That split is what keeps a failure from leaking between panels: a panel's banner is destroyed with
+ * the panel, so a restore refusal cannot hang over the eject list. See `docs/UI.md`.
+ */
 @Component({
   selector: 'lh-workbench',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    BackupsPanelComponent,
     BrandMarkComponent,
     CatalogExplorerComponent,
+    ChangesPanelComponent,
+    EjectPanelComponent,
     FirstRunComponent,
     ResultGridComponent,
     RouterLink,
+    SchedulePanelComponent,
+    StoragePanelComponent,
   ],
   templateUrl: './workbench.component.html',
   styleUrl: './workbench.component.css',
@@ -39,6 +68,15 @@ type BottomTab = 'results' | 'history' | 'snapshots';
 export class WorkbenchComponent {
   private readonly api = inject(LakehouseService);
   protected readonly auth = inject(AuthService);
+
+  /**
+   * The panels a committed maintenance operation invalidates.
+   *
+   * Only the visible one exists — the tab strip is a `@switch` — so these are undefined most of the
+   * time, which is exactly right: a panel that is not on screen reloads when it is next shown.
+   */
+  private readonly storagePanel = viewChild(StoragePanelComponent);
+  private readonly backupsPanel = viewChild(BackupsPanelComponent);
 
   /** Whether the credential popover is open, and the token being typed into it. */
   protected readonly credentialOpen = signal(false);
@@ -55,6 +93,7 @@ export class WorkbenchComponent {
   protected readonly running = signal(false);
   protected readonly result = signal<QueryResponse | null>(null);
   protected readonly error = signal<string | null>(null);
+  protected readonly errorTitle = signal('Query failed');
   protected readonly notice = signal<string | null>(null);
 
   protected readonly history = signal<QueryRun[]>([]);
@@ -97,11 +136,26 @@ export class WorkbenchComponent {
    */
   protected readonly issuedToken = signal<string | null>(null);
 
+  protected readonly formatTime = formatTime;
+
   protected readonly catalogs = computed(
     () => this.tenants().find((t) => t.slug === this.tenantSlug())?.catalogs ?? [],
   );
 
   protected readonly ready = computed(() => this.tenantSlug() !== null && this.catalogName() !== null);
+
+  /**
+   * Base tables as `schema.table`, for the pickers that need one.
+   *
+   * Views are excluded: neither the change feed nor a snapshot restore means anything for a view,
+   * which has no rows of its own. Derived here rather than in the panels because the workbench
+   * already loads the object tree for the explorer, and a panel re-fetching it would be waste.
+   */
+  protected readonly baseTables = computed(() =>
+    this.schemas().flatMap((schema) =>
+      schema.tables.filter((table) => table.kind !== 'VIEW').map((table) => `${schema.name}.${table.name}`),
+    ),
+  );
 
   protected readonly summary = computed(() => {
     const data = this.result();
@@ -125,6 +179,12 @@ export class WorkbenchComponent {
 
   constructor() {
     this.loadTenants();
+  }
+
+  /** Shows a failure under a heading naming the operation that produced it. */
+  private fail(title: string, message: string): void {
+    this.errorTitle.set(title);
+    this.error.set(message);
   }
 
   /** Loads the tenants the current credential can see, selecting the first as a starting point. */
@@ -166,7 +226,7 @@ export class WorkbenchComponent {
         }
 
         this.firstRun.set('none');
-        this.error.set(err.message);
+        this.fail('Could not load workspaces', err.message);
       },
     });
   }
@@ -260,9 +320,19 @@ export class WorkbenchComponent {
     this.refreshHistory();
   }
 
+  /**
+   * Points the workbench at a different catalog.
+   *
+   * The panels take the catalog as an input and reload themselves when it changes, so there is no
+   * per-panel state to clear here — the reason the previous arrangement needed a `clearCatalogPanels`
+   * method that had to be kept in step with every signal added.
+   */
   protected selectCatalog(name: string): void {
     this.catalogName.set(name);
     this.refreshCatalog();
+    if (this.tab() === 'snapshots') {
+      this.refreshSnapshots();
+    }
   }
 
   protected run(): void {
@@ -291,7 +361,7 @@ export class WorkbenchComponent {
         }
       },
       error: (err: Error) => {
-        this.error.set(err.message);
+        this.fail('Query failed', err.message);
         this.result.set(null);
         this.running.set(false);
         this.refreshHistory();
@@ -336,9 +406,7 @@ export class WorkbenchComponent {
    */
   protected restoreSnapshot(snapshot: Snapshot): void {
     const version = snapshot.snapshotId;
-    const tables = this.schemas().flatMap((schema) =>
-      schema.tables.filter((table) => table.kind !== 'VIEW').map((table) => `${schema.name}.${table.name}`),
-    );
+    const tables = this.baseTables();
     const target = tables[0] ?? 'schema.table';
     const others = tables.length > 1 ? `\n-- Other tables in this catalog: ${tables.slice(1).join(', ')}` : '';
 
@@ -374,12 +442,20 @@ SELECT * FROM ${target} AT (VERSION => ${version});`,
         this.notice.set(`${res.operation}: ${res.detail} (${res.elapsedMilliseconds.toFixed(0)} ms)`);
         this.pendingApply.set(res.dryRun ? operation : null);
 
-        // Expiry and cleanup change which snapshots exist, so the panel would otherwise go stale.
-        if (!res.dryRun && this.tab() === 'snapshots') {
-          this.refreshSnapshots();
+        // A dry run changed nothing and needs no refresh. A committed one did, and the panel showing
+        // its effect must say so: pressing Compact and watching the file count stay put is the whole
+        // reason the storage panel is worth having.
+        if (!res.dryRun) {
+          if (this.tab() === 'snapshots') {
+            this.refreshSnapshots();
+          }
+          this.storagePanel()?.reload();
+          if (operation === 'backup') {
+            this.backupsPanel()?.reload();
+          }
         }
       },
-      error: (err: Error) => this.error.set(err.message),
+      error: (err: Error) => this.fail('Maintenance failed', err.message),
     });
   }
 
@@ -397,6 +473,11 @@ SELECT * FROM ${target} AT (VERSION => ${version});`,
 
   protected showTab(tab: BottomTab): void {
     this.tab.set(tab);
+
+    // A query failure belongs to the editor, not to whatever panel the operator opens next. The
+    // panels carry their own banners, which are destroyed with them.
+    this.error.set(null);
+
     if (tab === 'snapshots') {
       this.refreshSnapshots();
     }
@@ -405,10 +486,6 @@ SELECT * FROM ${target} AT (VERSION => ${version});`,
   protected replay(run: QueryRun): void {
     this.sql.set(run.sql);
     this.tab.set('results');
-  }
-
-  protected formatTime(iso: string): string {
-    return new Date(iso).toLocaleTimeString();
   }
 
   private refreshCatalog(): void {
@@ -426,7 +503,7 @@ SELECT * FROM ${target} AT (VERSION => ${version});`,
         this.schemasLoading.set(false);
       },
       error: (err: Error) => {
-        this.error.set(err.message);
+        this.fail('Could not load the catalog', err.message);
         this.schemasLoading.set(false);
       },
     });
@@ -451,7 +528,7 @@ SELECT * FROM ${target} AT (VERSION => ${version});`,
 
     this.api.getSnapshots(tenant, catalog).subscribe({
       next: (snapshots) => this.snapshots.set(snapshots),
-      error: (err: Error) => this.error.set(err.message),
+      error: (err: Error) => this.fail('Could not load snapshots', err.message),
     });
   }
 }

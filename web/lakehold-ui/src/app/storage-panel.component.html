@@ -1,0 +1,169 @@
+<lh-panel-error [title]="errorTitle()" [message]="error()" />
+
+@if (error() && !storage()) {
+  <!-- The error banner above is the complete state; an unread catalog is not an empty catalog. -->
+} @else if (loading() && !storage()) {
+  <p class="placeholder">Reading catalog storage…</p>
+} @else if (!storage() || storage()!.tables.length === 0) {
+  <p class="placeholder">This catalog has no tables yet.</p>
+} @else {
+  <table class="storage">
+    <thead>
+      <tr>
+        <th scope="col">Table</th>
+        <th scope="col" class="num">Rows</th>
+        <th scope="col" class="num">Size</th>
+        <th scope="col" class="num">Files</th>
+        <th scope="col" class="num">Avg file</th>
+        <th scope="col" class="num">Deletes</th>
+        <th scope="col">Maintenance</th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (table of storage()!.tables; track table.schemaName + '.' + table.tableName) {
+        <tr
+          [class.selected]="
+            selectedTable()?.schemaName === table.schemaName &&
+            selectedTable()?.tableName === table.tableName
+          ">
+          <td class="table-cell">
+            <button
+              type="button"
+              class="cell-link"
+              [attr.aria-label]="'Show data files for ' + table.schemaName + '.' + table.tableName"
+              (click)="openTable(table)">
+              <span class="schema-part">{{ table.schemaName }}.</span>{{ table.tableName }}
+            </button>
+          </td>
+          <td class="num">{{ formatCount(table.rowCount) }}</td>
+          <td class="num">{{ formatBytes(table.fileSizeBytes) }}</td>
+          <td class="num">{{ formatCount(table.fileCount) }}</td>
+          <td class="num">{{ formatBytes(table.averageFileSizeBytes) }}</td>
+          <td class="num">
+            @if (table.deleteFileCount > 0) {
+              <span
+                [title]="
+                  formatCount(table.deleteFileCount) +
+                  ' delete file(s), ' +
+                  formatBytes(table.deleteFileSizeBytes) +
+                  ' — read as merge-on-read overhead until compaction'
+                ">
+                {{ formatCount(table.deleteFileCount) }}
+              </span>
+            } @else {
+              <span class="muted">—</span>
+            }
+          </td>
+          <td>
+            @if (advisory(table); as advice) {
+              <span
+                class="advisory"
+                [class.advisory-flush]="table.needsFlush"
+                [title]="
+                  table.needsFlush
+                    ? formatCount(table.inlinedRows) +
+                      ' row(s) are committed but still inlined in the metadata catalog, not yet written as Parquet.'
+                    : 'Average file size is below the target, so reads scan more files than they need to.'
+                ">
+                {{ advice }}
+              </span>
+            } @else {
+              <span class="muted">—</span>
+            }
+          </td>
+        </tr>
+      }
+    </tbody>
+  </table>
+
+  @if (selectedTable(); as table) {
+    <section class="files-panel">
+      <header class="panel-head">
+        <h3>
+          <span class="schema-part">{{ table.schemaName }}.</span>{{ table.tableName }}
+          <span class="files-sub">data files</span>
+          @if (fileRoot(); as root) {
+            <span class="files-root" [title]="root">in {{ root }}</span>
+          }
+        </h3>
+
+        <label class="field">
+          <span>As of</span>
+          <select [value]="fileSnapshot() ?? ''" (change)="selectFileSnapshot($any($event.target).value)">
+            <option value="">Current</option>
+            @for (snapshot of snapshots(); track snapshot.snapshotId) {
+              <option [value]="snapshot.snapshotId">
+                Snapshot {{ snapshot.snapshotId }} · {{ formatTime(snapshot.committedAt) }}
+              </option>
+            }
+          </select>
+        </label>
+
+        <button type="button" class="btn" (click)="closeTable()">Close</button>
+      </header>
+
+      @if (filesLoading()) {
+        <p class="placeholder">Reading file list…</p>
+      } @else if (files(); as list) {
+        @if (list.files.length === 0) {
+          <p class="placeholder">
+            No Parquet files at this snapshot. Rows committed since the last flush live in the metadata
+            catalog until they are written out.
+          </p>
+        } @else {
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Data file</th>
+                <th scope="col" class="num">Size</th>
+                <th scope="col">Delete file</th>
+                <th scope="col" class="num">Size</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (file of list.files; track file.dataFile) {
+                <tr>
+                  <td class="path" [title]="file.dataFile">{{ fileName(file.dataFile) }}</td>
+                  <td class="num">{{ formatBytes(file.dataFileSizeBytes) }}</td>
+                  <td class="path">
+                    @if (file.deleteFile) {
+                      <span [title]="file.deleteFile">{{ fileName(file.deleteFile) }}</span>
+                    } @else {
+                      <span class="muted">—</span>
+                    }
+                  </td>
+                  <td class="num">
+                    @if (file.deleteFileSizeBytes !== null) {
+                      {{ formatBytes(file.deleteFileSizeBytes) }}
+                    } @else {
+                      <span class="muted">—</span>
+                    }
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+
+          @if (list.truncated) {
+            <p class="panel-note">
+              More files exist than are shown. This table is large enough that its file list is itself
+              worth compacting.
+            </p>
+          }
+        }
+      }
+    </section>
+  }
+
+  <p class="panel-note">
+    Sizes and file counts come from the catalog, not from listing the data path — files the catalog no
+    longer references are cleanup's business, not the table's.
+    @if (storage()!.targetFileSizeBytes !== null) {
+      Fragmentation is judged against this catalog's target file size of
+      {{ formatBytes(storage()!.targetFileSizeBytes) }}.
+    } @else {
+      This catalog sets no target file size, so fragmentation is judged against the deployment's
+      advisory floor of {{ formatBytes(storage()!.advisoryFileSizeBytes) }}.
+    }
+  </p>
+}

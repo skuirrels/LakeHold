@@ -102,4 +102,21 @@ public sealed class LakehouseOptions
     ///     Wall-clock ceiling for a single statement.
     /// </summary>
     public TimeSpan StatementTimeout { get; set; } = TimeSpan.FromMinutes(2);
+
+    /// <summary>
+    ///     Mean data-file size below which the storage view advises compaction, used only when the
+    ///     catalog has no <c>target_file_size</c> of its own.
+    /// </summary>
+    /// <remarks>
+    ///     Advisory, never enforcement: nothing here changes what DuckLake writes. A catalog's own
+    ///     <c>target_file_size</c> takes precedence whenever it has been set, and this value stands in
+    ///     when it has not — DuckLake's built-in default is not exposed through any setting or
+    ///     metadata row, so it cannot be read and must not be invented. 16 MB is deliberately well
+    ///     under the 128–256 MB convention the Iceberg tooling uses: the point is to flag tables that
+    ///     have drifted into the small-file problem, not to nag about every table under the ideal.
+    ///     Decimal megabytes rather than binary, because that is how DuckLake reads the setting this
+    ///     stands in for — it stores <c>'5MB'</c> as 5,000,000 — and a floor that displays as "17 MB"
+    ///     beside a target written as "5MB" would read as a bug in the units.
+    /// </remarks>
+    public long CompactionAdvisoryBytes { get; set; } = 16_000_000;
 }

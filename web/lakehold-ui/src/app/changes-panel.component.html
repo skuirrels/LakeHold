@@ -1,0 +1,167 @@
+<lh-panel-error [title]="errorTitle()" [message]="error()" />
+
+<div class="panel-controls">
+  <label class="field">
+    <span>Table</span>
+    <select [value]="table()" (change)="table.set($any($event.target).value)">
+      @for (name of tables(); track name) {
+        <option [value]="name">{{ name }}</option>
+      }
+    </select>
+  </label>
+
+  <label class="field">
+    <span>From snapshot</span>
+    <input
+      type="number"
+      min="0"
+      [value]="fromSnapshot()"
+      (input)="fromSnapshot.set(+$any($event.target).value)" />
+  </label>
+
+  <button class="btn btn-primary" type="button" [disabled]="loading() || tables().length === 0"
+          (click)="loadChanges()">
+    Read changes
+  </button>
+
+  <p class="control-note">
+    The range is inclusive at both ends, so a reader that has consumed up to snapshot <em>L</em> opens
+    the next window at <em>L</em>&nbsp;+&nbsp;1. An update arrives as two rows sharing a row id, not one
+    row with before and after columns.
+  </p>
+</div>
+
+@if (changes(); as page) {
+  <p class="panel-summary">
+    {{ page.schema }}.{{ page.table }} · snapshots {{ page.fromSnapshot }}–{{ page.toSnapshot }} ·
+    {{ page.changes.length }} change{{ page.changes.length === 1 ? '' : 's' }}
+    @if (page.truncated) {
+      <span class="warn-text">(truncated)</span>
+    }
+  </p>
+
+  @if (page.changes.length > 0) {
+    <table>
+      <thead>
+        <tr>
+          <th scope="col">Snapshot</th>
+          <th scope="col">Change</th>
+          <th scope="col">Row</th>
+          @for (column of columns(); track column) {
+            <th scope="col">{{ column }}</th>
+          }
+        </tr>
+      </thead>
+      <tbody>
+        @for (change of page.changes; track change.snapshotId + ':' + change.rowId + ':' + change.changeType) {
+          <tr>
+            <td>{{ change.snapshotId }}</td>
+            <td><span class="change-type" [class]="'ct-' + change.changeType">{{ change.changeType }}</span></td>
+            <td>{{ change.rowId }}</td>
+            @for (column of columns(); track column) {
+              <td>{{ change.row[column] }}</td>
+            }
+          </tr>
+        }
+      </tbody>
+    </table>
+  }
+} @else if (!loading() && !error()) {
+  <p class="placeholder">Pick a table and read its row-level changes.</p>
+}
+
+<section class="subs">
+  <header class="panel-head">
+    <h3>Webhook subscriptions</h3>
+    <button class="btn" type="button" (click)="formOpen.set(!formOpen())">
+      {{ formOpen() ? 'Cancel' : 'New subscription' }}
+    </button>
+  </header>
+
+  @if (formOpen()) {
+    <div class="sub-form">
+      <label class="field">
+        <span>Endpoint URL</span>
+        <input type="url" placeholder="https://example.com/hooks/lakehold"
+               [value]="endpoint()" (input)="endpoint.set($any($event.target).value)" />
+      </label>
+
+      <label class="field">
+        <span>Signing secret</span>
+        <input type="password" autocomplete="off"
+               [value]="secret()" (input)="secret.set($any($event.target).value)" />
+      </label>
+
+      <label class="field">
+        <span>Table</span>
+        <select [value]="subTable()" (change)="subTable.set($any($event.target).value)">
+          <option value="">Every table</option>
+          @for (name of tables(); track name) {
+            <option [value]="name">{{ name }}</option>
+          }
+        </select>
+      </label>
+
+      <button class="btn btn-primary" type="button"
+              [disabled]="!endpoint().trim() || !secret()"
+              (click)="createSubscription()">
+        Create
+      </button>
+
+      <p class="control-note">
+        The secret signs every delivery so your endpoint can verify it. It is write-only — no endpoint
+        returns it afterwards, so keep your own copy.
+      </p>
+    </div>
+  }
+
+  @if (error() && subscriptions().length === 0) {
+    <!-- The error banner above is the complete state; an unread list is not an empty list. -->
+  } @else if (subscriptions().length === 0) {
+    <p class="placeholder">No subscriptions. Changes can still be read above.</p>
+  } @else {
+    <table>
+      <thead>
+        <tr>
+          <th scope="col">Endpoint</th>
+          <th scope="col">Watching</th>
+          <th scope="col" class="num">Delivered to</th>
+          <th scope="col">State</th>
+          <th scope="col"></th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (sub of subscriptions(); track sub.id) {
+          <tr>
+            <td class="path" [title]="sub.endpointUrl">{{ sub.endpointUrl }}</td>
+            <td>{{ sub.table ? sub.schema + '.' + sub.table : 'every table' }}</td>
+            <td class="num">snapshot {{ sub.lastDeliveredSnapshot }}</td>
+            <td>
+              @if (!sub.active) {
+                <span class="advisory">inactive</span>
+              } @else if (sub.consecutiveFailures > 0) {
+                <span class="advisory" [title]="sub.lastError ?? ''">
+                  {{ sub.consecutiveFailures }} failure{{ sub.consecutiveFailures === 1 ? '' : 's' }}
+                </span>
+              } @else {
+                <span class="ok-text">delivering</span>
+              }
+            </td>
+            <td>
+              @if (pendingUnsubscribe() === sub.id) {
+                <button class="btn btn-danger" type="button" (click)="confirmUnsubscribe(sub.id)">
+                  Confirm
+                </button>
+                <button class="btn" type="button" (click)="pendingUnsubscribe.set(null)">Cancel</button>
+              } @else {
+                <button class="row-btn" type="button" (click)="pendingUnsubscribe.set(sub.id)">
+                  Delete…
+                </button>
+              }
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  }
+</section>

@@ -97,6 +97,14 @@
             "proxyConfig": "proxy.conf.mjs",
             "port": 5399
           }
+        },
+        "test": {
+          "builder": "@angular/build:unit-test",
+          "options": {
+            "buildTarget": "lakehold-ui:build",
+            "tsConfig": "tsconfig.spec.json",
+            "runner": "vitest"
+          }
         }
       }
     }
