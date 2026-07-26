@@ -9,6 +9,7 @@ output/playwright/
 node_modules/
 .npm-cache/
 .angular/
+.lakehold-test.lock/
 
 # Lakehold local state: catalogs, Parquet data, control-plane database
 .lakehold/

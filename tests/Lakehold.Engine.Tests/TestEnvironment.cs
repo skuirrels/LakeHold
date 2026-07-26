@@ -34,7 +34,7 @@ internal static class TestEnvironment
             // The test binary runs from bin/Debug/<tfm>, so the file is several levels above it.
             // TraversePath walks up to the repository root rather than pinning a relative depth that
             // a target-framework or configuration change would silently break.
-            DotNetEnv.Env.TraversePath().Load();
+            DotNetEnv.Env.NoClobber().TraversePath().Load();
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
