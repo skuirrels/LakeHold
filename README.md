@@ -21,22 +21,40 @@ production profile until the isolation gates in the
 
 ---
 
-## Why
+## How LakeHold compares
 
-| | MotherDuck | LakeHold |
-|---|---|---|
-| Deployment | Hosted only | **Self-hosted: laptop, VM, k8s, air-gapped** |
-| Storage | Managed; BYO bucket on paid tiers | **Your bucket, always** |
-| Format | DuckLake | DuckLake (same) |
-| .NET / EF Core | — | **First-class, one model for app and lake** |
-| Time travel | ✅ | ✅ |
-| CDC / change feeds | Limited | **Typed pull API + signed webhooks, no Debezium or Kafka** |
-| Provable exit | — | **Verified, signed eject bundles** |
-| Maintenance controls | Automatic, hidden | **Explicit: flush, compact, expire, cleanup — dry-run by default** |
-| Elastic scale-out | ✅ | Bounded by node size |
-| Zero operations | ✅ | You run it |
-| Dual execution | ✅ | Not replicated |
-| Accounts, SSO, permissions | ✅ | **API tokens, OIDC, and roles — on in the production stack** |
+LakeHold trades managed elasticity and platform maturity for infrastructure control, open storage,
+and first-class .NET integration. It is not the right choice for everyone; this matrix uses the same
+claims as the live [`/compare`](https://lakehold.dev/compare) page so the README does not present a
+simpler story than the product site.
+
+<!-- compare-matrix:start -->
+| | LakeHold | MotherDuck | ClickHouse | Snowflake / Databricks |
+|---|---|---|---|---|
+| Deployment | Self-hosted anywhere, incl. air-gapped | Hosted catalog; local or cloud compute | Self-hosted or ClickHouse Cloud | Hosted service only |
+| Where your data lives | Your disk or object store, under your control | Managed storage or your own bucket | Your disks, or their cloud | Their account, or external tables |
+| Accounts, SSO, permissions | API tokens, OIDC, three roles; opt-in, no admin UI or row policies | Accounts, SSO, org roles | Users, roles, row policies | Mature RBAC, SSO, lineage |
+| Table format | DuckLake — plain Parquet + SQL catalog | DuckLake — same open format | MergeTree, proprietary on disk | Delta / Iceberg, now genuinely open |
+| Read data without the product | Yes — tested, see exit path | Yes, DuckLake is open | Export required | Yes, via Iceberg / Delta readers |
+| Other engines read it live | Eject or export today; Iceberg REST planned | Direct with BYO compute; catalog remains hosted | Its own protocols; export for others | Yes — via their catalog endpoints |
+| Time travel | Yes — query your data from an earlier point in time | Yes | No first-class equivalent | Yes, mature |
+| Verified, signed export | One call — row-count attested and signed | Manual export; nothing attests it | Manual export | Manual unload; nothing attests it |
+| Change data capture | Built in — typed feed + signed webhooks | Limited; not exposed directly | Kafka engine or external tooling | Yes — CDF / streams, mature |
+| AI / MCP | Authenticated MCP; read tools + operator-gated writes | Managed MCP with sandboxed compute | Open-source and managed remote MCP | Managed AI and agent platforms with MCP |
+| BI tools (Power BI, Tableau) | Postgres wire protocol; Power BI blocked on type loading | Postgres endpoint; connector for older tools | Native connectors and JDBC/ODBC | First-class connectors everywhere |
+| Maintenance control | Explicit, dry-run by default | Automatic, not exposed | Explicit merges and TTLs | Automatic, partly exposed |
+| .NET / EF Core | One model for app and lake; client package pending | Community drivers; Python/JS first | Solid ADO.NET client, no ORM story | JDBC/ODBC; .NET is second-class |
+| Scale ceiling | One node — GB to low TB | Elastic, scales past a node | Clustered, petabyte-scale | Effectively unlimited |
+| Concurrent writers | Single writer per catalog | Managed | High concurrency | High concurrency |
+| Operational burden | You run it | None | High if self-hosted | Low |
+| Licence | Apache-2.0 | Proprietary | Apache-2.0; Cloud proprietary | Proprietary |
+| Cost shape | A VM and a bucket | Free Lite; Business $250/org/mo + usage | Free self-hosted; Cloud pay-as-you-use | Usage / credit based; enterprise spend varies |
+<!-- compare-matrix:end -->
+
+Pricing and tiers were checked in July 2026 and move constantly; treat the cost row as a shape, not
+a quote. The website also gives the fuller “choose LakeHold when / choose them when” case for each
+alternative. Every LakeHold claim in the matrix is mapped to executable evidence in the browser,
+backend, integration, or deployment test suites.
 
 Catalog isolation is structural — a session can only reference the catalog attached to it — and the
 layer deciding *which* tenant a caller is now exists too: the credential names the tenant and the URL

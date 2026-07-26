@@ -4,18 +4,61 @@ import { expect, test } from '@playwright/test';
 import { compareCapabilities } from './support/compare-capabilities';
 
 const repoRoot = resolve(process.cwd(), '../..');
+const readmeMatrixStart = '<!-- compare-matrix:start -->';
+const readmeMatrixEnd = '<!-- compare-matrix:end -->';
+
+interface MatrixRow {
+  dimension: string;
+  lakehold: string;
+  motherduck: string;
+  clickhouse: string;
+  cloud: string;
+}
+
+function readReadmeMatrix(): MatrixRow[] {
+  const readme = readFileSync(resolve(repoRoot, 'README.md'), 'utf8');
+  const start = readme.indexOf(readmeMatrixStart);
+  const end = readme.indexOf(readmeMatrixEnd);
+
+  if (start < 0 || end < 0 || end <= start) {
+    throw new Error('README comparison matrix markers are missing or out of order.');
+  }
+
+  return readme
+    .slice(start + readmeMatrixStart.length, end)
+    .split('\n')
+    .filter((line) => line.startsWith('|'))
+    .slice(2)
+    .map((line) => {
+      const cells = line
+        .slice(1, -1)
+        .split('|')
+        .map((cell) => cell.trim());
+
+      return {
+        dimension: cells[0] ?? '',
+        lakehold: cells[1] ?? '',
+        motherduck: cells[2] ?? '',
+        clickhouse: cells[3] ?? '',
+        cloud: cells[4] ?? '',
+      };
+    });
+}
 
 test.describe('@website /compare capability contract', () => {
   test('every rendered LakeHold claim has current evidence', async ({ page }) => {
     await page.goto('/compare');
 
-    const rendered = await page.locator('.matrix tbody tr').evaluateAll((rows) =>
+    const renderedMatrix = await page.locator('.matrix tbody tr').evaluateAll((rows) =>
       rows.map((row) => {
         const cells = row.querySelectorAll('th, td');
         const lakehold = cells[1] as HTMLElement | undefined;
         return {
           dimension: cells[0]?.textContent?.trim() ?? '',
-          claim: lakehold?.textContent?.trim() ?? '',
+          lakehold: lakehold?.textContent?.trim() ?? '',
+          motherduck: cells[2]?.textContent?.trim() ?? '',
+          clickhouse: cells[3]?.textContent?.trim() ?? '',
+          cloud: cells[4]?.textContent?.trim() ?? '',
           tone:
             [...(lakehold?.classList ?? [])]
               .find((name) => name.startsWith('v-'))
@@ -24,9 +67,13 @@ test.describe('@website /compare capability contract', () => {
       }),
     );
 
-    expect(rendered).toEqual(
-      compareCapabilities.map(({ dimension, claim, tone }) => ({ dimension, claim, tone })),
-    );
+    expect(
+      renderedMatrix.map(({ dimension, lakehold, tone }) => ({
+        dimension,
+        claim: lakehold,
+        tone,
+      })),
+    ).toEqual(compareCapabilities.map(({ dimension, claim, tone }) => ({ dimension, claim, tone })));
 
     for (const capability of compareCapabilities) {
       expect(
@@ -45,6 +92,25 @@ test.describe('@website /compare capability contract', () => {
         ).toContain(evidence.marker);
       }
     }
+  });
+
+  test('README keeps the complete comparison matrix in sync', async ({ page }) => {
+    await page.goto('/compare');
+
+    const renderedMatrix = await page.locator('.matrix tbody tr').evaluateAll((rows) =>
+      rows.map((row) => {
+        const cells = row.querySelectorAll('th, td');
+        return {
+          dimension: cells[0]?.textContent?.trim() ?? '',
+          lakehold: cells[1]?.textContent?.trim() ?? '',
+          motherduck: cells[2]?.textContent?.trim() ?? '',
+          clickhouse: cells[3]?.textContent?.trim() ?? '',
+          cloud: cells[4]?.textContent?.trim() ?? '',
+        };
+      }),
+    );
+
+    expect(renderedMatrix).toEqual(readReadmeMatrix());
   });
 
   test('decision guidance, limitations, objection, and workbench handoff stay usable', async ({
