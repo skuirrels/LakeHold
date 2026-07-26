@@ -7,7 +7,7 @@
 #   make stop         Stop the stack. The state volume survives.
 #   make backup-state Archive the state volume to a tarball in the working directory.
 #   make test         Run the complete backend, frontend, integration, and browser test suite.
-#   make demo         Start the opt-in demo deployment overlay.
+#   make demo         Build and start the opt-in demo deployment overlay.
 #
 # This drives compose.production.yaml and never compose.yaml. The development stack bind-mounts
 # source and runs a file watcher, so it has no build step to redo — "rebuild and restart" is not a
@@ -22,6 +22,7 @@
 
 COMPOSE        := docker compose -f compose.production.yaml
 COMPOSE_SOURCE := docker compose -f compose.production.yaml -f compose.build.yaml
+COMPOSE_DEMO   := $(COMPOSE_SOURCE) -f compose.demo.yaml
 BRANCH         := $(shell git rev-parse --abbrev-ref HEAD 2>/dev/null)
 
 # Compose prefixes volumes with the project name, which compose.production.yaml pins to `lakehold`.
@@ -45,7 +46,7 @@ help:
 	@echo "Lakehold — make targets"
 	@echo ""
 	@echo "  test          Run every test, including live integrations and both E2E suites"
-	@echo "  demo          Start the opt-in demo deployment overlay"
+	@echo "  demo          Build local source and start the opt-in demo deployment overlay"
 	@echo "  deploy        Update this deployment to the current published images"
 	@echo "  production    Update it from source: git pull, rebuild images, restart containers"
 	@echo "  status        Show the running containers and their health"
@@ -54,6 +55,7 @@ help:
 	@echo "  backup-state  Archive the state volume to a tarball here"
 	@echo ""
 	@echo "  Overrides:    WAIT_TIMEOUT=$(WAIT_TIMEOUT) (seconds to wait for healthy containers)"
+	@echo "                LAKEHOLD_PORT=<port> (host port; defaults to 8080)"
 	@echo "                LAKEHOLD_TAG=<version> (which published images deploy pulls)"
 	@echo "                ARCHIVE=<file> (what backup-state writes, in this directory)"
 
@@ -64,9 +66,10 @@ test:
 	@./scripts/test-all.sh
 
 # Demo is deliberately a separate opt-in overlay; the standard production configuration remains
-# authentication-protected and contains no demo settings.
+# authentication-protected and contains no demo settings. The build overlay is required here so
+# this target runs the current checkout rather than whichever published images happen to be cached.
 demo:
-	docker compose -f compose.production.yaml -f compose.demo.yaml up -d
+	$(COMPOSE_DEMO) up -d --build
 
 # The published-image path. No git, no build: whatever LAKEHOLD_TAG names is pulled and started.
 # Pinning that to a released version rather than the default `latest` is what makes a redeploy

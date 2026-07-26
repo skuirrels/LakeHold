@@ -191,8 +191,11 @@ Demo mode is intentionally absent from the customer production file and `.env.ex
 separate evaluation deployment, add its overlay:
 
 ```bash
-docker compose -f compose.production.yaml -f compose.demo.yaml up -d
+make demo
 ```
+
+This builds the API and web images from the current checkout before starting them. The site listens
+on port `8080` by default; use `LAKEHOLD_PORT=8081 make demo` when that port is already occupied.
 
 `compose.demo.yaml` owns demo seeding, authentication, and the read-only visitor scope. It defaults
 to `demo/analytics`; `LAKEHOLD_DEMO_TENANT` and `LAKEHOLD_DEMO_CATALOG` can point the overlay at a

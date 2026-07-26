@@ -4,7 +4,7 @@
 # to demo/analytics; this is intentionally different from setting LAKEHOLD_REQUIRE_AUTH=false,
 # which would trust every tenant and catalog named in a URL.
 #
-#   docker compose -f compose.production.yaml -f compose.demo.yaml up -d
+#   make demo
 #
 # The customer-facing production file contains no demo settings. This overlay owns all of them, and
 # may be pointed at a different seeded tenant/catalog without changing the standard installation.
