@@ -280,9 +280,18 @@ time.
   and runtime or persisted-data checks for storage and migration claims.
 - Do not commit, push, publish packages, run destructive maintenance, or change external systems
   unless the user asks for it.
+- **Always work on a branch, never directly on `main`.** Create it before the first edit, not before
+  the first commit: work started on `main` has to be moved later, and moving it is where changes get
+  lost. If you find yourself on `main` with uncommitted work, branch immediately — `git switch -c`
+  keeps the working tree.
+- One branch per piece of work. When the task changes into something the branch name no longer
+  describes, branch again rather than letting one branch accumulate unrelated commits.
 - Branch names describe the work, never the author or the tool that produced it. Use a `feature/`
   prefix and a short kebab-case summary — `feature/brand-mark-component`. Never a `claude/` prefix
   or a generated name, including the default an agent session or worktree proposes: rename the
   branch before the first commit. Use `fix/` or `docs/` where either reads more truthfully.
+- Stage deliberately. `git add -A` and `git add <dir>` sweep up whatever else is in the tree, which
+  on a shared checkout means committing someone else's in-progress work under your message. Name the
+  paths you changed, and read `git diff --cached` before committing.
 - Report what changed, what was verified, and any remaining uncertainty or unverified runtime path.
 
