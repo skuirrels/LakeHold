@@ -327,7 +327,9 @@ test.describe('disposable operator simulation', () => {
         .filter({ has: page.getByRole('cell', { name: String(restoreSnapshot), exact: true }) });
       await snapshotRow.getByRole('button', { name: 'Restore…' }).click();
       await expect(page.getByLabel('SQL editor')).toHaveValue(
-        new RegExp(`AT \\(VERSION => ${restoreSnapshot}\\)`),
+        new RegExp(
+          `CREATE OR REPLACE TABLE[\\s\\S]+AT \\(VERSION => ${restoreSnapshot}\\)`,
+        ),
       );
       const generatedRestore = await page.getByLabel('SQL editor').inputValue();
       const targetedRestore = generatedRestore
