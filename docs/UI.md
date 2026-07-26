@@ -394,8 +394,8 @@ Two suites: `tests/Lakehold.Engine.Tests/` for the engine, following `CatalogBac
 
 ### The engine
 
-`tests/Lakehold.Engine.Tests/StorageBrowserTests.cs`, thirteen tests, all passing alongside the
-existing engine suite (65 total). The fixture is one catalog carrying every awkward case at once: a
+`tests/Lakehold.Engine.Tests/StorageBrowserTests.cs`, fourteen tests, all passing alongside the
+existing engine suite (70 total). The fixture is one catalog carrying every awkward case at once: a
 200k-row table with 5k rows deleted, a three-row table in a non-`main` schema that is entirely
 inlined, and — added after it caught a real bug — a table deleted *and* updated while still inlined.
 
@@ -424,7 +424,7 @@ inlined, and — added after it caught a real bug — a table deleted *and* upda
 
 ### The panels
 
-**66 tests across seven files**, run by `npm test --prefix web/lakehold-ui`. The harness did not exist
+**82 tests across eight files**, run by `npm test --prefix web/lakehold-ui`. The harness did not exist
 before: the scaffolding left a `tsconfig.spec.json` already pointing at `vitest/globals`, so wiring it
 up meant adding a `test` target on `@angular/build:unit-test` with the `vitest` runner and installing
 `vitest` and `jsdom`. No `browsers` entry — the panels are DOM-and-signals, and a real browser would
@@ -443,7 +443,8 @@ from the test runner, so it type-checks under the app config too; it is excluded
 | `changes-panel.component.spec.ts` | Feed not read unasked, first-dot table splitting, dynamic columns, update pre/post-image styling, subscription create and two-step delete |
 | `backups-panel.component.spec.ts` | No restore offered for an incomplete generation, the proposed target, the refusal forwarded verbatim |
 | `eject-panel.component.spec.ts` | No dry run, the history flag, bundle expand/collapse, incomplete marked untrusted |
-| `workbench.component.spec.ts` | Views excluded from pickers, error cleared on tab change, dry-run then apply, both `viewChild` refresh paths, snapshot restore SQL |
+| `schedule-panel.component.spec.ts` | Instance-wide run-log loading, scoped row rendering, success/failure states, and error-vs-empty truthfulness |
+| `workbench.component.spec.ts` | First-run sign-in and tenant/catalog/token provisioning, views excluded from pickers, error cleared on tab change, dry-run then apply, both `viewChild` refresh paths, snapshot restore SQL |
 
 **Four assertions were mutation-tested** — a green test that cannot fail is worse than no test, because
 it reads as coverage. Reverting `untracked()` fails two storage-panel tests; removing the

@@ -9,9 +9,15 @@ Angular frontend.**
 > own infrastructure, stores every byte as open Parquet you can read without us, and speaks .NET
 > natively.
 
-Lakehold is the self-hostable answer to MotherDuck. It provides a multi-tenant query service, a
+Lakehold is the self-hostable answer to MotherDuck. It provides a tenant-aware query service, a
 catalog, and a web SQL IDE over [DuckLake](https://ducklake.select) — an open table format that
 stores tables as ordinary Parquet files and metadata as ordinary SQL.
+
+The control plane, credentials, and audit records are tenant-scoped. The current node-local session
+and artifact layout is not yet safe for a shared, adversarial multi-tenant deployment when two
+tenants use the same catalog name. Treat the present release as trusted evaluation or a one-tenant
+production profile until the isolation gates in the
+[`production-readiness roadmap`](docs/PRODUCTION-READINESS-ROADMAP.md) are complete.
 
 ---
 
@@ -618,19 +624,22 @@ Working today: SQL IDE with catalog explorer and result grid, query history and 
 listing for time travel, maintenance operations (flush, compact, expire, cleanup — destructive ones
 dry-run by default, with explicit confirmation), scheduled maintenance with multi-node leasing,
 catalog backup and restore for both local-file and PostgreSQL metadata, **verified and signed eject
-bundles**, **CDC via a typed pull API and signed outbound webhooks**, **a PostgreSQL wire endpoint so
-BI tools connect with no connector**, read-only cross-catalog attach, multi-tenant catalogs, demo
-seeding.
+bundles**, **CDC via a typed pull API and signed outbound webhooks**, a PostgreSQL wire endpoint for
+`psql`, DBeaver, and Npgsql (Power BI still needs the type-catalogue shim), read-only cross-catalog
+attach, tenant-scoped credentials and audit, and demo seeding.
 
 Also shipped: **authentication and tenant identity** — API tokens with tenant and catalog scoping,
 instance-scoped provisioning and bootstrap, read-only capability enforced by attachment, per-statement
 audit, the PostgreSQL wire endpoint on the same token store (so revocation closes both surfaces),
-OIDC, and owner/editor/reader roles. See [`docs/AUTHENTICATION.md`](docs/AUTHENTICATION.md); note that
-enforcement is opt-in per deployment via `Lakehold:Auth:RequireAuthentication`.
+OIDC, owner/editor/reader roles, and an authenticated **MCP server for AI agents** with read tools,
+resources, OAuth protected-resource metadata, and operator-gated writes. See
+[`docs/AUTHENTICATION.md`](docs/AUTHENTICATION.md) and [`docs/MCP.md`](docs/MCP.md); note that HTTP
+API enforcement is opt-in per deployment via `Lakehold:Auth:RequireAuthentication`, while MCP always
+requires a credential.
 
 Next: an Iceberg REST Catalog endpoint so Spark, Trino, and Snowflake read Lakehold tables live with
 no export, a `Lakehold.Client` package whose typed change stream turns the CDC feed into
-`ChangeEvent<T>` in your own model, MCP server for AI agents, read-only share links.
+`ChangeEvent<T>` in your own model, and read-only share links.
 
 Later: continuous exit attestation — the verified eject running on a schedule, so "you can leave" is
 a signed and dated artifact rather than an on-demand call. And embedded Duckling — the same lakehouse

@@ -34,6 +34,7 @@ segment, but it is validated against the credential rather than trusted.
 | Tokens | `POST`/`GET`/`DELETE …/{tenant}/tokens` | No pagination; no last-used tracking on the request path. |
 | Query | `POST …/catalogs/{c}/query` | No time-travel option; result capped, no streaming variant. |
 | Schema | `GET …/catalogs/{c}/schemas` | — |
+| Storage | `GET …/catalogs/{c}/storage`, `GET …/storage/files` | Read-only footprint and snapshot-aware file inventory; unversioned and unpaginated. |
 | Time travel | `GET …/catalogs/{c}/snapshots?limit=` | **List only.** No as-of read, rollback, label, pin, or retention. |
 | Maintenance | `POST …/catalogs/{c}/maintenance/{op}?apply=` | Synchronous; heavy ops block the request. |
 | Backup | `GET …/backups`, `POST …/backups/restore` | Synchronous restore; no job model. |

@@ -2,9 +2,12 @@
 
 ## What it is
 
-Lakehold is an open-source lakehouse platform: a multi-tenant query service, catalog, and web
-IDE built on **DuckDB** (the engine) and **DuckLake** (the open table format), with a .NET backend
-and an Angular frontend.
+Lakehold is an open-source lakehouse platform: a tenant-aware query service, catalog, and web IDE
+built on **DuckDB** (the engine) and **DuckLake** (the open table format), with a .NET backend and an
+Angular frontend. Tenant-scoped identity exists today, but the node-local session and artifact layout
+is not yet safe for shared adversarial multi-tenancy when tenants reuse a catalog name; the release
+profile and required isolation work are explicit in
+[`PRODUCTION-READINESS-ROADMAP.md`](PRODUCTION-READINESS-ROADMAP.md).
 
 It is the self-hostable answer to MotherDuck.
 
@@ -536,17 +539,19 @@ should either require its own credential or ship alongside guidance to enable en
 
 ## Roadmap
 
-**Now** — SQL IDE, catalog explorer, query history, tenant/catalog CRUD, maintenance operations,
-verified eject bundles, CDC pull API and signed webhooks.
+**Now** — SQL IDE, catalog explorer, query history, tenant/catalog CRUD, storage and file inspection,
+maintenance operations, backup/restore, verified eject bundles, CDC pull API and signed webhooks.
 
 **Now** also includes the PostgreSQL wire endpoint (`docs/POSTGRES-WIRE.md`) — parity rather than
-differentiation, as the matrix says, but its absence was the one thing keeping every BI tool out —
-and **authentication and tenant identity** (`docs/AUTHENTICATION.md`): API tokens, provisioning,
-read-only capability by attachment, audit, wire convergence, OIDC, and roles. Enforcement is opt-in
-per deployment (`Lakehold:Auth:RequireAuthentication`).
+differentiation, as the matrix says; `psql`, DBeaver, and Npgsql work, while Power BI still awaits the
+type-catalogue shim — and **authentication and tenant identity** (`docs/AUTHENTICATION.md`): API
+tokens, provisioning, read-only capability by attachment, audit, wire convergence, OIDC, and roles.
+The authenticated MCP server (`docs/MCP.md`) is also shipped, with read tools/resources and
+operator-gated writes. HTTP API enforcement is opt-in per deployment
+(`Lakehold:Auth:RequireAuthentication`); MCP always requires a credential.
 
 **Next** — Iceberg REST Catalog endpoint (USP 5), `Lakehold.Client` with the typed change stream
-(USP 6), MCP server for AI agents, read-only share links.
+(USP 6), and read-only share links.
 
 **Later** — continuous exit attestation (USP 4), embedded Duckling, read replicas for concurrent
 readers, managed ingestion connectors, semantic layer generated from the EF Core model,

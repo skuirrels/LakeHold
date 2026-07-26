@@ -1,8 +1,11 @@
 # Getting started with Lakehold
 
-Lakehold is a self-hostable, multi-tenant lakehouse built on DuckDB and DuckLake. This guide takes
+Lakehold is a self-hostable, tenant-aware lakehouse built on DuckDB and DuckLake. This guide takes
 you from an empty checkout to a running warehouse, then walks every feature — what it does, how to
-reach it, and what it is for.
+reach it, and what it is for. Tenant identity and credentials are scoped today; the current
+node-local session and artifact layout is for trusted evaluation or a one-tenant production profile,
+not shared adversarial multi-tenancy when tenants reuse a catalog name. See the
+[production-readiness roadmap](https://github.com/skuirrels/LakeHold/blob/main/docs/PRODUCTION-READINESS-ROADMAP.md).
 
 This one file is the single source for both the in-app `/docs` page and the copy read on GitHub.
 
@@ -57,6 +60,7 @@ so there is something to run against before you load any data of your own.
 ```bash
 dotnet build Lakehold.slnx        # restore + build every project
 dotnet test Lakehold.slnx         # integration tests skip unless their service is configured
+npm test --prefix web/lakehold-ui
 npm run build --prefix web/lakehold-ui
 ```
 
@@ -64,8 +68,9 @@ npm run build --prefix web/lakehold-ui
 
 ## The tools you'll use
 
-There are four ways into a Lakehold catalog. They all resolve through the same tenant check, session
-gate, and query history, so you can mix them freely.
+There are five ways into a Lakehold catalog. They resolve through the same capability and session
+boundaries, so you can mix them freely. MCP is stricter than the development HTTP API: it always
+requires a credential.
 
 | Tool | What it is | Best for |
 |---|---|---|
@@ -73,6 +78,7 @@ gate, and query history, so you can mix them freely.
 | **A Postgres client** | Lakehold speaks the PostgreSQL wire protocol, so `psql`, DBeaver, or Npgsql connect to a catalog with no driver or plugin. The user is the tenant and the database is the catalog. | Existing SQL clients and streamed results. |
 | **.NET & EF Core** | Through `DuckDB.EFCoreProvider` your application model and your lake tables are one model. | .NET applications on the same schema. |
 | **The HTTP API** | Minimal-API endpoints for queries, schemas, history, snapshots, maintenance, eject, backup/restore, and change-feed subscriptions. | Automation and integration. |
+| **MCP** | An authenticated Model Context Protocol server with tenant discovery, schema, snapshots, changes, query resources/tools, and optional operator-gated writes. Enable it with `Lakehold:Mcp:Enabled`; writes additionally require `AllowWrites` and a write-capable credential. | AI agents that need discoverable, capability-scoped lakehouse access. |
 
 ---
 
