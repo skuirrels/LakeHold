@@ -78,8 +78,11 @@ jobs:
             type=semver,pattern={{version}},enable=${{ github.event_name == 'push' }}
             type=semver,pattern={{major}}.{{minor}},enable=${{ github.event_name == 'push' }}
             type=raw,value=${{ github.event.inputs.tag }},enable=${{ github.event_name == 'workflow_dispatch' }}
+          # `auto` rather than `true`: it holds `latest` back from a prerelease tag. Since
+          # compose.production.yaml defaults to `latest`, tagging v1.0.0-rc1 with `true` would hand
+          # every fresh install a release candidate.
           flavor: |
-            latest=${{ github.event_name == 'push' }}
+            latest=${{ github.event_name == 'push' && 'auto' || 'false' }}
 
       - name: Build and push
         uses: docker/build-push-action@v6

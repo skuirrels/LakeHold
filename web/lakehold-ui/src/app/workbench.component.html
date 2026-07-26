@@ -78,6 +78,7 @@
       [mode]="firstRun()"
       [busy]="setupBusy()"
       [error]="setupError()"
+      [rejected]="signInRejected()"
       [issuedToken]="issuedToken()"
       [workspace]="setupSlug()"
       (signIn)="signInWith($event)"

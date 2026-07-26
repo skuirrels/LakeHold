@@ -1,5 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { Observable, of, throwError } from 'rxjs';
+import { catchError, switchMap } from 'rxjs/operators';
 import { AuthService } from './auth.service';
 import { BrandMarkComponent } from './brand-mark.component';
 import { CatalogExplorerComponent } from './catalog-explorer.component';
@@ -72,6 +74,15 @@ export class WorkbenchComponent {
    */
   protected readonly firstRun = signal<FirstRunMode>('none');
 
+  /**
+   * Whether the credential this browser holds was the thing refused.
+   *
+   * A first visit and a rejected token both end in the same panel, and saying nothing would leave
+   * an operator retyping a token the server has already refused — expired, revoked, or minted by a
+   * node whose database has since been replaced.
+   */
+  protected readonly signInRejected = signal(false);
+
   /** The workspace being provisioned, kept for the sentence above the token it is issued. */
   protected readonly setupSlug = signal('');
   protected readonly setupBusy = signal(false);
@@ -125,6 +136,7 @@ export class WorkbenchComponent {
         const first = tenants[0];
         if (first) {
           this.firstRun.set('none');
+          this.signInRejected.set(false);
           this.tenantSlug.set(first.slug);
           this.catalogName.set(first.catalogs[0]?.name ?? null);
           this.refreshCatalog();
@@ -145,6 +157,7 @@ export class WorkbenchComponent {
         // asks for a token instead of reporting a failure the user cannot act on.
         if (err instanceof ApiError && err.status === 401) {
           this.firstRun.set('unauthorized');
+          this.signInRejected.set(this.auth.hasToken());
           this.tenants.set([]);
           this.tenantSlug.set(null);
           this.catalogName.set(null);
@@ -175,25 +188,23 @@ export class WorkbenchComponent {
     this.setupBusy.set(true);
     this.setupError.set(null);
 
-    this.api.createTenant(slug, displayName).subscribe({
-      next: () => {
-        this.api.createCatalog(slug, catalog).subscribe({
-          next: () => {
-            this.api.createToken(slug, 'workbench', 'owner').subscribe({
-              next: (created) => {
-                this.setupBusy.set(false);
-                this.issuedToken.set(created.token);
-              },
-              // The workspace and catalog exist by now, so this is recoverable: sign in with a
-              // token minted by hand rather than losing what was already created.
-              error: (err: Error) => this.failSetup(err),
-            });
-          },
-          error: (err: Error) => this.failSetup(err),
-        });
-      },
-      error: (err: Error) => this.failSetup(err),
-    });
+    // Each step tolerates "already exists" so that a retry can finish what a failed attempt began.
+    // Without that, a catalog name the engine rejects strands the operator permanently: the tenant
+    // was created before the failure, so every retry stops at a 409 on a step that is already done.
+    this.api
+      .createTenant(slug, displayName)
+      .pipe(
+        catchError(ignoreConflict),
+        switchMap(() => this.api.createCatalog(slug, catalog).pipe(catchError(ignoreConflict))),
+        switchMap(() => this.api.createToken(slug, 'workbench', 'owner')),
+      )
+      .subscribe({
+        next: (created) => {
+          this.setupBusy.set(false);
+          this.issuedToken.set(created.token);
+        },
+        error: (err: Error) => this.failSetup(err),
+      });
   }
 
   /** Signs in with a token pasted into the first-run panel, rather than the header popover. */
@@ -443,4 +454,19 @@ SELECT * FROM ${target} AT (VERSION => ${version});`,
       error: (err: Error) => this.error.set(err.message),
     });
   }
+}
+
+/**
+ * Swallows a 409 so a provisioning step that has already happened does not fail the sequence.
+ *
+ * Only 409: every other status is a real refusal and has to reach the panel. The tenant list was
+ * empty when this panel appeared, so a conflict here means an earlier attempt by this same flow got
+ * further than it reported, not that someone else's workspace is being adopted.
+ */
+function ignoreConflict(err: unknown): Observable<unknown> {
+  if (err instanceof ApiError && err.status === 409) {
+    return of(null);
+  }
+
+  return throwError(() => err);
 }

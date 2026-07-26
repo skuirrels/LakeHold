@@ -24,7 +24,12 @@ BRANCH         := $(shell git rev-parse --abbrev-ref HEAD 2>/dev/null)
 
 # Compose prefixes volumes with the project name, which compose.production.yaml pins to `lakehold`.
 STATE_VOLUME := lakehold_lakehold-state
-ARCHIVE      ?= lakehold-state-$(shell date -u +%Y%m%dT%H%M%SZ).tar.gz
+
+# Simply-expanded, so the timestamp is taken once. With `=` semantics the shell would run again at
+# every reference, and backup-state names the archive three times — the message, the tar, and the
+# listing could each land on a different second and disagree about what was written.
+STAMP        := $(shell date -u +%Y%m%dT%H%M%SZ)
+ARCHIVE      ?= lakehold-state-$(STAMP).tar.gz
 
 # How long `up` waits for both healthchecks before it calls the deployment failed. The API's own
 # start-period is 45s and a cold DuckDB open lands on top of that, so this leaves real headroom.
@@ -46,7 +51,7 @@ help:
 	@echo ""
 	@echo "  Overrides:    WAIT_TIMEOUT=$(WAIT_TIMEOUT) (seconds to wait for healthy containers)"
 	@echo "                LAKEHOLD_TAG=<version> (which published images deploy pulls)"
-	@echo "                ARCHIVE=<path> (where backup-state writes)"
+	@echo "                ARCHIVE=<file> (what backup-state writes, in this directory)"
 
 # The published-image path. No git, no build: whatever LAKEHOLD_TAG names is pulled and started.
 # Pinning that to a released version rather than the default `latest` is what makes a redeploy
@@ -115,6 +120,10 @@ stop:
 # with certainty — `make stop backup-state deploy` is a few seconds of downtime for a copy nobody
 # has to think about afterwards.
 backup-state:
+	@case "$(ARCHIVE)" in */*) \
+		echo "error: ARCHIVE is a file name in this directory, not a path: $(ARCHIVE)"; \
+		exit 1 ;; \
+	esac
 	@docker volume inspect $(STATE_VOLUME) >/dev/null 2>&1 || { \
 		echo "error: volume $(STATE_VOLUME) does not exist — has the stack ever run here?"; \
 		exit 1; \

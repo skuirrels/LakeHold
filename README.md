@@ -91,6 +91,10 @@ docker compose -f compose.production.yaml up -d
 
 → the website on <http://localhost:8080>
 
+> **Until this repository has its first `v*` tag there is nothing in the registry to pull**, and the
+> command above fails on a missing manifest. Deploy from source in the meantime — the build override
+> below does exactly that.
+
 Then read the bootstrap token out of the log and open the site — the workbench walks the rest:
 
 ```bash

@@ -51,6 +51,13 @@ export interface WorkspaceRequest {
             That bootstrap credential provisions workspaces and deliberately cannot read data. Paste
             it here and the next screen trades it for one that can.
           </p>
+          @if (rejected()) {
+            <div class="banner">
+              <strong>The token this tab holds was refused</strong>
+              Expired, revoked, or issued by a node whose database has since been replaced. The
+              server reports all three identically, so the remedy is the same: paste a current one.
+            </div>
+          }
           <label class="field">
             <span>API token</span>
             <input
@@ -285,6 +292,9 @@ export class FirstRunComponent {
 
   /** A provisioning failure, shown verbatim: the API's message names what it refused and why. */
   readonly error = input<string | null>(null);
+
+  /** Whether the credential already held was refused, as opposed to none having been offered yet. */
+  readonly rejected = input(false);
 
   /** The freshly minted token, shown once. Its presence is what selects the final panel. */
   readonly issuedToken = input<string | null>(null);
