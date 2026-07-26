@@ -7,7 +7,7 @@
 #   make stop         Stop the stack. The state volume survives.
 #   make backup-state Archive the state volume to a tarball in the working directory.
 #   make test         Run the complete backend, frontend, integration, and browser test suite.
-#   make demo         Build and start the opt-in demo deployment overlay.
+#   make demo         Pull, build, and start the opt-in demo deployment overlay.
 #
 # This drives compose.production.yaml and never compose.yaml. The development stack bind-mounts
 # source and runs a file watcher, so it has no build step to redo — "rebuild and restart" is not a
@@ -46,7 +46,7 @@ help:
 	@echo "Lakehold — make targets"
 	@echo ""
 	@echo "  test          Run every test, including live integrations and both E2E suites"
-	@echo "  demo          Build local source and start the opt-in demo deployment overlay"
+	@echo "  demo          Pull, build, and start the opt-in demo deployment overlay"
 	@echo "  deploy        Update this deployment to the current published images"
 	@echo "  production    Update it from source: git pull, rebuild images, restart containers"
 	@echo "  status        Show the running containers and their health"
@@ -68,8 +68,14 @@ test:
 # Demo is deliberately a separate opt-in overlay; the standard production configuration remains
 # authentication-protected and contains no demo settings. The build overlay is required here so
 # this target runs the current checkout rather than whichever published images happen to be cached.
-demo:
-	$(COMPOSE_DEMO) up -d --build
+# As with `production`, local tracked changes fail before pulling so an update can never overwrite
+# an uncommitted deployment-host edit.
+demo: check-tree pull build
+	@echo "==> restarting changed containers with demo access"
+	$(COMPOSE_DEMO) up -d --remove-orphans --wait --wait-timeout $(WAIT_TIMEOUT)
+	@$(COMPOSE_DEMO) ps
+	@echo ""
+	@echo "==> deployed demo from $(BRANCH) at $$(git rev-parse --short HEAD)"
 
 # The published-image path. No git, no build: whatever LAKEHOLD_TAG names is pulled and started.
 # Pinning that to a released version rather than the default `latest` is what makes a redeploy
