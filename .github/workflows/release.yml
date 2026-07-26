@@ -1,0 +1,97 @@
+# Publish the API and website images to the GitHub Container Registry.
+#
+#   git tag v0.1.0 && git push origin v0.1.0
+#
+# This is what makes installing Lakehold something other than compiling it. compose.production.yaml
+# names these images, so an operator downloads one file and runs `docker compose up -d` — no clone,
+# no .NET SDK, no Node, and no multi-minute build on the host that is about to serve traffic.
+#
+# Both images are built for amd64 and arm64. Neither pays for emulation: the API's build stage runs
+# on the runner's own architecture and cross-publishes via TARGETARCH, and the website's build stage
+# does the same because its output is static files that have no architecture at all. Only the two
+# small runtime stages are per-platform.
+
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Image tag to publish (e.g. v0.1.0)'
+        required: true
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  publish:
+    name: Publish ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: api
+            image: lakehold-api
+            dockerfile: src/Lakehold.Api/Dockerfile
+          - name: web
+            image: lakehold-web
+            dockerfile: web/lakehold-ui/Dockerfile
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Log in to the registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # A registry namespace has to be lower-case; a GitHub owner does not. Deriving it rather than
+      # hard-coding keeps a fork publishing to its own namespace instead of failing on a 403.
+      - name: Resolve the image reference
+        id: ref
+        run: |
+          owner=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          echo "image=${{ env.REGISTRY }}/$owner/${{ matrix.image }}" >> "$GITHUB_OUTPUT"
+
+      - name: Derive tags
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ steps.ref.outputs.image }}
+          # A tag push gives v1.2.3 -> {1.2.3, 1.2, latest}. A manual run publishes exactly what it
+          # was asked for and nothing else, so a re-run of an old version cannot move `latest`.
+          tags: |
+            type=semver,pattern={{version}},enable=${{ github.event_name == 'push' }}
+            type=semver,pattern={{major}}.{{minor}},enable=${{ github.event_name == 'push' }}
+            type=raw,value=${{ github.event.inputs.tag }},enable=${{ github.event_name == 'workflow_dispatch' }}
+          # `auto` rather than `true`: it holds `latest` back from a prerelease tag. Since
+          # compose.production.yaml defaults to `latest`, tagging v1.0.0-rc1 with `true` would hand
+          # every fresh install a release candidate.
+          flavor: |
+            latest=${{ github.event_name == 'push' && 'auto' || 'false' }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=${{ matrix.name }}
+          cache-to: type=gha,scope=${{ matrix.name }},mode=max

@@ -236,10 +236,11 @@ One place, so there is one thing to get right:
 
 ### Provisioning: the one thing that cannot be tenant-scoped
 
-Creating a tenant is the operation with no tenant to be scoped to, and it is not hypothetical: with
-demo seeding correctly disabled in production, a fresh deployment starts empty and there is currently
-**no API for creating a tenant or a catalog at all**. Authentication and provisioning have to be
-designed together, because the first token a deployment issues is the one that has nowhere to belong.
+Creating a tenant is the operation with no tenant to be scoped to, and it was not hypothetical: with
+demo seeding correctly disabled in production, a fresh deployment starts empty, and before this phase
+there was **no API for creating a tenant or a catalog at all**. Authentication and provisioning had to
+be designed together, because the first token a deployment issues is the one that has nowhere to
+belong.
 
 Hence `TokenScope.Instance`. The important decision is what that scope may *do*:
 

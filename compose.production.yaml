@@ -1,7 +1,15 @@
 # Lakehold, production.
 #
-#   docker compose -f compose.production.yaml up -d --build
+#   curl -O https://raw.githubusercontent.com/skuirrels/LakeHold/main/compose.production.yaml
+#   docker compose -f compose.production.yaml up -d
 #   → http://localhost:8080
+#
+# This file is self-contained on purpose: it names published images, so it is the whole install. No
+# clone, no .NET SDK, no Node, and no build on the host that is about to serve traffic. To run it
+# from source instead — a contributor, or a deployment that patches something — add the build
+# override, which supplies a build context for each image:
+#
+#   docker compose -f compose.production.yaml -f compose.build.yaml up -d --build
 #
 # This is a different thing from compose.yaml, which is the development stack: stock SDK images with
 # the source bind-mounted and a file watcher. Nothing here mounts source, runs a watcher, or contains
@@ -20,10 +28,7 @@ name: lakehold
 
 services:
   api:
-    build:
-      context: .
-      dockerfile: src/Lakehold.Api/Dockerfile
-    image: lakehold/api:${LAKEHOLD_TAG:-latest}
+    image: ghcr.io/${LAKEHOLD_REGISTRY_NAMESPACE:-skuirrels}/lakehold-api:${LAKEHOLD_TAG:-latest}
     restart: unless-stopped
 
     # Not published. The browser reaches the API through the website's own origin, so the only way
@@ -39,6 +44,13 @@ services:
       # Off by default in Production; set explicitly here so the intent is visible rather than
       # inherited. A production node must not invent a demo tenant holding 250,000 rows.
       Lakehold__SeedDemoData: ${LAKEHOLD_SEED_DEMO_DATA:-false}
+
+      # The application default is false, so that a fresh checkout runs token-lessly and local
+      # development stays frictionless. That default is wrong for anything with a published port:
+      # without it the API trusts whatever tenant a URL names, and this stack publishes :8080. The
+      # node mints a bootstrap token on first start and logs it once — see README.md — so turning it
+      # on here costs one `docker compose logs` rather than a locked-out deployment.
+      Lakehold__Auth__RequireAuthentication: ${LAKEHOLD_REQUIRE_AUTH:-true}
 
       # Telemetry goes wherever the deployment collects it. Unset means no exporter.
       OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
@@ -70,10 +82,7 @@ services:
         max-file: "3"
 
   web:
-    build:
-      context: .
-      dockerfile: web/lakehold-ui/Dockerfile
-    image: lakehold/web:${LAKEHOLD_TAG:-latest}
+    image: ghcr.io/${LAKEHOLD_REGISTRY_NAMESPACE:-skuirrels}/lakehold-web:${LAKEHOLD_TAG:-latest}
     restart: unless-stopped
 
     ports:

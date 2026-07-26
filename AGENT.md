@@ -211,8 +211,12 @@ Configuration is split by whether a value is a secret, and new settings must fol
 `.env`, and never move a real credential into `.env.example`. Adding a non-secret setting to `.env`
 is the common mistake: if every developer would set it identically, it belongs in source control.
 
-`compose.production.yaml` is the deployment stack: published images, non-root, no source, no watcher,
-the API unpublished behind nginx, and demo seeding off. `compose.yaml` runs the whole *development*
+`compose.production.yaml` is the deployment stack: images pulled from GHCR, non-root, no source, no
+watcher, the API unpublished behind nginx, demo seeding off, and — unlike the application default —
+authentication required. It is self-contained so that installing is a download rather than a build;
+`compose.build.yaml` is the override that adds a build context for a from-source deploy, and the two
+Dockerfiles are published for amd64 and arm64 by `.github/workflows/release.yml` on a `v*` tag. Keep
+the image names in the compose file and the workflow in step. `compose.yaml` runs the whole *development*
 stack: the API and Angular dev server from stock SDK images with the
 source bind-mounted, plus PostgreSQL, MinIO (and the bucket creation the S3 tests depend on), and a
 trace viewer. `docker compose up` then serves the website at <http://localhost:5399>; the API is on

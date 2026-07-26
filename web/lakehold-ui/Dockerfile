@@ -4,7 +4,10 @@
 #
 #   docker build -f web/lakehold-ui/Dockerfile -t lakehold-ui .
 
-FROM node:24-alpine AS build
+# Pinned to the builder's own architecture. The output of this stage is JavaScript, CSS, and HTML,
+# which have no architecture, so a multi-platform build would otherwise run npm under emulation once
+# per platform for byte-identical results.
+FROM --platform=$BUILDPLATFORM node:24-alpine AS build
 WORKDIR /app
 
 # Lockfile first so a source change does not re-install dependencies.

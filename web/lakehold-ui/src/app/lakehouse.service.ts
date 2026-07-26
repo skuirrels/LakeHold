@@ -3,6 +3,7 @@ import { Injectable, inject } from '@angular/core';
 import { Observable, throwError } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import {
+  CreatedToken,
   MaintenanceOperation,
   MaintenanceResult,
   QueryResponse,
@@ -14,6 +15,22 @@ import {
 
 /** Base URL of the API. Overridden at build time for a non-default deployment. */
 const API_BASE = '/api';
+
+/**
+ * An API failure that keeps its status code.
+ *
+ * The message alone cannot distinguish "you have no credential" from "that query is invalid", and
+ * the workbench has to: a 401 means show the sign-in panel, anything else is an error to report.
+ */
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+  ) {
+    super(message);
+    this.name = 'ApiError';
+  }
+}
 
 /** Typed client for the Lakehold API. */
 @Injectable({ providedIn: 'root' })
@@ -62,6 +79,33 @@ export class LakehouseService {
       .pipe(catchError(toMessage));
   }
 
+  /**
+   * Creates a workspace. Instance scope: this is the one operation with no tenant to be scoped to,
+   * so it needs the bootstrap credential rather than a tenant's own.
+   */
+  createTenant(slug: string, displayName: string): Observable<unknown> {
+    return this.http.post(`${API_BASE}/tenants`, { slug, displayName }).pipe(catchError(toMessage));
+  }
+
+  /** Creates a catalog under a workspace. Instance scope, like the workspace itself. */
+  createCatalog(tenant: string, name: string): Observable<unknown> {
+    return this.http
+      .post(`${API_BASE}/tenants/${encodeURIComponent(tenant)}/catalogs`, { name })
+      .pipe(catchError(toMessage));
+  }
+
+  /**
+   * Mints a tenant-scoped token, returned once and never recoverable.
+   *
+   * The workbench needs this immediately after provisioning: a bootstrap token creates tenants but
+   * deliberately cannot read data, so the browser has to trade it for a credential that can.
+   */
+  createToken(tenant: string, name: string, role: string): Observable<CreatedToken> {
+    return this.http
+      .post<CreatedToken>(`${API_BASE}/tenants/${encodeURIComponent(tenant)}/tokens`, { name, role })
+      .pipe(catchError(toMessage));
+  }
+
   getHistory(tenant: string, limit = 30): Observable<QueryRun[]> {
     return this.http
       .get<QueryRun[]>(`${API_BASE}/tenants/${encodeURIComponent(tenant)}/history`, { params: { limit } })
@@ -82,21 +126,23 @@ export class LakehouseService {
  */
 function toMessage(response: HttpErrorResponse): Observable<never> {
   if (response.status === 0) {
-    return throwError(() => new Error('Cannot reach the Lakehold API. Is it running?'));
+    return throwError(() => new ApiError('Cannot reach the Lakehold API. Is it running?', 0));
   }
 
   const body: unknown = response.error;
   if (typeof body === 'string' && body.length > 0) {
-    return throwError(() => new Error(body));
+    return throwError(() => new ApiError(body, response.status));
   }
 
   // ProblemDetails shape, emitted by AddProblemDetails for unhandled failures.
   if (body && typeof body === 'object' && 'detail' in body) {
     const { detail } = body as { detail: unknown };
     if (typeof detail === 'string' && detail.length > 0) {
-      return throwError(() => new Error(detail));
+      return throwError(() => new ApiError(detail, response.status));
     }
   }
 
-  return throwError(() => new Error(response.message || `Request failed with status ${response.status}.`));
+  return throwError(
+    () => new ApiError(response.message || `Request failed with status ${response.status}.`, response.status),
+  );
 }
