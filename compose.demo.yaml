@@ -22,3 +22,6 @@ services:
       # Demo is the only deployment mode that exposes the public landing, comparison,
       # documentation, and provider pages alongside the read-only workbench.
       LAKEHOLD_UI_MODE: website
+      # Optional and intentionally website-only. A private production Workbench neither receives
+      # this value nor exposes the runtime analytics endpoint.
+      LAKEHOLD_GOOGLE_ANALYTICS_ID: ${LAKEHOLD_GOOGLE_ANALYTICS_ID:-}

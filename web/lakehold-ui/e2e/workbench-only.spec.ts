@@ -15,7 +15,13 @@ test.describe('private production surface', () => {
     await expect(page).toHaveURL(/\/workbench$/);
     await expect(page.locator('lh-workbench')).toBeVisible();
 
-    for (const route of ['/compare', '/docs', '/provider', '/provider/docs']) {
+    for (const route of [
+      '/compare',
+      '/docs',
+      '/provider',
+      '/provider/docs',
+      '/analytics-config.json',
+    ]) {
       const response = await request.get(route, { maxRedirects: 0 });
       expect(response.status(), `${route} should not be exposed`).toBe(404);
     }

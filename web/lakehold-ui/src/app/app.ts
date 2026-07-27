@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
+import { GoogleAnalyticsService } from './google-analytics.service';
 import { SeoService } from './seo.service';
 
 /**
@@ -20,5 +21,6 @@ export class App {
     // The shell outlives every route, so this is the one place the per-route meta tags can be
     // driven from a single subscription.
     inject(SeoService).init();
+    inject(GoogleAnalyticsService).init();
   }
 }

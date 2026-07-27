@@ -45,6 +45,20 @@ authenticated Workbench remains client-rendered. The container defaults to `LAKE
 which serves only `/workbench`, `/api`, and static UI assets. `compose.demo.yaml` is the sole
 deployment overlay that selects `LAKEHOLD_UI_MODE=website` and exposes the prerendered routes.
 
+To enable Google Analytics on that public website deployment, give the demo stack its GA4
+measurement ID:
+
+```bash
+LAKEHOLD_GOOGLE_ANALYTICS_ID=G-XXXXXXXXXX \
+  docker compose -f compose.production.yaml -f compose.demo.yaml up -d
+```
+
+The ID is read at container startup, not compiled into the shared Angular artifact. The private
+Workbench mode does not expose the analytics configuration endpoint, and the browser integration
+disables collection on `/workbench` even when a visitor reaches it from the public site. Keep
+**Enhanced measurement → Page views → Page changes based on browser history events** enabled in
+the GA4 web data stream so Angular route changes are counted once.
+
 ## Scaffolding
 
 Run the project-local CLI through npm rather than depending on a global Angular installation:
