@@ -23,31 +23,14 @@
   <meta name="theme-color" content="#ffc857">
 
   <!--
-    Per-route description, canonical, and Open Graph tags are written by `SeoService` and baked into
-    each prerendered page. What stays here is only what is true of every page.
+    Per-route description, canonical, Open Graph, and JSON-LD tags are written by `SeoService` and
+    baked into each prerendered page. What stays here is only what is true of every page.
+
+    The site-wide `SoftwareApplication` block that used to live here has moved there deliberately:
+    repeated verbatim on every page, it told a crawler that the documentation describes the product
+    just as directly as the home page does, and left nothing to prefer the home page with. The home
+    page now carries the product entity and every other page an article that points back at it.
   -->
-  <script type="application/ld+json">
-    {
-      "@context": "https://schema.org",
-      "@type": "SoftwareApplication",
-      "name": "LakeHold",
-      "url": "https://lakehold.dev",
-      "applicationCategory": "DeveloperApplication",
-      "applicationSubCategory": "Database",
-      "operatingSystem": "Linux, macOS, Windows",
-      "license": "https://www.apache.org/licenses/LICENSE-2.0",
-      "description": "A feature-rich DuckDB and DuckLake lakehouse you host yourself: tenant-aware catalogs, time travel, change data capture, a PostgreSQL wire endpoint, first-class .NET integration, and every byte stored as open Parquet.",
-      "offers": {
-        "@type": "Offer",
-        "price": "0",
-        "priceCurrency": "USD"
-      },
-      "codeRepository": "https://github.com/skuirrels/LakeHold",
-      "sameAs": [
-        "https://github.com/skuirrels/LakeHold"
-      ]
-    }
-  </script>
 </head>
 <body>
   <app-root></app-root>
