@@ -1,8 +1,8 @@
 # The MCP server
 
-The plan for serving the Model Context Protocol from `Lakehold.Api`, so an AI agent — Claude, ChatGPT,
-Copilot, or a custom one — can explore a tenant's catalog and run SQL against it under a credential
-that already means something.
+`Lakehold.Api` exposes a Model Context Protocol (MCP) server that lets AI agents — Claude, ChatGPT,
+Copilot, or custom clients — explore a tenant's catalog and run SQL using the same credentials and
+capability rules as the rest of LakeHold.
 
 Like [`AUTHENTICATION.md`](AUTHENTICATION.md) and [`PUBLIC-API.md`](PUBLIC-API.md), this is a
 specification and a running record. It is written to be worked one step at a time: each step is
