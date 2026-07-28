@@ -24,7 +24,7 @@ using Lakehold.Engine.Telemetry;
 // Real environment variables win: Load does not overwrite what is already set, so a value exported
 // by the shell, a container, or Aspire is never clobbered by a stale local file. Absent .env, this
 // is a no-op — deployments set configuration through their platform, not through a file in source.
-DotNetEnv.Env.TraversePath().Load();
+DotNetEnv.Env.NoClobber().TraversePath().Load();
 
 var builder = WebApplication.CreateBuilder(args);
 
