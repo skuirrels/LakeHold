@@ -184,7 +184,8 @@ public static class CatalogEject
     }
 
     /// <summary>
-    ///     Writes a verified bundle under <c>&lt;EjectRoot&gt;/&lt;catalog&gt;/&lt;timestamp&gt;/</c>.
+    ///     Writes a verified bundle under
+    ///     <c>&lt;EjectRoot&gt;/&lt;tenant&gt;/&lt;catalog&gt;/&lt;timestamp&gt;/</c>.
     /// </summary>
     /// <param name="duckling">The session whose catalog is exported.</param>
     /// <param name="options">Deployment options supplying the eject root and optional signing key.</param>
@@ -211,7 +212,7 @@ public static class CatalogEject
         var now = timeProvider.GetUtcNow();
         var stamp = now.ToString("yyyyMMdd'T'HHmmss'Z'", CultureInfo.InvariantCulture);
         var destination = StorageLocation.Combine(
-            StorageLocation.Combine(options.EjectRoot, catalog.CatalogName), stamp);
+            CatalogStorageNamespace.Under(options.EjectRoot, catalog), stamp);
         var remote = StorageLocation.IsRemote(destination);
 
         StorageLocation.EnsureDirectory(StorageLocation.Combine(destination, DataDirectory));
@@ -417,10 +418,17 @@ public static class CatalogEject
     ///     reports the exact prefix each bundle landed at.
     /// </remarks>
     public static IReadOnlyList<EjectBundle> ListBundles(LakehouseOptions options, string catalogName)
+        => ListBundles(options, tenantKey: "", catalogName);
+
+    /// <summary>Lists tenant-qualified eject bundles for a catalog.</summary>
+    public static IReadOnlyList<EjectBundle> ListBundles(
+        LakehouseOptions options,
+        string tenantKey,
+        string catalogName)
     {
         ArgumentNullException.ThrowIfNull(options);
 
-        var root = StorageLocation.Combine(options.EjectRoot, SqlIdentifier.Quote(catalogName));
+        var root = CatalogStorageNamespace.Under(options.EjectRoot, tenantKey, catalogName);
         if (StorageLocation.IsRemote(root))
         {
             return [];

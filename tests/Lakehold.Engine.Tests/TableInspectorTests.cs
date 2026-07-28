@@ -146,11 +146,11 @@ public sealed class TableInspectorTests : IAsyncLifetime
         var share = await _pool.GetOrStartAsync(
             shareCatalog, configure: null, CancellationToken.None);
         await Run(share, "CREATE TABLE events (shared_only BOOLEAN)");
-        await _pool.EvictAsync(shareCatalog.CatalogName);
+        await _pool.EvictAsync(shareCatalog.TenantKey, shareCatalog.CatalogId);
 
         // Reattach the primary with the share alongside it. Both catalogs deliberately have
         // main.events; detail must not merge information_schema rows from the read-only share.
-        await _pool.EvictAsync(_catalog.CatalogName);
+        await _pool.EvictAsync(_catalog.TenantKey, _catalog.CatalogId);
         var primary = await _pool.GetOrStartAsync(
             _catalog with
             {

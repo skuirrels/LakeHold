@@ -75,10 +75,12 @@ integration.
 
 Preserve these unless the task explicitly changes the architecture and updates its documentation.
 
-1. The control plane and data plane are split by whether the workload has a known model, not by
-   dependency. Both use DuckDB.EFCoreProvider.
-2. `ControlPlaneContext` is the modelled EF Core context on native DuckDB. It needs features such as
-   sequences and `RETURNING` that are not provided by the DuckLake profile.
+1. The control plane and data plane are split by workload. `ControlPlaneContext` uses Npgsql and
+   PostgreSQL for shared, modelled application state; `LakeContext` uses DuckDB.EFCoreProvider and
+   DuckLake for arbitrary tenant SQL.
+2. `ControlPlaneContext` is the modelled EF Core context on PostgreSQL and uses migrations. Native
+   DuckDB control-plane files are supported only as legacy import sources and isolated test adapters,
+   not as a production fallback.
 3. `LakeContext` is intentionally model-less. Arbitrary result shapes must use the provider's
    streaming `SqlQueryDynamicRawAsync` path; do not add fake entity types or reintroduce a parallel
    raw `DuckDBConnection` stack without a demonstrated provider gap.
@@ -112,7 +114,9 @@ Preserve these unless the task explicitly changes the architecture and updates i
    those is not a safety property, it is a read that fails on a catalog the engine is happy with.
    Parameterise ordinary values wherever the underlying API permits it.
 8. Object-store credentials belong in provider connection configuration. Never persist them in a
-   catalog, options object, response, source file, or log.
+   catalog, response, source file, or log. Each generated DuckDB secret must be scoped to the
+   tenant-qualified catalog data, backup, or eject prefix it serves; a deployment-wide bucket
+   credential must never be usable against an unrelated prefix from tenant SQL.
 9. Read-only additional catalogs must remain read-only. Do not widen write access to implement
    sharing or cross-catalog queries. A share is attached by path or by secret name according to its
    `AttachedCatalog.MetadataKind`, exactly as the primary catalog is.
@@ -120,9 +124,12 @@ Preserve these unless the task explicitly changes the architecture and updates i
     explicit apply/confirmation path. Flush and compaction are non-destructive maintenance, and are
     the only operations that commit: they run inside a transaction labelled `lakehold maintenance: …`
     so platform-initiated snapshots stay distinguishable from a tenant's own writes.
-11. Catalog backups live under `BackupRoot`, a sibling of the data root and never a child of it.
-    Anything under the data path that the catalog does not reference is a candidate for DuckLake's
-    orphan cleanup, so a nested backup deletes itself once it ages.
+11. Data, backup, and eject locations are tenant-qualified:
+    `<root>/<tenant-key>/<catalog>/...`. Catalog display names are unique only within a tenant, so
+    omitting the tenant key aliases durable state across tenants. Catalog backups live under
+    `BackupRoot`, a sibling of the data root and never a child of it. Anything under the data path
+    that the catalog does not reference is a candidate for DuckLake's orphan cleanup, so a nested
+    backup deletes itself once it ages.
 12. Restore never overwrites an existing catalog, and never restores a generation with no manifest.
     An interrupted export missing `ducklake_delete_file` would silently reinstate deleted rows. The
     metadata table list is therefore always *discovered*, never hard-coded: DuckLake stages small
@@ -132,9 +139,11 @@ Preserve these unless the task explicitly changes the architecture and updates i
     independent read-only connection — and refuses to write a manifest if it finds no tables at all,
     because an empty backup that reports success is the failure this invariant exists to prevent.
 13. Remote metadata is addressed by DuckDB secret name, never by connection string — for the primary
-    catalog and for shares alike. The provider rejects a non-file metadata path, and the secret is
-    created in connection configuration so no credential reaches a catalog record, an options object,
-    or a log.
+    catalog and for shares alike. The provider rejects a non-file metadata path. PostgreSQL and
+    DuckLake profile secrets exist only while the provider attaches the catalog, then are dropped
+    before tenant SQL can run. A PostgreSQL credential may be recreated only under the Duckling gate
+    for a trusted metadata export or maintenance lease and must be dropped before releasing the gate.
+    No credential reaches a catalog record, response, source file, or log.
 14. The maintenance lease belongs in the `lakehold` schema, not `public`. It must not collide with a
     DuckLake migration, and it must not be swept into a catalog backup.
 15. Eject exports data by re-materialising each table through the catalog

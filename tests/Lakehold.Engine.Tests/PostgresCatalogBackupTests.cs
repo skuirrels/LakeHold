@@ -21,8 +21,8 @@ namespace Lakehold.Engine.Tests;
 ///         against one.
 ///     </para>
 ///     <para>
-///         Gated on <c>LAKEHOLD_TEST_POSTGRES</c> — a libpq connection string — and skipped when it
-///         is unset, so the default <c>dotnet test</c> run needs no external services.
+///         Gated on <c>LAKEHOLD_TEST_POSTGRES</c> — an Npgsql connection string — and skipped when
+///         it is unset, so the default <c>dotnet test</c> run needs no external services.
 ///     </para>
 ///     <para>
 ///         Shares <see cref="PostgresMetadata.CollectionName"/> with every other PostgreSQL-backed

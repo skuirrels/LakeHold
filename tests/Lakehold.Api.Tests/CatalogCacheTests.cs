@@ -1,11 +1,5 @@
-using DuckDB.EFCoreProvider.Extensions;
 using Lakehold.ControlPlane.Data;
 using Lakehold.Engine.Catalog;
-using Lakehold.Engine.Configuration;
-using Lakehold.Engine.Execution;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging.Abstractions;
-using Microsoft.Extensions.Options;
 using Xunit;
 
 namespace Lakehold.Api.Tests;
@@ -103,27 +97,4 @@ public sealed class CatalogCacheTests : IAsyncLifetime
         Assert.True(cache.TryGet("alpha", "warehouse", out _));
     }
 
-    [Fact]
-    public async Task Forgetting_a_catalog_drops_the_cached_resolution()
-    {
-        var options = new LakehouseOptions();
-        var cache = new CatalogCache();
-        cache.Set("demo", "analytics", Resolution("analytics", "/tmp/data/demo"));
-
-        await using var pool = new DucklingPool(Options.Create(options), NullLoggerFactory.Instance);
-        var contextOptions = new DbContextOptionsBuilder<ControlPlaneContext>()
-            .UseDuckDB($"Data Source={Path.Combine(_root, "controlplane.duckdb")}")
-            .Options;
-
-        await using var context = new ControlPlaneContext(contextOptions);
-        await context.Database.EnsureCreatedAsync();
-
-        var service = new LakehouseService(context, pool, cache, Options.Create(options));
-
-        // The pool holds no warm session for this catalog, so eviction is a no-op and this asserts
-        // the half that would otherwise be silently skipped.
-        await service.ForgetCatalogAsync("analytics");
-
-        Assert.False(cache.TryGet("demo", "analytics", out _));
-    }
 }

@@ -1,4 +1,3 @@
-using DuckDB.EFCoreProvider.Extensions;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -10,6 +9,7 @@ using Lakehold.Api.Health;
 using Lakehold.Api.Mcp;
 using Lakehold.Api.PgWire;
 using Lakehold.Api.Scheduling;
+using Lakehold.Api.Storage;
 using Lakehold.ControlPlane.Data;
 using Lakehold.ControlPlane.Security;
 using Lakehold.Engine.Configuration;
@@ -55,22 +55,48 @@ Directory.CreateDirectory(stateRoot);
 // under it, both become candidates for DuckLake's own orphan cleanup and eventually delete themselves.
 builder.Services.PostConfigure<LakehouseOptions>(options =>
 {
-    options.MetadataRoot = Path.GetFullPath(Path.Combine(stateRoot, "catalogs"));
-    options.DataRoot = Path.GetFullPath(Path.Combine(stateRoot, "data"));
-    options.BackupRoot = Path.GetFullPath(Path.Combine(stateRoot, "backups"));
-    options.EjectRoot = Path.GetFullPath(Path.Combine(stateRoot, "ejects"));
+    options.MetadataRoot = ResolveRoot(options.MetadataRoot, "./.lakehold/catalogs", "catalogs");
+    options.DataRoot = ResolveRoot(options.DataRoot, "./.lakehold/data", "data");
+    options.BackupRoot = ResolveRoot(options.BackupRoot, "./.lakehold/backups", "backups");
+    options.EjectRoot = ResolveRoot(options.EjectRoot, "./.lakehold/ejects", "ejects");
+
+    string ResolveRoot(string configured, string defaultValue, string defaultDirectory)
+    {
+        if (configured.Contains("://", StringComparison.Ordinal))
+        {
+            return configured;
+        }
+
+        if (string.Equals(configured, defaultValue, StringComparison.Ordinal))
+        {
+            return Path.GetFullPath(Path.Combine(stateRoot, defaultDirectory));
+        }
+
+        return Path.IsPathRooted(configured)
+            ? Path.GetFullPath(configured)
+            : Path.GetFullPath(Path.Combine(stateRoot, configured));
+    }
 });
 
-// Control plane on a native DuckDB file: it needs sequences, RETURNING, and migrations, none of
-// which the provider's DuckLake profile supports. See docs/ARCHITECTURE.md.
-builder.Services.AddDbContext<ControlPlaneContext>(options =>
-    options.UseDuckDB($"Data Source={Path.Combine(stateRoot, "controlplane.duckdb")}"));
+// PostgreSQL is the durable, shared control plane. DuckDB remains the in-process query engine, but
+// no production identity, catalog definition, token, schedule, or audit record is node-local.
+var controlPlaneConnection = builder.Configuration.GetConnectionString("ControlPlane");
+if (string.IsNullOrWhiteSpace(controlPlaneConnection))
+{
+    throw new InvalidOperationException(
+        "ConnectionStrings:ControlPlane is required. Configure a PostgreSQL database through "
+        + "ConnectionStrings__ControlPlane; Lakehold does not fall back to a node-local database.");
+}
 
-// One pool per node — it owns the warm compute sessions, so it must outlive any request. The
-// catalog cache is a singleton for the same reason: it spares every query a control-plane read to
-// re-resolve a catalog record that rarely changes.
+builder.Services.AddDbContext<ControlPlaneContext>(options =>
+    options.UseNpgsql(
+        controlPlaneConnection,
+        npgsql => npgsql.MigrationsAssembly(typeof(ControlPlaneContext).Assembly.GetName().Name!)));
+
+// One pool per node — it owns the warm compute sessions, so it must outlive any request. Catalog
+// definitions themselves are re-read from shared PostgreSQL for cross-node correctness.
 builder.Services.AddSingleton<DucklingPool>();
-builder.Services.AddSingleton<CatalogCache>();
+builder.Services.AddSingleton<IDucklingSessionConfigurator, DucklingSessionConfigurator>();
 builder.Services.AddScoped<LakehouseService>();
 
 // Authentication: resolve a bearer token to a principal, then validate the route against it in the
@@ -205,10 +231,11 @@ app.MapMcpResourceMetadata();
 
 app.LogMaintenanceSchedule();
 
-// Schema initialisation always runs; the demo catalog only where it was asked for. Defaulting to
+// Migrations always run; the demo catalog only where it was asked for. Defaulting to
 // the environment rather than to true means a production image seeds nothing unless told to, and a
 // developer's compose stack is still self-demonstrating on first run.
 var seedDemoData = builder.Configuration.GetValue("Lakehold:SeedDemoData", app.Environment.IsDevelopment());
+await ControlPlaneDatabase.MigrateAsync(app.Services, app.Logger).ConfigureAwait(false);
 await DemoData.EnsureSeededAsync(app.Services, stateRoot, app.Logger, seedDemoData).ConfigureAwait(false);
 
 // Bootstrap the first credential once the schema exists. On a node with no tokens this mints an

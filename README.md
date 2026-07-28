@@ -13,11 +13,11 @@ LakeHold is the self-hostable answer to MotherDuck. It provides a tenant-aware q
 catalog, and a web SQL IDE over [DuckLake](https://ducklake.select) — an open table format that
 stores tables as ordinary Parquet files and metadata as ordinary SQL.
 
-The control plane, credentials, and audit records are tenant-scoped. The current node-local session
-and artifact layout is not yet safe for a shared, adversarial multi-tenant deployment when two
-tenants use the same catalog name. Treat the present release as trusted evaluation or a one-tenant
-production profile until the isolation gates in the
-[`production-readiness roadmap`](docs/PRODUCTION-READINESS-ROADMAP.md) are complete.
+The PostgreSQL control plane, credentials, and audit records are tenant-scoped. Compute remains
+in-process DuckDB: a query runs on one worker, while additional API/worker nodes can serve other
+queries against the same PostgreSQL metadata and object storage. The remaining shared-artifact and
+background-job gates for an adversarial multi-tenant service are tracked in the
+[`production-readiness roadmap`](docs/PRODUCTION-READINESS-ROADMAP.md).
 
 ---
 
@@ -44,8 +44,8 @@ simpler story than the product site.
 | BI tools (Power BI, Tableau) | Postgres wire protocol; Power BI blocked on type loading | Postgres endpoint; connector for older tools | Native connectors and JDBC/ODBC | First-class connectors everywhere |
 | Maintenance control | Explicit, dry-run by default | Automatic, not exposed | Explicit merges and TTLs | Automatic, partly exposed |
 | .NET / EF Core | One model for app and lake; client package pending | Community drivers; Python/JS first | Solid ADO.NET client, no ORM story | JDBC/ODBC; .NET is second-class |
-| Scale ceiling | One node — GB to low TB | Elastic, scales past a node | Clustered, petabyte-scale | Effectively unlimited |
-| Concurrent writers | Single writer per catalog | Managed | High concurrency | High concurrency |
+| Scale ceiling | Scale out workers; each query is node-bound, not distributed SQL | Elastic, scales past a node | Clustered, petabyte-scale | Effectively unlimited |
+| Concurrent writers | PostgreSQL-backed DuckLake metadata; worker-local execution | Managed | High concurrency | High concurrency |
 | Operational burden | You run it | None | High if self-hosted | Low |
 | Licence | Apache-2.0 | Proprietary | Apache-2.0; Cloud proprietary | Proprietary |
 | Cost shape | A VM and a bucket | Free Lite; Business $250/org/mo + usage | Free self-hosted; Cloud pay-as-you-use | Usage / credit based; enterprise spend varies |
@@ -98,6 +98,9 @@ New here? The [getting-started guide](web/lakehold-ui/src/app/docs.content.md) w
 what it does, how to reach it, and what it is for. That one Markdown file is the single source for
 both this copy and the in-app page served at <http://localhost:5399/docs>.
 
+Production database and local/S3/GCS/Azure configuration is documented in
+[PostgreSQL and Parquet storage](docs/POSTGRES-AND-STORAGE.md).
+
 ```bash
 docker compose down -v    # stop and discard the data
 ```
@@ -110,6 +113,8 @@ one file naming published images, so a deployment host needs neither a checkout 
 
 ```bash
 curl -O https://raw.githubusercontent.com/skuirrels/LakeHold/main/compose.production.yaml
+export LAKEHOLD_CONTROL_PLANE='<postgres connection string>'
+export LAKEHOLD_DUCKLAKE_METADATA='<postgres connection string>'
 docker compose -f compose.production.yaml up -d
 ```
 
@@ -164,9 +169,12 @@ Worth knowing:
 - **Demo seeding is off.** `Lakehold:SeedDemoData` defaults to the environment, so a production node
   never invents a `demo` tenant holding 250,000 rows. Schema initialisation still runs — that is
   what creates tables added since a database was first initialised.
-- **Nothing else is in the file.** No PostgreSQL, no MinIO: LakeHold defaults to local-file metadata
-  and a local data path, so neither is required. Point configuration at whatever you already run
-  rather than at a single-container database this stack would imply was production-grade.
+- **PostgreSQL is required but not bundled.** It is both the shared application control plane and
+  the default DuckLake metadata catalog. Point the two connection strings at managed or
+  operator-owned PostgreSQL; they may use separate databases/users for least privilege.
+- **Parquet storage is independent.** A local path remains supported for a deliberate single-node
+  or shared-filesystem deployment. S3/S3-compatible, GCS, and Azure Blob/ADLS profiles are the
+  recommended multi-node choices.
 - **The image is architecture-pruned.** Publishing for the target RID drops the Windows and macOS
   DuckDB natives that a portable publish would ship — 940 MB down to 416 MB — and `TARGETARCH`
   keeps it correct on arm64 hosts.
@@ -586,7 +594,7 @@ approved procedures, validation, and drill cadence.
 ```jsonc
 {
   "Lakehouse": {
-    // The packaged API resolves catalogs/, data/, backups/, and ejects/ as siblings under this root.
+    // The packaged API resolves local data/, backups/, and ejects/ as siblings under this root.
     // Separately bound roots are not preserved by the current host; see the caveat below.
     "StateRoot": "./.lakehold",
     "BackupRetainCount": 7
@@ -621,8 +629,8 @@ Worth knowing:
   When a custom host wires an object-store backup root, DuckDB cannot prune it; set a lifecycle rule
   on the prefix.
 - **Multi-node deployments take a lease per job per catalog**, so every node firing the same cron
-  does not run the same sweep. It engages only for PostgreSQL-backed catalogs — a local file cannot
-  be opened by two nodes anyway.
+  does not run the same sweep. New catalogs use PostgreSQL metadata; a legacy local-metadata catalog
+  cannot be opened by two nodes.
 
 ### Tests
 

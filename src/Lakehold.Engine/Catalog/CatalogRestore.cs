@@ -63,9 +63,24 @@ public static class CatalogRestore
         string catalogName,
         Action<DuckDBDbContextOptionsBuilder>? configure,
         CancellationToken cancellationToken)
+        => await ListGenerationsAsync(
+                options,
+                tenantKey: "",
+                catalogName,
+                configure,
+                cancellationToken)
+            .ConfigureAwait(false);
+
+    /// <summary>Lists tenant-qualified backup generations for a catalog.</summary>
+    public static async Task<IReadOnlyList<BackupGeneration>> ListGenerationsAsync(
+        LakehouseOptions options,
+        string tenantKey,
+        string catalogName,
+        Action<DuckDBDbContextOptionsBuilder>? configure,
+        CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(options);
-        var root = StorageLocation.Combine(options.BackupRoot, SqlIdentifier.Quote(catalogName));
+        var root = CatalogStorageNamespace.Under(options.BackupRoot, tenantKey, catalogName);
 
         if (StorageLocation.IsRemote(root))
         {
@@ -186,7 +201,8 @@ public static class CatalogRestore
         string targetMetadataPath,
         string dataPath,
         CancellationToken cancellationToken,
-        Action<DuckDBDbContextOptionsBuilder>? configure = null)
+        Action<DuckDBDbContextOptionsBuilder>? configure = null,
+        string? tenantKey = null)
     {
         ArgumentNullException.ThrowIfNull(options);
         ArgumentException.ThrowIfNullOrWhiteSpace(targetMetadataPath);
@@ -201,7 +217,12 @@ public static class CatalogRestore
             targetMetadataPath = Path.GetFullPath(targetMetadataPath);
         }
 
-        var candidates = await ListGenerationsAsync(options, catalogName, configure, cancellationToken)
+        var candidates = await ListGenerationsAsync(
+                options,
+                tenantKey ?? "",
+                catalogName,
+                configure,
+                cancellationToken)
             .ConfigureAwait(false);
         var chosen = generation is null
             ? candidates.FirstOrDefault(g => g.IsComplete)

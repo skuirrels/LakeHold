@@ -172,7 +172,8 @@ Press **Backup** in the workbench toolbar, or:
 POST /api/tenants/{tenant}/catalogs/{catalog}/maintenance/backup
 ```
 
-It writes every metadata table under `<backup root>/<catalog>/<UTC timestamp>/` and writes
+It writes every metadata table under
+`<backup root>/<tenant key>/<catalog>/<UTC timestamp>/` and writes
 `manifest.json` last:
 
 ```

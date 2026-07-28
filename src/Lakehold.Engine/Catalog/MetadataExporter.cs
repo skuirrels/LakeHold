@@ -50,15 +50,22 @@ public static class MetadataExporter
         ArgumentNullException.ThrowIfNull(duckling);
         ArgumentException.ThrowIfNullOrWhiteSpace(destination);
 
-        var source = await OpenMetadataAsync(duckling, cancellationToken).ConfigureAwait(false);
-        try
-        {
-            return await ExportTablesAsync(duckling, source, destination, cancellationToken).ConfigureAwait(false);
-        }
-        finally
-        {
-            await source.DisposeAsync().ConfigureAwait(false);
-        }
+        return await duckling
+            .InvokeWithPrivilegedMetadataAccessUnguardedAsync(
+                async ct =>
+                {
+                    var source = await OpenMetadataAsync(duckling, ct).ConfigureAwait(false);
+                    try
+                    {
+                        return await ExportTablesAsync(duckling, source, destination, ct).ConfigureAwait(false);
+                    }
+                    finally
+                    {
+                        await source.DisposeAsync().ConfigureAwait(false);
+                    }
+                },
+                cancellationToken)
+            .ConfigureAwait(false);
     }
 
     /// <summary>Copies every metadata table to Parquet under <paramref name="destination"/>.</summary>

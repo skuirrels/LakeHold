@@ -47,6 +47,8 @@ services:
       # mean this container rather than the collector.
       OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4317
       OTEL_SERVICE_NAME: lakehold-api
+      ConnectionStrings__ControlPlane: Host=postgres;Port=5432;Database=${POSTGRES_DB:-lakeholdmeta};Username=${POSTGRES_USER:-lakehold};Password=${POSTGRES_PASSWORD:-lakehold}
+      ConnectionStrings__DuckLakeMetadata: Host=postgres;Port=5432;Database=${POSTGRES_DB:-lakeholdmeta};Username=${POSTGRES_USER:-lakehold};Password=${POSTGRES_PASSWORD:-lakehold}
     ports:
       - "${API_PORT:-5200}:5200"
     volumes:
@@ -89,8 +91,8 @@ services:
       api:
         condition: service_healthy
 
-  # Metadata catalog for multi-writer / HA deployments. A local DuckDB file cannot be opened by two
-  # nodes at once, so this is the only configuration where the maintenance lease does anything.
+  # Shared control plane and DuckLake metadata catalog. Development uses one database with isolated
+  # DuckLake schemas; production may assign separate databases/users for least privilege.
   postgres:
     image: postgres:17-alpine
     container_name: lakehold-postgres

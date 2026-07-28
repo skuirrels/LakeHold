@@ -11,17 +11,8 @@ namespace Lakehold.ControlPlane.Data;
 ///     Control-plane persistence: tenants, catalogs, saved queries, and query history.
 /// </summary>
 /// <remarks>
-///     <para>
-///         Backed by a native DuckDB file rather than a DuckLake catalog. That is deliberate. The
-///         provider's DuckLake profile rejects sequences, store-generated values, and EF migrations,
-///         because DuckLake has no <c>RETURNING</c> and no enforced uniqueness — all of which this
-///         model depends on. Native DuckDB supports every one of them.
-///     </para>
-///     <para>
-///         The trade-off is that DuckDB is single-writer, so this context does not scale to a
-///         multi-node control plane. For an HA deployment, point this at PostgreSQL instead; the
-///         model is provider-agnostic and only the registration in <c>Program.cs</c> changes.
-///     </para>
+///     PostgreSQL is the production provider. Native DuckDB remains supported only for the legacy
+///     importer and fast isolated tests; production startup never selects it implicitly.
 /// </remarks>
 public sealed class ControlPlaneContext(DbContextOptions<ControlPlaneContext> options) : DbContext(options)
 {
@@ -40,11 +31,12 @@ public sealed class ControlPlaneContext(DbContextOptions<ControlPlaneContext> op
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         ArgumentNullException.ThrowIfNull(modelBuilder);
+        var isDuckDb = Database.ProviderName?.Contains("DuckDB", StringComparison.OrdinalIgnoreCase) is true;
 
         modelBuilder.Entity<Tenant>(entity =>
         {
             entity.HasKey(t => t.Id);
-            entity.Property(t => t.Id).UseAutoIncrement();
+            ConfigureGeneratedId(entity.Property(t => t.Id), isDuckDb);
             entity.Property(t => t.Slug).HasMaxLength(64);
             entity.Property(t => t.DisplayName).HasMaxLength(200);
             entity.HasIndex(t => t.Slug).IsUnique();
@@ -53,11 +45,15 @@ public sealed class ControlPlaneContext(DbContextOptions<ControlPlaneContext> op
         modelBuilder.Entity<LakeCatalog>(entity =>
         {
             entity.HasKey(c => c.Id);
-            entity.Property(c => c.Id).UseAutoIncrement();
+            ConfigureGeneratedId(entity.Property(c => c.Id), isDuckDb);
             entity.Property(c => c.Name).HasMaxLength(63);
             entity.Property(c => c.MetadataSource).HasMaxLength(1024);
+            entity.Property(c => c.MetadataSchema).HasMaxLength(63);
+            entity.Property(c => c.MetadataSecretName).HasMaxLength(63);
             entity.Property(c => c.DataPath).HasMaxLength(1024);
             entity.Property(c => c.StorageSecretName).HasMaxLength(63);
+            entity.Property(c => c.StorageProfile).HasMaxLength(63);
+            entity.Property(c => c.ConfigurationVersion).HasDefaultValue(1L);
 
             // Catalog names are attached identifiers, so they must be unique per tenant to keep
             // the tenant -> attached-catalog mapping unambiguous.
@@ -72,7 +68,7 @@ public sealed class ControlPlaneContext(DbContextOptions<ControlPlaneContext> op
         modelBuilder.Entity<SavedQuery>(entity =>
         {
             entity.HasKey(q => q.Id);
-            entity.Property(q => q.Id).UseAutoIncrement();
+            ConfigureGeneratedId(entity.Property(q => q.Id), isDuckDb);
             entity.Property(q => q.Name).HasMaxLength(200);
             entity.Property(q => q.Description).HasMaxLength(1000);
             entity.HasIndex(q => new { q.TenantId, q.Name }).IsUnique();
@@ -86,7 +82,7 @@ public sealed class ControlPlaneContext(DbContextOptions<ControlPlaneContext> op
         modelBuilder.Entity<ChangeSubscription>(entity =>
         {
             entity.HasKey(s => s.Id);
-            entity.Property(s => s.Id).UseAutoIncrement();
+            ConfigureGeneratedId(entity.Property(s => s.Id), isDuckDb);
             entity.Property(s => s.CatalogName).HasMaxLength(63);
             entity.Property(s => s.SchemaName).HasMaxLength(63);
             entity.Property(s => s.TableName).HasMaxLength(63);
@@ -110,7 +106,7 @@ public sealed class ControlPlaneContext(DbContextOptions<ControlPlaneContext> op
         modelBuilder.Entity<QueryRun>(entity =>
         {
             entity.HasKey(r => r.Id);
-            entity.Property(r => r.Id).UseAutoIncrement();
+            ConfigureGeneratedId(entity.Property(r => r.Id), isDuckDb);
             entity.Property(r => r.CatalogName).HasMaxLength(63);
             entity.Property(r => r.Error).HasMaxLength(4000);
 
@@ -126,7 +122,7 @@ public sealed class ControlPlaneContext(DbContextOptions<ControlPlaneContext> op
         modelBuilder.Entity<ApiToken>(entity =>
         {
             entity.HasKey(t => t.Id);
-            entity.Property(t => t.Id).UseAutoIncrement();
+            ConfigureGeneratedId(entity.Property(t => t.Id), isDuckDb);
             entity.Property(t => t.Name).HasMaxLength(200);
             entity.Property(t => t.Prefix).HasMaxLength(80);
             entity.Property(t => t.SecretHash).HasMaxLength(64);
@@ -149,5 +145,19 @@ public sealed class ControlPlaneContext(DbContextOptions<ControlPlaneContext> op
                 .HasForeignKey(t => t.TenantId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
+    }
+
+    private static void ConfigureGeneratedId(
+        Microsoft.EntityFrameworkCore.Metadata.Builders.PropertyBuilder<int> property,
+        bool isDuckDb)
+    {
+        if (isDuckDb)
+        {
+            property.UseAutoIncrement();
+        }
+        else
+        {
+            property.ValueGeneratedOnAdd();
+        }
     }
 }

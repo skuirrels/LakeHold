@@ -12,6 +12,22 @@ public enum CatalogMetadataKind
     Postgres,
 }
 
+/// <summary>Durable Parquet storage used by a catalog.</summary>
+public enum ParquetStorageKind
+{
+    /// <summary>Local or shared filesystem. Supported, but node-local unless externally shared.</summary>
+    Local,
+
+    /// <summary>Amazon S3 or an S3-compatible object store.</summary>
+    S3,
+
+    /// <summary>Google Cloud Storage through GCS interoperability credentials.</summary>
+    Gcs,
+
+    /// <summary>Azure Blob Storage or ADLS Gen2.</summary>
+    Azure,
+}
+
 /// <summary>
 ///     A read-only catalog mounted alongside a tenant's own.
 /// </summary>
@@ -45,9 +61,10 @@ public sealed record AttachedCatalog(
 /// </param>
 /// <param name="MetadataSecretName">
 ///     Name of the DuckDB <c>postgres</c> secret holding the metadata database's credentials.
-///     Required for <see cref="CatalogMetadataKind.Postgres"/>, where catalog backup has to reach
-///     the metadata tables directly. Referencing the secret by name is what keeps the password out
-///     of this record, out of options, and out of any statement that could reach a log.
+///     Required for <see cref="CatalogMetadataKind.Postgres"/>, where trusted catalog backup and
+///     lease operations temporarily recreate the credential under the session gate. Referencing the
+///     secret by name is what keeps the password out of this record and out of any statement that
+///     could reach a log.
 /// </param>
 /// <param name="DataPath">Root URI under which DuckLake writes Parquet data files.</param>
 /// <param name="MetadataSchema">
@@ -74,7 +91,12 @@ public sealed record CatalogDescriptor(
     bool ReadOnly = false,
     IReadOnlyList<AttachedCatalog>? AdditionalCatalogs = null,
     string? MetadataSchema = null,
-    string? MetadataSecretName = null)
+    string? MetadataSecretName = null,
+    string TenantKey = "",
+    int CatalogId = 0,
+    long ConfigurationVersion = 1,
+    ParquetStorageKind StorageKind = ParquetStorageKind.Local,
+    string? StorageProfile = null)
 {
     /// <summary>Read-only catalogs mounted alongside this one. Never null.</summary>
     public IReadOnlyList<AttachedCatalog> AdditionalCatalogs { get; init; } = AdditionalCatalogs ?? [];
