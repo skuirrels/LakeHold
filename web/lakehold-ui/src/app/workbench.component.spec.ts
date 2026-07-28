@@ -287,8 +287,8 @@ describe('WorkbenchComponent', () => {
     });
   });
 
-  describe('snapshot restore', () => {
-    it('loads a reversible per-table statement into the editor', async () => {
+  describe('table restore', () => {
+    it('keeps the restore in a reviewed server plan instead of placing destructive SQL in the editor', async () => {
       api.schemas = [
         { name: 'main', tables: [{ name: 'orders', kind: 'BASE TABLE', columns: [] }] },
       ];
@@ -300,18 +300,37 @@ describe('WorkbenchComponent', () => {
           commitMessage: null,
         },
       ];
+      api.restore = {
+        schema: 'main',
+        table: 'orders',
+        snapshotId: 12,
+        currentSnapshotId: 14,
+        currentRowCount: 7,
+        historicalRowCount: 4,
+        restoredColumns: ['id'],
+        currentOnlyColumns: [],
+        historicalOnlyColumns: [],
+        dryRun: true,
+      };
 
       await mount();
-      await openTab('Snapshots');
+      await openTab('Data history');
       (fixture.nativeElement.querySelector('.restore-btn') as HTMLButtonElement).click();
       await fixture.whenStable();
 
       const editor = fixture.nativeElement.querySelector('.editor') as HTMLTextAreaElement;
-
-      // CREATE OR REPLACE ... AT (VERSION => n) records a *new* snapshot rather than rewriting
-      // history, which is what keeps the restore itself reversible.
-      expect(editor.value).toContain('CREATE OR REPLACE TABLE main.orders');
-      expect(editor.value).toContain('AT (VERSION => 12)');
+      expect(editor.value).not.toContain('CREATE OR REPLACE TABLE');
+      expect(api.lastArgs('restoreTable')).toEqual([
+        'demo',
+        'analytics',
+        'main',
+        'orders',
+        12,
+        false,
+        null,
+      ]);
+      expect(fixture.nativeElement.textContent).toContain('7 rows');
+      expect(fixture.nativeElement.textContent).toContain('4 historical rows');
     });
   });
 

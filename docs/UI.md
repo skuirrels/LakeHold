@@ -8,10 +8,10 @@ Like [`MCP.md`](MCP.md) and [`PUBLIC-API.md`](PUBLIC-API.md), this is a specific
 record, written to be worked one step at a time. Nothing here contradicts an invariant in `AGENT.md`;
 where a rule already exists this document says how the UI preserves it rather than restating why.
 
-**Status: Phases 1–6 have landed.** `StorageBrowser` reads the footprint, five dedicated routes serve
+**Status: Phases 1–7 have landed.** `StorageBrowser` reads the footprint, five dedicated routes serve
 the storage and inspection surfaces, and
-the workbench has eight panels: the original Results, History and Snapshots, plus Storage (with a
-unified per-table inspector), Changes, Backups, Eject, and Schedule.
+the workbench has eight panels: Results, Query history, Data history, Storage (with a unified
+per-table inspector), Changes, Backups, Eject, and Schedule.
 
 Everything the original specification left open has since been **measured against DuckLake on DuckDB
 1.5.5** rather than reasoned about. Two of those measurements changed the design, and are called out
@@ -29,7 +29,7 @@ maintenance tooling grown up around Polaris and Nessie. The surfaces are strikin
 | Catalog tree | "What tables, what columns" | Everyone | ✅ `catalog-explorer` |
 | **Table detail** | "How big, how many files, partitioned how" | Databricks, Dremio, Snowflake | ✅ inspector |
 | Column profile | "What is *in* the column — nulls, distribution, min/max" | MotherDuck Column Explorer, DuckDB local UI | ✅ live profile |
-| History / time travel | "What changed, when; read it as of then" | Databricks History, Iceberg snapshot views | ⚠️ snapshot list only |
+| History / time travel | "What changed, when; read it as of then" | Databricks History, Iceberg snapshot views | ✅ unified data-history drill-down |
 | **Storage & maintenance health** | "Is this fragmented, should I compact, what will cleanup delete" | The Iceberg maintenance category | ✅ readout + advisories |
 | Governance — lineage, grants, usage | "Who reads this, who may" | Unity Catalog and enterprise peers | ❌ deliberately |
 
@@ -144,7 +144,7 @@ Three traps, all verified:
 
 ### Storage tab
 
-A fourth tab beside Results, History, and Snapshots — one row per table:
+A fourth tab beside Results, Query history, and Data history — one row per table:
 
 | Table | Rows | Size | Files | Avg file | Deletes | Maintenance |
 |---|---|---|---|---|---|---|
@@ -312,8 +312,9 @@ Each leaves the product working and is independently testable.
 metadata catalog, plus the `/storage` route and `LakehouseOptions.CompactionAdvisoryBytes`. Seven
 engine tests, including the read-only share and the inlined-only table.
 
-**Phase 2 — the Storage tab. Landed.** The per-table rollup beside Results/History/Snapshots with both
-advisories. Verified live, and this is the phase that proves the document's central claim: pressing
+**Phase 2 — the Storage tab. Landed.** The per-table rollup beside Results / Query history / Data
+history with both advisories. Verified live, and this is the phase that proves the document's central
+claim: pressing
 **Flush** moved `staging` from *0 files / Flush pending* to *1 file / 712 B / no advisory*, and pressing
 **Compact** merged `sessions` from *6 files, 8.8 kB average, Fragmented* into *1 file, 18 kB, no
 advisory*. The panel refreshes itself after either, because a maintenance readout that does not show
@@ -349,6 +350,8 @@ The seam is one component per tab:
 
 | Component | Owns |
 |---|---|
+| `data-history-panel` | Snapshot timeline, exact-commit changes, range comparison, bounded historical preview, restore plan and confirmation |
+| `change-grid` | The shared dynamic row-change rendering and update-pair semantics |
 | `storage-panel` | The footprint rollup, the per-file detail, the as-of selector |
 | `changes-panel` | The change feed and its webhook subscriptions |
 | `backups-panel` | Generations and restore |
@@ -356,12 +359,11 @@ The seam is one component per tab:
 | `schedule-panel` | The scheduled-run log |
 | `panel-error` | The failure banner all of them share |
 | `panel-shared.css` | The table, control-strip, and button chrome they have in common |
-| `format.ts` | `formatBytes`, `formatCount`, `formatTime`, `splitQualified` |
+| `format.ts` | Display formatting plus SQL-standard identifier quoting for catalog-derived names |
 
 The workbench keeps the chrome — selectors, maintenance buttons, credential popover, editor, tab strip
-— plus the three panels tied to running a statement: results, history, and snapshots. It went from 857
-lines of TypeScript to 420, and its stylesheet from 840 lines to 562, back under the original 8 kB
-budget with no change to `angular.json`.
+— plus the two panels tied to running a statement: results and query history. Data history owns its
+requests and panel-local failures like the other operational surfaces.
 
 Three things the split bought beyond size:
 
@@ -397,6 +399,30 @@ ranges; categorical columns use bounded top values; complex types say explicitly
 distribution is available. Both profile and distribution accept the same as-of snapshot selector
 as the file list.
 
+**Phase 7 — unified data history. Landed.** The former snapshot ledger is now a table-oriented
+history browser. It shows commit messages and schema-version transitions; reads rows inline at any
+snapshot; drills into exactly one commit's row-level changes; and compares two table states through a
+bounded change range. The range deliberately starts at `baseline + 1` because
+`ducklake_table_changes` is inclusive at both ends. Historical browsing fetches one sentinel row past
+the 500-row display ceiling so a bounded prefix can never be presented as a complete result.
+
+Restore is a server-owned dry-run/confirm workflow, not generated mutation SQL. The plan reports live
+and historical row counts, shared columns, current-only columns that receive current defaults or
+nullability, and historical-only columns that will be ignored. Apply stages historical rows before
+deleting anything, inserts through the current table definition, and runs under the Duckling gate in
+one labelled transaction. Current defaults, nullability, and constraints therefore remain in force,
+and any incompatibility rolls the entire operation back. Apply also requires the current snapshot id
+returned by the reviewed plan; if another commit lands between review and confirmation, the server
+refuses and asks for a fresh plan rather than applying stale assumptions. Read-only users retain every
+browse and comparison action without seeing restore. The live Changes tab and Data history share
+`change-grid`, so dynamic columns, truncation, and update pre/post-image presentation cannot drift.
+
+Catalog names are kept as structured schema/table references. SQL generation escapes both identifiers
+with SQL-standard doubled quotes, while change-feed table-function arguments use escaped string
+literals rather than the bare-identifier allow-list. Names containing dots, reserved words, hyphens,
+or quotes therefore target the object selected in the catalog across Browse, Changes, Compare, and
+Restore.
+
 ## Test plan
 
 Two suites: `tests/Lakehold.Engine.Tests/` for the engine, following `CatalogBackup`'s precedent, and
@@ -404,10 +430,10 @@ Two suites: `tests/Lakehold.Engine.Tests/` for the engine, following `CatalogBac
 
 ### The engine
 
-`tests/Lakehold.Engine.Tests/StorageBrowserTests.cs`, fourteen tests, all passing alongside the
-existing engine suite (70 total). The fixture is one catalog carrying every awkward case at once: a
-200k-row table with 5k rows deleted, a three-row table in a non-`main` schema that is entirely
-inlined, and — added after it caught a real bug — a table deleted *and* updated while still inlined.
+`tests/Lakehold.Engine.Tests/StorageBrowserTests.cs` uses one catalog carrying every awkward storage
+case at once: a 200k-row table with 5k rows deleted, a three-row table in a non-`main` schema that is
+entirely inlined, and — added after it caught a real bug — a table deleted *and* updated while still
+inlined.
 
 **Behaviour**
 - Every table's reported row count equals `SELECT count(*)` on that table. Asserted against the query,
@@ -427,6 +453,12 @@ inlined, and — added after it caught a real bug — a table deleted *and* upda
 - A snapshot predating the table raises rather than returning empty.
 - A **read-only attachment** answers the rollup, at the right row count.
 
+`TableRestoreTests.cs` proves that planning changes nothing; apply preserves current defaults and
+nullability across schema drift; an insert that violates the current definition rolls back the prior
+delete and releases the shared session; a plan with no shared columns refuses before mutation; and an
+intervening snapshot invalidates the plan. `ChangeFeedTests.cs` exercises dotted, hyphenated, reserved,
+and embedded-quote table names against the real DuckLake table function rather than a browser fake.
+
 **Security**
 - `DataFileInfo` carries no property whose name contains "Key" or "Encryption". Asserted on the
   record's shape by reflection, not on a sample value, so an encrypted catalog cannot regress it
@@ -434,7 +466,7 @@ inlined, and — added after it caught a real bug — a table deleted *and* upda
 
 ### The panels
 
-**82 tests across eight files**, run by `npm test --prefix web/lakehold-ui`. The harness did not exist
+The component suite runs with `npm test --prefix web/lakehold-ui`. The harness did not exist
 before: the scaffolding left a `tsconfig.spec.json` already pointing at `vitest/globals`, so wiring it
 up meant adding a `test` target on `@angular/build:unit-test` with the `vitest` runner and installing
 `vitest` and `jsdom`. No `browsers` entry — the panels are DOM-and-signals, and a real browser would
@@ -447,14 +479,15 @@ from the test runner, so it type-checks under the app config too; it is excluded
 
 | Spec | Covers |
 |---|---|
-| `format.spec.ts` | Decimal units, the null-vs-zero distinction, first-dot splitting |
+| `format.spec.ts` | Decimal units, the null-vs-zero distinction, and SQL-standard identifier escaping |
+| `data-history-panel.component.spec.ts` | Timeline context, safe identifier quoting, sentinel-bounded historical browse, exact-commit drill-down, bounded comparison, atomic restore plan/confirm, context-switch invalidation, read-only behavior, panel-local failures |
 | `panel-error.component.spec.ts` | Renders nothing without a message; preserves the engine's layout verbatim |
 | `storage-panel.component.spec.ts` | **The `untracked` regression**, reload-on-catalog-change, all four advisory states, the threshold note, rollup-vs-file-list error headings |
-| `changes-panel.component.spec.ts` | Feed not read unasked, first-dot table splitting, dynamic columns, update pre/post-image styling, subscription create and two-step delete |
+| `changes-panel.component.spec.ts` | Feed not read unasked, structured awkward-name references, dynamic columns, update pre/post-image styling, subscription create and two-step delete |
 | `backups-panel.component.spec.ts` | No restore offered for an incomplete generation, the proposed target, the refusal forwarded verbatim |
 | `eject-panel.component.spec.ts` | No dry run, the history flag, bundle expand/collapse, incomplete marked untrusted |
 | `schedule-panel.component.spec.ts` | Instance-wide run-log loading, scoped row rendering, success/failure states, and error-vs-empty truthfulness |
-| `workbench.component.spec.ts` | First-run sign-in and tenant/catalog/token provisioning, views excluded from pickers, error cleared on tab change, dry-run then apply, both `viewChild` refresh paths, snapshot restore SQL |
+| `workbench.component.spec.ts` | First-run sign-in and tenant/catalog/token provisioning, views excluded from pickers, error cleared on tab change, dry-run then apply, panel refresh paths, and Data history integration |
 
 **Four assertions were mutation-tested** — a green test that cannot fail is worse than no test, because
 it reads as coverage. Reverting `untracked()` fails two storage-panel tests; removing the
@@ -471,6 +504,10 @@ field, and it fails when `secret.set('')` is removed.
 `tests/Lakehold.Api.Tests/StorageEndpointsTests.cs`, **sixteen tests**, against a real catalog rather
 than a stubbed service. Two handlers moved from `private` to `internal` to be reachable, which is the
 same shape `AdminEndpoints` and `GetScheduledRuns` already use.
+
+`TableRestoreEndpointsTests.cs` covers the unversioned plan/apply DTO boundary with a real
+awkwardly-named DuckLake table, including row counts, the optimistic snapshot precondition, applied
+row state, and a preserved current default.
 
 The advisories are why this file exists. `StorageBrowser` deliberately reports figures and no
 verdicts — the threshold lives in the API layer so a second consumer, an agent tool or a CLI, reaches
@@ -549,12 +586,13 @@ surfaced as a `500` and took the whole Storage panel down, not one row of it. A 
 was the same bug wearing different clothes: it passes validation and produces a syntax error.
 
 The irony is that the rest of the feature already knew such names exist — it is exactly why the file
-list takes the table as a *query parameter* rather than a path segment, and why the client splits
-`schema.table` on the first dot. `SqlIdentifier` gained `QuoteName`, which escapes rather than
-validates, and the two are now a deliberate pair: `Quote` for a trust boundary where a malformed name
-should be rejected, `QuoteName` for a name that came out of the catalog and is going back into a
-statement. The file list never had the problem — a table function takes its table as a string
-literal — and there is now a test saying so.
+list takes the table as a *query parameter* rather than a path segment. The workbench now keeps
+schema and table as a structured reference all the way through its Data history and Changes pickers,
+so it never has to recover those parts by splitting a display label. `SqlIdentifier` gained
+`QuoteName`, which escapes rather than validates, and the two are now a deliberate pair: `Quote` for
+a trust boundary where a malformed name should be rejected, `QuoteName` for a name that came out of
+the catalog and is going back into a statement. The file list never had the problem — a table
+function takes its table as a string literal — and there is now a test saying so.
 
 **2. A failure and a table list both survived a catalog change.** Each panel owns its error banner,
 which is what made a stale error impossible across a *tab* change: the banner is destroyed with the

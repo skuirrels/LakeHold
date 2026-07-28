@@ -259,7 +259,7 @@ Angular SQL IDE  ──REST──▶  Lakehold.Api
          CONTROL PLANE                     DATA PLANE
     ControlPlaneContext                  LakeContext
     EF model · migrations                model-less · dynamic SQL
-    tenants · catalogs · history         Duckling sessions · user SQL
+    tenants · catalogs · saved SQL       Duckling sessions · user SQL · views
                  └──── DuckDB.EFCoreProvider ────┘
 ```
 
@@ -686,8 +686,11 @@ Use the .NET double-underscore separator for nested keys in the environment —
 
 ## Status
 
-Working today: SQL IDE with catalog explorer and result grid, query history and audit, snapshot
-listing for time travel, maintenance operations (flush, compact, expire, cleanup — destructive ones
+Working today: SQL IDE with catalog explorer and result grid, catalog-scoped reusable queries with
+optimistic revisions and explicit publication as DuckLake views, query history and audit, unified
+data history with snapshot drill-down, historical row browsing, bounded change comparison and an
+atomic dry-run/confirm table-data restore that preserves the current table definition, maintenance
+operations (flush, compact, expire, cleanup — destructive ones
 dry-run by default, with explicit confirmation), scheduled maintenance with multi-node leasing,
 catalog backup and restore for both local-file and PostgreSQL metadata, **verified and signed eject
 bundles**, **CDC via a typed pull API and signed outbound webhooks**, a PostgreSQL wire endpoint for

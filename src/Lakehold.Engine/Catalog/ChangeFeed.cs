@@ -114,8 +114,7 @@ public static class ChangeFeed
             .. result.Rows
                 .Select(r => (
                     Schema: Convert.ToString(r[0], CultureInfo.InvariantCulture) ?? string.Empty,
-                    Table: Convert.ToString(r[1], CultureInfo.InvariantCulture) ?? string.Empty))
-                .Where(t => SqlIdentifier.IsValid(t.Schema) && SqlIdentifier.IsValid(t.Table)),
+                    Table: Convert.ToString(r[1], CultureInfo.InvariantCulture) ?? string.Empty)),
         ];
     }
 
@@ -140,8 +139,6 @@ public static class ChangeFeed
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(duckling);
-        _ = SqlIdentifier.Quote(schema, nameof(schema));
-        _ = SqlIdentifier.Quote(table, nameof(table));
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxRows);
 
         // An empty or inverted range is a no-op rather than an error: the poller reaches it whenever a

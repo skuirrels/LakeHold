@@ -168,6 +168,14 @@ Preserve these unless the task explicitly changes the architecture and updates i
     404-not-403 reasoning in invariant 19 drifts between them. Unlike every other surface, MCP refuses
     a token-less call even while `Lakehold:Auth:RequireAuthentication` is false: a surface whose
     purpose is letting an autonomous agent run SQL cannot also trust the route. See `docs/MCP.md`.
+22. A table-data restore preserves the current table definition. Never implement it as
+    `CREATE OR REPLACE TABLE AS SELECT … AT (…)`, which drops current defaults and nullability, or as
+    `DELETE` followed by a direct historical read, which can resolve through the pending delete.
+    `TableRestore` stages historical rows first, inserts shared columns through the existing table,
+    and owns one labelled transaction under the Duckling gate so any incompatibility rolls back.
+    The API returns a dry-run plan before `apply: true`, and apply requires that plan's current
+    snapshot id so an intervening commit forces a fresh review; read-only callers never receive the
+    action.
 
 ## Open-format guarantee
 

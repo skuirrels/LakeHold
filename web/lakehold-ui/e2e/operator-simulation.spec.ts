@@ -34,12 +34,17 @@ test('operator simulation exercises the lakehouse control surfaces', async ({ pa
     await expect(page.getByRole('heading', { name: 'Webhook subscriptions' })).toBeVisible();
   });
 
-  await test.step('prepare a reversible snapshot restore without applying it', async () => {
-    await page.getByRole('button', { name: 'Snapshots' }).click();
-    await page.getByRole('button', { name: 'Restore…' }).first().click();
+  await test.step('review and cancel an atomic snapshot restore without applying it', async () => {
+    await page.getByRole('button', { name: 'Data history' }).click();
+    await page
+      .getByRole('button', { name: /Review restore/ })
+      .first()
+      .click();
 
-    await expect(page.getByLabel('SQL editor')).toHaveValue(/CREATE OR REPLACE TABLE/);
-    await expect(page.getByLabel('SQL editor')).toHaveValue(/AT \(VERSION => \d+\)/);
+    await expect(page.getByRole('region', { name: 'Restore plan' })).toBeVisible();
+    await expect(page.getByText(/current table definition.*stay in place/i)).toBeVisible();
+    await page.getByRole('button', { name: 'Cancel', exact: true }).click();
+    await expect(page.getByRole('region', { name: 'Restore plan' })).not.toBeVisible();
   });
 
   await test.step('flush safely and create a catalog backup', async () => {

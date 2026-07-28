@@ -48,6 +48,12 @@ public static class LakehouseEndpoints
         tenants.MapGet("/{tenantSlug}/catalogs/{catalogName}/snapshots", GetSnapshotsAsync)
             .WithSummary("Returns the catalog's snapshot history for time travel.");
 
+        tenants.MapPost(
+                "/{tenantSlug}/catalogs/{catalogName}/snapshots/{snapshotId:long}/restore-table",
+                RestoreTableAsync)
+            .RequireCapability(Capability.TenantWrite)
+            .WithSummary("Plans or atomically restores one table's rows from a snapshot.");
+
         // TenantData, not TenantOwner. Maintenance is the owner's to authorise because it destroys or
         // exports; knowing how large a table is, is not. A reader who cannot press Compact should
         // still be able to see that Compact is needed. See docs/UI.md.
@@ -510,6 +516,59 @@ public static class LakehouseEndpoints
         catch (CatalogNotFoundException ex)
         {
             return TypedResults.NotFound(ex.Message);
+        }
+    }
+
+    internal static async Task<Results<Ok<TableRestoreDto>, NotFound<string>, BadRequest<string>>> RestoreTableAsync(
+        string tenantSlug,
+        string catalogName,
+        long snapshotId,
+        RestoreTableRequest request,
+        LakehouseService lakehouse,
+        CancellationToken cancellationToken)
+    {
+        if (request is null || string.IsNullOrEmpty(request.Table) || string.IsNullOrEmpty(request.Schema))
+        {
+            return TypedResults.BadRequest("A schema and table are required.");
+        }
+
+        try
+        {
+            var result = await lakehouse
+                .RestoreTableAsync(
+                    tenantSlug,
+                    catalogName,
+                    request.Schema,
+                    request.Table,
+                    snapshotId,
+                    request.Apply,
+                    request.ExpectedCurrentSnapshotId,
+                    cancellationToken)
+                .ConfigureAwait(false);
+
+            return TypedResults.Ok(new TableRestoreDto(
+                result.Schema,
+                result.Table,
+                result.SnapshotId,
+                result.CurrentSnapshotId,
+                result.CurrentRowCount,
+                result.HistoricalRowCount,
+                result.RestoredColumns,
+                result.CurrentOnlyColumns,
+                result.HistoricalOnlyColumns,
+                result.DryRun));
+        }
+        catch (CatalogNotFoundException ex)
+        {
+            return TypedResults.NotFound(ex.Message);
+        }
+        catch (ArgumentException ex)
+        {
+            return TypedResults.BadRequest(ex.Message);
+        }
+        catch (DuckDB.NET.Data.DuckDBException ex)
+        {
+            return TypedResults.BadRequest(ex.Message);
         }
     }
 

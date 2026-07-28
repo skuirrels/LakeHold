@@ -1,0 +1,35 @@
+@if (page().changes.length === 0) {
+  <p class="placeholder">No row-level changes in this snapshot range.</p>
+} @else {
+  <table class="change-grid">
+    <thead>
+      <tr>
+        <th scope="col">Snapshot</th>
+        <th scope="col">Change</th>
+        <th scope="col">Row</th>
+        @for (column of columns(); track column) {
+          <th scope="col">{{ column }}</th>
+        }
+      </tr>
+    </thead>
+    <tbody>
+      @for (
+        change of page().changes;
+        track change.snapshotId + ':' + change.rowId + ':' + change.changeType
+      ) {
+        <tr>
+          <td>{{ change.snapshotId }}</td>
+          <td>
+            <span class="change-type" [class]="'ct-' + change.changeType">{{
+              change.changeType
+            }}</span>
+          </td>
+          <td>{{ change.rowId }}</td>
+          @for (column of columns(); track column) {
+            <td>{{ change.row[column] }}</td>
+          }
+        </tr>
+      }
+    </tbody>
+  </table>
+}

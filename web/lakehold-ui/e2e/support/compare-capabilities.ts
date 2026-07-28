@@ -149,8 +149,9 @@ export const compareCapabilities: readonly CompareCapability[] = [
       {
         lane: 'phase2',
         path: 'web/lakehold-ui/e2e/phase2-operator.spec.ts',
-        marker: 'query an earlier snapshot, restore it, and verify the live data',
-        proves: 'A snapshot is queried by version and then used to restore live rows.',
+        marker: 'drill into data history, compare, restore, and verify the live data',
+        proves:
+          'Historical rows are browsed, a bounded change range is compared, and the selected snapshot restores live rows.',
       },
       {
         lane: 'storage-integration',

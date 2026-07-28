@@ -1,4 +1,4 @@
-import { formatBytes, formatCount, formatTime, splitQualified } from './format';
+import { formatBytes, formatCount, formatTime, quoteIdentifier, quoteTable } from './format';
 
 describe('formatBytes', () => {
   it('reports null as an em dash rather than as zero', () => {
@@ -68,15 +68,12 @@ describe('formatTime', () => {
   });
 });
 
-describe('splitQualified', () => {
-  it('splits on the first dot, not the last', () => {
-    // DuckLake will happily store a table whose name contains a dot. Splitting on the last one
-    // addresses a schema that does not exist.
-    expect(splitQualified('main.orders')).toEqual(['main', 'orders']);
-    expect(splitQualified('main.my.table')).toEqual(['main', 'my.table']);
+describe('SQL identifier quoting', () => {
+  it('quotes awkward catalog names rather than rejecting them', () => {
+    expect(quoteTable('warm-zone', 'order.items')).toBe('"warm-zone"."order.items"');
   });
 
-  it('defaults an unqualified name to the main schema', () => {
-    expect(splitQualified('orders')).toEqual(['main', 'orders']);
+  it('escapes embedded quotes using the SQL-standard doubled form', () => {
+    expect(quoteIdentifier('a"b')).toBe('"a""b"');
   });
 });

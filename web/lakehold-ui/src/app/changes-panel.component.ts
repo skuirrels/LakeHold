@@ -1,16 +1,15 @@
 import {
   ChangeDetectionStrategy,
   Component,
-  computed,
   effect,
   inject,
   input,
   signal,
   untracked,
 } from '@angular/core';
-import { splitQualified } from './format';
+import { ChangeGridComponent } from './change-grid.component';
 import { LakehouseService } from './lakehouse.service';
-import { ChangePage, Subscription } from './models';
+import { ChangePage, Subscription, TableReference } from './models';
 import { PanelErrorComponent } from './panel-error.component';
 
 /**
@@ -23,7 +22,7 @@ import { PanelErrorComponent } from './panel-error.component';
 @Component({
   selector: 'lh-changes-panel',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [PanelErrorComponent],
+  imports: [ChangeGridComponent, PanelErrorComponent],
   templateUrl: './changes-panel.component.html',
   styleUrls: ['./panel-shared.css', './changes-panel.component.css'],
 })
@@ -32,21 +31,21 @@ export class ChangesPanelComponent {
 
   readonly tenant = input.required<string | null>();
   readonly catalog = input.required<string | null>();
-  /** Base tables as `schema.table`, for the pickers. Owned by the workbench, which loads the tree. */
-  readonly tables = input.required<string[]>();
+  /** Base tables for the pickers. Owned by the workbench, which already loads the object tree. */
+  readonly tables = input.required<TableReference[]>();
   /** Hides subscription mutations for reader and demo access. */
   readonly readOnly = input(false);
 
   protected readonly changes = signal<ChangePage | null>(null);
   protected readonly loading = signal(false);
-  protected readonly table = signal('');
+  protected readonly tableIndex = signal(0);
   protected readonly fromSnapshot = signal(0);
 
   protected readonly subscriptions = signal<Subscription[]>([]);
   protected readonly formOpen = signal(false);
   protected readonly endpoint = signal('');
   protected readonly secret = signal('');
-  protected readonly subTable = signal('');
+  protected readonly subTableIndex = signal(-1);
   /** The subscription whose delete is awaiting confirmation. */
   protected readonly pendingUnsubscribe = signal<number | null>(null);
 
@@ -61,7 +60,7 @@ export class ChangesPanelComponent {
       this.catalog();
       untracked(() => {
         this.changes.set(null);
-        this.table.set('');
+        this.tableIndex.set(0);
         this.subscriptions.set([]);
         // A catalog change does not destroy this panel the way a tab change does, so a failure that
         // belonged to the previous catalog has to be cleared by hand or it stands over this one.
@@ -90,36 +89,30 @@ export class ChangesPanelComponent {
   protected loadChanges(): void {
     const tenant = this.tenant();
     const catalog = this.catalog();
-    const qualified = this.table() || this.tables()[0];
-    if (!tenant || !catalog || !qualified) {
+    const table = this.tables()[this.tableIndex()] ?? this.tables()[0];
+    if (!tenant || !catalog || !table) {
       return;
     }
-
-    const [schema, table] = splitQualified(qualified);
 
     this.loading.set(true);
     this.error.set(null);
 
-    this.api.getChanges(tenant, catalog, schema, table, this.fromSnapshot()).subscribe({
-      next: (page) => {
-        this.changes.set(page);
-        this.loading.set(false);
-      },
-      error: (err: Error) => {
-        // A range whose end predates the table's creation is refused by the engine rather than
-        // returning nothing, so this message is worth showing.
-        this.fail('Could not read changes', err.message);
-        this.changes.set(null);
-        this.loading.set(false);
-      },
-    });
+    this.api
+      .getChanges(tenant, catalog, table.schemaName, table.tableName, this.fromSnapshot())
+      .subscribe({
+        next: (page) => {
+          this.changes.set(page);
+          this.loading.set(false);
+        },
+        error: (err: Error) => {
+          // A range whose end predates the table's creation is refused by the engine rather than
+          // returning nothing, so this message is worth showing.
+          this.fail('Could not read changes', err.message);
+          this.changes.set(null);
+          this.loading.set(false);
+        },
+      });
   }
-
-  /** Column names for the change grid, taken from the first row that has any. */
-  protected readonly columns = computed(() => {
-    const first = this.changes()?.changes.find((c) => Object.keys(c.row).length > 0);
-    return first ? Object.keys(first.row) : [];
-  });
 
   protected createSubscription(): void {
     const tenant = this.tenant();
@@ -130,19 +123,23 @@ export class ChangesPanelComponent {
       return;
     }
 
-    const qualified = this.subTable();
-    const [schema, table] = qualified ? splitQualified(qualified) : ['main', null];
+    const selected = this.tables()[this.subTableIndex()] ?? null;
 
     this.error.set(null);
     this.api
-      .createSubscription(tenant, catalog, { endpointUrl: endpoint, secret, schema, table })
+      .createSubscription(tenant, catalog, {
+        endpointUrl: endpoint,
+        secret,
+        schema: selected?.schemaName ?? 'main',
+        table: selected?.tableName ?? null,
+      })
       .subscribe({
         next: () => {
           // The secret is write-only — no endpoint returns it — so the field is cleared rather than
           // left holding a credential the page has no further use for.
           this.endpoint.set('');
           this.secret.set('');
-          this.subTable.set('');
+          this.subTableIndex.set(-1);
           this.formOpen.set(false);
           this.reload();
         },

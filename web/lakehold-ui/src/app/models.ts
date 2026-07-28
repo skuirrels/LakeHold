@@ -78,6 +78,23 @@ export interface Snapshot {
   commitMessage: string | null;
 }
 
+/** A read-only plan or committed table-data restore. */
+export interface TableRestore {
+  schema: string;
+  table: string;
+  snapshotId: number;
+  /** Live snapshot against which the plan was reviewed; apply refuses if the catalog advances. */
+  currentSnapshotId: number;
+  currentRowCount: number;
+  historicalRowCount: number;
+  restoredColumns: string[];
+  /** Current columns absent from the snapshot; their current defaults/nullability apply. */
+  currentOnlyColumns: string[];
+  /** Snapshot columns absent from the current table; these are deliberately ignored. */
+  historicalOnlyColumns: string[];
+  dryRun: boolean;
+}
+
 /** One table's physical footprint in the storage view. */
 export interface TableStorage {
   schemaName: string;

@@ -313,6 +313,33 @@ public sealed class LakehouseService(
         return await LakehouseMaintenance.ListSnapshotsAsync(duckling, limit, cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    ///     Plans or atomically applies a table-data restore while preserving the current table
+    ///     definition and enforcing its constraints.
+    /// </summary>
+    public async Task<TableRestoreResult> RestoreTableAsync(
+        string tenantSlug,
+        string catalogName,
+        string schema,
+        string table,
+        long snapshotId,
+        bool apply,
+        long? expectedCurrentSnapshotId,
+        CancellationToken cancellationToken)
+    {
+        var (duckling, _) = await ResolveAsync(tenantSlug, catalogName, cancellationToken).ConfigureAwait(false);
+        return await TableRestore
+            .RunAsync(
+                duckling,
+                schema,
+                table,
+                snapshotId,
+                apply,
+                expectedCurrentSnapshotId,
+                cancellationToken)
+            .ConfigureAwait(false);
+    }
+
     /// <summary>Runs a named maintenance operation against a tenant's catalog.</summary>
     /// <param name="apply">
     ///     Whether a destructive operation actually commits. Defaults to false, so <c>expire</c> and

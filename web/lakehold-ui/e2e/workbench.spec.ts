@@ -34,7 +34,7 @@ test.describe('workbench user journeys', () => {
     await page.getByRole('button', { name: /^Run/ }).click();
     await expect(page.locator('.summary')).toContainText('rows');
 
-    await page.getByRole('button', { name: 'History' }).click();
+    await page.getByRole('button', { name: 'Query history' }).click();
     const historyRow = page.locator('.history-row').filter({ hasText: 'FROM main.events' }).first();
     await expect(historyRow).toBeVisible();
     await historyRow.click();
@@ -44,16 +44,18 @@ test.describe('workbench user journeys', () => {
   });
 
   test('shows snapshots and storage from the live catalog', async ({ page }) => {
-    await page.getByRole('button', { name: 'Snapshots' }).click();
+    await page.getByRole('button', { name: 'Data history' }).click();
     await expect(page.getByRole('columnheader', { name: 'Snapshot' })).toBeVisible();
-    await expect(page.locator('table.snapshots tbody tr').first()).toBeVisible();
+    await expect(page.locator('table.history-timeline tbody tr').first()).toBeVisible();
 
     await page.getByRole('button', { name: 'Storage' }).click();
     await expect(page.getByText('events', { exact: true }).first()).toBeVisible();
     await expect(page.getByText(/Rows|Files/).first()).toBeVisible();
   });
 
-  test('opens table detail and live column profiles from the catalog explorer', async ({ page }) => {
+  test('opens table detail and live column profiles from the catalog explorer', async ({
+    page,
+  }) => {
     await page.getByLabel('Filter catalog objects').fill('events');
     await page.getByRole('button', { name: 'Inspect events' }).click();
 

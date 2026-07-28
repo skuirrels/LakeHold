@@ -204,7 +204,7 @@
               [class.active]="tab() === 'history'"
               (click)="showTab('history')"
             >
-              History
+              Query history
             </button>
             <button
               type="button"
@@ -212,7 +212,7 @@
               [class.active]="tab() === 'snapshots'"
               (click)="showTab('snapshots')"
             >
-              Snapshots
+              Data history
             </button>
             <button
               type="button"
@@ -319,45 +319,14 @@
               }
 
               @case ('snapshots') {
-                @if (snapshots().length === 0) {
-                  <p class="placeholder">No snapshots recorded.</p>
-                } @else {
-                  <table class="snapshots">
-                    <thead>
-                      <tr>
-                        <th scope="col">Snapshot</th>
-                        <th scope="col">Committed</th>
-                        <th scope="col">Schema version</th>
-                        <th scope="col">Time travel</th>
-                        <th scope="col">Restore</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      @for (snapshot of snapshots(); track snapshot.snapshotId) {
-                        <tr>
-                          <td>{{ snapshot.snapshotId }}</td>
-                          <td>{{ formatTime(snapshot.committedAt) }}</td>
-                          <td>{{ snapshot.schemaVersion }}</td>
-                          <td class="snippet">AT (VERSION =&gt; {{ snapshot.snapshotId }})</td>
-                          <td>
-                            @if (readOnlyAccess()) {
-                              <span class="read-only-label">read only</span>
-                            } @else {
-                              <button
-                                type="button"
-                                class="restore-btn"
-                                title="Load SQL to restore a table to this snapshot into the editor"
-                                (click)="restoreSnapshot(snapshot)"
-                              >
-                                Restore…
-                              </button>
-                            }
-                          </td>
-                        </tr>
-                      }
-                    </tbody>
-                  </table>
-                }
+                <lh-data-history-panel
+                  [tenant]="tenantSlug()"
+                  [catalog]="catalogName()"
+                  [tables]="baseTableReferences()"
+                  [readOnly]="readOnlyAccess()"
+                  (prepareSql)="insertSql($event)"
+                  (queryExecuted)="refreshQueryHistory()"
+                />
               }
 
               @case ('storage') {
@@ -372,7 +341,7 @@
                 <lh-changes-panel
                   [tenant]="tenantSlug()"
                   [catalog]="catalogName()"
-                  [tables]="baseTables()"
+                  [tables]="baseTableReferences()"
                   [readOnly]="readOnlyAccess()"
                 />
               }

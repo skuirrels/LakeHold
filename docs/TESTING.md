@@ -75,7 +75,7 @@ cleanup, or restore.
 | SQL execution, result types, row limits, errors   |                 Yes |                     Live DuckDB/DuckLake |                Run, render, fail, recover |
 | Catalog schemas and table discovery               |                 Yes |                             Live catalog |                   Filter, insert SQL, run |
 | Query history                                     |                 Yes |                            API test host |                       Replay a live query |
-| Snapshots and time-travel affordances             |                 Yes |                            Live DuckLake |                             Snapshot list |
+| Data history, snapshot drill-down, and time travel |                 Yes |                            Live DuckLake | Browse, compare, plan/confirm restore |
 | Storage rollups and file inventory                |                 Yes |                Local, PostgreSQL, and S3 |                             Storage panel |
 | Flush and compaction                              |                 Yes |                            Live DuckLake |                         Operator controls |
 | Expiry and orphan cleanup safety                  |                 Yes |                            Live DuckLake |                        Dry run and cancel |
@@ -135,9 +135,9 @@ cannot satisfy the contract by pointing at an unrelated passing test.
 ## Phase 2: disposable full-system simulations
 
 `e2e/operator-simulation.spec.ts` is the safe real-user simulation against the normal development
-node. It inspects physical files and the change feed, prepares a reversible snapshot restore,
-performs safe maintenance, writes and lists a backup, creates and opens a verified eject, and
-inspects scheduled-run visibility.
+node. It inspects physical files and the change feed, reviews and cancels an atomic table-data restore,
+performs safe maintenance, writes and lists a backup, creates and opens a verified eject, and inspects
+scheduled-run visibility.
 
 `e2e/phase2-operator.spec.ts` runs only through `scripts/test-phase2.sh` against disposable state. It
 boots an empty authentication-required node, provisions the first tenant and catalog, adopts the

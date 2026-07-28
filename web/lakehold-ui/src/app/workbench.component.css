@@ -539,57 +539,6 @@
   color: var(--text-dim, var(--text-faint));
 }
 
-/* Snapshots */
-
-/* The snapshots panel is the one table still owned by the workbench; the rest moved out with their
-   panels into `panel-shared.css`. */
-.snapshots {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 12px;
-}
-
-.snapshots th {
-  text-align: left;
-  padding: 8px 14px;
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.07em;
-  color: var(--text-faint);
-  border-bottom: 1px solid var(--border);
-}
-
-.snapshots td {
-  padding: 6px 14px;
-  border-bottom: 1px solid var(--border);
-  font-family: var(--mono);
-}
-
-.snippet {
-  color: var(--info);
-}
-
-.restore-btn {
-  font-family: var(--mono);
-  font-size: 11px;
-  padding: 3px 9px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--border-strong);
-  background: var(--surface-3);
-  color: var(--text-muted);
-  white-space: nowrap;
-  transition:
-    color 0.12s ease,
-    border-color 0.12s ease,
-    background 0.12s ease;
-}
-
-.restore-btn:hover {
-  color: var(--accent);
-  border-color: var(--accent);
-  background: var(--surface-2);
-}
-
 @media (max-width: 900px) {
   .sidebar {
     display: none;
