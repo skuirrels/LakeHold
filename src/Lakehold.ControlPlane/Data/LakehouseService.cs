@@ -19,12 +19,10 @@ public sealed class CatalogNotFoundException(string message) : Exception(message
 public sealed class LakehouseService(
     ControlPlaneContext context,
     DucklingPool pool,
-    CatalogCache catalogs,
     IOptions<LakehouseOptions> options)
 {
     private readonly ControlPlaneContext _context = context;
     private readonly DucklingPool _pool = pool;
-    private readonly CatalogCache _catalogs = catalogs;
     private readonly LakehouseOptions _options = options.Value;
 
     /// <summary>
@@ -446,9 +444,14 @@ public sealed class LakehouseService(
     {
         // Resolving through the tenant keeps backup listing inside the same isolation boundary as
         // querying: you cannot enumerate another tenant's generations by guessing a catalog name.
-        _ = await ResolveCatalogAsync(tenantSlug, catalogName, cancellationToken).ConfigureAwait(false);
+        var resolved = await ResolveCatalogAsync(tenantSlug, catalogName, cancellationToken).ConfigureAwait(false);
         return await CatalogRestore
-            .ListGenerationsAsync(_options, catalogName, configure: null, cancellationToken)
+            .ListGenerationsAsync(
+                _options,
+                resolved.Descriptor.TenantKey,
+                catalogName,
+                configure: null,
+                cancellationToken)
             .ConfigureAwait(false);
     }
 
@@ -480,7 +483,14 @@ public sealed class LakehouseService(
             : Path.Combine(_options.MetadataRoot, targetMetadataPath);
 
         return await CatalogRestore
-            .RestoreAsync(_options, catalogName, generation, target, resolved.Descriptor.DataPath, cancellationToken)
+            .RestoreAsync(
+                _options,
+                catalogName,
+                generation,
+                target,
+                resolved.Descriptor.DataPath,
+                cancellationToken,
+                tenantKey: resolved.Descriptor.TenantKey)
             .ConfigureAwait(false);
     }
 
@@ -515,8 +525,8 @@ public sealed class LakehouseService(
     {
         // Same isolation rule as backups: resolve through the tenant first, so bundles cannot be
         // enumerated by guessing another tenant's catalog name.
-        _ = await ResolveCatalogAsync(tenantSlug, catalogName, cancellationToken).ConfigureAwait(false);
-        return CatalogEject.ListBundles(_options, catalogName);
+        var resolved = await ResolveCatalogAsync(tenantSlug, catalogName, cancellationToken).ConfigureAwait(false);
+        return CatalogEject.ListBundles(_options, resolved.Descriptor.TenantKey, catalogName);
     }
 
     /// <summary>Returns the newest snapshot id of a tenant's catalog, or null when it has none.</summary>
@@ -561,55 +571,34 @@ public sealed class LakehouseService(
     }
 
     /// <summary>
-    ///     Drops every piece of cached state derived from a catalog's stored configuration, so the
-    ///     next query re-reads the record and reattaches the session. Call this from any path that
-    ///     changes a catalog's configuration.
+    ///     Drops the node-local warm session derived from a catalog's stored configuration.
     /// </summary>
     /// <remarks>
-    ///     <para>
-    ///         Two layers cache a catalog and both are keyed by catalog name: the resolved descriptor
-    ///         in <see cref="CatalogCache"/>, and the warm session in <see cref="DucklingPool"/> whose
-    ///         DuckDB instance already has the catalog attached. Dropping only one is not enough —
-    ///         keeping the descriptor replays the old configuration into a fresh session, and keeping
-    ///         the session runs the old attachment under a fresh descriptor. Neither failure raises
-    ///         anything: the configuration change simply never takes effect, which is why the two
-    ///         invalidations live behind one call rather than being left to each caller to pair up.
-    ///     </para>
-    ///     <para>
-    ///         Order matters. The descriptor is dropped first because
-    ///         <see cref="DucklingPool.GetOrStartAsync"/> keys sessions by catalog name and returns an
-    ///         existing one regardless of the descriptor passed in: evicting first would let a
-    ///         concurrent query resolve from the still-stale cache and start a replacement session on
-    ///         the old configuration, which then outlives this call. Dropping the descriptor first
-    ///         leaves only a transient window in which an in-flight query finishes against the old
-    ///         session, after which everything is consistent.
-    ///     </para>
+    ///     Catalog descriptors are always re-read from PostgreSQL. Only the already-attached
+    ///     in-process session needs explicit eviction; its key also includes the persisted
+    ///     configuration version, so another node's update naturally selects a new session.
     /// </remarks>
-    /// <param name="catalogName">The catalog whose cached state should be discarded.</param>
-    public async Task ForgetCatalogAsync(string catalogName)
+    /// <param name="catalog">The tenant-qualified catalog whose session should be discarded.</param>
+    public async Task ForgetCatalogAsync(CatalogDescriptor catalog)
     {
-        _catalogs.Invalidate(catalogName);
-        await _pool.EvictAsync(catalogName).ConfigureAwait(false);
+        ArgumentNullException.ThrowIfNull(catalog);
+        await _pool.EvictAsync(catalog.TenantKey, catalog.CatalogId).ConfigureAwait(false);
     }
 
     /// <summary>
-    ///     Resolves a tenant's catalog, reading the control plane only on a cache miss.
+    ///     Resolves a tenant's catalog from PostgreSQL.
     /// </summary>
     /// <remarks>
-    ///     Tenant isolation is enforced here: an entry is cached only after a query that matches both
-    ///     the tenant slug and the catalog name succeeds, so a cache hit is proof the caller owns the
-    ///     catalog exactly as a fresh read would be.
+    ///     This intentionally re-reads the shared control plane for each operation. A process-local
+    ///     cache cannot observe a catalog update committed through another API node; correctness is
+    ///     more important than avoiding this indexed lookup. The descriptor's configuration version
+    ///     then prevents an already-warm session from masking the newly observed settings.
     /// </remarks>
     private async Task<ResolvedCatalog> ResolveCatalogAsync(
         string tenantSlug,
         string catalogName,
         CancellationToken cancellationToken)
     {
-        if (_catalogs.TryGet(tenantSlug, catalogName, out var cached))
-        {
-            return cached;
-        }
-
         var catalog = await _context.Catalogs
             .AsNoTracking()
             .Include(c => c.Tenant)
@@ -617,9 +606,7 @@ public sealed class LakehouseService(
             .ConfigureAwait(false)
             ?? throw new CatalogNotFoundException($"Catalog '{catalogName}' was not found for tenant '{tenantSlug}'.");
 
-        var resolved = new ResolvedCatalog(catalog.ToDescriptor(), catalog.TenantId);
-        _catalogs.Set(tenantSlug, catalogName, resolved);
-        return resolved;
+        return new ResolvedCatalog(catalog.ToDescriptor(), catalog.TenantId);
     }
 
     private async Task<(Duckling Duckling, int TenantId)> ResolveAsync(

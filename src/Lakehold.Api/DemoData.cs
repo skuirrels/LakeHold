@@ -1,4 +1,6 @@
 using Microsoft.EntityFrameworkCore;
+using System.Security.Cryptography;
+using System.Text;
 using Lakehold.ControlPlane.Data;
 using Lakehold.ControlPlane.Model;
 using Lakehold.Engine.Catalog;
@@ -43,40 +45,6 @@ internal static class DemoData
         await using var scope = services.CreateAsyncScope();
         var context = scope.ServiceProvider.GetRequiredService<ControlPlaneContext>();
 
-        await context.Database.EnsureCreatedAsync().ConfigureAwait(false);
-
-        // EnsureCreated does nothing on an existing database, so tables added to the model after a
-        // deployment's first run are created here — additively, never touching existing user state.
-        //
-        // A failure here must not stop the API from starting. The tables this adds belong to newer,
-        // optional features; the query service, catalogs, and history all predate them and work
-        // without them. Taking the whole node down over an unavailable feature table would turn a
-        // degraded upgrade into an outage — and this runs on every start, so it would be a permanent
-        // one. Logged as an error because it does need fixing.
-        try
-        {
-            var addedTables = await AdditiveSchema.EnsureModelTablesAsync(context, CancellationToken.None).ConfigureAwait(false);
-            if (addedTables > 0)
-            {
-                logger.LogInformation("Created {Count} control-plane table(s) added since this database was initialised", addedTables);
-            }
-
-            // Columns added to an existing table — QueryRun.TokenId, ApiToken.Role — are applied the
-            // same way: purely additive, never rewriting existing rows.
-            var addedColumns = await AdditiveSchema.EnsureModelColumnsAsync(context, CancellationToken.None).ConfigureAwait(false);
-            if (addedColumns > 0)
-            {
-                logger.LogInformation("Added {Count} control-plane column(s) introduced since this database was initialised", addedColumns);
-            }
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(
-                ex,
-                "Could not add control-plane tables introduced since this database was initialised. " +
-                "Features backed by those tables will be unavailable until this is resolved.");
-        }
-
         if (!seedDemoData)
         {
             return;
@@ -87,9 +55,10 @@ internal static class DemoData
             return;
         }
 
-        var catalogRoot = Path.Combine(stateRoot, "catalogs");
-        var dataRoot = Path.Combine(stateRoot, "data", CatalogName);
-        Directory.CreateDirectory(catalogRoot);
+        var dataRoot = CatalogStorageNamespace.Under(
+            Path.Combine(stateRoot, "data"),
+            TenantSlug,
+            CatalogName);
         Directory.CreateDirectory(dataRoot);
 
         var tenant = new Tenant
@@ -99,16 +68,34 @@ internal static class DemoData
             CreatedUtc = DateTimeOffset.UtcNow,
         };
 
+        context.Tenants.Add(tenant);
+        await context.SaveChangesAsync().ConfigureAwait(false);
+
+        var identityHash = Convert.ToHexString(
+            SHA256.HashData(Encoding.UTF8.GetBytes($"{tenant.Id}:{CatalogName}")))[..12].ToLowerInvariant();
+        var postgresMetadata = context.Database.IsNpgsql();
+        var catalogRoot = Path.Combine(stateRoot, "catalogs");
+        if (!postgresMetadata)
+        {
+            // Native DuckDB is retained as a fast, isolated test adapter and as the source format
+            // for the explicit legacy importer. Production startup refuses this provider.
+            Directory.CreateDirectory(catalogRoot);
+        }
+
         tenant.Catalogs.Add(new LakeCatalog
         {
             Name = CatalogName,
-            MetadataKind = CatalogMetadataKind.LocalFile,
-            MetadataSource = Path.Combine(catalogRoot, $"{CatalogName}.ducklake"),
+            MetadataKind = postgresMetadata ? CatalogMetadataKind.Postgres : CatalogMetadataKind.LocalFile,
+            MetadataSource = postgresMetadata
+                ? $"lh_dl_{tenant.Id}_{identityHash}"
+                : Path.Combine(catalogRoot, $"{CatalogName}.ducklake"),
+            MetadataSchema = postgresMetadata ? $"lh_{tenant.Id}_{identityHash}" : null,
+            MetadataSecretName = postgresMetadata ? $"lh_pg_{tenant.Id}_{identityHash}" : null,
             DataPath = dataRoot,
+            StorageKind = ParquetStorageKind.Local,
             CreatedUtc = DateTimeOffset.UtcNow,
         });
 
-        context.Tenants.Add(tenant);
         await context.SaveChangesAsync().ConfigureAwait(false);
 
         await SeedCatalogAsync(scope.ServiceProvider, tenant.Catalogs.First(), logger).ConfigureAwait(false);

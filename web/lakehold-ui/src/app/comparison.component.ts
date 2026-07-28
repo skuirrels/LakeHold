@@ -5,8 +5,8 @@ import { BrandMarkComponent } from './brand-mark.component';
 /**
  * Strength or limitation on a given axis, judged from the reader's point of view — not ours.
  *
- * The rule is applied symmetrically: if elastic scale earns a competitor `good`, our single node
- * earns `weak` on the same row, and vice versa. An earlier version marked our weaknesses honestly
+ * The rule is applied symmetrically: managed distributed SQL earns a competitor `good`, while our
+ * node-bound query execution earns `weak` on the same row. An earlier version marked our weaknesses honestly
  * but left competitors' matching strengths `neutral`, which produced a scoreboard where MotherDuck
  * and the cloud warehouses could not score green anywhere. That is the kind of quiet thumb on the
  * scale this page exists to avoid.
@@ -140,14 +140,14 @@ export class ComparisonComponent {
     },
     {
       dimension: 'Scale ceiling',
-      lakehold: { text: 'One node \u2014 GB to low TB', tone: 'weak' },
+      lakehold: { text: 'Scale out workers; each query stays on one node', tone: 'weak' },
       motherduck: { text: 'Elastic, scales past a node', tone: 'good' },
       clickhouse: { text: 'Clustered, petabyte-scale', tone: 'good' },
       cloud: { text: 'Effectively unlimited', tone: 'good' },
     },
     {
       dimension: 'Concurrent writers',
-      lakehold: { text: 'Single writer per catalog', tone: 'weak' },
+      lakehold: { text: 'PostgreSQL-backed DuckLake metadata; worker-local execution', tone: 'neutral' },
       motherduck: { text: 'Managed', tone: 'good' },
       clickhouse: { text: 'High concurrency', tone: 'good' },
       cloud: { text: 'High concurrency', tone: 'good' },

@@ -114,7 +114,7 @@ public sealed class MaintenanceCommitMessageTests : IAsyncLifetime
         var share = await _pool.GetOrStartAsync(shareCatalog, configure: null, CancellationToken.None);
         await share.ExecuteQueryAsync("CREATE TABLE reference (k VARCHAR, v BIGINT)", CancellationToken.None);
         await share.ExecuteQueryAsync("INSERT INTO reference VALUES ('a', 1), ('b', 2)", CancellationToken.None);
-        await _pool.EvictAsync(shareCatalog.CatalogName);
+        await _pool.EvictAsync(shareCatalog.TenantKey, shareCatalog.CatalogId);
 
         var withShare = _catalog with
         {

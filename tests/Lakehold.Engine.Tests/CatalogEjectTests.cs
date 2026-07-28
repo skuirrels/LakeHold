@@ -40,7 +40,9 @@ public sealed class CatalogEjectTests : IAsyncLifetime
             "ejectlake",
             CatalogMetadataKind.LocalFile,
             Path.Combine(_root, "test.ducklake"),
-            Path.Combine(_root, "data"));
+            Path.Combine(_root, "data"),
+            TenantKey: "acme",
+            CatalogId: 1);
 
         Directory.CreateDirectory(_catalog.DataPath);
         _pool = new DucklingPool(Options.Create(_options), NullLoggerFactory.Instance);
@@ -78,6 +80,10 @@ public sealed class CatalogEjectTests : IAsyncLifetime
         // The bundle must live outside the data path, like a backup, or DuckLake's orphan cleanup
         // would eventually delete it.
         Assert.False(result.Location.StartsWith(_catalog.DataPath, StringComparison.Ordinal));
+        Assert.StartsWith(
+            Path.Combine(_options.EjectRoot, _catalog.TenantKey, _catalog.CatalogName),
+            result.Location,
+            StringComparison.Ordinal);
 
         var peopleParquet = Path.Combine(result.Location, "data", "main", "people.parquet");
         Assert.True(File.Exists(peopleParquet), "the clean data export must exist");
@@ -166,7 +172,7 @@ public sealed class CatalogEjectTests : IAsyncLifetime
             clock.Advance(TimeSpan.FromMinutes(1));
         }
 
-        var bundles = CatalogEject.ListBundles(_options, _catalog.CatalogName);
+        var bundles = CatalogEject.ListBundles(_options, _catalog.TenantKey, _catalog.CatalogName);
         Assert.Equal(2, bundles.Count);
         Assert.All(bundles, b => Assert.True(b.IsComplete));
         Assert.True(string.CompareOrdinal(bundles[0].Bundle, bundles[1].Bundle) > 0, "newest bundle must be first");

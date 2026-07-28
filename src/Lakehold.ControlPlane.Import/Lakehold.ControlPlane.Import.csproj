@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <Description>Explicit, dry-run-first migration from the legacy DuckDB control plane to PostgreSQL.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="DuckDB.EFCoreProvider" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../Lakehold.ControlPlane/Lakehold.ControlPlane.csproj" />
+  </ItemGroup>
+
+</Project>

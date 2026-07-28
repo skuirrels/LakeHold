@@ -18,11 +18,10 @@
 # Named compose.production.yaml to sit beside compose.yaml rather than replace it, because the
 # development stack is the one people use daily and should keep the default filename.
 #
-# What this file deliberately does not include: PostgreSQL and MinIO. Lakehold defaults to local-file
-# catalog metadata and a local data path, so neither is required to run. A deployment that wants
-# PostgreSQL-backed metadata or object storage points configuration at whatever it already runs —
-# managed, clustered, or backed up on someone else's schedule — rather than at a single-container
-# database this file would imply is production-grade.
+# What this file deliberately does not include: PostgreSQL or an object store. PostgreSQL is required
+# and supplied by the operator — managed, clustered, and backed up independently. Parquet may remain
+# on the local volume for a deliberately single-node installation; S3, GCS, or Azure storage is the
+# recommended multi-node configuration.
 
 name: lakehold
 
@@ -40,6 +39,10 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       Lakehouse__StateRoot: /var/lib/lakehold
+      # Empty still fails closed in Program.cs, with a direct error. The default keeps Compose
+      # overlays able to replace these values without base-file interpolation failing first.
+      ConnectionStrings__ControlPlane: ${LAKEHOLD_CONTROL_PLANE:-}
+      ConnectionStrings__DuckLakeMetadata: ${LAKEHOLD_DUCKLAKE_METADATA:-}
 
       # The application default is false, so that a fresh checkout runs token-lessly and local
       # development stays frictionless. That default is wrong for anything with a published port:
@@ -59,8 +62,8 @@ services:
       Lakehold__PgWire__Password: ${LAKEHOLD_PGWIRE_PASSWORD:-}
 
     volumes:
-      # The catalog database, Parquet, backups, and eject bundles. This volume is the deployment's
-      # durable state: everything else in this file is replaceable by rebuilding.
+      # Local Parquet (when selected), backups, and eject bundles. Control-plane and DuckLake
+      # metadata are in PostgreSQL, never in this node-local volume.
       - lakehold-state:/var/lib/lakehold
 
     # A query is memory-hungry by design and DuckDB will use what it is given. Bounding the container

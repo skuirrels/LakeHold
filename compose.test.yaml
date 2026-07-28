@@ -10,6 +10,11 @@ services:
     environment:
       Lakehold__SeedDemoData: "true"
       Lakehold__Auth__RequireAuthentication: "false"
+      ConnectionStrings__ControlPlane: Host=postgres;Port=5432;Database=lakeholdmeta;Username=lakehold;Password=lakehold
+      ConnectionStrings__DuckLakeMetadata: Host=postgres;Port=5432;Database=lakeholdmeta;Username=lakehold;Password=lakehold
+    depends_on:
+      postgres:
+        condition: service_healthy
 
   postgres:
     image: postgres:17-alpine

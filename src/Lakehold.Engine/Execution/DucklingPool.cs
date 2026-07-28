@@ -29,13 +29,15 @@ public sealed class DucklingPool : IAsyncDisposable
     private readonly LakehouseOptions _options;
     private readonly ILogger<DucklingPool> _logger;
     private readonly ILoggerFactory _loggerFactory;
+    private readonly IDucklingSessionConfigurator[] _configurators;
     private readonly TimeSpan _sweepInterval;
     private long _lastSweepTicks;
     private bool _disposed;
 
     public DucklingPool(
         IOptions<LakehouseOptions> options,
-        ILoggerFactory loggerFactory)
+        ILoggerFactory loggerFactory,
+        IEnumerable<IDucklingSessionConfigurator>? configurators = null)
     {
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(loggerFactory);
@@ -43,6 +45,7 @@ public sealed class DucklingPool : IAsyncDisposable
         _options = options.Value;
         _loggerFactory = loggerFactory;
         _logger = loggerFactory.CreateLogger<DucklingPool>();
+        _configurators = configurators?.ToArray() ?? [];
         _sweepInterval = _options.IdleTimeout < SweepFloor ? _options.IdleTimeout : SweepFloor;
     }
 
@@ -84,9 +87,10 @@ public sealed class DucklingPool : IAsyncDisposable
                 () => Duckling.StartAsync(
                     catalog,
                     _options,
-                    configure,
+                    BuildConfiguration(catalog, configure),
                     _loggerFactory.CreateLogger<Duckling>(),
-                    CancellationToken.None),
+                    CancellationToken.None,
+                    _configurators),
                 LazyThreadSafetyMode.ExecutionAndPublication));
 
         try
@@ -103,10 +107,36 @@ public sealed class DucklingPool : IAsyncDisposable
         }
     }
 
-    // A catalog can be warm in read-only and read-write form at once, so the mode is part of the key.
-    // NUL cannot appear in a bare SQL identifier, so no name and mode can collide with another pair.
-    private static string SessionKey(CatalogDescriptor catalog) =>
-        catalog.ReadOnly ? catalog.CatalogName + "\0ro" : catalog.CatalogName + "\0rw";
+    private Action<DuckDBDbContextOptionsBuilder>? BuildConfiguration(
+        CatalogDescriptor catalog,
+        Action<DuckDBDbContextOptionsBuilder>? caller)
+    {
+        if (_configurators.Length == 0)
+        {
+            return caller;
+        }
+
+        return options =>
+        {
+            foreach (var configurator in _configurators)
+            {
+                configurator.Configure(catalog, options);
+            }
+
+            caller?.Invoke(options);
+        };
+    }
+
+    // Identity, tenant, persisted configuration version, and attachment mode all participate. Two
+    // tenants may use the same display name, and an update observed on one node must start a new
+    // session even if another node still has the previous version warm.
+    private static string SessionKey(CatalogDescriptor catalog) => string.Join(
+        '\0',
+        catalog.TenantKey,
+        catalog.CatalogId.ToString(System.Globalization.CultureInfo.InvariantCulture),
+        catalog.CatalogName,
+        catalog.ConfigurationVersion.ToString(System.Globalization.CultureInfo.InvariantCulture),
+        catalog.ReadOnly ? "ro" : "rw");
 
     /// <summary>
     ///     Evicts the session for a catalog, if one is warm. Call after a catalog's configuration
@@ -117,11 +147,13 @@ public sealed class DucklingPool : IAsyncDisposable
     ///     descriptor, or the replacement session is started from the stale configuration this
     ///     eviction was meant to discard. <c>LakehouseService.ForgetCatalogAsync</c> pairs the two.
     /// </remarks>
-    public async Task EvictAsync(string catalogName)
+    public async Task EvictAsync(string tenantKey, int catalogId)
     {
-        // Both attachment modes are evicted: a configuration change invalidates the read-only and the
-        // read-write session alike, and the caller names the catalog, not a mode.
-        foreach (var key in new[] { catalogName + "\0rw", catalogName + "\0ro" })
+        var prefix = string.Join(
+            '\0',
+            tenantKey,
+            catalogId.ToString(System.Globalization.CultureInfo.InvariantCulture)) + '\0';
+        foreach (var key in _sessions.Keys.Where(key => key.StartsWith(prefix, StringComparison.Ordinal)))
         {
             if (_sessions.TryRemove(key, out var entry))
             {
@@ -138,8 +170,8 @@ public sealed class DucklingPool : IAsyncDisposable
 
     private static string CatalogNameOf(string sessionKey)
     {
-        var separator = sessionKey.IndexOf('\0', StringComparison.Ordinal);
-        return separator < 0 ? sessionKey : sessionKey[..separator];
+        var fields = sessionKey.Split('\0');
+        return fields.Length >= 3 ? fields[2] : sessionKey;
     }
 
     private async Task EvictIdleAsync()

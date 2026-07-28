@@ -1,5 +1,7 @@
 namespace Lakehold.Engine.Configuration;
 
+using Lakehold.Engine.Catalog;
+
 /// <summary>
 ///     Deployment-wide configuration for the DuckLake catalogs this node can attach.
 /// </summary>
@@ -17,6 +19,19 @@ public sealed class LakehouseOptions
     ///     (<c>s3://</c>, <c>gs://</c>, <c>az://</c>) for a bring-your-own-bucket deployment.
     /// </summary>
     public string DataRoot { get; set; } = "./.lakehold/data";
+
+    /// <summary>
+    ///     Profile selected when a remote data path does not name one explicitly. Null means remote
+    ///     catalog creation must name a profile.
+    /// </summary>
+    public string? DefaultStorageProfile { get; set; }
+
+    /// <summary>
+    ///     Named object-storage configurations. Credentials arrive through the deployment's
+    ///     configuration/secret provider and are never copied into a control-plane row.
+    /// </summary>
+    public IDictionary<string, ParquetStorageProfileOptions> StorageProfiles { get; } =
+        new Dictionary<string, ParquetStorageProfileOptions>(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     ///     Root under which catalog metadata backups are written.
@@ -119,4 +134,34 @@ public sealed class LakehouseOptions
     ///     beside a target written as "5MB" would read as a bug in the units.
     /// </remarks>
     public long CompactionAdvisoryBytes { get; set; } = 16_000_000;
+}
+
+/// <summary>Credentials and endpoint settings used to create a temporary DuckDB storage secret.</summary>
+public sealed class ParquetStorageProfileOptions
+{
+    public ParquetStorageKind Kind { get; set; }
+
+    public string? KeyId { get; set; }
+
+    public string? Secret { get; set; }
+
+    public string? SessionToken { get; set; }
+
+    public string? Region { get; set; }
+
+    public string? Endpoint { get; set; }
+
+    public bool UseSsl { get; set; } = true;
+
+    public string UrlStyle { get; set; } = "vhost";
+
+    public string? AzureConnectionString { get; set; }
+
+    public string? AzureAccountName { get; set; }
+
+    /// <summary>
+    ///     Azure SDK credential-chain providers, for example <c>default</c> or
+    ///     <c>workload_identity;managed_identity</c>.
+    /// </summary>
+    public string? AzureCredentialChain { get; set; }
 }

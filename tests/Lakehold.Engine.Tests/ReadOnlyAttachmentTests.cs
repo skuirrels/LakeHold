@@ -77,9 +77,54 @@ public sealed class ReadOnlyAttachmentTests : IAsyncLifetime
         Assert.False(writer.Catalog.ReadOnly);
         Assert.True(reader.Catalog.ReadOnly);
 
-        // Both modes are one catalog by name, and evicting by name drops both.
+        // Both attachment modes belong to one tenant-qualified catalog, so precise eviction drops both.
         Assert.Equal(["rolake"], _pool.WarmCatalogs);
-        await _pool.EvictAsync("rolake");
+        await _pool.EvictAsync(_writable.TenantKey, _writable.CatalogId);
         Assert.Empty(_pool.WarmCatalogs);
+    }
+
+    [Fact]
+    public async Task Tenant_and_configuration_version_are_part_of_the_warm_session_identity()
+    {
+        var alphaPath = Path.Combine(_root, "alpha");
+        var betaPath = Path.Combine(_root, "beta");
+        Directory.CreateDirectory(alphaPath);
+        Directory.CreateDirectory(betaPath);
+
+        var alpha = _writable with
+        {
+            TenantKey = "alpha",
+            CatalogId = 10,
+            ConfigurationVersion = 1,
+            MetadataSource = Path.Combine(_root, "alpha.ducklake"),
+            DataPath = alphaPath,
+        };
+        var beta = alpha with
+        {
+            TenantKey = "beta",
+            CatalogId = 20,
+            MetadataSource = Path.Combine(_root, "beta.ducklake"),
+            DataPath = betaPath,
+        };
+        var alphaV2 = alpha with
+        {
+            ConfigurationVersion = 2,
+            MetadataSource = Path.Combine(_root, "alpha-v2.ducklake"),
+        };
+
+        var alphaSession = await _pool.GetOrStartAsync(alpha, configure: null, CancellationToken.None);
+        var betaSession = await _pool.GetOrStartAsync(beta, configure: null, CancellationToken.None);
+        var alphaV2Session = await _pool.GetOrStartAsync(alphaV2, configure: null, CancellationToken.None);
+
+        Assert.NotSame(alphaSession, betaSession);
+        Assert.NotSame(alphaSession, alphaV2Session);
+
+        await _pool.EvictAsync(alpha.TenantKey, alpha.CatalogId);
+
+        var replacementAlpha = await _pool.GetOrStartAsync(alpha, configure: null, CancellationToken.None);
+        var retainedBeta = await _pool.GetOrStartAsync(beta, configure: null, CancellationToken.None);
+
+        Assert.NotSame(alphaSession, replacementAlpha);
+        Assert.Same(betaSession, retainedBeta);
     }
 }

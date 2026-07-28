@@ -131,13 +131,13 @@ status:
 logs:
 	@$(COMPOSE) logs -f --tail 100
 
-# Never `down -v` here. The lakehold-state volume is the catalog, the Parquet, the backups, and the
-# eject bundles — everything in this stack that cannot be rebuilt from the repository.
+# Never `down -v` here. The lakehold-state volume can hold local Parquet, backups, and eject bundles.
+# PostgreSQL is protected separately and is intentionally not bundled in the production stack.
 stop:
 	@$(COMPOSE) down
 
-# A disaster copy of that volume: the catalog database, the Parquet, the backup generations, and the
-# eject bundles, as one tarball. Read-only mount, so this cannot damage what it is copying.
+# A disaster copy of node-local state: local Parquet, backup generations, and eject bundles. It does
+# not include the PostgreSQL control plane or PostgreSQL DuckLake metadata.
 #
 # It is not a substitute for Lakehold's own catalog backup or an eject. Those run through the
 # catalog and are consistent by construction; this is a file copy, so a container writing during it

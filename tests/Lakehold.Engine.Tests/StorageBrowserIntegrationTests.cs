@@ -428,20 +428,35 @@ public sealed class PostgresMetadata
         }
     }
 
-    /// <summary>Splits a libpq connection string into its keywords.</summary>
+    /// <summary>
+    ///     Splits the integration connection string into DuckDB postgres-secret keywords.
+    ///     Npgsql's semicolon format is canonical; the legacy libpq-style test value remains
+    ///     accepted so local developer environments do not break abruptly.
+    /// </summary>
     internal static Dictionary<string, string> ParseConnection(string connection)
     {
         var parsed = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var pair in connection.Split(' ', StringSplitOptions.RemoveEmptyEntries))
+        var separator = connection.Contains(';', StringComparison.Ordinal) ? ';' : ' ';
+        foreach (var pair in connection.Split(separator, StringSplitOptions.RemoveEmptyEntries))
         {
             var split = pair.Split('=', 2);
             if (split.Length == 2)
             {
-                parsed[split[0]] = split[1];
+                parsed[split[0].Trim()] = split[1].Trim();
             }
         }
 
+        CopyAlias(parsed, "database", "dbname");
+        CopyAlias(parsed, "username", "user");
         return parsed;
+    }
+
+    private static void CopyAlias(Dictionary<string, string> values, string source, string target)
+    {
+        if (!values.ContainsKey(target) && values.TryGetValue(source, out var value))
+        {
+            values[target] = value;
+        }
     }
 
     private static async Task Execute(DuckDBConnection connection, string sql)

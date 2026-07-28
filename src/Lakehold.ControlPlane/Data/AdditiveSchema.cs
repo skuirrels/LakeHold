@@ -6,21 +6,16 @@ using Microsoft.EntityFrameworkCore.Metadata;
 namespace Lakehold.ControlPlane.Data;
 
 /// <summary>
-///     Creates control-plane tables that exist in the model but not yet in the database.
+///     Adapts a disposable copy of a legacy DuckDB control plane to the current import model.
 /// </summary>
 /// <remarks>
 ///     <para>
-///         The control plane is initialised with <c>EnsureCreated</c>, which builds the full schema
-///         on an empty database and does <em>nothing</em> on an existing one. That was fine while the
-///         model never changed; the first release that adds an entity would leave every existing
-///         deployment without its table, failing at first use rather than at start-up.
+///         Production uses PostgreSQL migrations and never calls this helper. The explicit importer
+///         copies a legacy DuckDB file first, then uses this narrow additive adapter on that copy so
+///         older releases can be read through the current entity model without modifying the source.
 ///     </para>
 ///     <para>
-///         This applies the narrow, safe subset of a migration: statements from EF's own generated
-///         create script that target tables missing from the live database. Purely additive — it
-///         never alters or drops an existing table, and existing user state is never touched. Columns
-///         added to an <em>existing</em> entity still need a real migration story; that trade-off is
-///         documented in <see cref="ControlPlaneContext"/> and unchanged here.
+///         This applies only additive tables and columns. It never alters or drops existing state.
 ///     </para>
 /// </remarks>
 public static class AdditiveSchema

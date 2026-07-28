@@ -14,18 +14,19 @@ required controls, routine work, and the runbooks to use when something fails.
 
 ## Supported operating profile
 
-The current release is a single-node, trusted or one-tenant production profile. Credentials and
-control-plane records are tenant-scoped, but the node-local catalog and artifact layout is not yet
-safe for adversarial tenants that reuse a catalog name. The
-[production-readiness roadmap](PRODUCTION-READINESS-ROADMAP.md) owns the remaining shared
-multi-tenant and HA gates.
+PostgreSQL is the required shared control plane and the default DuckLake metadata database. API and
+worker nodes may scale horizontally, but each query runs inside one node's DuckDB process; LakeHold
+does not claim distributed SQL. S3, GCS, or Azure Parquet storage is recommended for multi-node
+deployments. Local Parquet is supported only as a single-node or externally shared-filesystem
+profile. Remaining adversarial multi-tenant artifact/background-job gates are owned by the
+[production-readiness roadmap](PRODUCTION-READINESS-ROADMAP.md).
 
 `compose.production.yaml` runs two containers:
 
 | Component | Responsibility | Durable state | Health |
 |---|---|---|---|
 | `workbench` | nginx, private Angular workbench, same-origin `/api` proxy | None | `/workbench` inside the container |
-| `api` | control plane, DuckLake sessions, schedules, CDC, optional wire and MCP endpoints | `/var/lib/lakehold` | `/health` readiness and `/alive` liveness |
+| `api` | PostgreSQL-backed control plane, DuckLake sessions, schedules, CDC, optional wire and MCP endpoints | PostgreSQL plus configured Parquet storage | `/health` readiness and `/alive` liveness |
 
 The public host port is `8080` by default. nginx proxies `/health` and `/api`; it does not expose
 `/alive`. Probe `/alive` only from the container or private service network.
@@ -34,14 +35,13 @@ The default state volume contains:
 
 | Path | Contents | Rebuilt from source? |
 |---|---|---|
-| `controlplane.duckdb` | tenants, catalog descriptors, token hashes, subscriptions, query history | No |
-| `catalogs/` | local DuckLake metadata files and snapshot history | From a complete catalog backup, with limits |
 | `data/` | local Parquet data and delete files | No |
 | `backups/` | catalog-metadata backup generations | No; and on the same volume by default |
 | `ejects/` | verified reader-independent export bundles | No |
 
-Everything outside that volume is replaceable from the pinned images and configuration. Everything
-inside it is state. Never use `docker compose down -v` in an operating or recovery procedure.
+The PostgreSQL control plane and DuckLake metadata are outside this volume and require native
+backup/PITR. Everything inside the volume is state when local Parquet or local artifacts are used.
+Never use `docker compose down -v` in an operating or recovery procedure.
 
 ## Assign ownership before production
 
@@ -68,6 +68,8 @@ Do not treat a healthy container as proof that the service is operable. Before a
 traffic, verify all of the following:
 
 - A release is pinned with `LAKEHOLD_TAG`; production does not track `latest`.
+- Both required PostgreSQL connection strings are supplied through the secret store, use TLS where
+  traffic leaves a trusted network, and have a tested backup/PITR policy.
 - `LAKEHOLD_REQUIRE_AUTH` is true and an owner token plus an instance provisioning token are held in
   an approved secret store. LakeHold stores only token hashes and cannot recover plaintext tokens.
 - The state volume has a consistent off-host backup and checksum. A backup that remains on the same

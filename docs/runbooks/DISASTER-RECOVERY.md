@@ -10,21 +10,20 @@ LakeHold has several kinds of state, and no single built-in catalog backup prote
 
 | State | Primary protection | Catalog backup protects it? |
 |---|---|---|
-| Tenants and catalog descriptors | `controlplane.duckdb` in the state volume | No |
-| API token hashes and roles | `controlplane.duckdb`; plaintext tokens must also be in a secret store | No |
-| Subscriptions, delivery cursors, query history | `controlplane.duckdb` | No |
-| Local DuckLake metadata and history | Complete catalog backup plus surviving data | Yes |
+| Tenants and catalog descriptors | PostgreSQL control-plane backup/PITR | No |
+| API token hashes and roles | PostgreSQL; plaintext tokens must also be in a secret store | No |
+| Subscriptions, delivery cursors, query history | PostgreSQL control-plane backup/PITR | No |
+| Legacy local DuckLake metadata and history | Complete catalog backup plus surviving data | Yes |
 | Local Parquet data and delete files | Consistent full-state archive | No |
 | External object-store data | Object-store versioning/replication/backup | No |
 | PostgreSQL DuckLake metadata | PostgreSQL backup/PITR; catalog backup is a portable exit copy | Partly; not automatic failover |
 | Backup generations and eject bundles | Off-host copy or remote storage | They are themselves artifacts |
 | Configuration and secrets | Deployment/configuration repository and secret store | No |
 
-In the packaged production API, `StateRoot` currently resolves the metadata, data, backup, and eject
-roots beneath one state volume. The engine supports other storage locations, but the API host does
-not yet preserve separately bound root values. Therefore a default catalog backup is in the same
-host and volume failure domain as the catalog it protects. Export a consistent state archive
-off-host; do not describe same-volume generations as disaster recovery.
+In the packaged production API, `StateRoot` resolves local data, backup, and eject roots beneath one
+state volume. PostgreSQL control-plane and DuckLake metadata sit outside that volume. A default
+catalog backup can still share a node/volume failure domain with local Parquet; export it off-host
+and protect PostgreSQL independently.
 
 ## Define and prove recovery objectives
 
@@ -66,8 +65,8 @@ Maintain these before an incident:
 - enough isolated capacity to restore without overwriting production;
 - monthly catalog restore tests and quarterly full-node drills.
 
-LakeHold stores only API-token hashes. Restoring `controlplane.duckdb` without the corresponding
-plaintext break-glass token can restore data while leaving operators unable to administer it. Setting
+LakeHold stores only API-token hashes. Restoring PostgreSQL without the corresponding plaintext
+break-glass token can restore data while leaving operators unable to administer it. Setting
 `Lakehold__BootstrapToken` does not add a new token when restored token records already exist. Do not
 delete token rows to force bootstrap.
 
@@ -77,7 +76,8 @@ delete token rows to force bootstrap.
 |---|---|
 | Containers failed; state volume is intact and readable | Restart or image rollback through incident response |
 | Bad application deploy; state was not changed incompatibly | Redeploy last-known-good pinned tag |
-| Whole node/volume lost or `controlplane.duckdb` lost | [Full-state recovery](#full-state-recovery) |
+| Whole node/volume lost; PostgreSQL survives | [Full-state recovery](#full-state-recovery) |
+| PostgreSQL control plane failed | Restore PostgreSQL with its native PITR/dump process before starting LakeHold |
 | One local catalog metadata file is missing or corrupt; data and complete backup survive | [Catalog metadata recovery](#catalog-metadata-recovery) |
 | PostgreSQL metadata service failed | Restore PostgreSQL with its native PITR/dump process |
 | External object-store data failed | Restore/version-recover the object store first |
@@ -103,19 +103,19 @@ Copy the archive and checksum to approved off-host storage, then verify the stor
 created by `make backup-state` remains in the working directory until moved; leaving it beside the
 Compose file is not off-host protection.
 
-This procedure has downtime. A live file copy can contain a torn DuckDB page and must not be the only
-recovery copy. If the deployment needs a lower-downtime RPO/RTO, implement storage snapshots or an
-external backup system that provides a documented application-consistent snapshot, then prove it
-with the same restore drill.
+This procedure has downtime for local data/artifacts. It does not back up PostgreSQL or remote object
+storage. Coordinate their provider-native recovery points with the volume/object-store policy, then
+prove the combination with the same restore drill.
 
 Record the tag/digest, archive checksum, UTC start/end, volume name, copy destination, operator, and
 whether the off-host verification passed.
 
 ## Full-state recovery
 
-Use this for total loss or loss of the control plane. The procedure assumes a fresh, isolated
-recovery host. If the expected volume already exists, stop: preserve it and recover on another host
-or under an approved isolated Compose configuration.
+Use this for node/local-volume loss after the PostgreSQL and object-storage recovery points are
+confirmed. The procedure assumes a fresh, isolated recovery host. If the expected volume already
+exists, stop: preserve it and recover on another host or under an approved isolated Compose
+configuration.
 
 ### 1. Declare and prepare
 
@@ -132,9 +132,10 @@ sha256sum -c lakehold-state-<timestamp>.tar.gz.sha256
 tar -tzf lakehold-state-<timestamp>.tar.gz | sed -n '1,80p'
 ```
 
-The archive should include `controlplane.duckdb` and the expected `catalogs/`, `data/`, `backups/`,
-and `ejects/` trees. An absent directory can be legitimate only if the inventory says that state was
-external. A checksum pass proves transfer integrity, not application consistency.
+The archive should include the expected local `data/`, `backups/`, and `ejects/` trees. It must not
+be treated as the PostgreSQL backup. An absent directory can be legitimate only if the inventory
+says that state was external. A checksum pass proves transfer integrity, not application
+consistency.
 
 ### 3. Restore into an empty volume
 
@@ -256,7 +257,7 @@ attaches it read-only against the surviving data path, and verifies that snapsho
 If the catalog uses a custom path, same-named catalogs, or PostgreSQL metadata, stop. Restoring to an
 arbitrary new file does not update the control-plane descriptor, and the current API has no supported
 repoint operation. Use full-state or native PostgreSQL recovery rather than editing
-`controlplane.duckdb` under pressure.
+the shared control-plane tables under pressure.
 
 ### 4. Evict stale sessions and validate
 

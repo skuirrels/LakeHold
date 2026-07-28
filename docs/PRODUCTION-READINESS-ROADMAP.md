@@ -143,9 +143,12 @@ and backoff behavior, and prove that signing secrets and response bodies do not 
   subscriptions, and required audit state.
 - Publish and automate a restore drill that rebuilds a fresh deployment and independently verifies
   tenant-scoped row counts and manifests.
-- Decide the supported topology explicitly: single-node, active/passive, or multi-node. If HA is
-  supported, implement a shared control-plane store and verify cache invalidation, token revocation,
-  CDC dispatch, and maintenance leasing across nodes.
+- **Landed:** PostgreSQL is the required shared control-plane store; new DuckLake catalogs also use
+  isolated PostgreSQL schemas. Catalog resolution re-reads shared state, warm sessions include
+  tenant/catalog/configuration identity, and migrations plus maintenance use PostgreSQL advisory
+  locks/leases.
+- Complete multi-node verification for token revocation, CDC dispatch, artifact naming, and
+  failover. Each query remains worker-local; distributed SQL is not in scope.
 - Define retention, encryption-at-rest, secret rotation, recovery-point, and recovery-time targets.
 
 ### Exit gate
