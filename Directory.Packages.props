@@ -21,7 +21,9 @@
     <PackageVersion Include="Skuirrels.DuckDB.NET.Bindings.Full" Version="1.5.5.2" />
     <PackageVersion Include="DuckDB.EFCoreProvider" Version="1.14.2" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="10.0.10" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.10" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.10" />
+    <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.0" />
   </ItemGroup>
 
   <ItemGroup>

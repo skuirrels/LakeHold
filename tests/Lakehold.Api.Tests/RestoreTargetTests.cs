@@ -52,12 +52,19 @@ public sealed class RestoreTargetTests : IAsyncLifetime
         await _context.Database.EnsureCreatedAsync();
 
         _pool = new DucklingPool(_options, NullLoggerFactory.Instance);
-        _service = new LakehouseService(_context, _pool, new CatalogCache(), _options);
+        _service = new LakehouseService(_context, _pool, _options);
 
         await AdminEndpoints.CreateTenantAsync(
             new CreateTenantRequest("acme", "Acme"), _context, TimeProvider.System, default);
         await AdminEndpoints.CreateCatalogAsync(
             "acme", new CreateCatalogRequest("analytics"), _context, _options, TimeProvider.System, default);
+        var catalog = await _context.Catalogs.SingleAsync();
+        Directory.CreateDirectory(_options.Value.MetadataRoot);
+        catalog.MetadataKind = CatalogMetadataKind.LocalFile;
+        catalog.MetadataSource = Path.Combine(_options.Value.MetadataRoot, "analytics.ducklake");
+        catalog.MetadataSchema = null;
+        catalog.MetadataSecretName = null;
+        await _context.SaveChangesAsync();
 
         await _service.ExecuteAsync("acme", "analytics", "CREATE TABLE people (id BIGINT)", default);
         await _service.ExecuteAsync("acme", "analytics", "INSERT INTO people VALUES (1), (2), (3)", default);
@@ -117,7 +124,10 @@ public sealed class RestoreTargetTests : IAsyncLifetime
         Assert.True(result.TablesRestored > 0);
 
         var restored = new CatalogDescriptor(
-            "rebuilt", CatalogMetadataKind.LocalFile, result.MetadataPath, Path.Combine(_options.Value.DataRoot, "analytics"));
+            "rebuilt",
+            CatalogMetadataKind.LocalFile,
+            result.MetadataPath,
+            CatalogStorageNamespace.Under(_options.Value.DataRoot, "acme", "analytics"));
 
         await using var pool = new DucklingPool(_options, NullLoggerFactory.Instance);
         var session = await pool.GetOrStartAsync(restored, configure: null, CancellationToken.None);

@@ -1,6 +1,7 @@
 using DuckDB.EFCoreProvider.Extensions;
 using Lakehold.Api.Endpoints;
 using Lakehold.ControlPlane.Data;
+using Lakehold.Engine.Catalog;
 using Lakehold.Engine.Configuration;
 using Lakehold.Engine.Execution;
 using Microsoft.AspNetCore.Http;
@@ -36,11 +37,18 @@ public sealed class TableRestoreEndpointsTests : IAsyncLifetime
         await _context.Database.EnsureCreatedAsync();
 
         _pool = new DucklingPool(options, NullLoggerFactory.Instance);
-        _service = new LakehouseService(_context, _pool, new CatalogCache(), options);
+        _service = new LakehouseService(_context, _pool, options);
         await AdminEndpoints.CreateTenantAsync(
             new CreateTenantRequest("acme", "Acme"), _context, TimeProvider.System, default);
         await AdminEndpoints.CreateCatalogAsync(
             "acme", new CreateCatalogRequest("analytics"), _context, options, TimeProvider.System, default);
+        var catalog = await _context.Catalogs.SingleAsync();
+        Directory.CreateDirectory(options.Value.MetadataRoot);
+        catalog.MetadataKind = CatalogMetadataKind.LocalFile;
+        catalog.MetadataSource = Path.Combine(options.Value.MetadataRoot, "analytics.ducklake");
+        catalog.MetadataSchema = null;
+        catalog.MetadataSecretName = null;
+        await _context.SaveChangesAsync();
     }
 
     public async Task DisposeAsync()

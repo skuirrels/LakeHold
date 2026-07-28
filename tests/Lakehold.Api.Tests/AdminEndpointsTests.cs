@@ -3,6 +3,7 @@ using Lakehold.Api;
 using Lakehold.Api.Endpoints;
 using Lakehold.ControlPlane.Data;
 using Lakehold.ControlPlane.Model;
+using Lakehold.Engine.Catalog;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
@@ -75,12 +76,42 @@ public sealed class AdminEndpointsTests : IAsyncLifetime
 
         Assert.Equal("analytics", created.Value!.Name);
 
-        // The derived local metadata directory was created so the first attach will succeed.
-        Assert.True(Directory.Exists(_options.Value.MetadataRoot));
-
         var stored = await _context.Catalogs.SingleAsync();
-        Assert.Equal(Path.Combine(_options.Value.MetadataRoot, "analytics.ducklake"), stored.MetadataSource);
-        Assert.Equal(Path.Combine(_options.Value.DataRoot, "analytics"), stored.DataPath);
+        Assert.Equal(CatalogMetadataKind.Postgres, stored.MetadataKind);
+        Assert.StartsWith("lh_dl_", stored.MetadataSource, StringComparison.Ordinal);
+        Assert.StartsWith("lh_", stored.MetadataSchema, StringComparison.Ordinal);
+        Assert.StartsWith("lh_pg_", stored.MetadataSecretName, StringComparison.Ordinal);
+        Assert.Equal(
+            CatalogStorageNamespace.Under(_options.Value.DataRoot, "acme", "analytics"),
+            stored.DataPath);
+        Assert.Equal(ParquetStorageKind.Local, stored.StorageKind);
+    }
+
+    [Fact]
+    public async Task Same_named_catalogs_in_different_tenants_have_distinct_storage_namespaces()
+    {
+        await AdminEndpoints.CreateTenantAsync(
+            new CreateTenantRequest("acme", "Acme"), _context, TimeProvider.System, default);
+        await AdminEndpoints.CreateTenantAsync(
+            new CreateTenantRequest("beta", "Beta"), _context, TimeProvider.System, default);
+
+        Assert.IsType<Created<CatalogDto>>(Unwrap(await AdminEndpoints.CreateCatalogAsync(
+            "acme", new CreateCatalogRequest("analytics"), _context, _options, TimeProvider.System, default)));
+        Assert.IsType<Created<CatalogDto>>(Unwrap(await AdminEndpoints.CreateCatalogAsync(
+            "beta", new CreateCatalogRequest("analytics"), _context, _options, TimeProvider.System, default)));
+
+        var paths = await _context.Catalogs
+            .OrderBy(catalog => catalog.Tenant!.Slug)
+            .Select(catalog => catalog.DataPath)
+            .ToListAsync();
+
+        Assert.Equal(
+            [
+                CatalogStorageNamespace.Under(_options.Value.DataRoot, "acme", "analytics"),
+                CatalogStorageNamespace.Under(_options.Value.DataRoot, "beta", "analytics"),
+            ],
+            paths);
+        Assert.Equal(2, paths.Distinct(StringComparer.Ordinal).Count());
     }
 
     [Theory]
@@ -99,6 +130,59 @@ public sealed class AdminEndpointsTests : IAsyncLifetime
         var badRequest = Assert.IsType<BadRequest<string>>(Unwrap(result));
         Assert.Contains("reserved by DuckDB", badRequest.Value, StringComparison.Ordinal);
         Assert.Equal(0, await _context.Catalogs.CountAsync());
+    }
+
+    [Theory]
+    [InlineData("s3://bucket/lake", ParquetStorageKind.S3)]
+    [InlineData("gs://bucket/lake", ParquetStorageKind.Gcs)]
+    [InlineData("gcs://bucket/lake", ParquetStorageKind.Gcs)]
+    [InlineData("az://container/lake", ParquetStorageKind.Azure)]
+    [InlineData("azure://container/lake", ParquetStorageKind.Azure)]
+    [InlineData("abfss://container@account.dfs.core.windows.net/lake", ParquetStorageKind.Azure)]
+    public async Task Remote_Parquet_backends_are_provisioned_through_named_profiles(
+        string dataPath,
+        ParquetStorageKind kind)
+    {
+        await AdminEndpoints.CreateTenantAsync(
+            new CreateTenantRequest("acme", "Acme"), _context, TimeProvider.System, default);
+        _options.Value.StorageProfiles["remote"] = new Engine.Configuration.ParquetStorageProfileOptions
+        {
+            Kind = kind,
+        };
+
+        var result = await AdminEndpoints.CreateCatalogAsync(
+            "acme",
+            new CreateCatalogRequest("analytics", dataPath, StorageProfile: "remote"),
+            _context,
+            _options,
+            TimeProvider.System,
+            default);
+
+        Assert.IsType<Created<CatalogDto>>(Unwrap(result));
+        var stored = await _context.Catalogs.SingleAsync();
+        Assert.Equal(kind, stored.StorageKind);
+        Assert.Equal("remote", stored.StorageProfile);
+        Assert.StartsWith("lh_store_", stored.StorageSecretName, StringComparison.Ordinal);
+        Assert.Equal(CatalogMetadataKind.Postgres, stored.MetadataKind);
+    }
+
+    [Fact]
+    public async Task Remote_Parquet_is_refused_when_no_storage_profile_is_configured()
+    {
+        await AdminEndpoints.CreateTenantAsync(
+            new CreateTenantRequest("acme", "Acme"), _context, TimeProvider.System, default);
+
+        var result = await AdminEndpoints.CreateCatalogAsync(
+            "acme",
+            new CreateCatalogRequest("analytics", "s3://bucket/lake"),
+            _context,
+            _options,
+            TimeProvider.System,
+            default);
+
+        var badRequest = Assert.IsType<BadRequest<string>>(Unwrap(result));
+        Assert.Contains("storage profile", badRequest.Value, StringComparison.OrdinalIgnoreCase);
+        Assert.Empty(_context.Catalogs);
     }
 
     [Fact]

@@ -37,13 +37,20 @@ public sealed class Duckling : IAsyncDisposable
     private readonly LakeContext _context;
     private readonly LakehouseOptions _options;
     private readonly ILogger _logger;
+    private readonly IReadOnlyList<IDucklingSessionConfigurator> _sessionConfigurators;
     private bool _disposed;
 
-    private Duckling(LakeContext context, CatalogDescriptor catalog, LakehouseOptions options, ILogger logger)
+    private Duckling(
+        LakeContext context,
+        CatalogDescriptor catalog,
+        LakehouseOptions options,
+        ILogger logger,
+        IReadOnlyList<IDucklingSessionConfigurator> sessionConfigurators)
     {
         _context = context;
         _options = options;
         _logger = logger;
+        _sessionConfigurators = sessionConfigurators;
         Catalog = catalog;
         LastUsedUtc = DateTimeOffset.UtcNow;
     }
@@ -84,7 +91,8 @@ public sealed class Duckling : IAsyncDisposable
         LakehouseOptions options,
         Action<DuckDBDbContextOptionsBuilder>? configure,
         ILogger logger,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        IReadOnlyList<IDucklingSessionConfigurator>? sessionConfigurators = null)
     {
         ArgumentNullException.ThrowIfNull(catalog);
         ArgumentNullException.ThrowIfNull(options);
@@ -162,11 +170,24 @@ public sealed class Duckling : IAsyncDisposable
         var startedAt = TimeProvider.System.GetTimestamp();
 
         var context = new LakeContext(builder.Options);
+        var configurators = sessionConfigurators ?? [];
         try
         {
             // Force connection initialisation now rather than on the first user query, so a
             // misconfigured catalog surfaces as a start-up failure the pool can refuse to cache.
             await context.Database.OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
+
+            // The PostgreSQL and DuckLake profile secrets are needed only while the provider
+            // attaches the catalog. Tenant SQL runs on this same connection, so leaving either
+            // secret behind would let a reader discover it through duckdb_secrets() and reattach the
+            // metadata database with wider privileges.
+            var connection = context.Database.GetDbConnection();
+            foreach (var configurator in configurators)
+            {
+                await configurator
+                    .SecureAfterAttachAsync(catalog, connection, cancellationToken)
+                    .ConfigureAwait(false);
+            }
 
             LakeholdTelemetry.SessionStartDuration.Record(
                 TimeProvider.System.GetElapsedTime(startedAt).TotalSeconds,
@@ -174,7 +195,7 @@ public sealed class Duckling : IAsyncDisposable
             LakeholdTelemetry.WarmSessions.Add(1);
 
             EngineLog.DucklingStarted(logger, catalog.CatalogName, catalog.MetadataKind, catalog.ReadOnly);
-            return new Duckling(context, catalog, options, logger);
+            return new Duckling(context, catalog, options, logger, configurators);
         }
         catch (Exception ex)
         {
@@ -502,6 +523,67 @@ public sealed class Duckling : IAsyncDisposable
         finally
         {
             _gate.Release();
+        }
+    }
+
+    /// <summary>
+    ///     Runs one LakeHold-owned metadata operation with the PostgreSQL credential temporarily
+    ///     present on the connection.
+    /// </summary>
+    /// <remarks>
+    ///     The caller must already hold the session gate. Credentials are installed immediately
+    ///     before the trusted callback and removed before the gate can admit tenant SQL.
+    /// </remarks>
+    internal async Task<T> InvokeWithPrivilegedMetadataAccessUnguardedAsync<T>(
+        Func<CancellationToken, Task<T>> action,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(action);
+        ObjectDisposedException.ThrowIf(_disposed, this);
+
+        if (_sessionConfigurators.Count == 0 || Catalog.MetadataKind != CatalogMetadataKind.Postgres)
+        {
+            return await action(cancellationToken).ConfigureAwait(false);
+        }
+
+        var connection = _context.Database.GetDbConnection();
+        var enabled = 0;
+        try
+        {
+            foreach (var configurator in _sessionConfigurators)
+            {
+                try
+                {
+                    await configurator
+                        .EnablePrivilegedMetadataAccessAsync(Catalog, connection, cancellationToken)
+                        .ConfigureAwait(false);
+                }
+                catch
+                {
+                    // A configurator may have installed its secret before a later statement failed.
+                    // Treat enable as partially successful until cleanup proves otherwise.
+                    await configurator
+                        .DisablePrivilegedMetadataAccessAsync(Catalog, connection, CancellationToken.None)
+                        .ConfigureAwait(false);
+                    throw;
+                }
+
+                enabled++;
+            }
+
+            return await action(cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            // Cleanup is deliberately non-cancellable. Returning the session to tenant SQL with a
+            // privileged secret still installed is worse than delaying cancellation by one local
+            // DROP SECRET command.
+            for (var index = enabled - 1; index >= 0; index--)
+            {
+                await _sessionConfigurators[index]
+                    .DisablePrivilegedMetadataAccessAsync(Catalog, connection, CancellationToken.None)
+                    .ConfigureAwait(false);
+            }
         }
     }
 

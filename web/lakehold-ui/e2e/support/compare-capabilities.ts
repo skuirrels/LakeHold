@@ -280,27 +280,27 @@ export const compareCapabilities: readonly CompareCapability[] = [
   },
   {
     dimension: 'Scale ceiling',
-    claim: 'One node — GB to low TB',
+    claim: 'Scale out workers; each query stays on one node',
     tone: 'weak',
     evidence: [
       {
         lane: 'declared-boundary',
-        path: 'src/Lakehold.Engine/Execution/Duckling.cs',
-        marker: 'DuckDB is single-writer per instance',
-        proves: 'The implementation and comparison retain the single-node operating boundary.',
+        path: 'docs/ARCHITECTURE.md',
+        marker: 'single query remains node-bound',
+        proves: 'Workers scale independently while each query remains node-bound.',
       },
     ],
   },
   {
     dimension: 'Concurrent writers',
-    claim: 'Single writer per catalog',
-    tone: 'weak',
+    claim: 'PostgreSQL-backed DuckLake metadata; worker-local execution',
+    tone: 'neutral',
     evidence: [
       {
-        lane: 'backend',
-        path: 'tests/Lakehold.Engine.Tests/DucklingConcurrencyTests.cs',
-        marker: 'A_second_operation_waits_for_the_catalog_gate',
-        proves: 'Two concurrent callers are serialized by the catalog session gate.',
+        lane: 'architecture',
+        path: 'docs/ARCHITECTURE.md',
+        marker: 'PostgreSQL holds the shared control plane and each new DuckLake metadata schema',
+        proves: 'Catalog metadata is shared in PostgreSQL while execution remains worker-local.',
       },
     ],
   },

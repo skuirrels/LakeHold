@@ -39,14 +39,16 @@ public sealed class LakeCatalog
     public CatalogMetadataKind MetadataKind { get; set; } = CatalogMetadataKind.LocalFile;
 
     /// <summary>
-    ///     File path, or a PostgreSQL connection string for a shared metadata catalog.
+    ///     Local metadata path for a legacy single-node catalog, or the name of the temporary
+    ///     DuckLake profile secret created when a PostgreSQL-backed catalog is attached.
     /// </summary>
-    /// <remarks>
-    ///     A PostgreSQL value is a credential. Production deployments should store a secret
-    ///     reference here and resolve it at attach time rather than persisting the password —
-    ///     see <see cref="StorageSecretName"/>.
-    /// </remarks>
     public required string MetadataSource { get; set; }
+
+    /// <summary>PostgreSQL schema containing this catalog's DuckLake metadata tables.</summary>
+    public string? MetadataSchema { get; set; }
+
+    /// <summary>Name of the temporary DuckDB PostgreSQL credential secret.</summary>
+    public string? MetadataSecretName { get; set; }
 
     /// <summary>Root URI for Parquet data files. Local path, or <c>s3://</c>, <c>gs://</c>, <c>az://</c>.</summary>
     public required string DataPath { get; set; }
@@ -56,6 +58,21 @@ public sealed class LakeCatalog
     ///     start-up. Only the name is persisted; the credential itself never reaches this table.
     /// </summary>
     public string? StorageSecretName { get; set; }
+
+    /// <summary>Backend holding the catalog's Parquet data files.</summary>
+    public ParquetStorageKind StorageKind { get; set; } = ParquetStorageKind.Local;
+
+    /// <summary>
+    ///     Deployment configuration profile used to resolve storage credentials. The profile name
+    ///     is not a credential and may safely be persisted.
+    /// </summary>
+    public string? StorageProfile { get; set; }
+
+    /// <summary>
+    ///     Monotonic version of attach-affecting configuration. It forms part of each node's warm
+    ///     session key, so a changed record cannot reuse an attachment made from older settings.
+    /// </summary>
+    public long ConfigurationVersion { get; set; } = 1;
 
     public bool IsReadOnly { get; set; }
 
@@ -72,7 +89,14 @@ public sealed class LakeCatalog
         MetadataSource,
         DataPath,
         StorageSecretName,
-        IsReadOnly);
+        IsReadOnly,
+        MetadataSchema: MetadataSchema,
+        MetadataSecretName: MetadataSecretName,
+        TenantKey: Tenant.Slug,
+        CatalogId: Id,
+        ConfigurationVersion: ConfigurationVersion,
+        StorageKind: StorageKind,
+        StorageProfile: StorageProfile);
 }
 
 /// <summary>A named, reusable query.</summary>

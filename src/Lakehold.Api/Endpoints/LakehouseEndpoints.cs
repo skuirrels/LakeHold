@@ -170,7 +170,13 @@ public static class LakehouseEndpoints
                 t.DisplayName,
                 t.Catalogs
                     .OrderBy(c => c.Name)
-                    .Select(c => new CatalogDto(c.Name, c.DataPath, c.IsReadOnly))
+                    .Select(c => new CatalogDto(
+                        c.Name,
+                        c.DataPath,
+                        c.IsReadOnly,
+                        c.MetadataKind.ToString(),
+                        c.StorageKind.ToString(),
+                        c.StorageProfile))
                     .ToList()))
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);

@@ -62,40 +62,45 @@ public static class MaintenanceLease
             return true;
         }
 
-        var safeJob = Sanitise(job);
+        var safeJob = LeaseKey(duckling.Catalog, job);
         var safeOwner = Sanitise(owner);
         var seconds = ((long)duration.TotalSeconds).ToString(CultureInfo.InvariantCulture);
 
-        await using var connection = await LeaseConnection.OpenAsync(duckling, cancellationToken)
+        return await duckling
+            .InvokeAsync(
+                ct => duckling.InvokeWithPrivilegedMetadataAccessUnguardedAsync(
+                    async privilegedToken =>
+                    {
+                        await using var connection = await LeaseConnection
+                            .OpenUnguardedAsync(duckling, privilegedToken)
+                            .ConfigureAwait(false);
+
+                        await connection.ExecuteAsync(
+                            $"CREATE SCHEMA IF NOT EXISTS {SchemaName}", privilegedToken).ConfigureAwait(false);
+                        await connection.ExecuteAsync(
+                            $"CREATE TABLE IF NOT EXISTS {SchemaName}.{TableName} (" +
+                            "job text PRIMARY KEY, owner text NOT NULL, expires_at timestamptz NOT NULL)",
+                            privilegedToken).ConfigureAwait(false);
+
+                        // One statement, so the claim is atomic. The WHERE on the conflict branch is
+                        // what makes it a lease rather than a free-for-all.
+                        await connection.ExecuteAsync(
+                            $"INSERT INTO {SchemaName}.{TableName} (job, owner, expires_at) " +
+                            $"VALUES ('{safeJob}', '{safeOwner}', now() + interval '{seconds} seconds') " +
+                            "ON CONFLICT (job) DO UPDATE SET owner = EXCLUDED.owner, expires_at = EXCLUDED.expires_at " +
+                            $"WHERE {SchemaName}.{TableName}.expires_at < now() " +
+                            $"OR {SchemaName}.{TableName}.owner = '{safeOwner}'",
+                            privilegedToken).ConfigureAwait(false);
+
+                        var holder = await connection.QueryScalarAsync(
+                            $"SELECT owner FROM {SchemaName}.{TableName} WHERE job = '{safeJob}'",
+                            privilegedToken).ConfigureAwait(false);
+
+                        return string.Equals(holder, safeOwner, StringComparison.Ordinal);
+                    },
+                    ct),
+                cancellationToken)
             .ConfigureAwait(false);
-
-        await connection.ExecuteAsync(
-            $"CREATE SCHEMA IF NOT EXISTS {SchemaName}", cancellationToken).ConfigureAwait(false);
-        await connection.ExecuteAsync(
-            $"CREATE TABLE IF NOT EXISTS {SchemaName}.{TableName} (" +
-            "job text PRIMARY KEY, owner text NOT NULL, expires_at timestamptz NOT NULL)",
-            cancellationToken).ConfigureAwait(false);
-
-        // One statement, so the claim is atomic. The WHERE on the conflict branch is what makes it a
-        // lease rather than a free-for-all: an unexpired row belonging to someone else blocks the
-        // update, and PostgreSQL reports no rows changed. Re-claiming our own row is allowed so a
-        // node that crashed mid-sweep is not locked out of its own lease until it expires.
-        await connection.ExecuteAsync(
-            $"INSERT INTO {SchemaName}.{TableName} (job, owner, expires_at) " +
-            $"VALUES ('{safeJob}', '{safeOwner}', now() + interval '{seconds} seconds') " +
-            "ON CONFLICT (job) DO UPDATE SET owner = EXCLUDED.owner, expires_at = EXCLUDED.expires_at " +
-            $"WHERE {SchemaName}.{TableName}.expires_at < now() " +
-            $"OR {SchemaName}.{TableName}.owner = '{safeOwner}'",
-            cancellationToken).ConfigureAwait(false);
-
-        // Reading the winner back is safe rather than racy: the row can only change again when this
-        // lease expires or its owner releases it, and either way the answer to "is it ours right
-        // now" is the one we act on.
-        var holder = await connection.QueryScalarAsync(
-            $"SELECT owner FROM {SchemaName}.{TableName} WHERE job = '{safeJob}'",
-            cancellationToken).ConfigureAwait(false);
-
-        return string.Equals(holder, safeOwner, StringComparison.Ordinal);
     }
 
     /// <summary>
@@ -116,13 +121,26 @@ public static class MaintenanceLease
 
         try
         {
-            await using var connection = await LeaseConnection.OpenAsync(duckling, cancellationToken)
-                .ConfigureAwait(false);
+            var safeJob = LeaseKey(duckling.Catalog, job);
+            var safeOwner = Sanitise(owner);
+            _ = await duckling
+                .InvokeAsync(
+                    ct => duckling.InvokeWithPrivilegedMetadataAccessUnguardedAsync(
+                        async privilegedToken =>
+                        {
+                            await using var connection = await LeaseConnection
+                                .OpenUnguardedAsync(duckling, privilegedToken)
+                                .ConfigureAwait(false);
 
-            await connection.ExecuteAsync(
-                $"DELETE FROM {SchemaName}.{TableName} " +
-                $"WHERE job = '{Sanitise(job)}' AND owner = '{Sanitise(owner)}'",
-                cancellationToken).ConfigureAwait(false);
+                            await connection.ExecuteAsync(
+                                $"DELETE FROM {SchemaName}.{TableName} " +
+                                $"WHERE job = '{safeJob}' AND owner = '{safeOwner}'",
+                                privilegedToken).ConfigureAwait(false);
+                            return true;
+                        },
+                        ct),
+                    cancellationToken)
+                .ConfigureAwait(false);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
@@ -135,6 +153,9 @@ public static class MaintenanceLease
     private static bool RequiresLease(CatalogDescriptor catalog)
         => catalog.MetadataKind == CatalogMetadataKind.Postgres
            && !string.IsNullOrEmpty(catalog.MetadataSecretName);
+
+    private static string LeaseKey(CatalogDescriptor catalog, string job)
+        => Sanitise($"{catalog.TenantKey}.{catalog.CatalogId}.{catalog.CatalogName}.{job}");
 
     /// <summary>
     ///     Restricts a value to characters that cannot terminate a nested SQL string.
@@ -164,11 +185,13 @@ public static class MaintenanceLease
     /// </summary>
     private sealed class LeaseConnection(Duckling duckling) : IAsyncDisposable
     {
-        public static async Task<LeaseConnection> OpenAsync(Duckling duckling, CancellationToken cancellationToken)
+        public static async Task<LeaseConnection> OpenUnguardedAsync(
+            Duckling duckling,
+            CancellationToken cancellationToken)
         {
             // Attached by secret name, so no credential is interpolated into a statement DuckDB
             // could echo back in an error.
-            await duckling.ExecuteQueryAsync(
+            await duckling.ExecuteUnguardedAsync(
                 $"ATTACH '' AS {Alias} (TYPE postgres, SECRET {SqlIdentifier.Quote(duckling.Catalog.MetadataSecretName)})",
                 cancellationToken).ConfigureAwait(false);
 
@@ -176,13 +199,13 @@ public static class MaintenanceLease
         }
 
         public async Task ExecuteAsync(string sql, CancellationToken cancellationToken)
-            => _ = await duckling.ExecuteQueryAsync(
+            => _ = await duckling.ExecuteUnguardedAsync(
                 $"CALL postgres_execute('{Alias}', {SqlIdentifier.Literal(sql)})", cancellationToken)
                 .ConfigureAwait(false);
 
         public async Task<string?> QueryScalarAsync(string sql, CancellationToken cancellationToken)
         {
-            var result = await duckling.ExecuteQueryAsync(
+            var result = await duckling.ExecuteUnguardedAsync(
                 $"SELECT * FROM postgres_query('{Alias}', {SqlIdentifier.Literal(sql)})", cancellationToken)
                 .ConfigureAwait(false);
 
@@ -195,7 +218,7 @@ public static class MaintenanceLease
         {
             try
             {
-                await duckling.ExecuteQueryAsync($"DETACH {Alias}", CancellationToken.None).ConfigureAwait(false);
+                await duckling.ExecuteUnguardedAsync($"DETACH {Alias}", CancellationToken.None).ConfigureAwait(false);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {

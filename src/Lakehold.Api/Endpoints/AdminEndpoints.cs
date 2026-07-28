@@ -1,4 +1,6 @@
 using System.Text.RegularExpressions;
+using System.Security.Cryptography;
+using System.Text;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -118,16 +120,16 @@ public static partial class AdminEndpoints
             return TypedResults.NotFound($"Tenant '{tenantSlug}' was not found.");
         }
 
-        var catalogNames = tenant.Catalogs.Select(c => c.Name).ToArray();
+        var catalogs = tenant.Catalogs.Select(c => c.ToDescriptor()).ToArray();
 
         // Cascade removes the tenant's catalogs, saved queries, subscriptions, history, and tokens —
         // control-plane records only. The DuckLake metadata and Parquet are never touched here.
         context.Tenants.Remove(tenant);
         await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
-        foreach (var name in catalogNames)
+        foreach (var catalog in catalogs)
         {
-            await lakehouse.ForgetCatalogAsync(name).ConfigureAwait(false);
+            await lakehouse.ForgetCatalogAsync(catalog).ConfigureAwait(false);
         }
 
         return TypedResults.NoContent();
@@ -167,13 +169,59 @@ public static partial class AdminEndpoints
 
         var lakehouseOptions = options.Value;
         var dataPath = string.IsNullOrWhiteSpace(request.DataPath)
-            ? Path.Combine(lakehouseOptions.DataRoot, request.Name)
+            ? CatalogStorageNamespace.Under(lakehouseOptions.DataRoot, tenantSlug, request.Name)
             : request.DataPath;
-        var metadataSource = Path.Combine(lakehouseOptions.MetadataRoot, $"{request.Name}.ducklake");
+        var storageKind = StorageLocation.KindOf(dataPath);
+        if (storageKind is null)
+        {
+            return TypedResults.BadRequest(
+                "DataPath must be a local path or use s3://, gs://, gcs://, az://, azure://, or abfss://.");
+        }
 
-        // Create local directories so the first attach succeeds. An object-store data path has no
-        // directory to create; the bucket and its credentials are the deployment's responsibility.
-        Directory.CreateDirectory(lakehouseOptions.MetadataRoot);
+        var storageProfile = request.StorageProfile ?? lakehouseOptions.DefaultStorageProfile;
+        if (storageKind != ParquetStorageKind.Local)
+        {
+            if (string.IsNullOrWhiteSpace(storageProfile))
+            {
+                return TypedResults.BadRequest(
+                    $"A storage profile is required for {storageKind} Parquet storage.");
+            }
+
+            if (!lakehouseOptions.StorageProfiles.TryGetValue(storageProfile, out var profile))
+            {
+                return TypedResults.BadRequest($"Storage profile '{storageProfile}' is not configured.");
+            }
+
+            if (profile.Kind != storageKind)
+            {
+                return TypedResults.BadRequest(
+                    $"Storage profile '{storageProfile}' is {profile.Kind}, but DataPath requires {storageKind}.");
+            }
+        }
+        else if (!string.IsNullOrWhiteSpace(storageProfile))
+        {
+            return TypedResults.BadRequest("A local DataPath must not select an object-storage profile.");
+        }
+
+        if (await context.Catalogs
+                .AnyAsync(c => c.DataPath == dataPath, cancellationToken)
+                .ConfigureAwait(false))
+        {
+            return TypedResults.Conflict(
+                $"DataPath '{dataPath}' is already assigned to another catalog.");
+        }
+
+        var identityHash = Convert.ToHexString(
+            SHA256.HashData(Encoding.UTF8.GetBytes($"{tenant.Id}:{request.Name}")))[..12].ToLowerInvariant();
+        var metadataSchema = $"lh_{tenant.Id}_{identityHash}";
+        var metadataSource = $"lh_dl_{tenant.Id}_{identityHash}";
+        var metadataSecretName = $"lh_pg_{tenant.Id}_{identityHash}";
+        var storageSecretName = storageKind == ParquetStorageKind.Local
+            ? null
+            : $"lh_store_{tenant.Id}_{identityHash}";
+
+        // Local Parquet remains a supported single-node/shared-filesystem mode. Remote paths are
+        // provisioned by the deployment and authenticated through the selected profile.
         if (!IsUri(dataPath))
         {
             Directory.CreateDirectory(dataPath);
@@ -183,9 +231,15 @@ public static partial class AdminEndpoints
         {
             TenantId = tenant.Id,
             Name = request.Name,
-            MetadataKind = CatalogMetadataKind.LocalFile,
+            MetadataKind = CatalogMetadataKind.Postgres,
             MetadataSource = metadataSource,
+            MetadataSchema = metadataSchema,
+            MetadataSecretName = metadataSecretName,
             DataPath = dataPath,
+            StorageKind = storageKind.Value,
+            StorageProfile = storageProfile,
+            StorageSecretName = storageSecretName,
+            ConfigurationVersion = 1,
             IsReadOnly = request.ReadOnly,
             CreatedUtc = clock.GetUtcNow(),
         };
@@ -195,7 +249,13 @@ public static partial class AdminEndpoints
 
         return TypedResults.Created(
             $"/api/tenants/{tenantSlug}/catalogs/{catalog.Name}",
-            new CatalogDto(catalog.Name, catalog.DataPath, catalog.IsReadOnly));
+            new CatalogDto(
+                catalog.Name,
+                catalog.DataPath,
+                catalog.IsReadOnly,
+                catalog.MetadataKind.ToString(),
+                catalog.StorageKind.ToString(),
+                catalog.StorageProfile));
     }
 
     internal static async Task<Results<NoContent, NotFound<string>>> DeleteCatalogAsync(
@@ -215,12 +275,13 @@ public static partial class AdminEndpoints
             return TypedResults.NotFound($"Catalog '{catalogName}' was not found for tenant '{tenantSlug}'.");
         }
 
+        var descriptor = catalog.ToDescriptor();
         context.Catalogs.Remove(catalog);
         await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
         // Drop the warm session and cached descriptor. The metadata file and Parquet stay on disk —
         // a detach is a control-plane operation, not a data deletion.
-        await lakehouse.ForgetCatalogAsync(catalogName).ConfigureAwait(false);
+        await lakehouse.ForgetCatalogAsync(descriptor).ConfigureAwait(false);
 
         return TypedResults.NoContent();
     }

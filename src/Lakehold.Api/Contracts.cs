@@ -91,7 +91,11 @@ public sealed record CreateTenantRequest(string Slug, string DisplayName);
 ///     local path or an object-store URI (<c>s3://</c>, <c>gs://</c>, <c>az://</c>).
 /// </param>
 /// <param name="ReadOnly">Attach the catalog without write access.</param>
-public sealed record CreateCatalogRequest(string Name, string? DataPath = null, bool ReadOnly = false);
+public sealed record CreateCatalogRequest(
+    string Name,
+    string? DataPath = null,
+    bool ReadOnly = false,
+    string? StorageProfile = null);
 
 /// <summary>Request to mint a tenant-scoped API token. Returned once at creation.</summary>
 /// <param name="Name">Human-facing label. Not a secret and not an identifier.</param>
@@ -132,7 +136,13 @@ public sealed record ApiTokenDto(
 ///     PostgreSQL connection string and the latter names a credential; neither belongs in a
 ///     response the browser receives.
 /// </remarks>
-public sealed record CatalogDto(string Name, string DataPath, bool IsReadOnly);
+public sealed record CatalogDto(
+    string Name,
+    string DataPath,
+    bool IsReadOnly,
+    string MetadataKind,
+    string StorageKind,
+    string? StorageProfile);
 
 /// <summary>A column in the schema explorer.</summary>
 public sealed record SchemaColumnDto(string Name, string DataType, bool IsNullable);

@@ -213,6 +213,7 @@ public sealed class PostgresStorageTests : IAsyncLifetime
     private const string ConnectionVariable = "LAKEHOLD_TEST_POSTGRES";
     private const string CredentialSecret = "lakehold_storage_pgcreds";
     private const string ProfileSecret = "lakehold_storage_pgprofile";
+    private const string MetadataSchema = "lakehold_storage";
 
     private readonly string _root = Path.Combine(Path.GetTempPath(), "lakehold-pg-storage", Guid.NewGuid().ToString("N"));
     private string? _connection;
@@ -238,6 +239,7 @@ public sealed class PostgresStorageTests : IAsyncLifetime
             CatalogMetadataKind.Postgres,
             ProfileSecret,
             Path.Combine(_root, "data"),
+            MetadataSchema: MetadataSchema,
             MetadataSecretName: CredentialSecret);
 
         Directory.CreateDirectory(_catalog.DataPath);
@@ -361,9 +363,13 @@ public sealed class PostgresStorageTests : IAsyncLifetime
                     DATABASE '{{parts["dbname"]}}',
                     USER '{{parts["user"]}}',
                     PASSWORD '{{parts["password"]}}');
+                ATTACH '' AS lakehold_storage_setup (TYPE postgres, SECRET {{CredentialSecret}});
+                CREATE SCHEMA IF NOT EXISTS lakehold_storage_setup.{{MetadataSchema}};
+                DETACH lakehold_storage_setup;
                 CREATE OR REPLACE SECRET {{ProfileSecret}} (
                     TYPE ducklake,
                     METADATA_PATH '',
+                    METADATA_SCHEMA '{{MetadataSchema}}',
                     DATA_PATH '{{dataPath}}/',
                     METADATA_PARAMETERS MAP{'TYPE': 'postgres', 'SECRET': '{{CredentialSecret}}'});
                 """;
@@ -371,7 +377,7 @@ public sealed class PostgresStorageTests : IAsyncLifetime
         });
     }
 
-    private Task ResetMetadataAsync() => PostgresMetadata.ResetAsync(_connection!);
+    private Task ResetMetadataAsync() => PostgresMetadata.ResetAsync(_connection!, MetadataSchema);
 
     private static Task<QueryResult> Run(Duckling duckling, string sql) => duckling.ExecuteQueryAsync(sql, CancellationToken.None);
 
@@ -396,7 +402,7 @@ public sealed class PostgresMetadata
     public const string CollectionName = "postgres-metadata";
 
     /// <summary>Drops everything these suites create in the shared database.</summary>
-    internal static async Task ResetAsync(string connection)
+    internal static async Task ResetAsync(string connection, params string[] additionalSchemas)
     {
         var parts = ParseConnection(connection);
 
@@ -426,22 +432,43 @@ public sealed class PostgresMetadata
         {
             await Execute(duck, $"CALL postgres_execute('reset_pg', '{statement}')");
         }
+
+        foreach (var schema in additionalSchemas)
+        {
+            var quoted = SqlIdentifier.QuoteName(schema);
+            await Execute(duck, $"CALL postgres_execute('reset_pg', 'DROP SCHEMA IF EXISTS {quoted} CASCADE')");
+        }
     }
 
-    /// <summary>Splits a libpq connection string into its keywords.</summary>
+    /// <summary>
+    ///     Splits the integration connection string into DuckDB postgres-secret keywords.
+    ///     Npgsql's semicolon format is canonical; the legacy libpq-style test value remains
+    ///     accepted so local developer environments do not break abruptly.
+    /// </summary>
     internal static Dictionary<string, string> ParseConnection(string connection)
     {
         var parsed = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var pair in connection.Split(' ', StringSplitOptions.RemoveEmptyEntries))
+        var separator = connection.Contains(';', StringComparison.Ordinal) ? ';' : ' ';
+        foreach (var pair in connection.Split(separator, StringSplitOptions.RemoveEmptyEntries))
         {
             var split = pair.Split('=', 2);
             if (split.Length == 2)
             {
-                parsed[split[0]] = split[1];
+                parsed[split[0].Trim()] = split[1].Trim();
             }
         }
 
+        CopyAlias(parsed, "database", "dbname");
+        CopyAlias(parsed, "username", "user");
         return parsed;
+    }
+
+    private static void CopyAlias(Dictionary<string, string> values, string source, string target)
+    {
+        if (!values.ContainsKey(target) && values.TryGetValue(source, out var value))
+        {
+            values[target] = value;
+        }
     }
 
     private static async Task Execute(DuckDBConnection connection, string sql)

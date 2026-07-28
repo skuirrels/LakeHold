@@ -127,8 +127,8 @@ understood, and error/latency signals return to baseline.
 ## Control plane unavailable
 
 `/alive` answers whether the process can serve a request. `/health` additionally calls
-`CanConnectAsync` on `controlplane.duckdb`. A healthy `/alive` with an unhealthy `/health` means
-restarts are unlikely to repair an unavailable volume or database.
+`CanConnectAsync` on the configured PostgreSQL control plane. A healthy `/alive` with an unhealthy
+`/health` means restarts are unlikely to repair database connectivity, credentials, or PostgreSQL.
 
 Probe from inside the API container because nginx does not publish `/alive`:
 
@@ -139,16 +139,16 @@ docker compose -f compose.production.yaml exec api \
   curl --fail --silent --show-error http://127.0.0.1:5200/health
 ```
 
-Check whether `/var/lib/lakehold/controlplane.duckdb` exists, the volume is mounted, the filesystem is
-read-write, and the API user has access. Do not open the production control-plane file with a second
-DuckDB process while the API is running.
+Check PostgreSQL reachability, TLS, credential expiry/rotation, connection limits, replicas/failover,
+and the database provider's storage/health signals.
 
-- Missing or corrupt control plane: restore the whole state archive. Catalog backup generations do
-  not contain tenants, catalog descriptors, token hashes, subscriptions, or audit records.
-- Permissions or mount regression: correct the mount or ownership through the infrastructure change
-  process, then restart only the API.
-- Disk full: stop writes and follow resource exhaustion. Freeing space by deleting catalog files,
-  backup manifests, or the control-plane database is forbidden.
+- Missing or corrupt control plane: restore PostgreSQL through its approved PITR/dump process.
+  Catalog backup generations do not contain tenants, catalog descriptors, token hashes,
+  subscriptions, or audit records.
+- Credential or network regression: correct it through the infrastructure change process, then
+  restart only the API if connection pools do not recover.
+- Database disk full: stop writes and follow the PostgreSQL provider's resource-exhaustion procedure.
+  Deleting control-plane tables or DuckLake metadata schemas is forbidden.
 
 ## Workbench or proxy failure
 

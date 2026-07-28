@@ -36,7 +36,7 @@ trap cleanup_on_exit EXIT
 export LAKEHOLD_PORT="$ui_port"
 export LAKEHOLD_TEST_POSTGRES_PORT="$postgres_port"
 export LAKEHOLD_TEST_MINIO_PORT="$minio_port"
-export LAKEHOLD_TEST_POSTGRES="dbname=lakeholdmeta host=127.0.0.1 port=$postgres_port user=lakehold password=lakehold"
+export LAKEHOLD_TEST_POSTGRES="Host=127.0.0.1;Port=$postgres_port;Database=lakeholdmeta;Username=lakehold;Password=lakehold"
 export LAKEHOLD_TEST_S3_ENDPOINT="http://127.0.0.1:$minio_port"
 export LAKEHOLD_TEST_S3_KEY="lakehold"
 export LAKEHOLD_TEST_S3_SECRET="lakehold123"
