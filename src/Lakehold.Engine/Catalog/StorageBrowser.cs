@@ -188,7 +188,8 @@ public static class StorageBrowser
             .ConfigureAwait(false);
 
         var catalog = duckling.Catalog.CatalogName;
-        var meta = SqlIdentifier.Quote(metadata, nameof(metadata));
+        var meta = $"{SqlIdentifier.Quote(metadata, nameof(metadata))}."
+            + SqlIdentifier.Quote(duckling.Catalog.ResolvedMetadataSchema, "metadataSchema");
         var requestedTable = schemaName is null
             ? string.Empty
             : $"""
