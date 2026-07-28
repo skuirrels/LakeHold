@@ -145,6 +145,7 @@
           [schemas]="schemas()"
           [loading]="schemasLoading()"
           (insertSql)="insertSql($event)"
+          (inspectTable)="inspectTable($event)"
         />
       </aside>
 
@@ -360,7 +361,11 @@
               }
 
               @case ('storage') {
-                <lh-storage-panel [tenant]="tenantSlug()" [catalog]="catalogName()" />
+                <lh-storage-panel
+                  [tenant]="tenantSlug()"
+                  [catalog]="catalogName()"
+                  [inspect]="inspectedTable()"
+                />
               }
 
               @case ('changes') {

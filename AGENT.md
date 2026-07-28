@@ -61,11 +61,11 @@ integration.
   Framework (LakeHold is the server, not the agent), which tools are deliberately withheld from an
   agent and why, and how to connect Claude Code and Codex. Read it before adding an agent-reachable
   surface.
-- `docs/UI.md`: the phased spec for the web surfaces beyond the SQL IDE — specified, not yet
-  implemented. Its subject is the physical layer: table sizes, Parquet file counts, and delete-file
-  overhead, read from DuckLake's own `ducklake_table_info` and `ducklake_list_files` **table
-  functions** rather than by listing the data path. Records why a raw object browser is the wrong
-  build. Read it before adding a workbench surface.
+- `docs/UI.md`: the phased spec and running record for the web surfaces beyond the SQL IDE. Its
+  physical layer — table sizes, Parquet files, delete overhead, partitions, and maintenance advice —
+  is read from DuckLake's catalog rather than by listing the data path. The unified table inspector
+  also profiles live logical columns and bounded distributions, optionally at a snapshot. Records
+  why a raw object browser is the wrong build. Read it before adding a workbench surface.
 - `docs/COMPETITIVE-RESEARCH.md`: a **dated** snapshot of competitor releases, the DuckLake roadmap,
   and ranked demand from the upstream trackers. It is the evidence behind the positioning and feature
   matrix in `docs/ARCHITECTURE.md`; that document states the position, this one says when it was last

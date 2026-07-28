@@ -13,9 +13,16 @@ test('operator simulation exercises the lakehouse control surfaces', async ({ pa
     await page.getByRole('button', { name: 'Storage' }).click();
     await page.getByRole('button', { name: 'Show data files for main.events' }).click();
 
-    await expect(page.getByRole('heading', { name: /events data files/ })).toBeVisible();
-    await expect(page.locator('.files-panel')).toContainText(/parquet|No Parquet files/i);
-    await page.getByRole('button', { name: 'Close' }).click();
+    await expect(page.getByRole('heading', { name: /events/ })).toBeVisible();
+    await expect(page.getByText('Partition layout')).toBeVisible();
+    await page.getByRole('button', { name: 'Files', exact: true }).click();
+    await expect(page.locator('lh-table-detail')).toContainText(/parquet|No Parquet files/i);
+
+    await page.getByRole('button', { name: 'Columns', exact: true }).click();
+    await expect(page.getByText(/live rows/)).toBeVisible();
+    await page.locator('.profiles button.cell-link').first().click();
+    await expect(page.getByRole('heading', { name: /distribution/ })).toBeVisible();
+    await page.getByRole('button', { name: 'Close table detail' }).click();
   });
 
   await test.step('read the catalog change feed', async () => {

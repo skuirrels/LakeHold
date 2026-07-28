@@ -63,6 +63,73 @@ describe('LakehouseService', () => {
     });
   });
 
+  it('keeps table, column, and snapshot identifiers out of profile paths', () => {
+    service
+      .getColumnDistribution('demo', 'analytics', 'odd schema', 'orders/2026', 'select', 17, 12)
+      .subscribe();
+
+    const request = http.expectOne(
+      (candidate) =>
+        candidate.url === '/api/tenants/demo/catalogs/analytics/column-distribution' &&
+        candidate.params.get('schema') === 'odd schema' &&
+        candidate.params.get('table') === 'orders/2026' &&
+        candidate.params.get('column') === 'select' &&
+        candidate.params.get('snapshot') === '17' &&
+        candidate.params.get('limit') === '12',
+    );
+    expect(request.request.method).toBe('GET');
+    request.flush({
+      schemaName: 'odd schema',
+      tableName: 'orders/2026',
+      columnName: 'select',
+      dataType: 'BIGINT',
+      snapshotId: 17,
+      kind: 'range',
+      nullCount: 0,
+      truncated: false,
+      buckets: [],
+    });
+  });
+
+  it('uses dedicated query-parameter routes for detail and historical table profiles', () => {
+    service.getTableDetail('demo', 'analytics', 'odd schema', 'orders/2026').subscribe();
+    service.getTableProfile('demo', 'analytics', 'odd schema', 'orders/2026', 17).subscribe();
+
+    const detail = http.expectOne(
+      (candidate) =>
+        candidate.url === '/api/tenants/demo/catalogs/analytics/table-detail' &&
+        candidate.params.get('schema') === 'odd schema' &&
+        candidate.params.get('table') === 'orders/2026',
+    );
+    expect(detail.request.method).toBe('GET');
+    detail.flush({
+      schemaName: 'odd schema',
+      tableName: 'orders/2026',
+      kind: 'VIEW',
+      columns: [],
+      storage: null,
+      partitionSpecs: [],
+      targetFileSizeBytes: null,
+      advisoryFileSizeBytes: 16_000_000,
+    });
+
+    const profile = http.expectOne(
+      (candidate) =>
+        candidate.url === '/api/tenants/demo/catalogs/analytics/table-profile' &&
+        candidate.params.get('schema') === 'odd schema' &&
+        candidate.params.get('table') === 'orders/2026' &&
+        candidate.params.get('snapshot') === '17',
+    );
+    expect(profile.request.method).toBe('GET');
+    profile.flush({
+      schemaName: 'odd schema',
+      tableName: 'orders/2026',
+      snapshotId: 17,
+      rowCount: 0,
+      columns: [],
+    });
+  });
+
   it('keeps destructive maintenance in dry-run mode unless apply is explicit', () => {
     service.runMaintenance('demo', 'analytics', 'cleanup').subscribe();
 

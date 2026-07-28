@@ -4,6 +4,7 @@ import {
   BackupGeneration,
   CatalogStorage,
   ChangePage,
+  ColumnDistribution,
   CreatedToken,
   EjectBundle,
   EjectResult,
@@ -15,7 +16,9 @@ import {
   Schema,
   Snapshot,
   Subscription,
+  TableDetail,
   TableFiles,
+  TableProfile,
   TableStorage,
   Tenant,
 } from './models';
@@ -43,6 +46,34 @@ export class FakeLakehouseService {
     truncated: false,
     files: [],
   };
+  detail: TableDetail = {
+    schemaName: 'main',
+    tableName: 't',
+    kind: 'BASE TABLE',
+    columns: [{ name: 'id', dataType: 'BIGINT', isNullable: false }],
+    storage: null,
+    partitionSpecs: [],
+    targetFileSizeBytes: null,
+    advisoryFileSizeBytes: 16_000_000,
+  };
+  profile: TableProfile = {
+    schemaName: 'main',
+    tableName: 't',
+    snapshotId: null,
+    rowCount: 0,
+    columns: [],
+  };
+  distribution: ColumnDistribution = {
+    schemaName: 'main',
+    tableName: 't',
+    columnName: 'id',
+    dataType: 'BIGINT',
+    snapshotId: null,
+    kind: 'range',
+    nullCount: 0,
+    truncated: false,
+    buckets: [],
+  };
   snapshots: Snapshot[] = [];
   changes: ChangePage = {
     schema: 'main',
@@ -69,6 +100,18 @@ export class FakeLakehouseService {
 
   getTableFiles(...args: unknown[]): Observable<TableFiles> {
     return this.answer('getTableFiles', args, () => this.files);
+  }
+
+  getTableDetail(...args: unknown[]): Observable<TableDetail> {
+    return this.answer('getTableDetail', args, () => this.detail);
+  }
+
+  getTableProfile(...args: unknown[]): Observable<TableProfile> {
+    return this.answer('getTableProfile', args, () => this.profile);
+  }
+
+  getColumnDistribution(...args: unknown[]): Observable<ColumnDistribution> {
+    return this.answer('getColumnDistribution', args, () => this.distribution);
   }
 
   getSnapshots(...args: unknown[]): Observable<Snapshot[]> {

@@ -60,6 +60,17 @@ public static class LakehouseEndpoints
         tenants.MapGet("/{tenantSlug}/catalogs/{catalogName}/storage/files", GetTableFilesAsync)
             .WithSummary("Lists one table's Parquet data files and their paired delete files.");
 
+        tenants.MapGet("/{tenantSlug}/catalogs/{catalogName}/table-detail", GetTableDetailAsync)
+            .WithSummary("Returns one table's schema, storage footprint, and partition layout.");
+
+        tenants.MapGet("/{tenantSlug}/catalogs/{catalogName}/table-profile", GetTableProfileAsync)
+            .WithSummary("Profiles the live logical rows of every column in one table.");
+
+        tenants.MapGet(
+                "/{tenantSlug}/catalogs/{catalogName}/column-distribution",
+                GetColumnDistributionAsync)
+            .WithSummary("Returns a bounded distribution for one table column.");
+
         // Maintenance, restore, and eject change or export the whole catalog: owner operations, not
         // something a reader or editor credential authorises. See docs/AUTHENTICATION.md phase 4.
         tenants.MapPost("/{tenantSlug}/catalogs/{catalogName}/maintenance/{operation}", RunMaintenanceAsync)
@@ -262,21 +273,7 @@ public static class LakehouseEndpoints
 
             return TypedResults.Ok(new CatalogStorageDto(
                 [
-                    .. storage.Tables.Select(t => new TableStorageDto(
-                        t.SchemaName,
-                        t.TableName,
-                        t.RowCount,
-                        t.InlinedRows,
-                        t.FileCount,
-                        t.FileSizeBytes,
-                        t.DeleteFileCount,
-                        t.DeleteFileSizeBytes,
-                        t.AverageFileSizeBytes,
-                        t.InlinedRows > 0,
-                        // One file cannot be merged with anything, so a small single file is not
-                        // fragmentation — it is just a small table, and advising compaction on it
-                        // would train the operator to ignore the signal.
-                        t.FileCount > 1 && t.AverageFileSizeBytes < advisory)),
+                    .. storage.Tables.Select(t => ToTableStorageDto(t, advisory)),
                 ],
                 storage.TargetFileSizeBytes,
                 advisory));
@@ -284,6 +281,168 @@ public static class LakehouseEndpoints
         catch (CatalogNotFoundException ex)
         {
             return TypedResults.NotFound(ex.Message);
+        }
+    }
+
+    /// <summary>Returns one table's logical, storage, and partition detail.</summary>
+    internal static async Task<Results<Ok<TableDetailDto>, NotFound<string>, BadRequest<string>>>
+        GetTableDetailAsync(
+            string tenantSlug,
+            string catalogName,
+            string table,
+            LakehouseService lakehouse,
+            IOptions<LakehouseOptions> options,
+            CancellationToken cancellationToken,
+            string schema = "main")
+    {
+        try
+        {
+            var detail = await lakehouse
+                .GetTableDetailAsync(tenantSlug, catalogName, schema, table, cancellationToken)
+                .ConfigureAwait(false);
+            var advisory = detail.TargetFileSizeBytes ?? options.Value.CompactionAdvisoryBytes;
+
+            return TypedResults.Ok(new TableDetailDto(
+                detail.SchemaName,
+                detail.TableName,
+                detail.Kind,
+                [
+                    .. detail.Columns.Select(c => new TableDetailColumnDto(
+                        c.Name, c.DataType, c.IsNullable)),
+                ],
+                detail.Storage is null ? null : ToTableStorageDto(detail.Storage, advisory),
+                [
+                    .. detail.PartitionSpecs.Select(spec => new PartitionSpecDto(
+                        spec.PartitionId,
+                        spec.BeginSnapshot,
+                        spec.EndSnapshot,
+                        [
+                            .. spec.Keys.Select(key => new PartitionKeyDto(
+                                key.Position, key.ColumnName, key.Transform)),
+                        ])),
+                ],
+                detail.TargetFileSizeBytes,
+                advisory));
+        }
+        catch (CatalogNotFoundException ex)
+        {
+            return TypedResults.NotFound(ex.Message);
+        }
+        catch (ArgumentException ex)
+        {
+            return TypedResults.BadRequest(ex.Message);
+        }
+        catch (DuckDB.NET.Data.DuckDBException ex)
+        {
+            return TypedResults.BadRequest(ex.Message);
+        }
+    }
+
+    /// <summary>Profiles all columns over the table's live logical rows.</summary>
+    internal static async Task<Results<Ok<TableProfileDto>, NotFound<string>, BadRequest<string>>>
+        GetTableProfileAsync(
+            string tenantSlug,
+            string catalogName,
+            string table,
+            LakehouseService lakehouse,
+            CancellationToken cancellationToken,
+            string schema = "main",
+            long? snapshot = null)
+    {
+        try
+        {
+            var profile = await lakehouse
+                .GetTableProfileAsync(
+                    tenantSlug, catalogName, schema, table, snapshot, cancellationToken)
+                .ConfigureAwait(false);
+
+            return TypedResults.Ok(new TableProfileDto(
+                profile.SchemaName,
+                profile.TableName,
+                profile.SnapshotId,
+                profile.RowCount,
+                [
+                    .. profile.Columns.Select(column => new ColumnProfileDto(
+                        column.Name,
+                        column.DataType,
+                        column.RowCount,
+                        column.NullCount,
+                        column.Minimum,
+                        column.Maximum,
+                        column.ApproxDistinct,
+                        column.Mean,
+                        column.StandardDeviation,
+                        column.FirstQuartile,
+                        column.Median,
+                        column.ThirdQuartile)),
+                ]));
+        }
+        catch (CatalogNotFoundException ex)
+        {
+            return TypedResults.NotFound(ex.Message);
+        }
+        catch (ArgumentException ex)
+        {
+            return TypedResults.BadRequest(ex.Message);
+        }
+        catch (DuckDB.NET.Data.DuckDBException ex)
+        {
+            return TypedResults.BadRequest(ex.Message);
+        }
+    }
+
+    /// <summary>Returns one bounded column distribution.</summary>
+    internal static async Task<Results<Ok<ColumnDistributionDto>, NotFound<string>, BadRequest<string>>>
+        GetColumnDistributionAsync(
+            string tenantSlug,
+            string catalogName,
+            string table,
+            string column,
+            LakehouseService lakehouse,
+            CancellationToken cancellationToken,
+            string schema = "main",
+            long? snapshot = null,
+            int limit = 20)
+    {
+        try
+        {
+            var distribution = await lakehouse
+                .GetColumnDistributionAsync(
+                    tenantSlug,
+                    catalogName,
+                    schema,
+                    table,
+                    column,
+                    snapshot,
+                    Math.Clamp(limit, 1, 50),
+                    cancellationToken)
+                .ConfigureAwait(false);
+
+            return TypedResults.Ok(new ColumnDistributionDto(
+                distribution.SchemaName,
+                distribution.TableName,
+                distribution.ColumnName,
+                distribution.DataType,
+                distribution.SnapshotId,
+                distribution.Kind,
+                distribution.NullCount,
+                distribution.Truncated,
+                [
+                    .. distribution.Buckets.Select(bucket => new DistributionBucketDto(
+                        bucket.Label, bucket.LowerBound, bucket.UpperBound, bucket.Count)),
+                ]));
+        }
+        catch (CatalogNotFoundException ex)
+        {
+            return TypedResults.NotFound(ex.Message);
+        }
+        catch (ArgumentException ex)
+        {
+            return TypedResults.BadRequest(ex.Message);
+        }
+        catch (DuckDB.NET.Data.DuckDBException ex)
+        {
+            return TypedResults.BadRequest(ex.Message);
         }
     }
 
@@ -694,6 +853,23 @@ public static class LakehouseEndpoints
         => context.Catalogs
             .AsNoTracking()
             .AnyAsync(c => c.Tenant.Slug == tenantSlug && c.Name == catalogName, cancellationToken);
+
+    private static TableStorageDto ToTableStorageDto(TableStorageInfo table, long advisoryFileSizeBytes) =>
+        new(
+            table.SchemaName,
+            table.TableName,
+            table.RowCount,
+            table.InlinedRows,
+            table.FileCount,
+            table.FileSizeBytes,
+            table.DeleteFileCount,
+            table.DeleteFileSizeBytes,
+            table.AverageFileSizeBytes,
+            table.InlinedRows > 0,
+            // One file cannot be merged with anything, so a small single file is not
+            // fragmentation — it is just a small table, and advising compaction on it would train
+            // the operator to ignore the signal.
+            table.FileCount > 1 && table.AverageFileSizeBytes < advisoryFileSizeBytes);
 
     /// <summary>Projects a subscription for the API, deliberately omitting the signing secret.</summary>
     private static SubscriptionDto ToDto(ChangeSubscription s) => new(

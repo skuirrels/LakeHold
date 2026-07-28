@@ -165,6 +165,72 @@ public sealed record TableFilesDto(
     bool Truncated,
     IReadOnlyList<DataFileDto> Files);
 
+/// <summary>A logical column in table detail.</summary>
+public sealed record TableDetailColumnDto(string Name, string DataType, bool IsNullable);
+
+/// <summary>One key in a DuckLake partition specification.</summary>
+public sealed record PartitionKeyDto(int Position, string ColumnName, string Transform);
+
+/// <summary>A partition specification and the snapshot interval in which it applies.</summary>
+public sealed record PartitionSpecDto(
+    long PartitionId,
+    long BeginSnapshot,
+    long? EndSnapshot,
+    IReadOnlyList<PartitionKeyDto> Keys);
+
+/// <summary>One table or view's logical, physical, and partition detail.</summary>
+public sealed record TableDetailDto(
+    string SchemaName,
+    string TableName,
+    string Kind,
+    IReadOnlyList<TableDetailColumnDto> Columns,
+    TableStorageDto? Storage,
+    IReadOnlyList<PartitionSpecDto> PartitionSpecs,
+    long? TargetFileSizeBytes,
+    long AdvisoryFileSizeBytes);
+
+/// <summary>Live summary statistics for one logical column.</summary>
+public sealed record ColumnProfileDto(
+    string Name,
+    string DataType,
+    long RowCount,
+    long NullCount,
+    string? Minimum,
+    string? Maximum,
+    string? ApproxDistinct,
+    string? Mean,
+    string? StandardDeviation,
+    string? FirstQuartile,
+    string? Median,
+    string? ThirdQuartile);
+
+/// <summary>All columns in one table or view, profiled at one snapshot.</summary>
+public sealed record TableProfileDto(
+    string SchemaName,
+    string TableName,
+    long? SnapshotId,
+    long RowCount,
+    IReadOnlyList<ColumnProfileDto> Columns);
+
+/// <summary>One bounded frequency or range bucket.</summary>
+public sealed record DistributionBucketDto(
+    string Label,
+    string? LowerBound,
+    string? UpperBound,
+    long Count);
+
+/// <summary>A bounded distribution for one column.</summary>
+public sealed record ColumnDistributionDto(
+    string SchemaName,
+    string TableName,
+    string ColumnName,
+    string DataType,
+    long? SnapshotId,
+    string Kind,
+    long NullCount,
+    bool Truncated,
+    IReadOnlyList<DistributionBucketDto> Buckets);
+
 /// <summary>Outcome of a maintenance operation.</summary>
 /// <param name="DryRun">
 ///     True when the operation only reported what it would do. Destructive operations default to

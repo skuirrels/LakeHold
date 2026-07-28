@@ -165,6 +165,26 @@ describe('WorkbenchComponent', () => {
       expect(options).toContain('main.orders');
       expect(options).not.toContain('main.revenue_by_country');
     });
+
+    it('opens table detail from the catalog explorer', async () => {
+      api.schemas = [
+        {
+          name: 'main',
+          tables: [{ name: 'orders', kind: 'BASE TABLE', columns: [] }],
+        },
+      ];
+      api.storage = { ...api.storage, tables: [tableStorage({ tableName: 'orders' })] };
+      api.detail = { ...api.detail, tableName: 'orders', storage: api.storage.tables[0] };
+
+      await mount();
+      (fixture.nativeElement.querySelector('button.inspect') as HTMLButtonElement).click();
+      await fixture.whenStable();
+
+      expect(fixture.nativeElement.querySelector('.tabs .tab.active')?.textContent?.trim()).toBe(
+        'Storage',
+      );
+      expect(api.lastArgs('getTableDetail')).toEqual(['demo', 'analytics', 'main', 'orders']);
+    });
   });
 
   describe('errors', () => {

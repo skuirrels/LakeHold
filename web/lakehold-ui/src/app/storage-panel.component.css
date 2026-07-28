@@ -17,28 +17,8 @@
   color: var(--info);
 }
 
-.files-panel {
-  border-top: 1px solid var(--border);
-  background: var(--surface-1);
-}
-
-.panel-head h3 {
-  font-family: var(--mono);
-}
-
-.files-sub {
-  color: var(--text-faint);
-  margin-left: 8px;
-}
-
-.files-root {
-  display: inline-block;
-  max-width: 52ch;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  vertical-align: bottom;
-  margin-left: 10px;
-  color: var(--text-faint);
-  font-size: 11px;
+.inspector-close {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 14px;
 }

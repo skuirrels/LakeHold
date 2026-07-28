@@ -53,6 +53,20 @@ test.describe('workbench user journeys', () => {
     await expect(page.getByText(/Rows|Files/).first()).toBeVisible();
   });
 
+  test('opens table detail and live column profiles from the catalog explorer', async ({ page }) => {
+    await page.getByLabel('Filter catalog objects').fill('events');
+    await page.getByRole('button', { name: 'Inspect events' }).click();
+
+    await expect(page.getByRole('button', { name: 'Storage' })).toHaveClass(/active/);
+    await expect(page.getByRole('heading', { name: /events/ })).toBeVisible();
+    await expect(page.getByText('Partition layout')).toBeVisible();
+
+    await page.getByRole('button', { name: 'Columns', exact: true }).click();
+    await expect(page.getByText(/live rows/)).toBeVisible();
+    await page.locator('.profiles button.cell-link').first().click();
+    await expect(page.getByRole('heading', { name: /distribution/ })).toBeVisible();
+  });
+
   test('keeps destructive maintenance as a cancellable dry run', async ({ page }) => {
     await page.getByRole('button', { name: 'Expire' }).click();
 

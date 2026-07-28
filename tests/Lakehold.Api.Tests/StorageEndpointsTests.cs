@@ -66,7 +66,9 @@ public sealed class StorageEndpointsTests : IAsyncLifetime
         // Large enough to be written to Parquet rather than inlined, then partly deleted so a delete
         // file exists to pair against in the file list.
         await Sql("CREATE TABLE filed AS SELECT i AS id FROM range(150000) t(i)");
+        await Sql("ALTER TABLE filed SET PARTITIONED BY (id)");
         await Sql("DELETE FROM filed WHERE id < 1000");
+        await Sql("CREATE VIEW filed_view AS SELECT id FROM filed");
 
         // Small enough to stay inlined: zero files, and therefore indistinguishable from an empty
         // table on the file figures alone. This is the row the flush advisory has to catch.
@@ -110,6 +112,20 @@ public sealed class StorageEndpointsTests : IAsyncLifetime
         var result = await LakehouseEndpoints.GetTableFilesAsync(
             "acme", "analytics", table, _service, default, "main", snapshot, limit);
         return Assert.IsType<Ok<TableFilesDto>>(Unwrap(result)).Value!;
+    }
+
+    private async Task<TableDetailDto> Detail(string table)
+    {
+        var result = await LakehouseEndpoints.GetTableDetailAsync(
+            "acme", "analytics", table, _service, _options, default);
+        return Assert.IsType<Ok<TableDetailDto>>(Unwrap(result)).Value!;
+    }
+
+    private async Task<TableProfileDto> Profile(string table, long? snapshot = null)
+    {
+        var result = await LakehouseEndpoints.GetTableProfileAsync(
+            "acme", "analytics", table, _service, default, "main", snapshot);
+        return Assert.IsType<Ok<TableProfileDto>>(Unwrap(result)).Value!;
     }
 
     [Fact]
@@ -320,5 +336,67 @@ public sealed class StorageEndpointsTests : IAsyncLifetime
 
         Assert.DoesNotContain(names, n => n.Contains("Key", StringComparison.OrdinalIgnoreCase));
         Assert.DoesNotContain(names, n => n.Contains("Encryption", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public async Task Table_detail_combines_schema_storage_and_partition_layout()
+    {
+        var detail = await Detail("filed");
+
+        Assert.Equal("BASE TABLE", detail.Kind);
+        Assert.Equal(149_000, detail.Storage?.RowCount);
+        Assert.Equal("id", Assert.Single(detail.Columns).Name);
+        var partition = Assert.Single(detail.PartitionSpecs, spec => spec.EndSnapshot is null);
+        Assert.Equal("identity", Assert.Single(partition.Keys).Transform);
+    }
+
+    [Fact]
+    public async Task A_view_detail_makes_no_physical_claim()
+    {
+        var detail = await Detail("filed_view");
+
+        Assert.Equal("VIEW", detail.Kind);
+        Assert.Null(detail.Storage);
+        Assert.Empty(detail.PartitionSpecs);
+    }
+
+    [Fact]
+    public async Task Table_profile_reports_live_rows_and_exact_null_counts()
+    {
+        await Sql("ALTER TABLE staging ADD COLUMN category VARCHAR");
+        await Sql("UPDATE staging SET category = CASE WHEN id = 1 THEN NULL ELSE 'kept' END");
+
+        var profile = await Profile("staging");
+
+        Assert.Equal(3, profile.RowCount);
+        var category = Assert.Single(profile.Columns, column => column.Name == "category");
+        Assert.Equal(1, category.NullCount);
+        Assert.Equal("kept", category.Minimum);
+    }
+
+    [Fact]
+    public async Task Column_distribution_is_bounded_by_the_endpoint()
+    {
+        var result = await LakehouseEndpoints.GetColumnDistributionAsync(
+            "acme", "analytics", "sharded", "id", _service, default, "main", null, int.MaxValue);
+        var distribution = Assert.IsType<Ok<ColumnDistributionDto>>(Unwrap(result)).Value!;
+
+        Assert.Equal("range", distribution.Kind);
+        Assert.InRange(distribution.Buckets.Count, 1, 50);
+        Assert.Equal(150_000, distribution.Buckets.Sum(bucket => bucket.Count));
+    }
+
+    [Fact]
+    public async Task Unknown_profile_objects_are_a_400_not_an_empty_profile()
+    {
+        Assert.IsType<BadRequest<string>>(Unwrap(
+            await LakehouseEndpoints.GetTableDetailAsync(
+                "acme", "analytics", "ghost", _service, _options, default)));
+        Assert.IsType<BadRequest<string>>(Unwrap(
+            await LakehouseEndpoints.GetTableProfileAsync(
+                "acme", "analytics", "ghost", _service, default)));
+        Assert.IsType<BadRequest<string>>(Unwrap(
+            await LakehouseEndpoints.GetColumnDistributionAsync(
+                "acme", "analytics", "filed", "ghost", _service, default)));
     }
 }

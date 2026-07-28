@@ -68,4 +68,14 @@ describe('CatalogExplorerComponent', () => {
 
     expect(emitted).toEqual(['SELECT *\nFROM main.orders\nLIMIT 100;']);
   });
+
+  it('emits an exact table reference for inspection', async () => {
+    await mount();
+    const emitted: { schemaName: string; tableName: string }[] = [];
+    fixture.componentInstance.inspectTable.subscribe((table) => emitted.push(table));
+
+    (fixture.nativeElement.querySelector('button.inspect') as HTMLButtonElement).click();
+
+    expect(emitted).toEqual([{ schemaName: 'main', tableName: 'orders' }]);
+  });
 });

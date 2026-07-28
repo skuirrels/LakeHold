@@ -1,0 +1,227 @@
+<section class="table-detail">
+  <header class="detail-head">
+    <div>
+      <p class="eyebrow">Table detail</p>
+      <h3>
+        <span class="schema-part">{{ table().schemaName }}.</span>{{ table().tableName }}
+        @if (detail()?.kind === 'VIEW') {
+          <span class="kind">view</span>
+        }
+      </h3>
+    </div>
+
+    @if (section() !== 'overview' && detail() && detail()?.kind !== 'VIEW') {
+      <label class="field snapshot-field">
+        <span>As of</span>
+        <select [value]="snapshot() ?? ''" (change)="selectSnapshot($any($event.target).value)">
+          <option value="">Current</option>
+          @for (item of snapshots(); track item.snapshotId) {
+            <option [value]="item.snapshotId">
+              Snapshot {{ item.snapshotId }} · {{ formatTime(item.committedAt) }}
+            </option>
+          }
+        </select>
+      </label>
+    }
+  </header>
+
+  <nav class="detail-tabs" aria-label="Table detail sections">
+    <button type="button" [class.active]="section() === 'overview'" (click)="showSection('overview')">
+      Overview
+    </button>
+    @if (detail(); as inspected) {
+      @if (inspected.kind !== 'VIEW') {
+        <button type="button" [class.active]="section() === 'files'" (click)="showSection('files')">
+          Files
+        </button>
+      }
+      <button type="button" [class.active]="section() === 'columns'" (click)="showSection('columns')">
+        Columns
+      </button>
+    }
+  </nav>
+
+  <lh-panel-error [title]="errorTitle()" [message]="error()" />
+
+  @if (detailLoading()) {
+    <p class="placeholder">Reading table detail…</p>
+  } @else if (detail(); as inspected) {
+    @switch (section()) {
+      @case ('overview') {
+        @if (inspected.storage; as storage) {
+          <div class="metric-grid">
+            <div><span>Rows</span><strong>{{ formatCount(storage.rowCount) }}</strong></div>
+            <div><span>Data size</span><strong>{{ formatBytes(storage.fileSizeBytes) }}</strong></div>
+            <div><span>Files</span><strong>{{ formatCount(storage.fileCount) }}</strong></div>
+            <div><span>Average file</span><strong>{{ formatBytes(storage.averageFileSizeBytes) }}</strong></div>
+            <div><span>Delete files</span><strong>{{ formatCount(storage.deleteFileCount) }}</strong></div>
+            <div><span>Inlined rows</span><strong>{{ formatCount(storage.inlinedRows) }}</strong></div>
+          </div>
+        } @else {
+          <p class="panel-note">This is a view. It has logical columns but owns no files or partition layout.</p>
+        }
+
+        <div class="overview-grid">
+          <section>
+            <h4>Schema</h4>
+            <table>
+              <thead><tr><th>Column</th><th>Type</th><th>Nullable</th></tr></thead>
+              <tbody>
+                @for (column of inspected.columns; track column.name) {
+                  <tr>
+                    <td class="mono">{{ column.name }}</td>
+                    <td class="mono muted">{{ column.dataType }}</td>
+                    <td>{{ column.isNullable ? 'Yes' : 'No' }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </section>
+
+          @if (inspected.kind !== 'VIEW') {
+            <section>
+              <h4>Partition layout</h4>
+              @if (currentPartition(); as partition) {
+                <p class="partition-expression">
+                  @for (key of partition.keys; track key.position; let last = $last) {
+                    <code>{{ partitionKey(key.transform, key.columnName) }}</code>{{ last ? '' : ', ' }}
+                  }
+                </p>
+                <p class="panel-note">Active since snapshot {{ partition.beginSnapshot }}.</p>
+              } @else {
+                <p class="placeholder compact">Unpartitioned.</p>
+              }
+
+              @if (inspected.partitionSpecs.length > 1) {
+                <details>
+                  <summary>Partition history</summary>
+                  <ul class="partition-history">
+                    @for (partition of inspected.partitionSpecs; track partition.partitionId) {
+                      <li>
+                        Snapshots {{ partition.beginSnapshot }}–{{ partition.endSnapshot ?? 'current' }}:
+                        @for (key of partition.keys; track key.position; let last = $last) {
+                          <code>{{ partitionKey(key.transform, key.columnName) }}</code>{{ last ? '' : ', ' }}
+                        }
+                      </li>
+                    }
+                  </ul>
+                </details>
+              }
+            </section>
+          }
+        </div>
+      }
+
+      @case ('files') {
+        @if (filesLoading()) {
+          <p class="placeholder">Reading file list…</p>
+        } @else if (files(); as list) {
+          @if (fileRoot(); as root) {
+            <p class="file-root" [title]="root">Files in {{ root }}</p>
+          }
+          @if (list.files.length === 0) {
+            <p class="placeholder">No Parquet files at this snapshot. Committed rows may still be inlined.</p>
+          } @else {
+            <table>
+              <thead>
+                <tr><th>Data file</th><th class="num">Size</th><th>Delete file</th><th class="num">Size</th></tr>
+              </thead>
+              <tbody>
+                @for (file of list.files; track file.dataFile) {
+                  <tr>
+                    <td class="path" [title]="file.dataFile">{{ fileName(file.dataFile) }}</td>
+                    <td class="num">{{ formatBytes(file.dataFileSizeBytes) }}</td>
+                    <td class="path">
+                      @if (file.deleteFile) {
+                        <span [title]="file.deleteFile">{{ fileName(file.deleteFile) }}</span>
+                      } @else {
+                        <span class="muted">—</span>
+                      }
+                    </td>
+                    <td class="num">{{ formatBytes(file.deleteFileSizeBytes) }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          }
+          @if (list.truncated) {
+            <p class="panel-note">More files exist than are shown.</p>
+          }
+        }
+      }
+
+      @case ('columns') {
+        @if (profileLoading()) {
+          <p class="placeholder">Computing live column statistics…</p>
+        } @else if (profile(); as tableProfile) {
+          <p class="panel-note">
+            {{ formatCount(tableProfile.rowCount) }} live rows.
+            Distinct counts and quartiles are approximate; null counts and min/max describe the selected snapshot.
+          </p>
+          <table class="profiles">
+            <thead>
+              <tr>
+                <th>Column</th><th>Type</th><th class="num">Nulls</th><th>Min</th><th>Max</th>
+                <th class="num">≈ distinct</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (column of tableProfile.columns; track column.name) {
+                <tr [class.selected]="selectedColumn()?.name === column.name">
+                  <td>
+                    <button class="cell-link" type="button" (click)="profileColumn(column)">
+                      {{ column.name }}
+                    </button>
+                  </td>
+                  <td class="mono muted">{{ column.dataType }}</td>
+                  <td class="num" [title]="formatCount(column.nullCount) + ' null values'">
+                    {{ nullPercentage(column) }}
+                  </td>
+                  <td class="profile-value">{{ column.minimum ?? '—' }}</td>
+                  <td class="profile-value">{{ column.maximum ?? '—' }}</td>
+                  <td class="num">{{ column.approxDistinct ?? '—' }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+
+          @if (selectedColumn(); as column) {
+            <section class="distribution">
+              <h4>{{ column.name }} distribution</h4>
+              <div class="stat-strip">
+                <span>Mean <strong>{{ column.mean ?? '—' }}</strong></span>
+                <span>Std dev <strong>{{ column.standardDeviation ?? '—' }}</strong></span>
+                <span>Q1 <strong>{{ column.firstQuartile ?? '—' }}</strong></span>
+                <span>Median <strong>{{ column.median ?? '—' }}</strong></span>
+                <span>Q3 <strong>{{ column.thirdQuartile ?? '—' }}</strong></span>
+              </div>
+
+              @if (distributionLoading()) {
+                <p class="placeholder compact">Computing distribution…</p>
+              } @else if (distribution(); as values) {
+                @if (values.kind === 'unsupported') {
+                  <p class="panel-note">A bounded distribution is not available for this complex type.</p>
+                } @else {
+                  <div class="bars">
+                    @for (bucket of values.buckets; track bucket.label) {
+                      <div class="bar-row">
+                        <span class="bar-label" [title]="bucket.label">{{ bucket.label }}</span>
+                        <span class="bar-track">
+                          <span class="bar-fill" [style.width.%]="barWidth(bucket.count)"></span>
+                        </span>
+                        <strong>{{ formatCount(bucket.count) }}</strong>
+                      </div>
+                    }
+                  </div>
+                  @if (values.truncated) {
+                    <p class="panel-note">Only the most frequent values are shown.</p>
+                  }
+                }
+              }
+            </section>
+          }
+        }
+      }
+    }
+  }
+</section>

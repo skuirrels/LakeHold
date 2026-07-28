@@ -295,8 +295,8 @@ readable by Spark, Trino, or Snowflake.
 | RBAC beyond tenancy | ✅ | ✅ | ✅ | ✅ | ⚠️ | ⚠️ owner/editor/reader per token |
 | Web SQL IDE | ✅ mature | ✅ | ✅ | ✅ | ❌ add Superset | ✅ Monaco, focused |
 | Catalog explorer | ✅ | ✅ | ✅ | ✅ | ⚠️ | ✅ |
-| Storage / table detail UI | ⚠️ | ✅ file count, size, layout | ✅ | ✅ | ⚠️ Iceberg tooling | ✅ files, sizes, advisories |
-| Column profiling UI | ✅ Column Explorer | ✅ | ✅ | ⚠️ | ❌ | ❌ deferred |
+| Storage / table detail UI | ⚠️ | ✅ file count, size, layout | ✅ | ✅ | ⚠️ Iceberg tooling | ✅ files, partitions, advisories |
+| Column profiling UI | ✅ Column Explorer | ✅ | ✅ | ⚠️ | ❌ | ✅ live profiles + bounded distributions |
 | Time travel / snapshots | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | CDC / change feeds | ⚠️ limited | ✅ CDF | ✅ streams | ⚠️ | ⚠️ | ✅ typed feed + webhooks |
 | CDC without a separate pipeline (no Debezium/Kafka) | ⚠️ | ❌ | ❌ | ❌ | ❌ | ✅ **unique** |
@@ -340,9 +340,9 @@ delete-file overhead, and a per-file list with an as-of snapshot selector — fr
 metadata rather than by listing the data path. It is the surface that makes the maintenance controls
 two rows above *decidable* rather than a guess, and the as-of selector is an answer the DuckDB-family
 tools cannot give because they have no snapshot to select. Its reasoning, and why a raw object
-browser is deliberately not built, are in [`UI.md`](UI.md). Column profiling is the one UI capability
-here that is deferred rather than declined; it is also the least differentiated, since MotherDuck and
-the DuckDB local UI both do it well.
+browser is deliberately not built, are in [`UI.md`](UI.md). The same inspector now profiles the
+logical rows visible through DuckLake — rather than treating physical file statistics as current
+truth — and renders bounded range or categorical distributions on demand.
 
 **Reading the matrix.** No competitor holds *all three* of {runs entirely in your infra, table data
 readable with no vendor catalog, .NET/EF Core model integration}. MotherDuck matches the format and

@@ -1,6 +1,8 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideZonelessChangeDetection } from '@angular/core';
+import { Subject } from 'rxjs';
 import { LakehouseService } from './lakehouse.service';
+import { CatalogStorage } from './models';
 import { StoragePanelComponent } from './storage-panel.component';
 import { FakeLakehouseService, tableStorage } from './test-doubles';
 
@@ -47,9 +49,67 @@ describe('StoragePanelComponent', () => {
     expect(api.lastArgs('getStorage')).toEqual(['demo', 'other']);
   });
 
+  it('ignores a late response from the catalog it has left', async () => {
+    const first = new Subject<CatalogStorage>();
+    const second = new Subject<CatalogStorage>();
+    let request = 0;
+    api.getStorage = (...args: unknown[]) => {
+      api.calls.push({ method: 'getStorage', args });
+      return request++ === 0 ? first : second;
+    };
+
+    await mount();
+    fixture.componentRef.setInput('catalog', 'other');
+    await fixture.whenStable();
+
+    second.next({
+      ...api.storage,
+      tables: [tableStorage({ tableName: 'current_catalog_table' })],
+    });
+    second.complete();
+    await fixture.whenStable();
+
+    first.next({
+      ...api.storage,
+      tables: [tableStorage({ tableName: 'stale_catalog_table' })],
+    });
+    first.complete();
+    await fixture.whenStable();
+
+    expect(text()).toContain('current_catalog_table');
+    expect(text()).not.toContain('stale_catalog_table');
+  });
+
   it('asks for nothing until it has a catalog', async () => {
     await mount('demo', null);
     expect(api.countOf('getStorage')).toBe(0);
+  });
+
+  it('can inspect a view even when the catalog owns no base-table storage', async () => {
+    api.storage = { ...api.storage, tables: [] };
+    api.detail = {
+      schemaName: 'main',
+      tableName: 'current_events',
+      kind: 'VIEW',
+      columns: [{ name: 'id', dataType: 'BIGINT', isNullable: true }],
+      storage: null,
+      partitionSpecs: [],
+      targetFileSizeBytes: null,
+      advisoryFileSizeBytes: 16_000_000,
+    };
+
+    fixture = TestBed.createComponent(StoragePanelComponent);
+    fixture.componentRef.setInput('tenant', 'demo');
+    fixture.componentRef.setInput('catalog', 'analytics');
+    fixture.componentRef.setInput('inspect', {
+      schemaName: 'main',
+      tableName: 'current_events',
+    });
+    await fixture.whenStable();
+
+    expect(text()).toContain('This catalog has no tables yet');
+    expect(fixture.nativeElement.querySelector('.table-detail')).toBeTruthy();
+    expect(text()).toContain('current_events');
   });
 
   describe('opening a table', () => {
@@ -72,7 +132,27 @@ describe('StoragePanelComponent', () => {
           },
         ],
       };
+      api.detail = {
+        schemaName: 'warm',
+        tableName: 'sessions',
+        kind: 'BASE TABLE',
+        columns: [{ name: 'id', dataType: 'BIGINT', isNullable: false }],
+        storage: api.storage.tables[0],
+        partitionSpecs: [],
+        targetFileSizeBytes: null,
+        advisoryFileSizeBytes: 16_000_000,
+      };
     });
+
+    async function openFiles() {
+      (fixture.nativeElement.querySelector('button.cell-link') as HTMLButtonElement).click();
+      await fixture.whenStable();
+      const files = [...fixture.nativeElement.querySelectorAll('.detail-tabs button')].find(
+        (button: Element) => button.textContent?.trim() === 'Files',
+      ) as HTMLButtonElement;
+      files.click();
+      await fixture.whenStable();
+    }
 
     /**
      * The regression this suite exists for.
@@ -91,22 +171,21 @@ describe('StoragePanelComponent', () => {
       open.click();
       await fixture.whenStable();
 
-      expect(fixture.nativeElement.querySelector('.files-panel')).toBeTruthy();
-      expect(text()).toContain('ducklake-a.parquet');
+      expect(fixture.nativeElement.querySelector('.table-detail')).toBeTruthy();
+      expect(text()).toContain('Overview');
     });
 
     it('loads the file list for the table that was clicked', async () => {
       await mount();
-      (fixture.nativeElement.querySelector('button.cell-link') as HTMLButtonElement).click();
-      await fixture.whenStable();
+      await openFiles();
 
       expect(api.lastArgs('getTableFiles')).toEqual(['demo', 'analytics', 'warm', 'sessions', null]);
+      expect(text()).toContain('ducklake-a.parquet');
     });
 
     it('loads snapshots so the as-of selector has something to offer', async () => {
       await mount();
-      (fixture.nativeElement.querySelector('button.cell-link') as HTMLButtonElement).click();
-      await fixture.whenStable();
+      await openFiles();
 
       expect(api.countOf('getSnapshots')).toBe(1);
     });
@@ -115,13 +194,13 @@ describe('StoragePanelComponent', () => {
       await mount();
       (fixture.nativeElement.querySelector('button.cell-link') as HTMLButtonElement).click();
       await fixture.whenStable();
-      expect(fixture.nativeElement.querySelector('.files-panel')).toBeTruthy();
+      expect(fixture.nativeElement.querySelector('.table-detail')).toBeTruthy();
 
       fixture.componentRef.setInput('catalog', 'other');
       await fixture.whenStable();
 
       // Leaving one catalog's files on screen under another catalog's name is a wrong readout.
-      expect(fixture.nativeElement.querySelector('.files-panel')).toBeFalsy();
+      expect(fixture.nativeElement.querySelector('.table-detail')).toBeFalsy();
     });
   });
 
@@ -214,10 +293,20 @@ describe('StoragePanelComponent', () => {
       // A snapshot predating the table is refused by the engine, and the message is worth showing —
       // but under its own heading, not the rollup's.
       api.storage = { ...api.storage, tables: [tableStorage()] };
+      api.detail = {
+        ...api.detail,
+        tableName: 'events',
+        storage: api.storage.tables[0],
+      };
       await mount();
 
       api.failures.set('getTableFiles', 'does not exist at version 0');
       (fixture.nativeElement.querySelector('button.cell-link') as HTMLButtonElement).click();
+      await fixture.whenStable();
+      const files = [...fixture.nativeElement.querySelectorAll('.detail-tabs button')].find(
+        (button: Element) => button.textContent?.trim() === 'Files',
+      ) as HTMLButtonElement;
+      files.click();
       await fixture.whenStable();
 
       expect(text()).toContain('Could not list files');

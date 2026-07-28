@@ -76,85 +76,6 @@
     </tbody>
   </table>
 
-  @if (selectedTable(); as table) {
-    <section class="files-panel">
-      <header class="panel-head">
-        <h3>
-          <span class="schema-part">{{ table.schemaName }}.</span>{{ table.tableName }}
-          <span class="files-sub">data files</span>
-          @if (fileRoot(); as root) {
-            <span class="files-root" [title]="root">in {{ root }}</span>
-          }
-        </h3>
-
-        <label class="field">
-          <span>As of</span>
-          <select [value]="fileSnapshot() ?? ''" (change)="selectFileSnapshot($any($event.target).value)">
-            <option value="">Current</option>
-            @for (snapshot of snapshots(); track snapshot.snapshotId) {
-              <option [value]="snapshot.snapshotId">
-                Snapshot {{ snapshot.snapshotId }} · {{ formatTime(snapshot.committedAt) }}
-              </option>
-            }
-          </select>
-        </label>
-
-        <button type="button" class="btn" (click)="closeTable()">Close</button>
-      </header>
-
-      @if (filesLoading()) {
-        <p class="placeholder">Reading file list…</p>
-      } @else if (files(); as list) {
-        @if (list.files.length === 0) {
-          <p class="placeholder">
-            No Parquet files at this snapshot. Rows committed since the last flush live in the metadata
-            catalog until they are written out.
-          </p>
-        } @else {
-          <table>
-            <thead>
-              <tr>
-                <th scope="col">Data file</th>
-                <th scope="col" class="num">Size</th>
-                <th scope="col">Delete file</th>
-                <th scope="col" class="num">Size</th>
-              </tr>
-            </thead>
-            <tbody>
-              @for (file of list.files; track file.dataFile) {
-                <tr>
-                  <td class="path" [title]="file.dataFile">{{ fileName(file.dataFile) }}</td>
-                  <td class="num">{{ formatBytes(file.dataFileSizeBytes) }}</td>
-                  <td class="path">
-                    @if (file.deleteFile) {
-                      <span [title]="file.deleteFile">{{ fileName(file.deleteFile) }}</span>
-                    } @else {
-                      <span class="muted">—</span>
-                    }
-                  </td>
-                  <td class="num">
-                    @if (file.deleteFileSizeBytes !== null) {
-                      {{ formatBytes(file.deleteFileSizeBytes) }}
-                    } @else {
-                      <span class="muted">—</span>
-                    }
-                  </td>
-                </tr>
-              }
-            </tbody>
-          </table>
-
-          @if (list.truncated) {
-            <p class="panel-note">
-              More files exist than are shown. This table is large enough that its file list is itself
-              worth compacting.
-            </p>
-          }
-        }
-      }
-    </section>
-  }
-
   <p class="panel-note">
     Sizes and file counts come from the catalog, not from listing the data path — files the catalog no
     longer references are cleanup's business, not the table's.
@@ -166,4 +87,15 @@
       advisory floor of {{ formatBytes(storage()!.advisoryFileSizeBytes) }}.
     }
   </p>
+}
+
+@if (selectedTable(); as table) {
+  <div class="inspector-close">
+    <button type="button" class="btn" (click)="closeTable()">Close table detail</button>
+  </div>
+  <lh-table-detail
+    [tenant]="tenant()!"
+    [catalog]="catalog()!"
+    [table]="table"
+  />
 }

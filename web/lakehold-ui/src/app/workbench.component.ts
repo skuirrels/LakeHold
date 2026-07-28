@@ -25,6 +25,7 @@ import {
   QueryRun,
   Schema,
   Snapshot,
+  TableReference,
   Tenant,
 } from './models';
 import { ResultGridComponent } from './result-grid.component';
@@ -110,6 +111,7 @@ export class WorkbenchComponent {
   protected readonly pendingApply = signal<MaintenanceOperation | null>(null);
   protected readonly snapshots = signal<Snapshot[]>([]);
   protected readonly tab = signal<BottomTab>('results');
+  protected readonly inspectedTable = signal<TableReference | null>(null);
 
   /**
    * First-run state, and the reason the workbench is not a SQL IDE yet.
@@ -340,6 +342,7 @@ export class WorkbenchComponent {
   protected selectTenant(slug: string): void {
     this.tenantSlug.set(slug);
     this.catalogName.set(this.catalogs()[0]?.name ?? null);
+    this.inspectedTable.set(null);
     this.refreshCatalog();
     this.refreshHistory();
   }
@@ -353,6 +356,7 @@ export class WorkbenchComponent {
    */
   protected selectCatalog(name: string): void {
     this.catalogName.set(name);
+    this.inspectedTable.set(null);
     this.refreshCatalog();
     if (this.tab() === 'snapshots') {
       this.refreshSnapshots();
@@ -413,6 +417,12 @@ export class WorkbenchComponent {
 
   protected insertSql(snippet: string): void {
     this.sql.set(snippet);
+  }
+
+  protected inspectTable(table: TableReference): void {
+    this.inspectedTable.set(table);
+    this.tab.set('storage');
+    this.error.set(null);
   }
 
   /**
