@@ -40,7 +40,7 @@ public sealed class SavedQueryServiceTests : IAsyncLifetime
         await _context.Database.EnsureCreatedAsync();
 
         _pool = new DucklingPool(_options, NullLoggerFactory.Instance);
-        _lakehouse = new LakehouseService(_context, _pool, new CatalogCache(), _options);
+        _lakehouse = new LakehouseService(_context, _pool, _options);
         _savedQueries = new SavedQueryService(_context, _lakehouse, TimeProvider.System);
 
         await AdminEndpoints.CreateTenantAsync(

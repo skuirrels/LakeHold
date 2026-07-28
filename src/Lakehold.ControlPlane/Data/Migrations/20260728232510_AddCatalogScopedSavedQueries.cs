@@ -8,6 +8,9 @@ namespace Lakehold.ControlPlane.Data.Migrations
     /// <inheritdoc />
     public partial class AddCatalogScopedSavedQueries : Migration
     {
+        private static readonly string[] CatalogNameColumns = ["CatalogId", "Name"];
+        private static readonly string[] TenantNameColumns = ["TenantId", "Name"];
+
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
@@ -76,7 +79,7 @@ namespace Lakehold.ControlPlane.Data.Migrations
             migrationBuilder.CreateIndex(
                 name: "IX_SavedQueries_CatalogId_Name",
                 table: "SavedQueries",
-                columns: new[] { "CatalogId", "Name" },
+                columns: CatalogNameColumns,
                 unique: true);
 
             migrationBuilder.CreateIndex(
@@ -147,7 +150,7 @@ namespace Lakehold.ControlPlane.Data.Migrations
             migrationBuilder.CreateIndex(
                 name: "IX_SavedQueries_TenantId_Name",
                 table: "SavedQueries",
-                columns: new[] { "TenantId", "Name" },
+                columns: TenantNameColumns,
                 unique: true);
         }
     }
