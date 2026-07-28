@@ -38,7 +38,9 @@ public sealed class CatalogBackupRoundTripTests : IAsyncLifetime
             "testlake",
             CatalogMetadataKind.LocalFile,
             Path.Combine(_root, "test.ducklake"),
-            Path.Combine(_root, "data"));
+            Path.Combine(_root, "data"),
+            TenantKey: "acme",
+            CatalogId: 1);
 
         Directory.CreateDirectory(_catalog.DataPath);
         _pool = new DucklingPool(Options.Create(_options), NullLoggerFactory.Instance);
@@ -75,6 +77,10 @@ public sealed class CatalogBackupRoundTripTests : IAsyncLifetime
         Assert.False(
             result.Location.StartsWith(_catalog.DataPath, StringComparison.Ordinal),
             $"backup at '{result.Location}' must not live under the data path '{_catalog.DataPath}'");
+        Assert.StartsWith(
+            Path.Combine(_options.BackupRoot, _catalog.TenantKey, _catalog.CatalogName),
+            result.Location,
+            StringComparison.Ordinal);
         Assert.True(result.TableCount > 0);
     }
 
@@ -87,7 +93,7 @@ public sealed class CatalogBackupRoundTripTests : IAsyncLifetime
         Assert.True(File.Exists(manifestPath), "the completion manifest must exist");
 
         var generations = await CatalogRestore.ListGenerationsAsync(
-            _options, _catalog.CatalogName, configure: null, CancellationToken.None);
+            _options, _catalog.TenantKey, _catalog.CatalogName, configure: null, CancellationToken.None);
         var generation = Assert.Single(generations);
         Assert.True(generation.IsComplete);
         Assert.Equal(result.TableCount, generation.Manifest!.Tables.Count);
@@ -108,7 +114,13 @@ public sealed class CatalogBackupRoundTripTests : IAsyncLifetime
 
         var target = Path.Combine(_root, "restored.ducklake");
         var restore = await CatalogRestore.RestoreAsync(
-            _options, _catalog.CatalogName, generation: null, target, _catalog.DataPath, CancellationToken.None);
+            _options,
+            _catalog.CatalogName,
+            generation: null,
+            target,
+            _catalog.DataPath,
+            CancellationToken.None,
+            tenantKey: _catalog.TenantKey);
 
         Assert.True(restore.TablesRestored > 0);
         Assert.True(File.Exists(target));
@@ -140,7 +152,8 @@ public sealed class CatalogBackupRoundTripTests : IAsyncLifetime
 
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => CatalogRestore.RestoreAsync(
             _options, _catalog.CatalogName, result.Location.Split(Path.DirectorySeparatorChar)[^1],
-            Path.Combine(_root, "nope.ducklake"), _catalog.DataPath, CancellationToken.None));
+            Path.Combine(_root, "nope.ducklake"), _catalog.DataPath, CancellationToken.None,
+            tenantKey: _catalog.TenantKey));
 
         Assert.Contains("incomplete", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
@@ -152,7 +165,8 @@ public sealed class CatalogBackupRoundTripTests : IAsyncLifetime
 
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => CatalogRestore.RestoreAsync(
             _options, _catalog.CatalogName, generation: null,
-            _catalog.MetadataSource, _catalog.DataPath, CancellationToken.None));
+            _catalog.MetadataSource, _catalog.DataPath, CancellationToken.None,
+            tenantKey: _catalog.TenantKey));
 
         Assert.Contains("already exists", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
@@ -173,7 +187,7 @@ public sealed class CatalogBackupRoundTripTests : IAsyncLifetime
         }
 
         var generations = await CatalogRestore.ListGenerationsAsync(
-            _options, _catalog.CatalogName, configure: null, CancellationToken.None);
+            _options, _catalog.TenantKey, _catalog.CatalogName, configure: null, CancellationToken.None);
         Assert.Equal(2, generations.Count);
     }
 

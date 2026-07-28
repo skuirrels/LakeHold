@@ -103,7 +103,8 @@ public static class CatalogBackup
 
     /// <summary>
     ///     Writes every table of the catalog's metadata database to Parquet under
-    ///     <c>&lt;BackupRoot&gt;/&lt;catalog&gt;/&lt;timestamp&gt;/</c>, then prunes old generations.
+    ///     <c>&lt;BackupRoot&gt;/&lt;tenant&gt;/&lt;catalog&gt;/&lt;timestamp&gt;/</c>, then prunes
+    ///     old generations.
     /// </summary>
     /// <remarks>
     ///     <para>
@@ -137,7 +138,7 @@ public static class CatalogBackup
         // corruption you are recovering from turns a recoverable incident into an unrecoverable one.
         var now = timeProvider.GetUtcNow();
         var stamp = now.ToString("yyyyMMdd'T'HHmmss'Z'", CultureInfo.InvariantCulture);
-        var catalogRoot = StorageLocation.Combine(options.BackupRoot, catalog.CatalogName);
+        var catalogRoot = CatalogStorageNamespace.Under(options.BackupRoot, catalog);
         var destination = StorageLocation.Combine(catalogRoot, stamp);
         StorageLocation.EnsureDirectory(destination);
 

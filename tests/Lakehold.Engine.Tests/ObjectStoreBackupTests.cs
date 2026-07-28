@@ -65,7 +65,9 @@ public sealed class ObjectStoreBackupTests : IAsyncLifetime
             "s3lake",
             CatalogMetadataKind.LocalFile,
             Path.Combine(_root, "s3test.ducklake"),
-            Path.Combine(_root, "data"));
+            Path.Combine(_root, "data"),
+            TenantKey: "acme",
+            CatalogId: 1);
 
         Directory.CreateDirectory(_catalog.DataPath);
         _pool = new DucklingPool(Options.Create(_options), NullLoggerFactory.Instance);
@@ -113,6 +115,7 @@ public sealed class ObjectStoreBackupTests : IAsyncLifetime
             CancellationToken.None);
 
         Assert.StartsWith("s3://", backup.Location, StringComparison.Ordinal);
+        Assert.Contains("/acme/s3lake/", backup.Location, StringComparison.Ordinal);
         Assert.True(backup.TableCount > 0);
 
         // Size needs a listing request on an object store, so it is reported as unknown rather than
@@ -121,7 +124,7 @@ public sealed class ObjectStoreBackupTests : IAsyncLifetime
 
         // Listing a bucket means globbing keys, not enumerating directories.
         var generations = await CatalogRestore.ListGenerationsAsync(
-            _options, _catalog.CatalogName, CreateSecret, CancellationToken.None);
+            _options, _catalog.TenantKey, _catalog.CatalogName, CreateSecret, CancellationToken.None);
 
         var generation = Assert.Single(generations);
         Assert.True(generation.IsComplete, "the manifest must be readable back out of the bucket");
@@ -134,7 +137,7 @@ public sealed class ObjectStoreBackupTests : IAsyncLifetime
         var target = Path.Combine(_root, "restored-from-s3.ducklake");
         var restore = await CatalogRestore.RestoreAsync(
             _options, _catalog.CatalogName, generation: null, target, _catalog.DataPath,
-            CancellationToken.None, CreateSecret);
+            CancellationToken.None, CreateSecret, tenantKey: _catalog.TenantKey);
 
         Assert.Equal(generation.Manifest.Tables.Count, restore.TablesRestored);
 

@@ -38,8 +38,8 @@ import { BrandMarkComponent } from './brand-mark.component';
         <span class="eyebrow">Open-source lakehouse · DuckDB + DuckLake · .NET</span>
         <h1>A feature-rich lakehouse.<br />You host it yourself.</h1>
         <p class="lede">
-          Time travel, change data capture, a PostgreSQL wire endpoint, and native&nbsp;.NET — on
-          <em>your</em> infrastructure, storing every byte as open Parquet you can read without us.
+          PostgreSQL control and metadata, in-process DuckDB compute, and open Parquet on local
+          files, S3, GCS, or Azure — all on <em>your</em> infrastructure.
         </p>
         <div class="cta">
           <a class="btn btn-primary lg" routerLink="/workbench">Open the workbench</a>
@@ -251,6 +251,13 @@ export class LandingComponent {
       body: 'Flush, backup, and compact run on cron schedules you control, with recent runs and their timings readable over the API. Where a catalog can genuinely be shared between nodes, a lease stops every node running the same sweep.',
       caveat:
         'Snapshot expiry and orphan cleanup are deliberately not scheduled. They are irreversible, so they stay manual and dry-run by default.',
+    },
+    {
+      tag: 'Architecture',
+      title: 'PostgreSQL-first control and catalog metadata',
+      body: 'Tenants, tokens, catalog definitions, subscriptions, and audit history now live in a migrated PostgreSQL control plane. New DuckLake catalogs receive isolated PostgreSQL metadata schemas, while Parquet independently targets local files, S3/S3-compatible storage, GCS, or Azure Blob/ADLS. Credentials remain deployment secrets and are injected only into a worker’s temporary DuckDB session.',
+      caveat:
+        'DuckDB is still the in-process query engine. Nodes scale tenant and request concurrency; one query is not distributed across a cluster, and local Parquet remains a single-node/shared-filesystem choice.',
     },
   ];
 

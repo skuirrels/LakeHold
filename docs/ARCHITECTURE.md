@@ -4,9 +4,10 @@
 
 LakeHold is an open-source lakehouse platform: a tenant-aware query service, catalog, and web IDE
 built on **DuckDB** (the engine) and **DuckLake** (the open table format), with a .NET backend and an
-Angular frontend. Tenant-scoped identity exists today, but the node-local session and artifact layout
-is not yet safe for shared adversarial multi-tenancy when tenants reuse a catalog name; the release
-profile and required isolation work are explicit in
+Angular frontend. PostgreSQL holds the shared control plane and each new DuckLake metadata schema.
+DuckDB remains an in-process worker engine: nodes scale request and tenant concurrency, while a
+single query remains node-bound rather than becoming distributed SQL. Remaining shared-artifact and
+background-job isolation work is explicit in
 [`PRODUCTION-READINESS-ROADMAP.md`](PRODUCTION-READINESS-ROADMAP.md).
 
 It is the self-hostable answer to MotherDuck.
@@ -26,8 +27,8 @@ theirs. That is disqualifying for regulated industries, data-residency requireme
 whose security review asks "where does the data live?"
 
 LakeHold deploys into your environment — laptop, single VM, Kubernetes, or an air-gapped network.
-The default deployment stores data in your own object store (BYOB is the *only* mode, not a paid
-add-on). There is no vendor-hosted control plane in the loop.
+Parquet can live on local/shared filesystems or in S3, GCS, and Azure object storage. Object storage
+is the recommended multi-node mode, not a paid add-on. There is no vendor-hosted control plane.
 
 ### 2. Open format, no lock-in
 
@@ -123,27 +124,42 @@ provider:
 │  CONTROL PLANE          │   │  DATA PLANE               │
 │  Lakehold.ControlPlane │   │  Lakehold.Engine         │
 │                         │   │                           │
-│  ControlPlaneContext    │   │  LakeContext              │
-│  (EF model, migrations) │   │  (model-less, dynamic SQL)│
+│  PostgreSQL + EF        │   │  DuckDB + DuckLake        │
+│  (model + migrations)   │   │  (model-less, dynamic SQL)│
 │                         │   │                           │
 │  tenants, catalogs,     │   │  Duckling sessions,       │
 │  saved queries, history,│   │  arbitrary user SQL,      │
 │  tokens, audit          │   │  schema introspection,    │
 │                         │   │  maintenance jobs         │
 └─────────────────────────┘   └───────────────────────────┘
-        both on DuckDB.EFCoreProvider 1.14.0
+       shared durable state       in-process compute
 ```
 
-### Both planes, one provider
+### PostgreSQL control, DuckDB compute
 
-The split is by *model*, not by dependency. Both planes run on
-[`DuckDB.EFCoreProvider`](https://github.com/skuirrels/DuckDB.EFCoreProvider) 1.14.0:
+The split is explicit:
 
-- **Control plane** — a known EF model with migrations, relationships, and change tracking. Native
-  DuckDB storage, because it needs sequences and `RETURNING`, which DuckLake does not provide.
+- **Control plane** — PostgreSQL through EF Core migrations: tenants, catalog definitions, token
+  hashes, subscriptions, and audit history. Startup fails closed without
+  `ConnectionStrings:ControlPlane`; migrations are serialised with a PostgreSQL advisory lock.
+- **DuckLake metadata** — PostgreSQL by default, with one deterministic schema per tenant catalog.
+  Credentials are resolved from `ConnectionStrings:DuckLakeMetadata` into temporary DuckDB secrets.
+  The PostgreSQL credential and DuckLake profile are removed immediately after attach, before tenant
+  SQL can inspect or reuse them. Trusted metadata export and lease operations recreate the
+  PostgreSQL secret only while holding that Duckling's exclusive gate, then remove it again.
 - **Data plane** — a **model-less** `DbContext` (`LakeContext`) over `UseDuckLake`, serving
   arbitrary SQL through the provider's streaming `SqlQueryDynamicRawAsync`. No `DbSet`, no change
   tracker, no LINQ pipeline: those exist for known schemas, and this one is discovered at runtime.
+
+Native DuckDB control-plane files are a legacy import source and a fast isolated test adapter, not
+a production fallback. Local Parquet is still supported; it qualifies the deployment as
+single-node unless the path is on a genuinely shared filesystem.
+
+All generated durable paths are tenant-qualified:
+`<root>/<tenant-key>/<catalog>/...`. This applies to local and remote data, backup generations, and
+eject bundles. Catalog names are unique only inside a tenant, so the tenant key is part of both the
+storage namespace and the warm-session identity. Object-storage secrets are scoped to those exact
+data, backup, or eject prefixes.
 
 This was not the original design. Against provider 1.12.0 the data plane used raw `DuckDB.NET`,
 because EF Core required a CLR type per result shape and a lakehouse has none to offer. Provider

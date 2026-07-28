@@ -56,12 +56,19 @@ public sealed class StorageEndpointsTests : IAsyncLifetime
         await _context.Database.EnsureCreatedAsync();
 
         _pool = new DucklingPool(_options, NullLoggerFactory.Instance);
-        _service = new LakehouseService(_context, _pool, new CatalogCache(), _options);
+        _service = new LakehouseService(_context, _pool, _options);
 
         await AdminEndpoints.CreateTenantAsync(
             new CreateTenantRequest("acme", "Acme"), _context, TimeProvider.System, default);
         await AdminEndpoints.CreateCatalogAsync(
             "acme", new CreateCatalogRequest("analytics"), _context, _options, TimeProvider.System, default);
+        var catalog = await _context.Catalogs.SingleAsync();
+        Directory.CreateDirectory(_options.Value.MetadataRoot);
+        catalog.MetadataKind = CatalogMetadataKind.LocalFile;
+        catalog.MetadataSource = Path.Combine(_options.Value.MetadataRoot, "analytics.ducklake");
+        catalog.MetadataSchema = null;
+        catalog.MetadataSecretName = null;
+        await _context.SaveChangesAsync();
 
         // Large enough to be written to Parquet rather than inlined, then partly deleted so a delete
         // file exists to pair against in the file list.

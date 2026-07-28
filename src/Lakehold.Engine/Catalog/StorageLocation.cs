@@ -29,6 +29,26 @@ public static class StorageLocation
         => location is not null
            && RemoteSchemes.Any(s => location.StartsWith(s, StringComparison.OrdinalIgnoreCase));
 
+    /// <summary>Classifies a local or supported Parquet location.</summary>
+    public static ParquetStorageKind? KindOf(string location)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(location);
+
+        if (!Uri.TryCreate(location, UriKind.Absolute, out var uri))
+        {
+            return ParquetStorageKind.Local;
+        }
+
+        return uri.Scheme.ToLowerInvariant() switch
+        {
+            "file" => ParquetStorageKind.Local,
+            "s3" => ParquetStorageKind.S3,
+            "gs" or "gcs" => ParquetStorageKind.Gcs,
+            "az" or "azure" or "abfss" => ParquetStorageKind.Azure,
+            _ => null,
+        };
+    }
+
     /// <summary>
     ///     Appends <paramref name="segments"/> to <paramref name="root"/>, preserving URI form.
     /// </summary>
