@@ -159,12 +159,12 @@ Verified against ground truth on the scenario above:
   without the catalog, so a rebuild can include data that was logically replaced.
 - **Views, comments, tags, and column rename history.**
 
-### Better: back the catalog up *into the bucket*, as Parquet
+### Better: back the catalog up to a separate backup root, as Parquet
 
 Everything above describes recovering table contents from data files alone. There is a far better
-option, and LakeHold ships it: **export the metadata catalog to Parquet next to the data it
-describes.** The bucket then holds everything needed to reconstitute the lakehouse, with no separate
-backup system involved — which is the point of bring-your-own-bucket.
+option, and LakeHold ships it: **export the metadata catalog to Parquet in complete, timestamped
+generations.** A complete generation can rebuild the DuckLake catalog against surviving table data,
+including deletions and snapshot history.
 
 Press **Backup** in the workbench toolbar, or:
 
@@ -172,18 +172,29 @@ Press **Backup** in the workbench toolbar, or:
 POST /api/tenants/{tenant}/catalogs/{catalog}/maintenance/backup
 ```
 
-It writes every metadata table under `<data path>/_catalog_backup/<UTC timestamp>/`:
+It writes every metadata table under `<backup root>/<catalog>/<UTC timestamp>/` and writes
+`manifest.json` last:
 
 ```
-.lakehold/data/analytics/
-├── main/                      3.3 MB   table data
-└── _catalog_backup/
-    └── 20260720T180738Z/      120 KB   30 metadata tables as Parquet
+.lakehold/
+├── data/analytics/                         table data
+└── backups/analytics/
+    └── 20260720T180738Z/
+        ├── ducklake_snapshot.parquet
+        ├── ducklake_data_file.parquet
+        ├── …
+        └── manifest.json                   completion marker, written last
 ```
 
 Timestamped, so each run keeps a generation rather than overwriting the last known-good backup.
 The export is proportional to the number of files and snapshots, not to row count — on the demo
 catalog it is ~3.6% of data size, and that ratio falls as data grows.
+
+The packaged API currently resolves the backup root beneath `Lakehouse:StateRoot`, which puts these
+generations on the same production state volume as local catalog metadata and data. That protects
+against loss of one metadata file, not loss of the host or volume. Follow the
+[disaster-recovery runbook](runbooks/DISASTER-RECOVERY.md) to export consistent full-state archives
+off-host and validate them through restore drills.
 
 ### Restoring from a Parquet catalog backup
 
@@ -251,11 +262,16 @@ Two mechanical notes:
 - The maintenance lease lives in its own `lakehold` schema rather than in `public`, so it cannot
   collide with a DuckLake migration and never rides along into a backup.
 
-### Backups in an object store: read the retention caveat
+### Object-store backup roots: engine support and host limitation
 
-The backup root can be an `s3://` prefix, and listing and restoring from a bucket both work
-(verified against an S3-compatible endpoint). **Retention does not.** DuckDB can read and write
-object stores but cannot delete from them, so a remote backup root grows without bound.
+The engine can use an `s3://` backup prefix, and listing and restoring from a bucket both work
+(verified against an S3-compatible endpoint). The packaged API host does not yet preserve a
+separately bound backup root: its post-configuration resolves all roots beneath the state root. That
+gap is tracked in Phase 5 of the [production-readiness roadmap](PRODUCTION-READINESS-ROADMAP.md).
+
+For a custom host that wires the engine to an object-store backup root, **retention still does not
+run inside LakeHold.** DuckDB can read and write object stores but cannot delete from them, so a
+remote backup root grows without bound.
 
 The backup reports this rather than passing over it in silence — the result carries
 `RetentionDeferred`, and the maintenance detail reads *"retention deferred (object stores need a

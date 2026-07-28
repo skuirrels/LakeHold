@@ -7,6 +7,11 @@ node-local session and artifact layout is for trusted evaluation or a one-tenant
 not shared adversarial multi-tenancy when tenants reuse a catalog name. See the
 [production-readiness roadmap](https://github.com/skuirrels/LakeHold/blob/main/docs/PRODUCTION-READINESS-ROADMAP.md).
 
+Running a production node is a separate discipline from learning the features. Operators should
+start with the [operations hub](https://lakehold.dev/docs/operations),
+then assign and test the linked incident-response, disaster-recovery, and monitoring runbooks before
+accepting traffic.
+
 This one file is the single source for both the in-app `/docs` page and the copy read on GitHub.
 
 ---
@@ -197,7 +202,7 @@ Five one-click operations:
 |---|---|---|
 | **Flush** | Writes inlined commits out as Parquet. | No |
 | **Compact** | Merges small Parquet files. | No |
-| **Backup** | Exports the metadata catalog to Parquet beside the data. | No |
+| **Backup** | Exports the metadata catalog to Parquet under the backup root. | No |
 | **Expire** | Drops snapshots older than seven days. | **Yes — dry-run by default** |
 | **Cleanup** | Deletes data files no longer referenced by any snapshot. | **Yes — dry-run by default** |
 
@@ -448,8 +453,14 @@ signature when a key is configured.
 
 The metadata catalog is exported to Parquet on a schedule and can rebuild a working catalog from that
 export — row counts, deletions, updated values, views, and `AT (VERSION => n)` time travel all
-intact. The backup root can be an `s3://` prefix. A catalog whose metadata lives in PostgreSQL
-restores into a plain DuckDB file, so it is an exit path from the catalog database, not just a copy.
+intact. A catalog whose metadata lives in PostgreSQL restores into a plain DuckDB file, so it is an
+exit path from the catalog database, not just a copy.
+
+The engine supports an `s3://` backup root, but the packaged API currently resolves the backup root
+beneath `Lakehouse:StateRoot`; in the production Compose stack that is the same state volume as the
+catalog. A catalog backup is therefore not protection from losing the whole volume. Export a
+consistent state archive off-host and follow the
+[disaster-recovery runbook](https://lakehold.dev/docs/disaster-recovery).
 
 A relative target path is resolved against the server's metadata root, so a bare file name lands
 beside the catalogs it belongs with; an absolute path is used as given, and the response reports the
@@ -632,6 +643,7 @@ The design docs go deeper than this guide.
 
 | Document | Covers |
 |---|---|
+| [Operations](https://lakehold.dev/docs/operations) | Production ownership, entry gates, routine work, and the incident, disaster-recovery, and monitoring runbooks. |
 | [`docs/ARCHITECTURE.md`](https://github.com/skuirrels/LakeHold/blob/main/docs/ARCHITECTURE.md) | Architectural rationale and current product boundaries. |
 | [`docs/EXIT-PATH.md`](https://github.com/skuirrels/LakeHold/blob/main/docs/EXIT-PATH.md) | The verified open-format exit procedure that eject automates. |
 | [`docs/POSTGRES-WIRE.md`](https://github.com/skuirrels/LakeHold/blob/main/docs/POSTGRES-WIRE.md) | The wire protocol surface and what is deliberately unimplemented. |

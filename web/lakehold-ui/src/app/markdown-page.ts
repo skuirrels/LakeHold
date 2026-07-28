@@ -1,10 +1,4 @@
-import {
-  afterNextRender,
-  DestroyRef,
-  ElementRef,
-  inject,
-  signal,
-} from '@angular/core';
+import { afterNextRender, DestroyRef, ElementRef, inject, signal } from '@angular/core';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { ActivatedRoute } from '@angular/router';
 import { Marked, Renderer } from 'marked';
@@ -20,18 +14,97 @@ export interface NavSection extends NavLink {
   children: NavLink[];
 }
 
+/** Context needed to turn repository-relative Markdown links into deployable site links. */
+export interface MarkdownPageOptions {
+  /**
+   * Directory containing the source document, relative to the repository root.
+   *
+   * When set, links to the four published operational documents become native site routes. Other
+   * relative Markdown links keep working by resolving to their source on GitHub instead of becoming
+   * broken paths relative to the deployed page.
+   */
+  repositoryDirectory?: string;
+}
+
+const repositoryDocumentUrl = 'https://github.com/skuirrels/LakeHold/blob/main';
+
+const nativeDocumentRoutes = new Map<string, string>([
+  ['OPERATIONS.md', '/docs/operations'],
+  ['INCIDENT-RESPONSE.md', '/docs/incident-response'],
+  ['DISASTER-RECOVERY.md', '/docs/disaster-recovery'],
+  ['MONITORING-AND-ALERTING.md', '/docs/monitoring'],
+]);
+
+/** Resolves `.` and `..` without pulling Node's path module into the browser bundle. */
+function resolveRepositoryPath(directory: string, target: string): string {
+  const resolved: string[] = [];
+  for (const part of `${directory}/${target}`.split('/')) {
+    if (!part || part === '.') {
+      continue;
+    }
+    if (part === '..') {
+      resolved.pop();
+    } else {
+      resolved.push(part);
+    }
+  }
+  return resolved.join('/');
+}
+
+/**
+ * Maps a repository Markdown link to either its native documentation route or its GitHub source.
+ * External URLs, fragments, and non-Markdown assets pass through unchanged.
+ */
+export function resolveMarkdownHref(href: string, repositoryDirectory?: string): string {
+  const canonicalDocumentationOrigin = 'https://lakehold.dev';
+  if (href.startsWith(`${canonicalDocumentationOrigin}/docs/`)) {
+    return href.slice(canonicalDocumentationOrigin.length);
+  }
+
+  if (
+    !repositoryDirectory ||
+    href.startsWith('#') ||
+    /^[a-z][a-z0-9+.-]*:/i.test(href) ||
+    href.startsWith('//')
+  ) {
+    return href;
+  }
+
+  const hashAt = href.indexOf('#');
+  const target = hashAt === -1 ? href : href.slice(0, hashAt);
+  const fragment = hashAt === -1 ? '' : href.slice(hashAt);
+  if (!target.toLowerCase().endsWith('.md')) {
+    return href;
+  }
+
+  const fileName = target.split('/').at(-1) ?? target;
+  const nativeRoute = nativeDocumentRoutes.get(fileName);
+  if (nativeRoute) {
+    return `${nativeRoute}${fragment}`;
+  }
+
+  return `${repositoryDocumentUrl}/${resolveRepositoryPath(repositoryDirectory, target)}${fragment}`;
+}
+
 /**
  * Renders a Markdown document once, assigning a stable id to every heading and collecting the `h2`/
  * `h3` outline the sidebar is built from. Deriving the navigation from the content keeps the single
  * source of truth in the Markdown file: add a section there and it appears in the sidebar for free.
  */
-export function renderMarkdown(content: string): { html: string; sections: NavSection[] } {
+export function renderMarkdown(
+  content: string,
+  options: MarkdownPageOptions = {},
+): { html: string; sections: NavSection[] } {
   const renderer = new Renderer();
   const outline: { id: string; label: string; depth: number }[] = [];
   const used = new Map<string, number>();
 
   const slug = (raw: string): string => {
-    const base = raw.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'section';
+    const base =
+      raw
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '') || 'section';
     const seen = used.get(base);
     if (seen === undefined) {
       used.set(base, 0);
@@ -53,6 +126,12 @@ export function renderMarkdown(content: string): { html: string; sections: NavSe
       outline.push({ id, label, depth });
     }
     return `<h${depth} id="${id}">${inner}</h${depth}>\n`;
+  };
+
+  renderer.link = function link({ href, title, tokens }) {
+    const resolvedHref = resolveMarkdownHref(href, options.repositoryDirectory);
+    const titleAttribute = title ? ` title="${title.replaceAll('"', '&quot;')}"` : '';
+    return `<a href="${resolvedHref.replaceAll('"', '&quot;')}"${titleAttribute}>${this.parser.parseInline(tokens)}</a>`;
   };
 
   const html = new Marked({ renderer }).parse(content, { async: false }) as string;
@@ -87,8 +166,8 @@ export abstract class MarkdownPage {
   protected readonly sections: NavSection[];
   protected readonly activeId = signal('');
 
-  protected constructor(content: string) {
-    const { html, sections } = renderMarkdown(content);
+  protected constructor(content: string, options: MarkdownPageOptions = {}) {
+    const { html, sections } = renderMarkdown(content, options);
     this.body = inject(DomSanitizer).bypassSecurityTrustHtml(html);
     this.sections = sections;
     afterNextRender(() => {
@@ -157,7 +236,9 @@ export abstract class MarkdownPage {
    */
   private trackActiveHeading(): void {
     const root = this.host.nativeElement;
-    const headings = Array.from(root.querySelectorAll<HTMLElement>('.markdown h2[id], .markdown h3[id]'));
+    const headings = Array.from(
+      root.querySelectorAll<HTMLElement>('.markdown h2[id], .markdown h3[id]'),
+    );
     if (headings.length === 0) {
       return;
     }

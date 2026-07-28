@@ -44,6 +44,52 @@ export const routes: Routes = [
     loadComponent: () => import('./docs.component').then((m) => m.DocsComponent),
   },
   {
+    path: 'docs/operations',
+    title: 'Operations — run LakeHold in production',
+    data: {
+      seo: {
+        description:
+          'Operate LakeHold in production with ownership, readiness gates, routine checks, safe deployment, rollback, and evidence-handling guidance.',
+      },
+    },
+    loadComponent: () => import('./operations.component').then((m) => m.OperationsComponent),
+  },
+  {
+    path: 'docs/incident-response',
+    title: 'Incident response — LakeHold operations',
+    data: {
+      seo: {
+        description:
+          'Respond to LakeHold incidents with severity levels, first-response checks, diagnosis, containment, recovery, communication, and review procedures.',
+      },
+    },
+    loadComponent: () =>
+      import('./incident-response.component').then((m) => m.IncidentResponseComponent),
+  },
+  {
+    path: 'docs/disaster-recovery',
+    title: 'Disaster recovery — LakeHold operations',
+    data: {
+      seo: {
+        description:
+          'Recover LakeHold state with explicit protection boundaries, RPO and RTO guidance, full-node and catalog procedures, validation, and restore drills.',
+      },
+    },
+    loadComponent: () =>
+      import('./disaster-recovery.component').then((m) => m.DisasterRecoveryComponent),
+  },
+  {
+    path: 'docs/monitoring',
+    title: 'Monitoring and alerting — LakeHold operations',
+    data: {
+      seo: {
+        description:
+          'Monitor LakeHold health, OpenTelemetry signals, maintenance, backups, capacity, security, and CDC with actionable alerts and validation drills.',
+      },
+    },
+    loadComponent: () => import('./monitoring.component').then((m) => m.MonitoringComponent),
+  },
+  {
     path: 'provider',
     title: 'DuckDB.EFCoreProvider — DuckDB, DuckLake and Parquet for EF Core 10',
     data: {

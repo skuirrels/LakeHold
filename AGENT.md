@@ -39,6 +39,10 @@ integration.
 - `docs/ARCHITECTURE.md`: architectural rationale and current product boundaries.
 - `docs/EXIT-PATH.md`: verified open-format exit procedure and Parquet caveats. Eject automates that
   procedure; keep the two consistent.
+- `docs/OPERATIONS.md`: production operating model and entry point for day-two work. Its
+  `docs/runbooks/` documents incident response, disaster recovery, and monitoring/alerting. Keep
+  commands, health semantics, metric names, storage boundaries, and recovery limitations aligned
+  with the production Compose file and runtime.
 - `docs/PROVIDER-FEEDBACK.md`: provider capabilities and why the data plane uses its dynamic API.
 - `docs/POSTGRES-WIRE.md`: the wire protocol surface, its connection model, and what is
   deliberately unimplemented. Update it with the endpoint.
