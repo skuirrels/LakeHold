@@ -33,6 +33,10 @@ import { ResultGridComponent } from './result-grid.component';
 import { SavedQueriesPanelComponent } from './saved-queries-panel.component';
 import { SchedulePanelComponent } from './schedule-panel.component';
 import { StoragePanelComponent } from './storage-panel.component';
+import {
+  WorkbenchDestination,
+  WorkbenchNavigationComponent,
+} from './workbench-navigation.component';
 
 const STARTER_SQL = `-- Aggregate 250k rows in a few milliseconds.
 SELECT
@@ -46,18 +50,6 @@ ORDER BY revenue DESC;`;
 
 type BottomTab =
   'results' | 'history' | 'snapshots' | 'storage' | 'backups' | 'ejects' | 'changes' | 'schedule';
-
-type WorkbenchDestination =
-  | 'workbench'
-  | 'catalog'
-  | 'queries'
-  | 'history'
-  | 'snapshots'
-  | 'storage'
-  | 'changes'
-  | 'backups'
-  | 'ejects'
-  | 'schedule';
 
 /**
  * The SQL IDE.
@@ -86,6 +78,7 @@ type WorkbenchDestination =
     SavedQueriesPanelComponent,
     SchedulePanelComponent,
     StoragePanelComponent,
+    WorkbenchNavigationComponent,
   ],
   templateUrl: './workbench.component.html',
   styleUrl: './workbench.component.css',

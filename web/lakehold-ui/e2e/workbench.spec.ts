@@ -26,6 +26,28 @@ test.describe('workbench user journeys', () => {
     await expect(page.locator('.summary')).toContainText('1 row');
   });
 
+  test('collapses and restores navigation without resetting the catalog explorer', async ({
+    page,
+  }) => {
+    const navigation = page.getByRole('navigation', { name: 'Workbench navigation' });
+    const toggle = page.getByRole('button', { name: 'Collapse navigation' });
+    const filter = page.getByLabel('Filter catalog objects');
+
+    await filter.fill('events');
+    await expect(navigation).toBeVisible();
+
+    await toggle.click();
+    await expect(navigation).toBeHidden();
+    await expect(page.getByRole('button', { name: 'Expand navigation' })).toHaveAttribute(
+      'aria-expanded',
+      'false',
+    );
+
+    await page.getByRole('button', { name: 'Expand navigation' }).click();
+    await expect(navigation).toBeVisible();
+    await expect(filter).toHaveValue('events');
+  });
+
   test('inserts SQL from the catalog and replays it from history', async ({ page }) => {
     await page.getByLabel('Filter catalog objects').fill('events');
     await page.getByRole('button', { name: 'Insert a SELECT for events' }).click();
@@ -34,7 +56,7 @@ test.describe('workbench user journeys', () => {
     await page.getByRole('button', { name: /^Run/ }).click();
     await expect(page.locator('.summary')).toContainText('rows');
 
-    await page.getByRole('button', { name: 'Query history' }).click();
+    await page.getByRole('main').getByRole('button', { name: 'Query history' }).click();
     const historyRow = page.locator('.history-row').filter({ hasText: 'FROM main.events' }).first();
     await expect(historyRow).toBeVisible();
     await historyRow.click();
@@ -44,11 +66,11 @@ test.describe('workbench user journeys', () => {
   });
 
   test('shows snapshots and storage from the live catalog', async ({ page }) => {
-    await page.getByRole('button', { name: 'Data history' }).click();
+    await page.getByRole('main').getByRole('button', { name: 'Data history' }).click();
     await expect(page.getByRole('columnheader', { name: 'Snapshot' })).toBeVisible();
     await expect(page.locator('table.history-timeline tbody tr').first()).toBeVisible();
 
-    await page.getByRole('button', { name: 'Storage' }).click();
+    await page.getByRole('main').getByRole('button', { name: 'Storage' }).click();
     await expect(page.getByText('events', { exact: true }).first()).toBeVisible();
     await expect(page.getByText(/Rows|Files/).first()).toBeVisible();
   });
@@ -59,7 +81,9 @@ test.describe('workbench user journeys', () => {
     await page.getByLabel('Filter catalog objects').fill('events');
     await page.getByRole('button', { name: 'Inspect events' }).click();
 
-    await expect(page.getByRole('button', { name: 'Storage' })).toHaveClass(/active/);
+    await expect(page.getByRole('main').getByRole('button', { name: 'Storage' })).toHaveClass(
+      /active/,
+    );
     await expect(page.getByRole('heading', { name: /events/ })).toBeVisible();
     await expect(page.getByText('Partition layout')).toBeVisible();
 
@@ -88,5 +112,30 @@ test.describe('workbench user journeys', () => {
     await expect(page.locator('.error-banner')).toBeHidden();
     await expect(page.getByRole('columnheader', { name: /recovered/i })).toBeVisible();
     await expect(page.locator('tbody tr').getByRole('cell').nth(1)).toHaveText('1');
+  });
+});
+
+test.describe('responsive workbench navigation', () => {
+  test('opens as a compact drawer and closes with Escape', async ({ page }) => {
+    await page.setViewportSize({ width: 760, height: 900 });
+    const tenants = page.waitForResponse(
+      (response) =>
+        response.url().endsWith('/api/tenants') && response.request().method() === 'GET',
+    );
+    await page.goto('/workbench');
+    expect((await tenants).ok()).toBe(true);
+
+    const navigation = page.getByRole('navigation', { name: 'Workbench navigation' });
+    await expect(navigation).toBeHidden();
+
+    await page.getByRole('button', { name: 'Expand navigation' }).click();
+    await expect(navigation).toBeVisible();
+    await page.keyboard.press('Escape');
+
+    await expect(navigation).toBeHidden();
+    await expect(page.getByRole('button', { name: 'Expand navigation' })).toHaveAttribute(
+      'aria-expanded',
+      'false',
+    );
   });
 });

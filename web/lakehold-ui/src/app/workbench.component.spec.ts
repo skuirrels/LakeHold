@@ -8,6 +8,7 @@ import { WorkbenchComponent } from './workbench.component';
 describe('WorkbenchComponent', () => {
   let api: FakeLakehouseService;
   let fixture: ComponentFixture<WorkbenchComponent>;
+  const originalMatchMedia = window.matchMedia;
 
   async function mount() {
     fixture = TestBed.createComponent(WorkbenchComponent);
@@ -17,6 +18,23 @@ describe('WorkbenchComponent', () => {
 
   function text(): string {
     return fixture.nativeElement.textContent ?? '';
+  }
+
+  function useCompactViewport(compact: boolean): void {
+    Object.defineProperty(window, 'matchMedia', {
+      configurable: true,
+      value: () =>
+        ({
+          matches: compact,
+          media: '(max-width: 900px)',
+          onchange: null,
+          addEventListener: () => undefined,
+          removeEventListener: () => undefined,
+          addListener: () => undefined,
+          removeListener: () => undefined,
+          dispatchEvent: () => true,
+        }) satisfies MediaQueryList,
+    });
   }
 
   /** Clicks a bottom-panel tab by its label. */
@@ -48,11 +66,91 @@ describe('WorkbenchComponent', () => {
     });
   });
 
+  afterEach(() => {
+    Object.defineProperty(window, 'matchMedia', {
+      configurable: true,
+      value: originalMatchMedia,
+    });
+  });
+
   it('selects the first workspace and catalog it is given', async () => {
     await mount();
 
     expect(api.lastArgs('getSchemas')).toEqual(['demo', 'analytics']);
     expect(text()).toContain('Demo workspace');
+  });
+
+  describe('navigation shell', () => {
+    it('collapses and restores the product menu without destroying explorer state', async () => {
+      await mount();
+
+      const filter = fixture.nativeElement.querySelector(
+        '[aria-label="Filter catalog objects"]',
+      ) as HTMLInputElement;
+      filter.value = 'events';
+      filter.dispatchEvent(new Event('input'));
+      await fixture.whenStable();
+
+      const toggle = fixture.nativeElement.querySelector('.nav-toggle') as HTMLButtonElement;
+      const navigation = fixture.nativeElement.querySelector(
+        '#workbench-navigation',
+      ) as HTMLElement;
+
+      expect(toggle.getAttribute('aria-expanded')).toBe('true');
+      expect(toggle.getAttribute('aria-label')).toBe('Collapse navigation');
+
+      toggle.click();
+      await fixture.whenStable();
+
+      expect(toggle.getAttribute('aria-expanded')).toBe('false');
+      expect(toggle.getAttribute('aria-label')).toBe('Expand navigation');
+      expect(navigation.getAttribute('aria-hidden')).toBe('true');
+
+      toggle.click();
+      await fixture.whenStable();
+
+      expect(filter.value).toBe('events');
+      expect(navigation.getAttribute('aria-hidden')).toBe('false');
+    });
+
+    it('uses product-navigation items as shortcuts to existing panels', async () => {
+      await mount();
+
+      const queryHistory = [...fixture.nativeElement.querySelectorAll('.nav-item')].find(
+        (button) => (button as HTMLElement).textContent?.trim() === 'Query history',
+      ) as HTMLButtonElement;
+      queryHistory.click();
+      await fixture.whenStable();
+
+      expect(queryHistory.classList.contains('active')).toBe(true);
+      expect(fixture.nativeElement.querySelector('.tabs .tab.active')?.textContent?.trim()).toBe(
+        'Query history',
+      );
+    });
+
+    it('starts compact navigation closed and dismisses its drawer with Escape', async () => {
+      useCompactViewport(true);
+      await mount();
+
+      const root = fixture.nativeElement.querySelector('.body') as HTMLElement;
+      const toggle = fixture.nativeElement.querySelector('.nav-toggle') as HTMLButtonElement;
+      const navigation = fixture.nativeElement.querySelector(
+        '#workbench-navigation',
+      ) as HTMLElement;
+
+      expect(toggle.getAttribute('aria-expanded')).toBe('false');
+      expect(navigation.getAttribute('aria-hidden')).toBe('true');
+
+      toggle.click();
+      await fixture.whenStable();
+      expect(toggle.getAttribute('aria-expanded')).toBe('true');
+
+      root.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      await fixture.whenStable();
+
+      expect(toggle.getAttribute('aria-expanded')).toBe('false');
+      expect(navigation.getAttribute('aria-hidden')).toBe('true');
+    });
   });
 
   describe('first run', () => {

@@ -10,7 +10,7 @@ test('operator simulation exercises the lakehouse control surfaces', async ({ pa
   await expect(page.locator('.selectors select').nth(1)).toHaveValue('analytics');
 
   await test.step('inspect the physical files behind a table', async () => {
-    await page.getByRole('button', { name: 'Storage' }).click();
+    await page.getByRole('main').getByRole('button', { name: 'Storage' }).click();
     await page.getByRole('button', { name: 'Show data files for main.events' }).click();
 
     await expect(page.getByRole('heading', { name: /events/ })).toBeVisible();
@@ -26,7 +26,7 @@ test('operator simulation exercises the lakehouse control surfaces', async ({ pa
   });
 
   await test.step('read the catalog change feed', async () => {
-    await page.getByRole('button', { name: 'Changes' }).click();
+    await page.getByRole('main').getByRole('button', { name: 'Changes' }).click();
     await page.getByRole('button', { name: 'Read changes' }).click();
 
     await expect(page.locator('.panel-summary')).toContainText(/snapshots \d+–\d+/);
@@ -35,7 +35,7 @@ test('operator simulation exercises the lakehouse control surfaces', async ({ pa
   });
 
   await test.step('review and cancel an atomic snapshot restore without applying it', async () => {
-    await page.getByRole('button', { name: 'Data history' }).click();
+    await page.getByRole('main').getByRole('button', { name: 'Data history' }).click();
     await page
       .getByRole('button', { name: /Review restore/ })
       .first()
@@ -53,7 +53,7 @@ test('operator simulation exercises the lakehouse control surfaces', async ({ pa
 
     await page.getByRole('button', { name: 'Backup', exact: true }).click();
     await expect(page.locator('.banner.ok-banner')).toContainText(/backup/i);
-    await page.getByRole('button', { name: 'Backups' }).click();
+    await page.getByRole('main').getByRole('button', { name: 'Backups' }).click();
 
     await expect(page.getByRole('columnheader', { name: 'Generation' })).toBeVisible();
     await expect(page.locator('tbody tr').first()).toContainText(/\d{8}T\d{6}Z/);
@@ -61,7 +61,7 @@ test('operator simulation exercises the lakehouse control surfaces', async ({ pa
   });
 
   await test.step('create and inspect a verified open-format eject', async () => {
-    await page.getByRole('button', { name: 'Eject' }).click();
+    await page.getByRole('main').getByRole('button', { name: 'Eject' }).click();
     await page.getByRole('button', { name: 'Eject now' }).click();
 
     await expect(page.locator('lh-eject-panel .ok-banner')).toContainText('Verified.', {
@@ -74,7 +74,7 @@ test('operator simulation exercises the lakehouse control surfaces', async ({ pa
   });
 
   await test.step('inspect scheduled-operation visibility', async () => {
-    await page.getByRole('button', { name: 'Schedule' }).click();
+    await page.getByRole('main').getByRole('button', { name: 'Schedule' }).click();
 
     await expect(
       page
