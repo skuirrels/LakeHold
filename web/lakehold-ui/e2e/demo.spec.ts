@@ -57,8 +57,11 @@ test.describe('demo workbench', () => {
         catalogs: [
           {
             name: 'analytics',
-            dataPath: '/var/lib/lakehold/data/analytics',
+            dataPath: '/var/lib/lakehold/data/demo/analytics',
             isReadOnly: false,
+            metadataKind: 'Postgres',
+            storageKind: 'Local',
+            storageProfile: null,
           },
         ],
       },

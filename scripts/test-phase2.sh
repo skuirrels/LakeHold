@@ -6,6 +6,7 @@ compose_project="lakehold-phase2"
 compose_files=(
   -f "$repo_root/compose.production.yaml"
   -f "$repo_root/compose.build.yaml"
+  -f "$repo_root/compose.test.yaml"
   -f "$repo_root/compose.phase2.yaml"
 )
 

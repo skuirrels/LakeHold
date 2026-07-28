@@ -44,7 +44,7 @@ simpler story than the product site.
 | BI tools (Power BI, Tableau) | Postgres wire protocol; Power BI blocked on type loading | Postgres endpoint; connector for older tools | Native connectors and JDBC/ODBC | First-class connectors everywhere |
 | Maintenance control | Explicit, dry-run by default | Automatic, not exposed | Explicit merges and TTLs | Automatic, partly exposed |
 | .NET / EF Core | One model for app and lake; client package pending | Community drivers; Python/JS first | Solid ADO.NET client, no ORM story | JDBC/ODBC; .NET is second-class |
-| Scale ceiling | Scale out workers; each query is node-bound, not distributed SQL | Elastic, scales past a node | Clustered, petabyte-scale | Effectively unlimited |
+| Scale ceiling | Scale out workers; each query stays on one node | Elastic, scales past a node | Clustered, petabyte-scale | Effectively unlimited |
 | Concurrent writers | PostgreSQL-backed DuckLake metadata; worker-local execution | Managed | High concurrency | High concurrency |
 | Operational burden | You run it | None | High if self-hosted | Low |
 | Licence | Apache-2.0 | Proprietary | Apache-2.0; Cloud proprietary | Proprietary |
