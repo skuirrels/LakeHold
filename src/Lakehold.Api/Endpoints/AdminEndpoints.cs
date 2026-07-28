@@ -267,6 +267,7 @@ public static partial class AdminEndpoints
     {
         var catalog = await context.Catalogs
             .Include(c => c.Tenant)
+            .Include(c => c.SavedQueries)
             .FirstOrDefaultAsync(c => c.Tenant.Slug == tenantSlug && c.Name == catalogName, cancellationToken)
             .ConfigureAwait(false);
         if (catalog is null)

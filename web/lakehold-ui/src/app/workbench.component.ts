@@ -2,6 +2,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  DestroyRef,
   inject,
   signal,
   viewChild,
@@ -29,6 +30,7 @@ import {
   Tenant,
 } from './models';
 import { ResultGridComponent } from './result-grid.component';
+import { SavedQueriesPanelComponent } from './saved-queries-panel.component';
 import { SchedulePanelComponent } from './schedule-panel.component';
 import { StoragePanelComponent } from './storage-panel.component';
 
@@ -44,6 +46,18 @@ ORDER BY revenue DESC;`;
 
 type BottomTab =
   'results' | 'history' | 'snapshots' | 'storage' | 'backups' | 'ejects' | 'changes' | 'schedule';
+
+type WorkbenchDestination =
+  | 'workbench'
+  | 'catalog'
+  | 'queries'
+  | 'history'
+  | 'snapshots'
+  | 'storage'
+  | 'changes'
+  | 'backups'
+  | 'ejects'
+  | 'schedule';
 
 /**
  * The SQL IDE.
@@ -69,6 +83,7 @@ type BottomTab =
     FirstRunComponent,
     ResultGridComponent,
     RouterLink,
+    SavedQueriesPanelComponent,
     SchedulePanelComponent,
     StoragePanelComponent,
   ],
@@ -77,6 +92,7 @@ type BottomTab =
 })
 export class WorkbenchComponent {
   private readonly api = inject(LakehouseService);
+  private readonly destroyRef = inject(DestroyRef);
   protected readonly auth = inject(AuthService);
 
   /**
@@ -112,6 +128,11 @@ export class WorkbenchComponent {
   /** A destructive operation whose dry run has completed and is awaiting confirmation. */
   protected readonly pendingApply = signal<MaintenanceOperation | null>(null);
   protected readonly tab = signal<BottomTab>('results');
+  protected readonly sidebarTab = signal<'catalog' | 'queries'>('catalog');
+  protected readonly navigationDestination = signal<WorkbenchDestination>('workbench');
+  protected readonly navigationOpen = signal(true);
+  protected readonly contextPanelOpen = signal(true);
+  protected readonly compactViewport = signal(false);
   protected readonly inspectedTable = signal<TableReference | null>(null);
 
   /**
@@ -189,7 +210,33 @@ export class WorkbenchComponent {
   });
 
   constructor() {
+    this.watchNavigationBreakpoint();
     this.loadTenants();
+  }
+
+  /**
+   * Keeps the desktop rail open by default and the compact drawer closed by default.
+   *
+   * The Workbench route is client-rendered, but the guard keeps this component straightforward to
+   * exercise under jsdom as well. Crossing the breakpoint resets the shell to the least surprising
+   * state for the new layout instead of leaving a desktop rail covering a phone-sized editor.
+   */
+  private watchNavigationBreakpoint(): void {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+      return;
+    }
+
+    const media = window.matchMedia('(max-width: 900px)');
+    const apply = (compact: boolean): void => {
+      this.compactViewport.set(compact);
+      this.navigationOpen.set(!compact);
+      this.contextPanelOpen.set(!compact);
+    };
+
+    apply(media.matches);
+    const listener = (event: MediaQueryListEvent): void => apply(event.matches);
+    media.addEventListener('change', listener);
+    this.destroyRef.onDestroy(() => media.removeEventListener('change', listener));
   }
 
   /** Shows a failure under a heading naming the operation that produced it. */
@@ -363,29 +410,21 @@ export class WorkbenchComponent {
       return;
     }
 
-    this.running.set(true);
-    this.error.set(null);
-    this.notice.set(null);
-    this.tab.set('results');
+    this.executeRequest(
+      this.api.execute(tenant, catalog, sql),
+      /^\s*(create|drop|alter)\b/i.test(sql),
+    );
+  }
 
-    this.api.execute(tenant, catalog, sql).subscribe({
-      next: (response) => {
-        this.result.set(response);
-        this.running.set(false);
-        this.refreshHistory();
+  /** Runs the persisted definition by id, so the server — not the browser — chooses the SQL. */
+  protected runSavedQuery(id: number): void {
+    const tenant = this.tenantSlug();
+    const catalog = this.catalogName();
+    if (!tenant || !catalog || this.running()) {
+      return;
+    }
 
-        // DDL can change the object tree, so keep the explorer in step with the catalog.
-        if (/^\s*(create|drop|alter)\b/i.test(sql)) {
-          this.refreshCatalog();
-        }
-      },
-      error: (err: Error) => {
-        this.fail('Query failed', err.message);
-        this.result.set(null);
-        this.running.set(false);
-        this.refreshHistory();
-      },
-    });
+    this.executeRequest(this.api.executeSavedQuery(tenant, catalog, id), false);
   }
 
   /** Cmd/Ctrl+Enter runs; Tab inserts an indent instead of leaving the editor. */
@@ -410,9 +449,66 @@ export class WorkbenchComponent {
     this.sql.set(snippet);
   }
 
+  protected toggleNavigation(): void {
+    const opening = !this.navigationOpen();
+    this.navigationOpen.set(opening);
+    if (opening && this.compactViewport()) {
+      this.contextPanelOpen.set(false);
+    }
+  }
+
+  protected closeNavigationOverlays(): void {
+    if (!this.compactViewport()) {
+      return;
+    }
+
+    this.navigationOpen.set(false);
+    this.contextPanelOpen.set(false);
+  }
+
+  protected toggleContextPanel(): void {
+    this.contextPanelOpen.update((open) => !open);
+  }
+
+  protected openNavigation(destination: WorkbenchDestination): void {
+    this.navigationDestination.set(destination);
+
+    switch (destination) {
+      case 'workbench':
+        this.showTab('results', false);
+        break;
+      case 'catalog':
+        this.showSidebar('catalog');
+        break;
+      case 'queries':
+        this.showSidebar('queries');
+        break;
+      default:
+        this.showTab(destination, false);
+        if (this.compactViewport()) {
+          this.contextPanelOpen.set(false);
+        }
+        break;
+    }
+
+    if (this.compactViewport()) {
+      this.navigationOpen.set(false);
+    }
+  }
+
+  protected showSidebar(tab: 'catalog' | 'queries'): void {
+    this.sidebarTab.set(tab);
+    this.contextPanelOpen.set(true);
+    this.navigationDestination.set(tab);
+    if (this.compactViewport()) {
+      this.navigationOpen.set(false);
+    }
+  }
+
   protected inspectTable(table: TableReference): void {
     this.inspectedTable.set(table);
     this.tab.set('storage');
+    this.navigationDestination.set('storage');
     this.error.set(null);
   }
 
@@ -468,8 +564,11 @@ export class WorkbenchComponent {
     this.notice.set(null);
   }
 
-  protected showTab(tab: BottomTab): void {
+  protected showTab(tab: BottomTab, updateNavigation = true): void {
     this.tab.set(tab);
+    if (updateNavigation) {
+      this.navigationDestination.set(tab === 'results' ? 'workbench' : tab);
+    }
 
     // A query failure belongs to the editor, not to whatever panel the operator opens next. The
     // panels carry their own banners, which are destroyed with them.
@@ -483,9 +582,10 @@ export class WorkbenchComponent {
   protected replay(run: QueryRun): void {
     this.sql.set(run.sql);
     this.tab.set('results');
+    this.navigationDestination.set('workbench');
   }
 
-  private refreshCatalog(): void {
+  protected refreshCatalog(): void {
     const tenant = this.tenantSlug();
     const catalog = this.catalogName();
     if (!tenant || !catalog) {
@@ -506,7 +606,32 @@ export class WorkbenchComponent {
     });
   }
 
-  private refreshHistory(): void {
+  private executeRequest(request: Observable<QueryResponse>, refreshSchema: boolean): void {
+    this.running.set(true);
+    this.error.set(null);
+    this.notice.set(null);
+    this.tab.set('results');
+    this.navigationDestination.set('workbench');
+
+    request.subscribe({
+      next: (response) => {
+        this.result.set(response);
+        this.running.set(false);
+        this.refreshHistory();
+        if (refreshSchema) {
+          this.refreshCatalog();
+        }
+      },
+      error: (err: Error) => {
+        this.fail('Query failed', err.message);
+        this.result.set(null);
+        this.running.set(false);
+        this.refreshHistory();
+      },
+    });
+  }
+
+  protected refreshHistory(): void {
     const tenant = this.tenantSlug();
     if (!tenant) {
       return;

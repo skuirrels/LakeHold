@@ -124,6 +124,8 @@ public sealed class AdditiveSchemaTests : IAsyncLifetime
 
         Assert.Equal(0, await AdditiveSchema.EnsureModelTablesAsync(context, CancellationToken.None));
         Assert.Equal(0, await AdditiveSchema.EnsureModelColumnsAsync(context, CancellationToken.None));
+        Assert.Equal(0, await AdditiveSchema.RetireLegacySavedQueryIndexAsync(context, CancellationToken.None));
+        Assert.Equal(0, await AdditiveSchema.EnsureModelIndexesAsync(context, CancellationToken.None));
     }
 
     [Fact]
@@ -183,6 +185,66 @@ public sealed class AdditiveSchemaTests : IAsyncLifetime
 
             // Idempotent: a second pass adds nothing.
             Assert.Equal(0, await AdditiveSchema.EnsureModelColumnsAsync(context, CancellationToken.None));
+        }
+    }
+
+    [Fact]
+    public async Task Dormant_tenant_saved_queries_gain_catalog_scope_revision_and_indexes()
+    {
+        int tenantId;
+        await using (var context = NewContext())
+        {
+            await context.Database.EnsureCreatedAsync();
+            var tenant = new Tenant { Slug = "acme", DisplayName = "Acme", CreatedUtc = DateTimeOffset.UtcNow };
+            context.Tenants.Add(tenant);
+            await context.SaveChangesAsync();
+            tenantId = tenant.Id;
+
+            // Recreate the exact pre-feature table shape. SavedQuery existed in the model but had no
+            // API, catalog binding, revision, author, or publication state.
+            await context.Database.ExecuteSqlRawAsync("DROP TABLE \"SavedQueries\"");
+            await context.Database.ExecuteSqlRawAsync("DROP SEQUENCE IF EXISTS \"SavedQueries_Id_seq\"");
+            await ExecuteDdlAsync(context, "CREATE SEQUENCE \"SavedQueries_Id_seq\" START 1");
+            await ExecuteDdlAsync(
+                context,
+                """
+                CREATE TABLE "SavedQueries" (
+                    "Id" INTEGER DEFAULT nextval('"SavedQueries_Id_seq"') PRIMARY KEY,
+                    "TenantId" INTEGER NOT NULL,
+                    "Name" VARCHAR NOT NULL,
+                    "Description" VARCHAR,
+                    "Sql" VARCHAR NOT NULL,
+                    "CreatedUtc" TIMESTAMP WITH TIME ZONE NOT NULL,
+                    "UpdatedUtc" TIMESTAMP WITH TIME ZONE NOT NULL
+                )
+                """);
+            await ExecuteDdlAsync(
+                context,
+                "CREATE UNIQUE INDEX \"IX_SavedQueries_TenantId_Name\" ON \"SavedQueries\" (\"TenantId\", \"Name\")");
+            await context.Database.ExecuteSqlRawAsync(
+                "INSERT INTO \"SavedQueries\" (\"TenantId\", \"Name\", \"Sql\", \"CreatedUtc\", \"UpdatedUtc\") " +
+                "VALUES ({0}, 'legacy', 'SELECT 1', now(), now())",
+                tenantId);
+        }
+
+        await using (var context = NewContext())
+        {
+            Assert.Equal(9, await AdditiveSchema.EnsureModelColumnsAsync(context, CancellationToken.None));
+            Assert.Equal(1, await AdditiveSchema.RetireLegacySavedQueryIndexAsync(context, CancellationToken.None));
+            Assert.Equal(1, await AdditiveSchema.EnsureModelIndexesAsync(context, CancellationToken.None));
+
+            var legacy = await context.SavedQueries.SingleAsync();
+            Assert.Null(legacy.CatalogId);
+            Assert.Equal(0, legacy.Revision);
+            Assert.Equal(0, legacy.ConcurrencyVersion);
+
+            var indexes = await IndexNamesAsync(context, "SavedQueries");
+            Assert.DoesNotContain("IX_SavedQueries_TenantId_Name", indexes);
+            Assert.Contains("IX_SavedQueries_CatalogId_Name", indexes);
+
+            Assert.Equal(0, await AdditiveSchema.EnsureModelColumnsAsync(context, CancellationToken.None));
+            Assert.Equal(0, await AdditiveSchema.RetireLegacySavedQueryIndexAsync(context, CancellationToken.None));
+            Assert.Equal(0, await AdditiveSchema.EnsureModelIndexesAsync(context, CancellationToken.None));
         }
     }
 

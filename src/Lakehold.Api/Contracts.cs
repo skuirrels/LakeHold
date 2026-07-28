@@ -1,3 +1,5 @@
+using Lakehold.Engine.Execution;
+
 namespace Lakehold.Api;
 
 /// <summary>Request to execute a statement.</summary>
@@ -22,7 +24,52 @@ public sealed record QueryResponse(
     IReadOnlyList<object?[]> Rows,
     bool Truncated,
     double ElapsedMilliseconds,
-    long? RowsAffected);
+    long? RowsAffected)
+{
+    /// <summary>Maps the engine result onto the transport contract.</summary>
+    public static QueryResponse From(QueryResult result)
+    {
+        ArgumentNullException.ThrowIfNull(result);
+
+        return new QueryResponse(
+            [.. result.Columns.Select(c => new ColumnDto(c.Name, c.DataType, c.ClrType))],
+            result.Rows,
+            result.Truncated,
+            result.Elapsed.TotalMilliseconds,
+            result.RowsAffected);
+    }
+}
+
+/// <summary>A reusable, catalog-scoped query definition.</summary>
+/// <param name="Revision">Optimistic authoring revision.</param>
+/// <param name="PublishedRevision">Revision currently exposed by the view, or null when unpublished.</param>
+public sealed record SavedQueryDto(
+    int Id,
+    string Name,
+    string? Description,
+    string Sql,
+    int Revision,
+    DateTimeOffset CreatedUtc,
+    DateTimeOffset UpdatedUtc,
+    int? CreatedByTokenId,
+    int? UpdatedByTokenId,
+    string? PublishedSchema,
+    string? PublishedViewName,
+    int? PublishedRevision,
+    DateTimeOffset? PublishedUtc);
+
+/// <summary>Request to save the current SQL as a reusable query.</summary>
+public sealed record CreateSavedQueryRequest(string Name, string? Description, string Sql);
+
+/// <summary>Request to replace a saved-query definition at an expected revision.</summary>
+public sealed record UpdateSavedQueryRequest(
+    int Revision,
+    string Name,
+    string? Description,
+    string Sql);
+
+/// <summary>Request to publish one saved-query revision as a catalog view.</summary>
+public sealed record PublishSavedQueryRequest(int Revision, string Schema, string ViewName);
 
 /// <summary>A tenant, as returned by the API.</summary>
 public sealed record TenantDto(string Slug, string DisplayName, IReadOnlyList<CatalogDto> Catalogs);

@@ -49,6 +49,25 @@ export interface QueryResponse {
   rowsAffected: number | null;
 }
 
+/** A reusable query authored in one catalog and optionally published as a view. */
+export interface SavedQuery {
+  id: number;
+  name: string;
+  description: string | null;
+  sql: string;
+  /** Optimistic authoring revision. */
+  revision: number;
+  createdUtc: string;
+  updatedUtc: string;
+  createdByTokenId: number | null;
+  updatedByTokenId: number | null;
+  publishedSchema: string | null;
+  publishedViewName: string | null;
+  /** Revision currently exposed by the view; lower than `revision` means republish is needed. */
+  publishedRevision: number | null;
+  publishedUtc: string | null;
+}
+
 export interface SchemaColumn {
   name: string;
   dataType: string;

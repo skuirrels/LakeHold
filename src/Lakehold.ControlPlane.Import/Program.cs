@@ -64,6 +64,8 @@ try
     // writing, including in --apply mode.
     await AdditiveSchema.EnsureModelTablesAsync(source, CancellationToken.None);
     await AdditiveSchema.EnsureModelColumnsAsync(source, CancellationToken.None);
+    await AdditiveSchema.RetireLegacySavedQueryIndexAsync(source, CancellationToken.None);
+    await AdditiveSchema.EnsureModelIndexesAsync(source, CancellationToken.None);
 
     var tenants = await source.Tenants.AsNoTracking().ToListAsync();
     var catalogs = await source.Catalogs.AsNoTracking().ToListAsync();

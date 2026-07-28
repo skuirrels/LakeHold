@@ -140,17 +140,46 @@
   } @else {
     <div class="body">
       <aside class="sidebar">
-        <div class="sidebar-head">Catalog</div>
-        <lh-catalog-explorer
-          [schemas]="schemas()"
-          [loading]="schemasLoading()"
-          (insertSql)="insertSql($event)"
-          (inspectTable)="inspectTable($event)"
-        />
+        <div class="sidebar-tabs">
+          <button
+            type="button"
+            class="sidebar-tab"
+            [class.active]="sidebarTab() === 'catalog'"
+            (click)="showSidebar('catalog')"
+          >
+            Catalog
+          </button>
+          <button
+            type="button"
+            class="sidebar-tab"
+            [class.active]="sidebarTab() === 'queries'"
+            (click)="showSidebar('queries')"
+          >
+            Saved queries
+          </button>
+        </div>
+        @if (sidebarTab() === 'catalog') {
+          <lh-catalog-explorer
+            [schemas]="schemas()"
+            [loading]="schemasLoading()"
+            (insertSql)="insertSql($event)"
+            (inspectTable)="inspectTable($event)"
+          />
+        } @else {
+          <lh-saved-queries-panel
+            [tenant]="tenantSlug()"
+            [catalog]="catalogName()"
+            [sql]="sql()"
+            [readOnly]="readOnlyAccess()"
+            (openSql)="insertSql($event)"
+            (executeQuery)="runSavedQuery($event)"
+            (schemaChanged)="refreshCatalog()"
+          />
+        }
       </aside>
 
       <main class="main">
-      @if (demoMode()) {
+        @if (demoMode()) {
           <div class="demo-banner">
             <strong>You’re exploring a live LakeHold demo.</strong>
             Browse the seeded catalog and run read-only SQL. Changes are disabled, so everyone gets

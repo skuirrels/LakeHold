@@ -123,6 +123,22 @@ public sealed class LakehouseService(
     }
 
     /// <summary>
+    ///     Validates a reusable definition with DuckDB's parser without executing submitted SQL or
+    ///     recording an audit run. The normal catalog session is used because a newly provisioned
+    ///     local catalog does not have a metadata file that can be its first read-only attachment.
+    /// </summary>
+    public async Task<bool> IsReadQueryAsync(
+        string tenantSlug,
+        string catalogName,
+        string sql,
+        CancellationToken cancellationToken)
+    {
+        var (duckling, _) = await ResolveAsync(tenantSlug, catalogName, cancellationToken)
+            .ConfigureAwait(false);
+        return await duckling.IsReadQueryAsync(sql, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
     ///     Executes <paramref name="sql"/> against a tenant's catalog and streams the result to the
     ///     caller row by row, recording the run exactly as <see cref="ExecuteAsync"/> does.
     /// </summary>

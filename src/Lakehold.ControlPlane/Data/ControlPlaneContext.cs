@@ -71,11 +71,23 @@ public sealed class ControlPlaneContext(DbContextOptions<ControlPlaneContext> op
             ConfigureGeneratedId(entity.Property(q => q.Id), isDuckDb);
             entity.Property(q => q.Name).HasMaxLength(200);
             entity.Property(q => q.Description).HasMaxLength(1000);
-            entity.HasIndex(q => new { q.TenantId, q.Name }).IsUnique();
+            entity.Property(q => q.PublishedSchema).HasMaxLength(63);
+            entity.Property(q => q.PublishedViewName).HasMaxLength(63);
+            entity.Property(q => q.ConcurrencyVersion).IsConcurrencyToken();
+
+            // A name is scoped to the catalog that owns the definition. The pre-feature
+            // tenant/name index is retired during the additive upgrade so clean and upgraded
+            // installations enforce the same boundary.
+            entity.HasIndex(q => new { q.CatalogId, q.Name }).IsUnique();
 
             entity.HasOne(q => q.Tenant)
                 .WithMany()
                 .HasForeignKey(q => q.TenantId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(q => q.Catalog)
+                .WithMany(c => c.SavedQueries)
+                .HasForeignKey(q => q.CatalogId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
 

@@ -42,6 +42,8 @@ public static class LakehouseEndpoints
         tenants.MapPost("/{tenantSlug}/catalogs/{catalogName}/query", ExecuteAsync)
             .WithSummary("Executes a statement against a tenant's catalog.");
 
+        tenants.MapSavedQueryEndpoints();
+
         tenants.MapGet("/{tenantSlug}/catalogs/{catalogName}/schemas", GetSchemasAsync)
             .WithSummary("Returns the catalog's schema tree.");
 
@@ -211,12 +213,7 @@ public static class LakehouseEndpoints
                     recordHistory: !principal.IsDemo)
                 .ConfigureAwait(false);
 
-            return TypedResults.Ok(new QueryResponse(
-                [.. result.Columns.Select(c => new ColumnDto(c.Name, c.DataType, c.ClrType))],
-                result.Rows,
-                result.Truncated,
-                result.Elapsed.TotalMilliseconds,
-                result.RowsAffected));
+            return TypedResults.Ok(QueryResponse.From(result));
         }
         catch (CatalogNotFoundException ex)
         {

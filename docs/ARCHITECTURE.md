@@ -151,6 +151,16 @@ The split is explicit:
   arbitrary SQL through the provider's streaming `SqlQueryDynamicRawAsync`. No `DbSet`, no change
   tracker, no LINQ pipeline: those exist for known schemas, and this one is discovered at runtime.
 
+Saved queries are the deliberate bridge between the two. Their catalog binding, description,
+optimistic revision, and publication state are modelled control-plane data. Running one resolves the
+persisted definition by id and executes it through a read-only Duckling. Publishing is an explicit
+editor/owner operation that writes a view into DuckLake, where PostgreSQL-wire and BI clients discover
+it like any other catalog object. Editing the definition never silently rewrites the published view;
+its recorded revision exposes the drift until republish. Publication takes an optimistic
+control-plane claim before running DDL, serialising publish/unpublish against edits and other
+publication operations. If DDL succeeds but metadata finalisation fails, the workflow reconciles the
+live target against the winning control-plane row so a retry never strands an unreachable view.
+
 Native DuckDB control-plane files are a legacy import source and a fast isolated test adapter, not
 a production fallback. Local Parquet is still supported; it qualifies the deployment as
 single-node unless the path is on a genuinely shared filesystem.

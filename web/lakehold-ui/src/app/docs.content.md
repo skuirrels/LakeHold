@@ -77,13 +77,13 @@ There are five ways into a LakeHold catalog. They resolve through the same capab
 boundaries, so you can mix them freely. MCP is stricter than the development HTTP API: it always
 requires a credential.
 
-| Tool | What it is | Best for |
-|---|---|---|
-| **The workbench** | A browser SQL IDE for exploring a catalog, running statements, browsing history and snapshots, and triggering maintenance. Ships seeded. | Exploration and operations. |
-| **A Postgres client** | LakeHold speaks the PostgreSQL wire protocol, so `psql`, DBeaver, or Npgsql connect to a catalog with no driver or plugin. The user is the tenant and the database is the catalog. | Existing SQL clients and streamed results. |
-| **.NET & EF Core** | Through `DuckDB.EFCoreProvider` your application model and your lake tables are one model. | .NET applications on the same schema. |
-| **The HTTP API** | Minimal-API endpoints for queries, schemas, history, snapshots, maintenance, eject, backup/restore, and change-feed subscriptions. | Automation and integration. |
-| **MCP** | An authenticated Model Context Protocol server with tenant discovery, schema, snapshots, changes, query resources/tools, and optional operator-gated writes. Enable it with `Lakehold:Mcp:Enabled`; writes additionally require `AllowWrites` and a write-capable credential. | AI agents that need discoverable, capability-scoped lakehouse access. |
+| Tool                  | What it is                                                                                                                                                                                                                                                                    | Best for                                                              |
+| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| **The workbench**     | A browser SQL IDE for exploring a catalog, running statements, browsing history and snapshots, and triggering maintenance. Ships seeded.                                                                                                                                      | Exploration and operations.                                           |
+| **A Postgres client** | LakeHold speaks the PostgreSQL wire protocol, so `psql`, DBeaver, or Npgsql connect to a catalog with no driver or plugin. The user is the tenant and the database is the catalog.                                                                                            | Existing SQL clients and streamed results.                            |
+| **.NET & EF Core**    | Through `DuckDB.EFCoreProvider` your application model and your lake tables are one model.                                                                                                                                                                                    | .NET applications on the same schema.                                 |
+| **The HTTP API**      | Minimal-API endpoints for queries, schemas, history, snapshots, maintenance, eject, backup/restore, and change-feed subscriptions.                                                                                                                                            | Automation and integration.                                           |
+| **MCP**               | An authenticated Model Context Protocol server with tenant discovery, schema, snapshots, changes, query resources/tools, and optional operator-gated writes. Enable it with `Lakehold:Mcp:Enabled`; writes additionally require `AllowWrites` and a write-capable credential. | AI agents that need discoverable, capability-scoped lakehouse access. |
 
 ---
 
@@ -94,24 +94,55 @@ to bottom: a workspace and catalog picker, a schema explorer on the left, a SQL 
 output pane below it with eight panels — **Results**, **Query history**, **Data history**, **Storage**,
 **Changes**, **Backups**, **Eject**, and **Schedule**.
 
-### Workspace and catalog pickers — *top bar*
+### Workspace and catalog pickers — _top bar_
 
 A workspace is a tenant; a catalog is the isolated data unit attached to your session. Pick one of
 each — every query, history entry, and maintenance run is scoped to that pair. Isolation comes from
 which catalog is attached, not from anything in the SQL you submit.
 
-### Catalog explorer — *left sidebar*
+### Catalog explorer — _left sidebar → Catalog_
 
 Browses the selected catalog's schemas, tables, and columns. Click an item to insert its name into
 the editor, so you can build a query without retyping identifiers.
 
-### SQL editor — *centre pane*
+### Saved queries and published views — _left sidebar → Saved queries_
+
+Save one `SELECT`, query-producing `WITH`, or `VALUES` statement with a name and description. DuckDB's
+own parser rejects `WITH`-prefixed inserts, updates, and deletes before they are saved. A saved query
+belongs to the selected catalog, so another catalog may reuse its name; it carries an optimistic
+revision and always runs through a read-only catalog attachment—even when its author is an owner.
+Readers can list, open, and run definitions; editors and owners can create, revise, publish,
+unpublish, and delete them.
+
+**Publish** exposes a saved query as a DuckLake view for PostgreSQL-wire, BI, and other SQL clients.
+The first publication refuses to overwrite an existing object. Editing the saved SQL does not
+silently change that external contract: the library marks the view **republish needed** until an
+editor explicitly republishes the new revision. A published definition must be unpublished before
+it can be deleted or moved to a different schema/name. Concurrent edits and publication operations
+are serialised before view DDL begins, and a failed metadata finalisation reconciles the live target
+so the next attempt remains recoverable.
+
+```http
+POST /api/tenants/{tenant}/catalogs/{catalog}/saved-queries
+Content-Type: application/json
+
+{
+  "name": "Revenue by country",
+  "description": "Stable reporting grain",
+  "sql": "SELECT country, sum(revenue) AS revenue FROM events GROUP BY country"
+}
+```
+
+The returned `revision` is required by update, publish, unpublish, and delete operations. A stale
+revision receives `409 Conflict` rather than overwriting another author's edit.
+
+### SQL editor — _centre pane_
 
 A plain, fast editor for arbitrary SQL. Press `⌘⏎` (`Ctrl+Enter`) or click **Run** to execute. Any
 DuckDB/DuckLake statement is accepted — statements it does not specifically recognise fall back to
 the ordinary streaming path rather than being refused.
 
-### Results grid — *Output → Results*
+### Results grid — _Output → Results_
 
 Streams the result of the last statement into a grid, with the row count and elapsed time shown in
 the toolbar. Integers and decimals beyond JavaScript's safe range are transported losslessly as
@@ -159,7 +190,7 @@ Two advisories appear there:
   zero files, so without the row count a table with data in it would read as empty.
 - **Fragmented** — the table has drifted into the small-file problem: more than one file, averaging
   below the catalog's `target_file_size` (or the deployment's advisory floor when it has never set
-  one). A *single* small file is never flagged, because a lone file cannot be merged with anything.
+  one). A _single_ small file is never flagged, because a lone file cannot be merged with anything.
 
 Select a table — from this rollup or with **Inspect** in the catalog tree — to open one inspector:
 
@@ -181,7 +212,7 @@ partition layout of their own.
 > unbounded `LIST` that times out at scale. A snapshot predating the table's creation is reported as
 > an error rather than an empty list — an empty list would be a different and false statement.
 
-### Changes — *Output → Changes*
+### Changes — _Output → Changes_
 
 The row-level change feed and the webhook subscriptions that push it, in one place: a subscription's
 last delivered snapshot only means something next to the snapshots the feed is showing.
@@ -192,7 +223,7 @@ effect or the diff. Below the feed, create a subscription with an endpoint URL a
 or delete one — deletion asks first. Consecutive failures and the last error are shown per
 subscription, because a subscription you cannot observe is one you cannot trust.
 
-### Backups — *Output → Backups*
+### Backups — _Output → Backups_
 
 Every backup generation, newest first, with its snapshot and table count. A complete generation offers
 **Restore…**; an incomplete one is marked and offers nothing, because a generation with no manifest
@@ -202,7 +233,7 @@ Restore always writes a **new** catalog file and never overwrites, so the catalo
 untouched whatever happens. A bare file name lands beside the server's other catalogs; an absolute
 path is used as given. The result reports the absolute path it actually wrote.
 
-### Eject — *Output → Eject*
+### Eject — _Output → Eject_
 
 The bundles written by the exit path, newest first. Expand one to see its per-table attestation: row
 counts and SHA-256 digests, and whether the bundle is signed. A bundle with no manifest is marked
@@ -212,24 +243,24 @@ Eject has no dry run — it only ever writes a new bundle and never touches the 
 **include history** option decides whether the metadata catalog travels with the data so time travel
 survives the export.
 
-### Schedule — *Output → Schedule*
+### Schedule — _Output → Schedule_
 
 The scheduled maintenance run log: which job ran against which workspace and catalog, when, how long
 it took, and whether it succeeded. Scoped to what your credential is allowed to see.
 
-### Maintenance operations — *top bar → Maintenance*
+### Maintenance operations — _top bar → Maintenance_
 
 Five one-click operations:
 
-| Operation | What it does | Destructive? |
-|---|---|---|
-| **Flush** | Writes inlined commits out as Parquet. | No |
-| **Compact** | Merges small Parquet files. | No |
-| **Backup** | Exports the metadata catalog to Parquet under the backup root. | No |
-| **Expire** | Drops snapshots older than seven days. | **Yes — dry-run by default** |
-| **Cleanup** | Deletes data files no longer referenced by any snapshot. | **Yes — dry-run by default** |
+| Operation   | What it does                                                   | Destructive?                 |
+| ----------- | -------------------------------------------------------------- | ---------------------------- |
+| **Flush**   | Writes inlined commits out as Parquet.                         | No                           |
+| **Compact** | Merges small Parquet files.                                    | No                           |
+| **Backup**  | Exports the metadata catalog to Parquet under the backup root. | No                           |
+| **Expire**  | Drops snapshots older than seven days.                         | **Yes — dry-run by default** |
+| **Cleanup** | Deletes data files no longer referenced by any snapshot.       | **Yes — dry-run by default** |
 
-The two destructive operations return what they *would* do and change nothing until you click
+The two destructive operations return what they _would_ do and change nothing until you click
 **Apply for real**. Flush and Compact are the only operations that commit — they run inside a
 transaction labelled `lakehold maintenance: …` so platform writes stay distinguishable from a
 tenant's own.
@@ -245,11 +276,11 @@ Flush, backup, and compact run on a cron schedule against **every writable catal
 workspace**, so a lakehouse stays healthy with nobody clicking anything. Read-only shares are skipped:
 they have nothing to maintain.
 
-| Job | Runs by default | Why that cadence |
-|---|---|---|
-| **Flush** | Every 15 minutes — `0 0/15 * * * ?` | The consequential one. Inlined commits that have never been flushed are the one category of data that is *permanently* unrecoverable if the catalog is lost, so this interval is the upper bound on that exposure. |
-| **Backup** | Hourly, on the hour — `0 0 * * * ?` | Bounds how much snapshot history a catalog loss costs. |
-| **Compact** | 02:30 daily — `0 30 2 * * ?` | Non-destructive but I/O heavy, so it stays off-peak. |
+| Job         | Runs by default                     | Why that cadence                                                                                                                                                                                                   |
+| ----------- | ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Flush**   | Every 15 minutes — `0 0/15 * * * ?` | The consequential one. Inlined commits that have never been flushed are the one category of data that is _permanently_ unrecoverable if the catalog is lost, so this interval is the upper bound on that exposure. |
+| **Backup**  | Hourly, on the hour — `0 0 * * * ?` | Bounds how much snapshot history a catalog loss costs.                                                                                                                                                             |
+| **Compact** | 02:30 daily — `0 30 2 * * ?`        | Non-destructive but I/O heavy, so it stays off-peak.                                                                                                                                                               |
 
 **Expire and cleanup are never scheduled.** They delete data, and automating an irreversible deletion
 would quietly undo the safety the rest of the product argues for. They stay manual and
@@ -267,19 +298,19 @@ Everything lives under `Lakehold:Maintenance` in `appsettings.json`:
       "FlushCron": "0 0/15 * * * ?",
       "BackupCron": "0 0 * * * ?",
       "CompactCron": "0 30 2 * * ?",
-      "NodeId": "",                 // defaults to the machine name
-      "LeaseDuration": "00:30:00"
-    }
-  }
+      "NodeId": "", // defaults to the machine name
+      "LeaseDuration": "00:30:00",
+    },
+  },
 }
 ```
 
-| Setting | Default | Meaning |
-|---|---|---|
-| `Enabled` | `true` | Whether the scheduler runs at all. `false` makes every operation manual. |
-| `FlushCron` · `BackupCron` · `CompactCron` | above | When each job fires. |
-| `NodeId` | machine name | Identifies this node when claiming a maintenance lease. |
-| `LeaseDuration` | 30 minutes | How long a lease stays valid if the node holding it never releases it. |
+| Setting                                    | Default      | Meaning                                                                  |
+| ------------------------------------------ | ------------ | ------------------------------------------------------------------------ |
+| `Enabled`                                  | `true`       | Whether the scheduler runs at all. `false` makes every operation manual. |
+| `FlushCron` · `BackupCron` · `CompactCron` | above        | When each job fires.                                                     |
+| `NodeId`                                   | machine name | Identifies this node when claiming a maintenance lease.                  |
+| `LeaseDuration`                            | 30 minutes   | How long a lease stays valid if the node holding it never releases it.   |
 
 Any of them can be set as an environment variable instead, which is usually how a container is
 configured — double underscores separate the levels:
@@ -290,7 +321,7 @@ Lakehold__Maintenance__Enabled=false
 ```
 
 > **These are Quartz cron expressions, not Unix cron.** The first field is **seconds**, so there are
-> six, and `0 0/15 * * * ?` means *every 15 minutes*, not *every 15 hours*. Day-of-month and
+> six, and `0 0/15 * * * ?` means _every 15 minutes_, not _every 15 hours_. Day-of-month and
 > day-of-week cannot both be constrained, which is why one of them is `?`. Paste a five-field Unix
 > expression such as `*/15 * * * *` and the API will not start: it fails with
 > `System.FormatException: Unexpected end of expression`. Times are the server's local time zone, so
@@ -323,8 +354,8 @@ working out why a backup is missing.
 ### Running more than one node
 
 Schedules are held in memory on each node, so every node fires the same sweep at the same moment.
-Duplicate *work* is excluded by a lease taken per job, per catalog — not by centralising the
-*schedule*, which is identical everywhere because it comes from configuration.
+Duplicate _work_ is excluded by a lease taken per job, per catalog — not by centralising the
+_schedule_, which is identical everywhere because it comes from configuration.
 
 The lease only engages where a catalog can genuinely be shared, which is where its metadata is in
 PostgreSQL; a local file catalog cannot be opened twice at once anyway. Two things are worth setting
@@ -485,7 +516,7 @@ leak. Every table is counted back through a plain Parquet reader and compared to
 the manifest is written; the manifest carries per-table row counts, SHA-256 digests, and an HMAC
 signature when a key is configured.
 
-> **Caveat.** A copy of the data path is *not* an eject — copying files resurrects deleted rows and
+> **Caveat.** A copy of the data path is _not_ an eject — copying files resurrects deleted rows and
 > duplicates updated ones. Eject is read-only and works on a read-only share, so it needs no flush
 > first. See [`docs/EXIT-PATH.md`](https://github.com/skuirrels/LakeHold/blob/main/docs/EXIT-PATH.md)
 > for the procedure eject automates.
@@ -614,11 +645,11 @@ indistinguishable from instance-scoped ones.
 
 ### Roles
 
-| Role | Query | Write | Maintenance, restore, eject | Manage tokens |
-|---|---|---|---|---|
-| `reader` | yes | no — catalog is attached read-only | no | no |
-| `editor` | yes | yes | no | no |
-| `owner` | yes | yes | yes | yes |
+| Role     | Query | Write                              | Maintenance, restore, eject | Manage tokens |
+| -------- | ----- | ---------------------------------- | --------------------------- | ------------- |
+| `reader` | yes   | no — catalog is attached read-only | no                          | no            |
+| `editor` | yes   | yes                                | no                          | no            |
+| `owner`  | yes   | yes                                | yes                         | yes           |
 
 A token created without `role` is a **reader**, and so is one naming a role that is not recognised —
 so the cost of a typo is a credential that can read rather than one that can do everything. Pass
@@ -661,11 +692,11 @@ or cleartext is explicitly acknowledged, rather than quietly putting a credentia
 
 ### When a request is refused
 
-| Code | Meaning |
-|---|---|
+| Code    | Meaning                                                                                                                                                     |
+| ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **401** | No credential when one is required, or one that did not resolve. Malformed, unknown, revoked, and expired are reported identically — you never learn which. |
-| **404** | Valid credential, but it does not name that tenant or catalog. Deliberately not 403: a 403 would confirm the tenant exists. |
-| **403** | Right subject, wrong capability — a reader running maintenance, or a tenant token calling provisioning. |
+| **404** | Valid credential, but it does not name that tenant or catalog. Deliberately not 403: a 403 would confirm the tenant exists.                                 |
+| **403** | Right subject, wrong capability — a reader running maintenance, or a tenant token calling provisioning.                                                     |
 
 ### Signing in as a human
 
@@ -684,14 +715,14 @@ deployment are in
 
 The design docs go deeper than this guide.
 
-| Document | Covers |
-|---|---|
-| [Operations](https://lakehold.dev/docs/operations) | Production ownership, entry gates, routine work, and the incident, disaster-recovery, and monitoring runbooks. |
-| [`docs/ARCHITECTURE.md`](https://github.com/skuirrels/LakeHold/blob/main/docs/ARCHITECTURE.md) | Architectural rationale and current product boundaries. |
-| [`docs/EXIT-PATH.md`](https://github.com/skuirrels/LakeHold/blob/main/docs/EXIT-PATH.md) | The verified open-format exit procedure that eject automates. |
-| [`docs/POSTGRES-WIRE.md`](https://github.com/skuirrels/LakeHold/blob/main/docs/POSTGRES-WIRE.md) | The wire protocol surface and what is deliberately unimplemented. |
-| [`docs/AUTHENTICATION.md`](https://github.com/skuirrels/LakeHold/blob/main/docs/AUTHENTICATION.md) | The phased plan for API authentication and tenant identity. |
-| [`docs/UI.md`](https://github.com/skuirrels/LakeHold/blob/main/docs/UI.md) | The web surfaces beyond the SQL IDE, and why a raw object browser is not one of them. |
-| [`docs/MCP.md`](https://github.com/skuirrels/LakeHold/blob/main/docs/MCP.md) | The MCP server, the tools an agent gets, and the ones deliberately withheld. |
-| [`docs/PROVIDER-FEEDBACK.md`](https://github.com/skuirrels/LakeHold/blob/main/docs/PROVIDER-FEEDBACK.md) | Provider capabilities and why the data plane uses its dynamic API. |
-| [`README.md`](https://github.com/skuirrels/LakeHold/blob/main/README.md) | Build, run, and the full set of environment variables and test commands. |
+| Document                                                                                                 | Covers                                                                                                         |
+| -------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| [Operations](https://lakehold.dev/docs/operations)                                                       | Production ownership, entry gates, routine work, and the incident, disaster-recovery, and monitoring runbooks. |
+| [`docs/ARCHITECTURE.md`](https://github.com/skuirrels/LakeHold/blob/main/docs/ARCHITECTURE.md)           | Architectural rationale and current product boundaries.                                                        |
+| [`docs/EXIT-PATH.md`](https://github.com/skuirrels/LakeHold/blob/main/docs/EXIT-PATH.md)                 | The verified open-format exit procedure that eject automates.                                                  |
+| [`docs/POSTGRES-WIRE.md`](https://github.com/skuirrels/LakeHold/blob/main/docs/POSTGRES-WIRE.md)         | The wire protocol surface and what is deliberately unimplemented.                                              |
+| [`docs/AUTHENTICATION.md`](https://github.com/skuirrels/LakeHold/blob/main/docs/AUTHENTICATION.md)       | The phased plan for API authentication and tenant identity.                                                    |
+| [`docs/UI.md`](https://github.com/skuirrels/LakeHold/blob/main/docs/UI.md)                               | The web surfaces beyond the SQL IDE, and why a raw object browser is not one of them.                          |
+| [`docs/MCP.md`](https://github.com/skuirrels/LakeHold/blob/main/docs/MCP.md)                             | The MCP server, the tools an agent gets, and the ones deliberately withheld.                                   |
+| [`docs/PROVIDER-FEEDBACK.md`](https://github.com/skuirrels/LakeHold/blob/main/docs/PROVIDER-FEEDBACK.md) | Provider capabilities and why the data plane uses its dynamic API.                                             |
+| [`README.md`](https://github.com/skuirrels/LakeHold/blob/main/README.md)                                 | Build, run, and the full set of environment variables and test commands.                                       |
