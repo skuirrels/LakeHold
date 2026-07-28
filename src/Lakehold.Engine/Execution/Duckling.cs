@@ -217,6 +217,46 @@ public sealed class Duckling : IAsyncDisposable
     }
 
     /// <summary>
+    ///     Uses DuckDB's own parser to determine whether one statement is a read query.
+    /// </summary>
+    /// <remarks>
+    ///     <c>json_serialize_sql</c> serialises SELECT-shaped statements, including VALUES and
+    ///     SELECT-bearing CTEs, and returns an error document for DDL or DML. The SQL text is a
+    ///     parameter to that fixed parser query; it is never concatenated or executed. This is
+    ///     authoring validation only—the read-only attachment remains the security boundary.
+    /// </remarks>
+    public Task<bool> IsReadQueryAsync(string sql, CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(sql);
+
+        return InvokeAsync(
+            async token =>
+            {
+                var connection = _context.Database.GetDbConnection();
+                if (connection.State is not ConnectionState.Open)
+                {
+                    await _context.Database.OpenConnectionAsync(token).ConfigureAwait(false);
+                }
+
+                await using var command = connection.CreateCommand();
+                command.CommandText =
+                    """
+                    SELECT NOT CAST(
+                        json_extract_string(json_serialize_sql(CAST($sql AS VARCHAR)), '$.error')
+                        AS BOOLEAN)
+                    """;
+                var parameter = command.CreateParameter();
+                parameter.ParameterName = "sql";
+                parameter.Value = sql;
+                command.Parameters.Add(parameter);
+
+                var value = await command.ExecuteScalarAsync(token).ConfigureAwait(false);
+                return Convert.ToBoolean(value, CultureInfo.InvariantCulture);
+            },
+            cancellationToken);
+    }
+
+    /// <summary>
     ///     Executes a statement and hands each row to <paramref name="onRow"/> as the provider
     ///     yields it, without materialising the result.
     /// </summary>

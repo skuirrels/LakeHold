@@ -260,18 +260,34 @@
   min-height: 0;
 }
 
-.sidebar-head {
-  padding: 10px 14px;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
-  color: var(--text-faint);
+.sidebar-tabs {
+  display: flex;
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
 }
 
-.sidebar lh-catalog-explorer {
+.sidebar-tab {
+  flex: 1;
+  padding: 10px 7px 8px;
+  color: var(--text-faint);
+  border-bottom: 2px solid transparent;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.sidebar-tab:hover {
+  color: var(--text-muted);
+}
+
+.sidebar-tab.active {
+  color: var(--text);
+  border-bottom-color: var(--accent);
+}
+
+.sidebar lh-catalog-explorer,
+.sidebar lh-saved-queries-panel {
   flex: 1;
   min-height: 0;
   overflow: hidden;

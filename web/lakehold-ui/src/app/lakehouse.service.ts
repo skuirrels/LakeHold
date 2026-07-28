@@ -16,6 +16,7 @@ import {
   QueryResponse,
   QueryRun,
   RestoreResult,
+  SavedQuery,
   ScheduledRun,
   Schema,
   Snapshot,
@@ -62,6 +63,88 @@ export class LakehouseService {
   execute(tenant: string, catalog: string, sql: string): Observable<QueryResponse> {
     return this.http
       .post<QueryResponse>(this.catalogUrl(tenant, catalog, 'query'), { sql })
+      .pipe(catchError(toMessage));
+  }
+
+  listSavedQueries(tenant: string, catalog: string): Observable<SavedQuery[]> {
+    return this.http
+      .get<SavedQuery[]>(this.catalogUrl(tenant, catalog, 'saved-queries'))
+      .pipe(catchError(toMessage));
+  }
+
+  createSavedQuery(
+    tenant: string,
+    catalog: string,
+    body: { name: string; description: string | null; sql: string },
+  ): Observable<SavedQuery> {
+    return this.http
+      .post<SavedQuery>(this.catalogUrl(tenant, catalog, 'saved-queries'), body)
+      .pipe(catchError(toMessage));
+  }
+
+  updateSavedQuery(
+    tenant: string,
+    catalog: string,
+    query: Pick<SavedQuery, 'id' | 'revision' | 'name' | 'description' | 'sql'>,
+  ): Observable<SavedQuery> {
+    return this.http
+      .put<SavedQuery>(this.catalogUrl(tenant, catalog, `saved-queries/${query.id}`), {
+        revision: query.revision,
+        name: query.name,
+        description: query.description,
+        sql: query.sql,
+      })
+      .pipe(catchError(toMessage));
+  }
+
+  deleteSavedQuery(
+    tenant: string,
+    catalog: string,
+    id: number,
+    revision: number,
+  ): Observable<void> {
+    return this.http
+      .delete<void>(this.catalogUrl(tenant, catalog, `saved-queries/${id}`), {
+        params: { revision },
+      })
+      .pipe(catchError(toMessage));
+  }
+
+  executeSavedQuery(tenant: string, catalog: string, id: number): Observable<QueryResponse> {
+    return this.http
+      .post<QueryResponse>(this.catalogUrl(tenant, catalog, `saved-queries/${id}/execute`), {})
+      .pipe(catchError(toMessage));
+  }
+
+  publishSavedQuery(
+    tenant: string,
+    catalog: string,
+    id: number,
+    revision: number,
+    schema: string,
+    viewName: string,
+  ): Observable<SavedQuery> {
+    return this.http
+      .post<SavedQuery>(this.catalogUrl(tenant, catalog, `saved-queries/${id}/publish`), {
+        revision,
+        schema,
+        viewName,
+      })
+      .pipe(catchError(toMessage));
+  }
+
+  unpublishSavedQuery(
+    tenant: string,
+    catalog: string,
+    id: number,
+    revision: number,
+  ): Observable<SavedQuery> {
+    return this.http
+      .post<SavedQuery>(
+        this.catalogUrl(tenant, catalog, `saved-queries/${id}/unpublish`),
+        {},
+        { params: { revision } },
+      )
       .pipe(catchError(toMessage));
   }
 

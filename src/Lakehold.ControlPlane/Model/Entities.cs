@@ -63,6 +63,8 @@ public sealed class LakeCatalog
 
     public Tenant Tenant { get; set; } = null!;
 
+    public ICollection<SavedQuery> SavedQueries { get; } = [];
+
     /// <summary>Projects this record into the descriptor the engine attaches.</summary>
     public CatalogDescriptor ToDescriptor() => new(
         Name,
@@ -80,17 +82,52 @@ public sealed class SavedQuery
 
     public int TenantId { get; set; }
 
+    /// <summary>
+    ///     Catalog this query is bound to. Nullable only so databases created before catalog-scoped
+    ///     saved queries can be upgraded without inventing a binding for dormant legacy rows.
+    ///     Every query created through the application has a value.
+    /// </summary>
+    public int? CatalogId { get; set; }
+
     public required string Name { get; set; }
 
     public string? Description { get; set; }
 
     public required string Sql { get; set; }
 
+    /// <summary>Optimistic revision of the saved definition, starting at one.</summary>
+    public int Revision { get; set; }
+
+    /// <summary>
+    ///     Optimistic version of the whole record. Unlike <see cref="Revision"/>, this advances for
+    ///     publication-state changes as well as authored-definition changes.
+    /// </summary>
+    public int ConcurrencyVersion { get; set; }
+
+    /// <summary>Token that first saved the query, or null for OIDC and legacy callers.</summary>
+    public int? CreatedByTokenId { get; set; }
+
+    /// <summary>Token that last changed the definition, or null for OIDC and legacy callers.</summary>
+    public int? UpdatedByTokenId { get; set; }
+
+    /// <summary>Schema of the published DuckLake view, when this query has one.</summary>
+    public string? PublishedSchema { get; set; }
+
+    /// <summary>Name of the published DuckLake view, when this query has one.</summary>
+    public string? PublishedViewName { get; set; }
+
+    /// <summary>Revision whose SQL the published view currently contains.</summary>
+    public int? PublishedRevision { get; set; }
+
+    public DateTimeOffset? PublishedUtc { get; set; }
+
     public DateTimeOffset CreatedUtc { get; set; }
 
     public DateTimeOffset UpdatedUtc { get; set; }
 
     public Tenant Tenant { get; set; } = null!;
+
+    public LakeCatalog? Catalog { get; set; }
 }
 
 /// <summary>

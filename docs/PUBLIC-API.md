@@ -33,6 +33,7 @@ segment, but it is validated against the credential rather than trusted.
 | Provisioning | `POST`/`DELETE /api/tenants`, `…/catalogs` | Synchronous; no async job model. |
 | Tokens | `POST`/`GET`/`DELETE …/{tenant}/tokens` | No pagination; no last-used tracking on the request path. |
 | Query | `POST …/catalogs/{c}/query` | No time-travel option; result capped, no streaming variant. |
+| Saved queries | `GET`/`POST`/`PUT`/`DELETE …/saved-queries`, `POST …/{id}/{execute\|publish\|unpublish}` | Catalog-scoped and revisioned; still unversioned and unpaginated. |
 | Schema | `GET …/catalogs/{c}/schemas` | — |
 | Storage | `GET …/catalogs/{c}/storage`, `GET …/storage/files` | Read-only footprint and snapshot-aware file inventory; unversioned and unpaginated. |
 | Time travel | `GET …/catalogs/{c}/snapshots?limit=`, `POST …/snapshots/{id}/restore-table` | Bounded list plus atomic single-table plan/apply; no versioned as-of request, label, pin, or retention. |
@@ -194,6 +195,7 @@ the only change is that the window comes from policy and pinned snapshots are ex
 | **Provisioning** | `POST/GET/DELETE …/tenants`, `…/catalogs`, `…/tokens` | Specified in `AUTHENTICATION.md`. Delete detaches; never destroys data. |
 | **Query (materialised)** | `POST …/query` | Add optional `asOf`; standardise errors. |
 | **Query (streaming)** | `POST …/query:stream` → NDJSON | New. No row cap, by construction (rule 3). |
+| **Saved queries / views** | `…/saved-queries`, `…/{id}/{execute\|publish\|unpublish}` | Keep optimistic revisions and read-only execution; add cursor pagination and standard errors. |
 | **Schema** | `GET …/schemas`, `GET …/tables/{schema}.{table}` | Add single-table detail. |
 | **Maintenance** | `POST …/maintenance/{flush\|compact\|backup}` | Non-destructive; `compact`/`backup` become jobs. |
 | **Backup / restore** | `GET …/backups`, `POST …/backups/restore` | Restore becomes a job; keep never-overwrite. |

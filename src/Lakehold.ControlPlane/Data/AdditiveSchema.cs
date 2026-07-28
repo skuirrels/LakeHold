@@ -15,16 +15,17 @@ namespace Lakehold.ControlPlane.Data;
 ///         model never changed; the first release that adds an entity would leave every existing
 ///         deployment without its table, failing at first use rather than at start-up.
 ///     </para>
-///     <para>
-///         This applies the narrow, safe subset of a migration: statements from EF's own generated
-///         create script that target tables missing from the live database. Purely additive — it
-///         never alters or drops an existing table, and existing user state is never touched. Columns
-///         added to an <em>existing</em> entity still need a real migration story; that trade-off is
-///         documented in <see cref="ControlPlaneContext"/> and unchanged here.
-///     </para>
+    ///     <para>
+    ///         This applies the narrow, safe subset of a migration: model-generated missing tables,
+    ///         additive columns and indexes, plus explicitly named retirement steps whose old
+    ///         constraint contradicts the current model. It never drops a table or rewrites user
+    ///         rows. Changes outside that bounded set still need a dedicated migration.
+    ///     </para>
 /// </remarks>
 public static class AdditiveSchema
 {
+    private const string LegacySavedQueryTenantNameIndex = "IX_SavedQueries_TenantId_Name";
+
     /// <summary>
     ///     Creates any model tables missing from the database, returning how many were created.
     /// </summary>
@@ -158,6 +159,100 @@ public static class AdditiveSchema
         return added;
     }
 
+    /// <summary>
+    ///     Creates indexes present in the model but missing from the live database, returning how
+    ///     many were created.
+    /// </summary>
+    /// <remarks>
+    ///     Adding a column without its lookup or uniqueness index makes an upgraded deployment
+    ///     behave differently from a clean one. Index creation is additive and does not rewrite or
+    ///     remove user rows; an index whose uniqueness exposes pre-existing duplicate state fails
+    ///     visibly at startup and leaves that feature degraded rather than silently accepting more
+    ///     invalid rows.
+    /// </remarks>
+    public static async Task<int> EnsureModelIndexesAsync(
+        ControlPlaneContext context,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+
+        var existingTables = await ListExistingTablesAsync(context, cancellationToken).ConfigureAwait(false);
+        var existingIndexes = await ListExistingIndexesAsync(context, cancellationToken).ConfigureAwait(false);
+        var created = 0;
+
+        foreach (var entity in context.Model.GetEntityTypes())
+        {
+            var table = entity.GetTableName();
+            if (string.IsNullOrEmpty(table) || !existingTables.Contains(table))
+            {
+                continue;
+            }
+
+            var storeObject = StoreObjectIdentifier.Create(entity, StoreObjectType.Table);
+            if (storeObject is not { } store)
+            {
+                continue;
+            }
+
+            foreach (var index in entity.GetIndexes())
+            {
+                var name = index.GetDatabaseName();
+                if (string.IsNullOrEmpty(name) || existingIndexes.Contains(name))
+                {
+                    continue;
+                }
+
+                var columns = index.Properties
+                    .Select(p => p.GetColumnName(store))
+                    .Where(c => !string.IsNullOrEmpty(c))
+                    .Select(c => QuoteIdentifier(c!))
+                    .ToArray();
+                if (columns.Length != index.Properties.Count)
+                {
+                    continue;
+                }
+
+                var ddl =
+                    $"CREATE {(index.IsUnique ? "UNIQUE " : string.Empty)}INDEX {QuoteIdentifier(name)} " +
+                    $"ON {QuoteIdentifier(table)} ({string.Join(", ", columns)})";
+                await ExecuteDdlAsync(context, ddl, cancellationToken).ConfigureAwait(false);
+                existingIndexes.Add(name);
+                created++;
+            }
+        }
+
+        return created;
+    }
+
+    /// <summary>
+    ///     Removes the obsolete tenant-wide saved-query name index, returning whether it existed.
+    /// </summary>
+    /// <remarks>
+    ///     Saved queries were originally a dormant tenant-level model. The live feature binds them
+    ///     to a catalog, so retaining the old unique index would prevent two catalogs in one tenant
+    ///     from using the same query name. This is a targeted schema retirement: it removes no rows
+    ///     and does not generalise into dropping indexes absent from the current EF model.
+    /// </remarks>
+    public static async Task<int> RetireLegacySavedQueryIndexAsync(
+        ControlPlaneContext context,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+
+        var existingIndexes = await ListExistingIndexesAsync(context, cancellationToken).ConfigureAwait(false);
+        if (!existingIndexes.Contains(LegacySavedQueryTenantNameIndex))
+        {
+            return 0;
+        }
+
+        await ExecuteDdlAsync(
+                context,
+                $"DROP INDEX {QuoteIdentifier(LegacySavedQueryTenantNameIndex)}",
+                cancellationToken)
+            .ConfigureAwait(false);
+        return 1;
+    }
+
     /// <summary>The literal for a required column's default, or null when none can be derived safely.</summary>
     private static string? DefaultLiteralFor(IProperty property)
     {
@@ -224,6 +319,72 @@ public static class AdditiveSchema
 
         return found;
     }
+
+    private static async Task<HashSet<string>> ListExistingIndexesAsync(
+        ControlPlaneContext context,
+        CancellationToken cancellationToken)
+    {
+        var found = new HashSet<string>(StringComparer.Ordinal);
+        var connection = context.Database.GetDbConnection();
+        var opened = connection.State != System.Data.ConnectionState.Open;
+        if (opened)
+        {
+            await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        try
+        {
+            await using var command = connection.CreateCommand();
+            command.CommandText = "SELECT index_name FROM duckdb_indexes()";
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+            while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+            {
+                if (Convert.ToString(reader.GetValue(0), CultureInfo.InvariantCulture) is { Length: > 0 } name)
+                {
+                    found.Add(name);
+                }
+            }
+        }
+        finally
+        {
+            if (opened)
+            {
+                await connection.CloseAsync().ConfigureAwait(false);
+            }
+        }
+
+        return found;
+    }
+
+    private static async Task ExecuteDdlAsync(
+        ControlPlaneContext context,
+        string sql,
+        CancellationToken cancellationToken)
+    {
+        var connection = context.Database.GetDbConnection();
+        var opened = connection.State != System.Data.ConnectionState.Open;
+        if (opened)
+        {
+            await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        try
+        {
+            await using var command = connection.CreateCommand();
+            command.CommandText = sql;
+            await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            if (opened)
+            {
+                await connection.CloseAsync().ConfigureAwait(false);
+            }
+        }
+    }
+
+    private static string QuoteIdentifier(string value)
+        => $"\"{value.Replace("\"", "\"\"", StringComparison.Ordinal)}\"";
 
     /// <summary>Whether a DDL statement is part of <paramref name="table"/>'s definition.</summary>
     /// <remarks>

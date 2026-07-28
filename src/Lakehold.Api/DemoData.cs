@@ -68,6 +68,22 @@ internal static class DemoData
             {
                 logger.LogInformation("Added {Count} control-plane column(s) introduced since this database was initialised", addedColumns);
             }
+
+            var retiredIndexes = await AdditiveSchema
+                .RetireLegacySavedQueryIndexAsync(context, CancellationToken.None)
+                .ConfigureAwait(false);
+            if (retiredIndexes > 0)
+            {
+                logger.LogInformation(
+                    "Retired {Count} obsolete control-plane index(es) whose scope changed",
+                    retiredIndexes);
+            }
+
+            var addedIndexes = await AdditiveSchema.EnsureModelIndexesAsync(context, CancellationToken.None).ConfigureAwait(false);
+            if (addedIndexes > 0)
+            {
+                logger.LogInformation("Created {Count} control-plane index(es) introduced since this database was initialised", addedIndexes);
+            }
         }
         catch (Exception ex)
         {

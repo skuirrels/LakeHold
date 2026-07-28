@@ -72,6 +72,7 @@ builder.Services.AddDbContext<ControlPlaneContext>(options =>
 builder.Services.AddSingleton<DucklingPool>();
 builder.Services.AddSingleton<CatalogCache>();
 builder.Services.AddScoped<LakehouseService>();
+builder.Services.AddScoped<SavedQueryService>();
 
 // Authentication: resolve a bearer token to a principal, then validate the route against it in the
 // endpoint filter. Off by default for token-less requests until issuance and the UI wiring land —

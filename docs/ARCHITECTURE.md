@@ -145,6 +145,16 @@ The split is by *model*, not by dependency. Both planes run on
   arbitrary SQL through the provider's streaming `SqlQueryDynamicRawAsync`. No `DbSet`, no change
   tracker, no LINQ pipeline: those exist for known schemas, and this one is discovered at runtime.
 
+Saved queries are the deliberate bridge between the two. Their catalog binding, description,
+optimistic revision, and publication state are modelled control-plane data. Running one resolves the
+persisted definition by id and executes it through a read-only Duckling. Publishing is an explicit
+editor/owner operation that writes a view into DuckLake, where PostgreSQL-wire and BI clients discover
+it like any other catalog object. Editing the definition never silently rewrites the published view;
+its recorded revision exposes the drift until republish. Publication takes an optimistic
+control-plane claim before running DDL, serialising publish/unpublish against edits and other
+publication operations. If DDL succeeds but metadata finalisation fails, the workflow reconciles the
+live target against the winning control-plane row so a retry never strands an unreachable view.
+
 This was not the original design. Against provider 1.12.0 the data plane used raw `DuckDB.NET`,
 because EF Core required a CLR type per result shape and a lakehouse has none to offer. Provider
 1.13.0 added streaming dynamic queries and a typed DuckLake maintenance facade, which removed the

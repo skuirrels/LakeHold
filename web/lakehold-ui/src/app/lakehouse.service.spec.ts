@@ -43,6 +43,35 @@ describe('LakehouseService', () => {
     });
   });
 
+  it('uses revisioned catalog routes for saved-query publication', () => {
+    service.publishSavedQuery('north wind', 'sales/eu', 17, 3, 'reporting', 'revenue').subscribe();
+
+    const publish = http.expectOne(
+      '/api/tenants/north%20wind/catalogs/sales%2Feu/saved-queries/17/publish',
+    );
+    expect(publish.request.method).toBe('POST');
+    expect(publish.request.body).toEqual({
+      revision: 3,
+      schema: 'reporting',
+      viewName: 'revenue',
+    });
+    publish.flush({
+      id: 17,
+      name: 'Revenue',
+      description: null,
+      sql: 'SELECT 1',
+      revision: 3,
+      createdUtc: '2026-07-28T10:00:00Z',
+      updatedUtc: '2026-07-28T10:00:00Z',
+      createdByTokenId: null,
+      updatedByTokenId: null,
+      publishedSchema: 'reporting',
+      publishedViewName: 'revenue',
+      publishedRevision: 3,
+      publishedUtc: '2026-07-28T10:01:00Z',
+    });
+  });
+
   it('sends table names as query parameters without path ambiguity', () => {
     service.getTableFiles('demo', 'analytics', 'odd schema', 'orders/2026', 17).subscribe();
 

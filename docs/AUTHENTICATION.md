@@ -512,6 +512,8 @@ Capability is declared on the route as `Capability` metadata and enforced in one
 | `DELETE /api/tenants/{tenant}/catalogs/{catalog}` | `Instance` | Instance token |
 | `POST`/`GET`/`DELETE /api/tenants/{tenant}/tokens` | `TenantAdmin` | Instance token, or a full **owner** token on its own tenant |
 | `POST …/catalogs/{catalog}/query` | `TenantData` | Any tenant token for that tenant/catalog |
+| `GET …/saved-queries`, `POST …/saved-queries/{id}/execute` | `TenantData` | Any tenant token; execution always uses a read-only attachment |
+| `POST`/`PUT`/`DELETE …/saved-queries`, `POST …/{id}/{publish\|unpublish}` | `TenantWrite` | Editor or owner |
 | `GET …/schemas`, `…/snapshots`, `…/backups`, `…/ejects`, `…/changes`, `…/subscriptions` | `TenantData` | Any tenant token |
 | `GET /api/tenants/{tenant}/history` | `TenantData` | Any tenant token |
 | `POST …/snapshots/{id}/restore-table` | `TenantWrite` | Editor or owner; defaults to a read-only plan and applies only after confirmation |

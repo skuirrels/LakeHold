@@ -1,0 +1,165 @@
+<div class="query-head">
+  <span>Reusable queries</span>
+  @if (!readOnly()) {
+    <button class="small-btn accent" type="button" (click)="beginCreate()">Save current</button>
+  }
+</div>
+
+@if (error(); as message) {
+  <div class="query-banner error">{{ message }}</div>
+}
+@if (notice(); as message) {
+  <div class="query-banner notice">{{ message }}</div>
+}
+
+@if (formOpen()) {
+  <form class="query-form" (submit)="$event.preventDefault(); save()">
+    <strong>{{ editing() ? 'Update saved query' : 'Save current SQL' }}</strong>
+    <label>
+      <span>Name</span>
+      <input
+        type="text"
+        maxlength="200"
+        [value]="nameDraft()"
+        (input)="nameDraft.set($any($event.target).value)"
+      />
+    </label>
+    <label>
+      <span>Description</span>
+      <textarea
+        maxlength="1000"
+        rows="3"
+        [value]="descriptionDraft()"
+        (input)="descriptionDraft.set($any($event.target).value)"
+      ></textarea>
+    </label>
+    <p>The current editor SQL will be saved as one read-only query.</p>
+    <div class="form-actions">
+      <button
+        class="small-btn accent"
+        type="submit"
+        [disabled]="busy() || !nameDraft().trim() || !sql().trim()"
+      >
+        {{ busy() ? 'Saving…' : editing() ? 'Save revision' : 'Save' }}
+      </button>
+      <button class="small-btn" type="button" (click)="cancelForm()">Cancel</button>
+    </div>
+  </form>
+}
+
+@if (loading()) {
+  <p class="empty">Loading saved queries…</p>
+} @else if (queries().length === 0 && !formOpen()) {
+  <p class="empty">
+    No reusable queries in this catalog.
+    @if (!readOnly()) {
+      Run or write a SELECT, then save it here.
+    }
+  </p>
+} @else {
+  <ul class="query-list">
+    @for (query of queries(); track query.id) {
+      <li>
+        <div class="query-title">
+          <button type="button" class="query-name" (click)="open(query)">{{ query.name }}</button>
+          <span class="revision">r{{ query.revision }}</span>
+        </div>
+
+        @if (query.description) {
+          <p class="description">{{ query.description }}</p>
+        }
+
+        @if (query.publishedViewName) {
+          <div
+            class="publication"
+            [class.stale]="!isPublishedCurrent(query)"
+            [title]="
+              isPublishedCurrent(query)
+                ? 'The view contains the current query revision'
+                : 'The saved SQL changed after publication; republish to update the view'
+            "
+          >
+            {{ query.publishedSchema }}.{{ query.publishedViewName }}
+            · {{ isPublishedCurrent(query) ? 'published' : 'republish needed' }}
+          </div>
+        }
+
+        <div class="query-actions">
+          <button class="small-btn accent" type="button" (click)="run(query)">Run</button>
+          <button class="small-btn" type="button" (click)="open(query)">Open</button>
+          @if (!readOnly()) {
+            <button class="small-btn" type="button" (click)="beginEdit(query)">Edit</button>
+            <button class="small-btn" type="button" (click)="beginPublish(query)">
+              {{ query.publishedViewName ? 'Republish' : 'Publish' }}
+            </button>
+            @if (query.publishedViewName) {
+              <button class="small-btn" type="button" (click)="requestUnpublish(query)">
+                Unpublish
+              </button>
+            } @else {
+              <button class="small-btn danger" type="button" (click)="requestDelete(query)">
+                Delete
+              </button>
+            }
+          }
+        </div>
+
+        @if (publishing()?.id === query.id) {
+          <form class="publish-form" (submit)="$event.preventDefault(); publish()">
+            <p>
+              {{
+                query.publishedViewName
+                  ? 'Replace this view with the current revision.'
+                  : 'Expose this query to SQL and BI clients as a view.'
+              }}
+            </p>
+            <label>
+              <span>Schema</span>
+              <input
+                type="text"
+                maxlength="63"
+                [value]="schemaDraft()"
+                (input)="schemaDraft.set($any($event.target).value)"
+              />
+            </label>
+            <label>
+              <span>View</span>
+              <input
+                type="text"
+                maxlength="63"
+                [value]="viewDraft()"
+                (input)="viewDraft.set($any($event.target).value)"
+              />
+            </label>
+            <div class="form-actions">
+              <button
+                class="small-btn accent"
+                type="submit"
+                [disabled]="busy() || !schemaDraft().trim() || !viewDraft().trim()"
+              >
+                {{ busy() ? 'Publishing…' : query.publishedViewName ? 'Republish' : 'Publish view' }}
+              </button>
+              <button class="small-btn" type="button" (click)="cancelPublish()">Cancel</button>
+            </div>
+          </form>
+        }
+
+        @if (unpublishPending() === query.id) {
+          <div class="confirm">
+            <span>Drop {{ query.publishedSchema }}.{{ query.publishedViewName }}?</span>
+            <button class="small-btn danger" type="button" (click)="unpublish(query)">Drop view</button>
+            <button class="small-btn" type="button" (click)="cancelUnpublish()">Cancel</button>
+          </div>
+        }
+
+        @if (deletePending() === query.id) {
+          <div class="confirm">
+            <span>Delete this saved definition?</span>
+            <button class="small-btn danger" type="button" (click)="delete(query)">Delete</button>
+            <button class="small-btn" type="button" (click)="cancelDelete()">Cancel</button>
+          </div>
+        }
+      </li>
+    }
+  </ul>
+}

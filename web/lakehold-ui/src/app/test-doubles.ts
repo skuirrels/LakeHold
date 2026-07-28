@@ -12,6 +12,7 @@ import {
   QueryResponse,
   QueryRun,
   RestoreResult,
+  SavedQuery,
   ScheduledRun,
   Schema,
   Snapshot,
@@ -203,6 +204,7 @@ export class FakeLakehouseService {
     elapsedMilliseconds: 1,
     rowsAffected: null,
   };
+  savedQueries: SavedQuery[] = [];
   /** What the next maintenance call reports. `dryRun` drives the confirmation affordance. */
   maintenance: MaintenanceResult = {
     operation: 'flush',
@@ -244,6 +246,66 @@ export class FakeLakehouseService {
     return this.answer('execute', args, () => this.queryResponse);
   }
 
+  listSavedQueries(...args: unknown[]): Observable<SavedQuery[]> {
+    return this.answer('listSavedQueries', args, () => this.savedQueries);
+  }
+
+  createSavedQuery(...args: unknown[]): Observable<SavedQuery> {
+    return this.answer('createSavedQuery', args, () => {
+      const body = args[2] as { name: string; description: string | null; sql: string };
+      return savedQuery({
+        id: 1,
+        name: body.name,
+        description: body.description,
+        sql: body.sql,
+      });
+    });
+  }
+
+  updateSavedQuery(...args: unknown[]): Observable<SavedQuery> {
+    return this.answer('updateSavedQuery', args, () => {
+      const body = args[2] as SavedQuery;
+      return { ...body, revision: body.revision + 1 };
+    });
+  }
+
+  deleteSavedQuery(...args: unknown[]): Observable<void> {
+    return this.answer('deleteSavedQuery', args, () => undefined);
+  }
+
+  executeSavedQuery(...args: unknown[]): Observable<QueryResponse> {
+    return this.answer('executeSavedQuery', args, () => this.queryResponse);
+  }
+
+  publishSavedQuery(...args: unknown[]): Observable<SavedQuery> {
+    return this.answer('publishSavedQuery', args, () => {
+      const id = Number(args[2]);
+      const revision = Number(args[3]);
+      const existing = this.savedQueries.find((query) => query.id === id) ?? savedQuery({ id });
+      return {
+        ...existing,
+        publishedSchema: String(args[4]),
+        publishedViewName: String(args[5]),
+        publishedRevision: revision,
+        publishedUtc: '2026-07-28T12:00:00Z',
+      };
+    });
+  }
+
+  unpublishSavedQuery(...args: unknown[]): Observable<SavedQuery> {
+    return this.answer('unpublishSavedQuery', args, () => {
+      const id = Number(args[2]);
+      const existing = this.savedQueries.find((query) => query.id === id) ?? savedQuery({ id });
+      return {
+        ...existing,
+        publishedSchema: null,
+        publishedViewName: null,
+        publishedRevision: null,
+        publishedUtc: null,
+      };
+    });
+  }
+
   runMaintenance(...args: unknown[]): Observable<MaintenanceResult> {
     return this.answer('runMaintenance', args, () => ({
       ...this.maintenance,
@@ -270,6 +332,26 @@ export class FakeLakehouseService {
     const failure = this.failures.get(method);
     return failure ? throwError(() => new Error(failure)) : of(value());
   }
+}
+
+/** A reusable query with stable defaults, so specs only state the behavior-relevant fields. */
+export function savedQuery(overrides: Partial<SavedQuery> = {}): SavedQuery {
+  return {
+    id: 1,
+    name: 'Revenue by country',
+    description: null,
+    sql: 'SELECT country, sum(revenue) FROM events GROUP BY country',
+    revision: 1,
+    createdUtc: '2026-07-28T10:00:00Z',
+    updatedUtc: '2026-07-28T10:00:00Z',
+    createdByTokenId: null,
+    updatedByTokenId: null,
+    publishedSchema: null,
+    publishedViewName: null,
+    publishedRevision: null,
+    publishedUtc: null,
+    ...overrides,
+  };
 }
 
 /** A storage row with sensible defaults, so a spec only states the fields it cares about. */

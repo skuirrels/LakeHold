@@ -11,7 +11,8 @@ where a rule already exists this document says how the UI preserves it rather th
 **Status: Phases 1–7 have landed.** `StorageBrowser` reads the footprint, five dedicated routes serve
 the storage and inspection surfaces, and
 the workbench has eight panels: Results, Query history, Data history, Storage (with a unified
-per-table inspector), Changes, Backups, Eject, and Schedule.
+per-table inspector), Changes, Backups, Eject, and Schedule. The left rail switches between the
+catalog explorer and the catalog-scoped saved-query library.
 
 Everything the original specification left open has since been **measured against DuckLake on DuckDB
 1.5.5** rather than reasoned about. Two of those measurements changed the design, and are called out
@@ -350,6 +351,7 @@ The seam is one component per tab:
 
 | Component | Owns |
 |---|---|
+| `saved-queries-panel` | Reusable-query authoring, optimistic revisions, read-only execution, and the explicit published-view lifecycle |
 | `data-history-panel` | Snapshot timeline, exact-commit changes, range comparison, bounded historical preview, restore plan and confirmation |
 | `change-grid` | The shared dynamic row-change rendering and update-pair semantics |
 | `storage-panel` | The footprint rollup, the per-file detail, the as-of selector |
@@ -365,12 +367,25 @@ The workbench keeps the chrome — selectors, maintenance buttons, credential po
 — plus the two panels tied to running a statement: results and query history. Data history owns its
 requests and panel-local failures like the other operational surfaces.
 
+Saved queries deliberately span the two architectural planes without merging them. Name,
+description, SQL, revision, and publication metadata live in `ControlPlaneContext`, bound to one
+catalog. Execution resolves the persisted definition by id and attaches that catalog read-only.
+Publishing is an editor/owner operation that creates a DuckLake view with allow-listed identifiers;
+the first publish refuses an existing object, while republish can replace only the target already
+recorded for that definition. Updating SQL advances the authored revision but leaves the published
+revision unchanged, making contract drift visible rather than silently changing downstream results.
+A record-wide concurrency stamp is claimed inside a control-plane transaction before view DDL, so
+publish, unpublish, edits, and deletes cannot race their durable effects. A failed metadata
+finalisation reconciles the live target before returning a conflict.
+
 Three things the split bought beyond size:
 
 - **Stale errors became structurally impossible.** Each panel owns its banner, destroyed with the
   panel. The `error.set(null)` that had to be remembered on every tab change is gone.
-- **So did stale per-catalog state.** Panels take the catalog as an input and reload on change, which
-  retired a `clearCatalogPanels` method that had to be kept in step with every signal ever added.
+- **So did stale per-catalog state.** Panels take the catalog as an input, cancel their outstanding
+  list and mutation subscriptions on change, and reload. That retired a `clearCatalogPanels` method
+  that had to be kept in step with every signal ever added without allowing a late response from the
+  previous catalog to repopulate the new one.
 - **The shared stylesheet is a real deduplication**, not a move: Angular's view encapsulation means a
   panel cannot inherit the workbench's styles, so without `panel-shared.css` each of the five would
   have carried its own copy of the table look.
