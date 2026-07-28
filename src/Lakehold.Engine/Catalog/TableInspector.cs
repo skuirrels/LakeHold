@@ -166,7 +166,8 @@ public static class TableInspector
         var metadata = await MetadataExporter
             .ResolveMetadataAliasAsync(duckling, cancellationToken)
             .ConfigureAwait(false);
-        var meta = SqlIdentifier.Quote(metadata, nameof(metadata));
+        var meta = $"{SqlIdentifier.Quote(metadata, nameof(metadata))}."
+            + SqlIdentifier.Quote(duckling.Catalog.ResolvedMetadataSchema, "metadataSchema");
 
         // Column names are resolved as they stood when the partition specification began. A column
         // rename produces a new ducklake_column version with the same column id; joining only the

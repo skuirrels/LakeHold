@@ -1,0 +1,146 @@
+:host {
+  display: block;
+  min-height: 0;
+  overflow: auto;
+}
+
+.history-limit {
+  margin-left: auto;
+}
+
+.timeline-scroll {
+  overflow-x: auto;
+}
+
+.history-timeline {
+  min-width: 900px;
+}
+
+.history-timeline td {
+  vertical-align: middle;
+}
+
+.snapshot-id {
+  color: var(--info);
+  white-space: nowrap;
+}
+
+.latest-badge,
+.schema-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-family: var(--sans);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.latest-badge {
+  color: var(--info);
+  border: 1px solid color-mix(in srgb, var(--info) 55%, transparent);
+}
+
+.schema-badge {
+  color: var(--warn);
+  border: 1px solid color-mix(in srgb, var(--warn) 55%, transparent);
+}
+
+.commit-message {
+  max-width: 42ch;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.row-actions {
+  display: flex;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.row-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.restore-btn {
+  color: var(--warn);
+}
+
+.restore-notice {
+  padding: 9px 12px;
+  border-bottom: 1px solid color-mix(in srgb, var(--ok) 40%, var(--border));
+  color: var(--ok);
+  background: color-mix(in srgb, var(--ok) 8%, var(--surface-1));
+  font-size: 12px;
+}
+
+.restore-plan {
+  margin: 10px 12px;
+  padding: 12px;
+  border: 1px solid color-mix(in srgb, var(--warn) 45%, var(--border));
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--warn) 5%, var(--surface-1));
+}
+
+.restore-summary {
+  margin: 8px 0;
+  color: var(--text);
+  font-size: 13px;
+}
+
+.restore-columns {
+  display: grid;
+  gap: 7px;
+  margin: 10px 0;
+  font-size: 12px;
+}
+
+.restore-columns div {
+  display: grid;
+  grid-template-columns: minmax(130px, 0.25fr) 1fr;
+  gap: 10px;
+}
+
+.restore-columns dt {
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.restore-columns dd {
+  margin: 0;
+  color: var(--text);
+  font-family: var(--mono);
+  overflow-wrap: anywhere;
+}
+
+.restore-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.history-detail {
+  border-top: 1px solid var(--border-strong);
+  margin-top: 8px;
+}
+
+.detail-count {
+  color: var(--text-faint);
+  font-family: var(--mono);
+  font-size: 11px;
+}
+
+.historical-result {
+  height: 320px;
+  min-height: 180px;
+}
+
+@media (max-width: 900px) {
+  .history-limit {
+    margin-left: 0;
+  }
+}

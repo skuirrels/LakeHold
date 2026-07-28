@@ -213,6 +213,7 @@ public sealed class PostgresStorageTests : IAsyncLifetime
     private const string ConnectionVariable = "LAKEHOLD_TEST_POSTGRES";
     private const string CredentialSecret = "lakehold_storage_pgcreds";
     private const string ProfileSecret = "lakehold_storage_pgprofile";
+    private const string MetadataSchema = "lakehold_storage";
 
     private readonly string _root = Path.Combine(Path.GetTempPath(), "lakehold-pg-storage", Guid.NewGuid().ToString("N"));
     private string? _connection;
@@ -238,6 +239,7 @@ public sealed class PostgresStorageTests : IAsyncLifetime
             CatalogMetadataKind.Postgres,
             ProfileSecret,
             Path.Combine(_root, "data"),
+            MetadataSchema: MetadataSchema,
             MetadataSecretName: CredentialSecret);
 
         Directory.CreateDirectory(_catalog.DataPath);
@@ -361,9 +363,13 @@ public sealed class PostgresStorageTests : IAsyncLifetime
                     DATABASE '{{parts["dbname"]}}',
                     USER '{{parts["user"]}}',
                     PASSWORD '{{parts["password"]}}');
+                ATTACH '' AS lakehold_storage_setup (TYPE postgres, SECRET {{CredentialSecret}});
+                CREATE SCHEMA IF NOT EXISTS lakehold_storage_setup.{{MetadataSchema}};
+                DETACH lakehold_storage_setup;
                 CREATE OR REPLACE SECRET {{ProfileSecret}} (
                     TYPE ducklake,
                     METADATA_PATH '',
+                    METADATA_SCHEMA '{{MetadataSchema}}',
                     DATA_PATH '{{dataPath}}/',
                     METADATA_PARAMETERS MAP{'TYPE': 'postgres', 'SECRET': '{{CredentialSecret}}'});
                 """;
@@ -371,7 +377,7 @@ public sealed class PostgresStorageTests : IAsyncLifetime
         });
     }
 
-    private Task ResetMetadataAsync() => PostgresMetadata.ResetAsync(_connection!);
+    private Task ResetMetadataAsync() => PostgresMetadata.ResetAsync(_connection!, MetadataSchema);
 
     private static Task<QueryResult> Run(Duckling duckling, string sql) => duckling.ExecuteQueryAsync(sql, CancellationToken.None);
 
@@ -396,7 +402,7 @@ public sealed class PostgresMetadata
     public const string CollectionName = "postgres-metadata";
 
     /// <summary>Drops everything these suites create in the shared database.</summary>
-    internal static async Task ResetAsync(string connection)
+    internal static async Task ResetAsync(string connection, params string[] additionalSchemas)
     {
         var parts = ParseConnection(connection);
 
@@ -425,6 +431,12 @@ public sealed class PostgresMetadata
         })
         {
             await Execute(duck, $"CALL postgres_execute('reset_pg', '{statement}')");
+        }
+
+        foreach (var schema in additionalSchemas)
+        {
+            var quoted = SqlIdentifier.QuoteName(schema);
+            await Execute(duck, $"CALL postgres_execute('reset_pg', 'DROP SCHEMA IF EXISTS {quoted} CASCADE')");
         }
     }
 

@@ -58,12 +58,17 @@ export function formatTime(iso: string): string {
 }
 
 /**
- * Splits a `schema.table` label back into its parts.
+ * Quotes a catalog-derived SQL identifier.
  *
- * Only the *first* dot separates: a table may legitimately contain one, and DuckLake happily stores
- * `main.my.table`. Splitting on the last dot, or on every dot, would address the wrong table.
+ * This is escaping, not validation: DuckLake permits names such as `order-items`, `my.table`, and
+ * `select`. Doubling an embedded quote is the SQL-standard representation and keeps history actions
+ * pointed at exactly the table the catalog returned.
  */
-export function splitQualified(qualified: string): [schema: string, table: string] {
-  const cut = qualified.indexOf('.');
-  return cut === -1 ? ['main', qualified] : [qualified.slice(0, cut), qualified.slice(cut + 1)];
+export function quoteIdentifier(identifier: string): string {
+  return `"${identifier.replaceAll('"', '""')}"`;
+}
+
+/** Quotes both parts of a table reference without flattening names that contain dots. */
+export function quoteTable(schemaName: string, tableName: string): string {
+  return `${quoteIdentifier(schemaName)}.${quoteIdentifier(tableName)}`;
 }

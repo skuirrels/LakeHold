@@ -14,6 +14,7 @@ import { BackupsPanelComponent } from './backups-panel.component';
 import { BrandMarkComponent } from './brand-mark.component';
 import { CatalogExplorerComponent } from './catalog-explorer.component';
 import { ChangesPanelComponent } from './changes-panel.component';
+import { DataHistoryPanelComponent } from './data-history-panel.component';
 import { EjectPanelComponent } from './eject-panel.component';
 import { FirstRunComponent, FirstRunMode, WorkspaceRequest } from './first-run.component';
 import { formatTime } from './format';
@@ -24,7 +25,6 @@ import {
   QueryResponse,
   QueryRun,
   Schema,
-  Snapshot,
   TableReference,
   Tenant,
 } from './models';
@@ -49,9 +49,9 @@ type BottomTab =
  * The SQL IDE.
  *
  * This component owns the chrome — workspace and catalog selectors, the maintenance buttons, the
- * credential popover, the editor, and the tab strip — plus the three panels that belong to running a
- * statement: results, history, and snapshots. Everything else below the editor is its own component,
- * one per tab, each owning its own state, its own requests, and its own error banner.
+ * credential popover, the editor, and the tab strip — plus the two panels that belong to running a
+ * statement: results and query history. Everything else below the editor is its own component, one
+ * per tab, each owning its own state, its own requests, and its own error banner.
  *
  * That split is what keeps a failure from leaking between panels: a panel's banner is destroyed with
  * the panel, so a restore refusal cannot hang over the eject list. See `docs/UI.md`.
@@ -64,6 +64,7 @@ type BottomTab =
     BrandMarkComponent,
     CatalogExplorerComponent,
     ChangesPanelComponent,
+    DataHistoryPanelComponent,
     EjectPanelComponent,
     FirstRunComponent,
     ResultGridComponent,
@@ -86,6 +87,7 @@ export class WorkbenchComponent {
    */
   private readonly storagePanel = viewChild(StoragePanelComponent);
   private readonly backupsPanel = viewChild(BackupsPanelComponent);
+  private readonly dataHistoryPanel = viewChild(DataHistoryPanelComponent);
 
   /** Whether the credential popover is open, and the token being typed into it. */
   protected readonly credentialOpen = signal(false);
@@ -109,7 +111,6 @@ export class WorkbenchComponent {
   protected readonly history = signal<QueryRun[]>([]);
   /** A destructive operation whose dry run has completed and is awaiting confirmation. */
   protected readonly pendingApply = signal<MaintenanceOperation | null>(null);
-  protected readonly snapshots = signal<Snapshot[]>([]);
   protected readonly tab = signal<BottomTab>('results');
   protected readonly inspectedTable = signal<TableReference | null>(null);
 
@@ -159,21 +160,14 @@ export class WorkbenchComponent {
   protected readonly readOnlyAccess = computed(() => this.access()?.readOnly ?? false);
   protected readonly demoMode = computed(() => this.access()?.mode === 'demo');
 
-  /**
-   * Base tables as `schema.table`, for the pickers that need one.
-   *
-   * Views are excluded: neither the change feed nor a snapshot restore means anything for a view,
-   * which has no rows of its own. Derived here rather than in the panels because the workbench
-   * already loads the object tree for the explorer, and a panel re-fetching it would be waste.
-   */
-  protected readonly baseTables = computed(() =>
+  /** Base tables for history and change-feed pickers; views own no rows or snapshots of their own. */
+  protected readonly baseTableReferences = computed<TableReference[]>(() =>
     this.schemas().flatMap((schema) =>
       schema.tables
         .filter((table) => table.kind !== 'VIEW')
-        .map((table) => `${schema.name}.${table.name}`),
+        .map((table) => ({ schemaName: schema.name, tableName: table.name })),
     ),
   );
-
   protected readonly summary = computed(() => {
     const data = this.result();
     if (!data) {
@@ -358,9 +352,6 @@ export class WorkbenchComponent {
     this.catalogName.set(name);
     this.inspectedTable.set(null);
     this.refreshCatalog();
-    if (this.tab() === 'snapshots') {
-      this.refreshSnapshots();
-    }
   }
 
   protected run(): void {
@@ -426,35 +417,6 @@ export class WorkbenchComponent {
   }
 
   /**
-   * Populates the editor with a statement that restores a table to a chosen snapshot, ready to run.
-   *
-   * A DuckLake snapshot is catalog-wide, but a restore is expressed per table:
-   * `CREATE OR REPLACE TABLE t AS SELECT * FROM t AT (VERSION => n)` rewrites the table to its rows
-   * at that snapshot. It is a single statement — so it runs through the same path as any other query
-   * — and it records a *new* snapshot rather than rewriting history, which keeps time travel intact
-   * and makes the restore itself reversible. The naive `DELETE` + `INSERT ... AT` reads the snapshot
-   * through the pending delete and silently restores the wrong rows, so this form is used instead.
-   *
-   * The target defaults to the catalog's first table so Run works immediately; other tables are
-   * listed as a hint because we cannot know which one the operator means.
-   */
-  protected restoreSnapshot(snapshot: Snapshot): void {
-    const version = snapshot.snapshotId;
-    const tables = this.baseTables();
-    const target = tables[0] ?? 'schema.table';
-    const others =
-      tables.length > 1 ? `\n-- Other tables in this catalog: ${tables.slice(1).join(', ')}` : '';
-
-    this.sql.set(
-      `-- Restore a table to snapshot ${version} and record a new, reversible snapshot.
--- A snapshot spans the whole catalog; this restores one table. Constraints or defaults
--- added since the snapshot are not carried over. Review the target, then press Run.${others}
-CREATE OR REPLACE TABLE ${target} AS
-SELECT * FROM ${target} AT (VERSION => ${version});`,
-    );
-  }
-
-  /**
    * Runs a maintenance operation.
    *
    * `expire` and `cleanup` run as a dry run first. The result is shown with a confirmation
@@ -483,9 +445,7 @@ SELECT * FROM ${target} AT (VERSION => ${version});`,
         // its effect must say so: pressing Compact and watching the file count stay put is the whole
         // reason the storage panel is worth having.
         if (!res.dryRun) {
-          if (this.tab() === 'snapshots') {
-            this.refreshSnapshots();
-          }
+          this.dataHistoryPanel()?.reload();
           this.storagePanel()?.reload();
           if (operation === 'backup') {
             this.backupsPanel()?.reload();
@@ -514,10 +474,10 @@ SELECT * FROM ${target} AT (VERSION => ${version});`,
     // A query failure belongs to the editor, not to whatever panel the operator opens next. The
     // panels carry their own banners, which are destroyed with them.
     this.error.set(null);
+  }
 
-    if (tab === 'snapshots') {
-      this.refreshSnapshots();
-    }
+  protected refreshQueryHistory(): void {
+    this.refreshHistory();
   }
 
   protected replay(run: QueryRun): void {
@@ -556,19 +516,6 @@ SELECT * FROM ${target} AT (VERSION => ${version});`,
     this.api
       .getHistory(tenant)
       .subscribe({ next: (runs) => this.history.set(runs), error: () => undefined });
-  }
-
-  private refreshSnapshots(): void {
-    const tenant = this.tenantSlug();
-    const catalog = this.catalogName();
-    if (!tenant || !catalog) {
-      return;
-    }
-
-    this.api.getSnapshots(tenant, catalog).subscribe({
-      next: (snapshots) => this.snapshots.set(snapshots),
-      error: (err: Error) => this.fail('Could not load snapshots', err.message),
-    });
   }
 }
 

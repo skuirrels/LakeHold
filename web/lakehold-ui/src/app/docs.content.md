@@ -91,7 +91,7 @@ requires a credential.
 
 The browser workbench is the fastest way to explore a catalog and run maintenance. It is laid out top
 to bottom: a workspace and catalog picker, a schema explorer on the left, a SQL editor, and a tabbed
-output pane below it with eight panels — **Results**, **History**, **Snapshots**, **Storage**,
+output pane below it with eight panels — **Results**, **Query history**, **Data history**, **Storage**,
 **Changes**, **Backups**, **Eject**, and **Schedule**.
 
 ### Workspace and catalog pickers — *top bar*
@@ -121,20 +121,32 @@ strings so nothing is silently rounded.
 > When the cap is hit you see a "Row limit reached" tag. The Postgres wire endpoint streams rows to
 > the socket and does not apply the cap.
 
-### Query history — *Output → History*
+### Query history — _Output → Query history_
 
 Every statement the workspace has run, successful or failed, with its row count, duration, and
 timestamp. Click a row to replay it into the editor. Postgres-wire traffic shows up here too, so
 client queries are visible for the first time.
 
-### Snapshots and time travel — *Output → Snapshots*
+### Data history and time travel — _Output → Data history_
 
-Lists the catalog's DuckLake snapshots with their commit time and schema version. Each row shows the
-`AT (VERSION => n)` clause to copy into a query, and a **Restore…** action that loads a ready-to-run
-statement to roll a table back to that snapshot. See [Time travel](#time-travel) below for how
-querying the past works and what you can do with it.
+A table-oriented history browser over the catalog's DuckLake snapshots. The timeline shows commit
+time, commit message, schema version, and schema transitions. Choose a table, then:
 
-### Storage — *Output → Storage*
+- **Browse** reads its rows inline exactly as they stood at that snapshot.
+- **Changes** drills into only the row-level inserts, deletes, and update pre/post-images committed
+  in that snapshot.
+- **Compare changes** compares two table states. Because the change feed is inclusive, the browser
+  reads after the baseline through the target rather than counting the baseline commit again.
+- **Restore…** requests a read-only server plan with live and historical row counts plus schema
+  differences. Only **Confirm atomic restore** applies it.
+
+Historical previews display at most 500 rows and fetch one additional sentinel row, so the UI marks a
+prefix as truncated instead of presenting it as complete. They can be opened in the SQL editor for
+further filtering. Read-only users can browse and compare but are not offered restore. Increase the
+Timeline limit when the desired snapshot is older than the newest 100. See
+[Time travel](#time-travel) below for the underlying SQL.
+
+### Storage — _Output → Storage_
 
 What each table physically weighs: live rows, total size, Parquet file count, average file size,
 delete-file overhead — and, in the last column, whether the maintenance buttons above are worth
@@ -340,10 +352,10 @@ a convention — and why copying raw Parquet files resurrects deleted rows, whic
 
 ### Finding a snapshot
 
-Open the **Snapshots** tab in the workbench (Output → Snapshots). It lists every snapshot newest
-first with its id, commit time, and schema version, and hands you the `AT (VERSION => n)` clause to
-paste. The same history is available over the API at `GET …/snapshots`, and in SQL through the
-catalog's `snapshots()` function:
+Open **Data history** in the workbench. It lists snapshots newest first and lets you browse a selected
+table at that version, inspect one commit, or compare two versions without first writing SQL. The
+same timeline is available over the API at `GET …/snapshots`, and in SQL through the catalog's
+`snapshots()` function:
 
 ```sql
 SELECT snapshot_id, snapshot_time, schema_version
@@ -380,40 +392,52 @@ SELECT * FROM events;
 Everything else is unchanged — joins, filters, aggregates, and `LIMIT` all work against the historical
 version, and the read is never destructive.
 
-### Rolling back a table
+### Restoring table data safely
 
-Time travel *reads* the past; to *return* a table to a past snapshot, rewrite it from that version:
+Time travel _reads_ the past; **Restore…** in Data history returns a read-only plan before changing
+anything. It shows the live and historical row counts, the shared columns that will be restored,
+current-only columns that will receive current defaults or nullability, and historical-only columns
+that will be ignored. **Confirm atomic restore** is then a separate action.
 
-```sql
--- Roll events back to its contents at snapshot 42
-CREATE OR REPLACE TABLE events AS
-SELECT * FROM events AT (VERSION => 42);
+Apply stages the historical rows before deleting live rows and inserts them through the existing table
+definition inside one labelled transaction. The current defaults, nullability, and constraints remain
+authoritative; if any historical row is incompatible, the transaction rolls back completely. The
+successful restore records a new snapshot, so earlier row states remain available. Confirmation also
+carries the live snapshot id from the reviewed plan: if another commit lands in between, apply refuses
+and requires a fresh review.
+
+The same unversioned API used by the workbench is available to an editor or owner:
+
+```http
+POST /api/tenants/{tenant}/catalogs/{catalog}/snapshots/42/restore-table
+Content-Type: application/json
+
+{ "schema": "main", "table": "events", "apply": false }
 ```
 
-This records a new snapshot rather than erasing history, so the rollback is itself reversible and
-earlier states stay reachable. In the workbench, the **Restore…** button on each row of the
-Snapshots tab fills the editor with exactly this statement, ready to review and run. A snapshot
-covers the whole catalog, so restore one table at a time; a table cannot be rolled back to a snapshot
-from before it existed, and column constraints or defaults added since are not carried over.
+Send the same request with `"apply": true` and the returned `"currentSnapshotId"` as
+`"expectedCurrentSnapshotId"` only after reviewing the plan. A snapshot covers the whole catalog, but
+this operation restores one base table at a time and refuses a snapshot from before the table existed.
 
-> Prefer `CREATE OR REPLACE` over `DELETE` + `INSERT ... AT (VERSION => n)`. Reading a snapshot in the
-> same transaction as a pending delete resolves the read *through* that delete and quietly restores
-> the wrong rows.
+> Do not substitute `CREATE OR REPLACE TABLE … AS SELECT … AT (…)`: CTAS discards the current table's
+> defaults and nullability. `DELETE` followed directly by `INSERT … AT (…)` is also unsafe because the
+> historical read can resolve through the pending delete. The restore operation exists to stage first
+> and guarantee rollback.
 
 ### What it's good for
 
-| Goal | How |
-|---|---|
+| Goal                            | How                                                                                                                 |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
 | Recover rows deleted by mistake | Read the old version and write the rows back: `INSERT INTO events SELECT * FROM events AT (VERSION => 41) WHERE …`. |
-| Audit how a value changed | Query the same key across several snapshot ids. |
-| Reproduce a past report | Run the report's query with `AT (TIMESTAMP => …)` set to the report date. |
-| Diff two versions | `EXCEPT` or `INTERSECT` between two `AT (…)` reads. |
+| Audit how a value changed       | Query the same key across several snapshot ids.                                                                     |
+| Reproduce a past report         | Run the report's query with `AT (TIMESTAMP => …)` set to the report date.                                           |
+| Diff two versions               | `EXCEPT` or `INTERSECT` between two `AT (…)` reads.                                                                 |
 
 > **History is not kept forever.** Snapshots accumulate until you expire them. **Expire** (Maintenance)
 > drops snapshots older than seven days and **Cleanup** deletes the files they alone referenced — both
 > are irreversible and dry-run by default, so time travel to an old snapshot keeps working until you
-> explicitly apply them. To carry history across an export, back up or eject *with the metadata
-> catalog*; the data files alone recover the latest state only. See
+> explicitly apply them. To carry history across an export, back up or eject _with the metadata
+> catalog_; the data files alone recover the latest state only. See
 > [Catalog backup and restore](#catalog-backup-and-restore).
 
 ---

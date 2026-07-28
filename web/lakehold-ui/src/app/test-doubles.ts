@@ -19,6 +19,7 @@ import {
   TableDetail,
   TableFiles,
   TableProfile,
+  TableRestore,
   TableStorage,
   Tenant,
 } from './models';
@@ -28,8 +29,8 @@ import {
  *
  * Deliberately free of any test-runner import so it type-checks under `tsconfig.app.json` as well as
  * under the spec config. Each method records what it was called with, so a spec can assert on the
- * *arguments* — which is where several of the interesting bugs live, the schema-qualified table split
- * being one.
+ * *arguments* — which is where several of the interesting bugs live, including preserving an
+ * awkward schema/table reference without reparsing its display label.
  */
 export class FakeLakehouseService {
   readonly calls: { method: string; args: unknown[] }[] = [];
@@ -75,6 +76,18 @@ export class FakeLakehouseService {
     buckets: [],
   };
   snapshots: Snapshot[] = [];
+  restore: TableRestore = {
+    schema: 'main',
+    table: 't',
+    snapshotId: 0,
+    currentSnapshotId: 0,
+    currentRowCount: 0,
+    historicalRowCount: 0,
+    restoredColumns: [],
+    currentOnlyColumns: [],
+    historicalOnlyColumns: [],
+    dryRun: true,
+  };
   changes: ChangePage = {
     schema: 'main',
     table: 't',
@@ -116,6 +129,10 @@ export class FakeLakehouseService {
 
   getSnapshots(...args: unknown[]): Observable<Snapshot[]> {
     return this.answer('getSnapshots', args, () => this.snapshots);
+  }
+
+  restoreTable(...args: unknown[]): Observable<TableRestore> {
+    return this.answer('restoreTable', args, () => this.restore);
   }
 
   getChanges(...args: unknown[]): Observable<ChangePage> {

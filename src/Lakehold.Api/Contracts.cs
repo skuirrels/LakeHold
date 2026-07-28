@@ -109,6 +109,33 @@ public sealed record SchemaDto(string Name, IReadOnlyList<SchemaTableDto> Tables
 /// <summary>A catalog snapshot.</summary>
 public sealed record SnapshotDto(long SnapshotId, DateTimeOffset CommittedAt, long SchemaVersion, string? CommitMessage);
 
+/// <summary>Request to plan or apply a table-data restore from a snapshot.</summary>
+/// <param name="Table">Base table whose rows should return to the selected snapshot.</param>
+/// <param name="Schema">Schema containing <paramref name="Table"/>.</param>
+/// <param name="Apply">False to return a read-only plan; true to commit the reviewed restore.</param>
+/// <param name="ExpectedCurrentSnapshotId">
+///     Current snapshot returned by the reviewed plan. Required for apply so an intervening write
+///     cannot silently invalidate the operator's row and schema review.
+/// </param>
+public sealed record RestoreTableRequest(
+    string Table,
+    string Schema = "main",
+    bool Apply = false,
+    long? ExpectedCurrentSnapshotId = null);
+
+/// <summary>A read-only plan or committed table-data restore.</summary>
+public sealed record TableRestoreDto(
+    string Schema,
+    string Table,
+    long SnapshotId,
+    long CurrentSnapshotId,
+    long CurrentRowCount,
+    long HistoricalRowCount,
+    IReadOnlyList<string> RestoredColumns,
+    IReadOnlyList<string> CurrentOnlyColumns,
+    IReadOnlyList<string> HistoricalOnlyColumns,
+    bool DryRun);
+
 /// <summary>One table's physical footprint in the storage view.</summary>
 /// <param name="RowCount">
 ///     Live rows, as <c>SELECT count(*)</c> would report: merge-on-read deletes subtracted, rows

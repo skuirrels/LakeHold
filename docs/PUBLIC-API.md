@@ -35,7 +35,7 @@ segment, but it is validated against the credential rather than trusted.
 | Query | `POST …/catalogs/{c}/query` | No time-travel option; result capped, no streaming variant. |
 | Schema | `GET …/catalogs/{c}/schemas` | — |
 | Storage | `GET …/catalogs/{c}/storage`, `GET …/storage/files` | Read-only footprint and snapshot-aware file inventory; unversioned and unpaginated. |
-| Time travel | `GET …/catalogs/{c}/snapshots?limit=` | **List only.** No as-of read, rollback, label, pin, or retention. |
+| Time travel | `GET …/catalogs/{c}/snapshots?limit=`, `POST …/snapshots/{id}/restore-table` | Bounded list plus atomic single-table plan/apply; no versioned as-of request, label, pin, or retention. |
 | Maintenance | `POST …/catalogs/{c}/maintenance/{op}?apply=` | Synchronous; heavy ops block the request. |
 | Backup | `GET …/backups`, `POST …/backups/restore` | Synchronous restore; no job model. |
 | Eject | `POST …/eject`, `GET …/ejects` | Synchronous; no download. |
@@ -126,11 +126,23 @@ its id, commit time, schema version, commit message, and — new — its `label`
 (below). The detail endpoint adds the set of tables changed by that snapshot, drawn from
 `ducklake_table_changes`.
 
-### Restore (roll a table back)
+### Restore table data
 
-The API form of the workbench's **Restore…** action. It uses the verified single statement
-`CREATE OR REPLACE TABLE t AS SELECT * FROM t AT (VERSION => n)`, which records a **new** snapshot
-rather than erasing history — so the rollback is itself reversible and time travel stays intact.
+The workbench already uses the unversioned single-table form:
+
+```
+POST /api/tenants/{t}/catalogs/{c}/snapshots/{id}/restore-table
+{ "schema": "main", "table": "events", "apply": false }
+```
+
+It returns live and historical row counts plus shared, current-only, and historical-only columns.
+Apply stages historical rows before deleting anything and inserts through the current table definition
+inside one labelled transaction. This preserves current defaults, nullability, and constraints; a
+failure rolls the delete back. Apply requires the current snapshot id returned by the plan, so an
+intervening commit is refused until the caller reviews again. `CREATE OR REPLACE TABLE AS SELECT` is
+deliberately not used because it discards that table metadata.
+
+The versioned API generalises the same contract:
 
 ```
 POST /api/v1/tenants/{t}/catalogs/{c}/snapshots/{id}/restore

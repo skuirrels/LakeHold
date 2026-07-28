@@ -70,7 +70,7 @@ test.describe('disposable operator simulation', () => {
       await runSql(page, 'SELECT id, message FROM phase2_events ORDER BY id');
       await expect(page.getByRole('cell', { name: 'created', exact: true })).toBeVisible();
 
-      await page.getByRole('button', { name: 'History' }).click();
+      await page.getByRole('button', { name: 'Query history' }).click();
       await expect(
         page.locator('.history-row').filter({ hasText: 'phase2_events' }).first(),
       ).toBeVisible();
@@ -184,7 +184,7 @@ test.describe('disposable operator simulation', () => {
 
       await page.getByRole('button', { name: 'Token set' }).click();
       await page.getByLabel('API token').fill(revocable.token);
-      await page.getByRole('button', { name: 'Save' }).click();
+      await page.getByRole('button', { name: 'Save', exact: true }).click();
       await expect(page.getByText('The token this tab holds was refused')).toBeVisible();
 
       await page.locator('lh-first-run').getByLabel('API token').fill(ownerToken);
@@ -273,7 +273,7 @@ test.describe('disposable operator simulation', () => {
       await page.getByRole('button', { name: 'New subscription' }).click();
       await page.getByLabel('Endpoint URL').fill('http://webhook:9080/hook');
       await page.getByLabel('Signing secret').fill('phase2-webhook-signing-secret');
-      await page.getByLabel('Table').last().selectOption('main.phase2_events');
+      await page.getByLabel('Table').last().selectOption({ label: 'main.phase2_events' });
       await page.getByRole('button', { name: 'Create', exact: true }).click();
       await expect(page.getByText('http://webhook:9080/hook')).toBeVisible();
 
@@ -311,7 +311,7 @@ test.describe('disposable operator simulation', () => {
       void state;
     });
 
-    await test.step('query an earlier snapshot, restore it, and verify the live data', async () => {
+    await test.step('drill into data history, compare, restore, and verify the live data', async () => {
       await runSql(
         page,
         `SELECT count(*) AS rows_at_snapshot FROM phase2_events AT (VERSION => ${restoreSnapshot})`,
@@ -321,21 +321,25 @@ test.describe('disposable operator simulation', () => {
         '1',
       );
 
-      await page.getByRole('button', { name: 'Snapshots' }).click();
+      await page.getByRole('button', { name: 'Data history' }).click();
+      await page.getByLabel('History table').selectOption({ label: 'main.phase2_events' });
       const snapshotRow = page
-        .locator('table.snapshots tbody tr')
-        .filter({ has: page.getByRole('cell', { name: String(restoreSnapshot), exact: true }) });
-      await snapshotRow.getByRole('button', { name: 'Restore…' }).click();
-      await expect(page.getByLabel('SQL editor')).toHaveValue(
-        new RegExp(
-          `CREATE OR REPLACE TABLE[\\s\\S]+AT \\(VERSION => ${restoreSnapshot}\\)`,
-        ),
-      );
-      const generatedRestore = await page.getByLabel('SQL editor').inputValue();
-      const targetedRestore = generatedRestore
-        .replace(/^CREATE OR REPLACE TABLE \S+/m, 'CREATE OR REPLACE TABLE main.phase2_events')
-        .replace(/^SELECT \* FROM \S+ AT/m, 'SELECT * FROM main.phase2_events AT');
-      await runSql(page, targetedRestore);
+        .locator('table.history-timeline tbody tr')
+        .filter({ hasText: `#${restoreSnapshot}` });
+
+      await snapshotRow.getByRole('button', { name: /Browse/ }).click();
+      await expect(page.locator('lh-data-history-panel lh-result-grid')).toContainText('created');
+
+      await page.getByRole('button', { name: 'Compare changes' }).click();
+      await expect(page.locator('lh-data-history-panel lh-change-grid')).toContainText('delivered');
+
+      await snapshotRow.getByRole('button', { name: /Review restore/ }).click();
+      const restorePlan = page.getByRole('region', { name: 'Restore plan' });
+      await expect(restorePlan).toContainText(`snapshot ${restoreSnapshot}`);
+      await expect(restorePlan).toContainText('2 rows');
+      await expect(restorePlan).toContainText('1 historical row');
+      await restorePlan.getByRole('button', { name: 'Confirm atomic restore' }).click();
+      await expect(page.getByText(/Restored main\.phase2_events to 1 row/)).toBeVisible();
 
       await runSql(page, 'SELECT count(*) AS rows_after_restore FROM phase2_events');
       await expect(page.locator('lh-result-grid thead')).toContainText('rows_after_restore');

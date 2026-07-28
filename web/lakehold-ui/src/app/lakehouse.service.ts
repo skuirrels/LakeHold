@@ -23,6 +23,7 @@ import {
   TableDetail,
   TableFiles,
   TableProfile,
+  TableRestore,
   Tenant,
 } from './models';
 
@@ -165,6 +166,30 @@ export class LakehouseService {
   }
 
   /**
+   * Plans or atomically applies a table-data restore.
+   *
+   * The server stages historical rows before deleting anything and inserts them through the current
+   * table definition, so defaults and constraints remain authoritative. Apply is false until the
+   * operator confirms the returned row and schema plan.
+   */
+  restoreTable(
+    tenant: string,
+    catalog: string,
+    schema: string,
+    table: string,
+    snapshotId: number,
+    apply = false,
+    expectedCurrentSnapshotId: number | null = null,
+  ): Observable<TableRestore> {
+    return this.http
+      .post<TableRestore>(
+        this.catalogUrl(tenant, catalog, `snapshots/${snapshotId}/restore-table`),
+        { schema, table, apply, expectedCurrentSnapshotId },
+      )
+      .pipe(catchError(toMessage));
+  }
+
+  /**
    * Runs a maintenance operation.
    *
    * `expire` and `cleanup` destroy time-travel history and data files respectively, and the server
@@ -259,9 +284,8 @@ export class LakehouseService {
    * Reads a table's row-level changes over an inclusive snapshot range.
    *
    * The range is inclusive at *both* ends, so a reader resuming after snapshot L opens the next
-   * window at L + 1 rather than at L. The upper end is left to the server, which reads to the
-   * newest snapshot — the workbench is always asking "what has happened since", never for a
-   * bounded historical window.
+   * window at L + 1 rather than at L. `toSnapshot` is optional for the live Changes panel and
+   * explicit for the history browser, which needs to inspect one commit or compare a bounded range.
    */
   getChanges(
     tenant: string,
@@ -269,11 +293,17 @@ export class LakehouseService {
     schema: string,
     table: string,
     fromSnapshot: number,
+    toSnapshot: number | null = null,
     limit = 200,
   ): Observable<ChangePage> {
+    const params: Record<string, string | number> = { schema, table, fromSnapshot, limit };
+    if (toSnapshot !== null) {
+      params['toSnapshot'] = toSnapshot;
+    }
+
     return this.http
       .get<ChangePage>(this.catalogUrl(tenant, catalog, 'changes'), {
-        params: { schema, table, fromSnapshot, limit },
+        params,
       })
       .pipe(catchError(toMessage));
   }

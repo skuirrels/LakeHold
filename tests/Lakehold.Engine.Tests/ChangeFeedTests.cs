@@ -128,6 +128,28 @@ public sealed class ChangeFeedTests : IAsyncLifetime
         Assert.Contains(tables, t => t is { Schema: "main", Table: "orders" });
     }
 
+    [Theory]
+    [InlineData("order-items")]
+    [InlineData("my.table")]
+    [InlineData("select")]
+    [InlineData("quoted\"table")]
+    public async Task Change_feed_accepts_every_table_name_the_catalog_returns(string table)
+    {
+        var duckling = await Session();
+        var quoted = SqlIdentifier.QuoteName(table);
+        await Run(duckling, $"CREATE TABLE {quoted} (id BIGINT)");
+        await Run(duckling, $"INSERT INTO {quoted} VALUES (42)");
+        var latest = (await ChangeFeed.LatestSnapshotAsync(duckling, CancellationToken.None))!.Value;
+
+        var tables = await ChangeFeed.ListTablesAsync(duckling, CancellationToken.None);
+        var page = await ChangeFeed.ReadAsync(
+            duckling, "main", table, 0, latest, 100, CancellationToken.None);
+
+        Assert.Contains(tables, item => item is { Schema: "main" } && item.Table == table);
+        var change = Assert.Single(page.Changes, item => item.Change == ChangeType.Insert);
+        Assert.Equal("42", Convert.ToString(change.Row["id"], CultureInfo.InvariantCulture));
+    }
+
     private Task<Duckling> Session() => _pool.GetOrStartAsync(_catalog, configure: null, CancellationToken.None);
 
     private static async Task Run(Duckling duckling, string sql)

@@ -3,9 +3,9 @@
 <div class="panel-controls">
   <label class="field">
     <span>Table</span>
-    <select [value]="table()" (change)="table.set($any($event.target).value)">
-      @for (name of tables(); track name) {
-        <option [value]="name">{{ name }}</option>
+    <select [value]="tableIndex()" (change)="tableIndex.set(+$any($event.target).value)">
+      @for (table of tables(); track $index; let index = $index) {
+        <option [value]="index">{{ table.schemaName }}.{{ table.tableName }}</option>
       }
     </select>
   </label>
@@ -45,39 +45,7 @@
     }
   </p>
 
-  @if (page.changes.length > 0) {
-    <table>
-      <thead>
-        <tr>
-          <th scope="col">Snapshot</th>
-          <th scope="col">Change</th>
-          <th scope="col">Row</th>
-          @for (column of columns(); track column) {
-            <th scope="col">{{ column }}</th>
-          }
-        </tr>
-      </thead>
-      <tbody>
-        @for (
-          change of page.changes;
-          track change.snapshotId + ':' + change.rowId + ':' + change.changeType
-        ) {
-          <tr>
-            <td>{{ change.snapshotId }}</td>
-            <td>
-              <span class="change-type" [class]="'ct-' + change.changeType">{{
-                change.changeType
-              }}</span>
-            </td>
-            <td>{{ change.rowId }}</td>
-            @for (column of columns(); track column) {
-              <td>{{ change.row[column] }}</td>
-            }
-          </tr>
-        }
-      </tbody>
-    </table>
-  }
+  <lh-change-grid [page]="page" />
 } @else if (!loading() && !error()) {
   <p class="placeholder">Pick a table and read its row-level changes.</p>
 }
@@ -118,10 +86,10 @@
 
       <label class="field">
         <span>Table</span>
-        <select [value]="subTable()" (change)="subTable.set($any($event.target).value)">
-          <option value="">Every table</option>
-          @for (name of tables(); track name) {
-            <option [value]="name">{{ name }}</option>
+        <select [value]="subTableIndex()" (change)="subTableIndex.set(+$any($event.target).value)">
+          <option [value]="-1">Every table</option>
+          @for (table of tables(); track $index; let index = $index) {
+            <option [value]="index">{{ table.schemaName }}.{{ table.tableName }}</option>
           }
         </select>
       </label>

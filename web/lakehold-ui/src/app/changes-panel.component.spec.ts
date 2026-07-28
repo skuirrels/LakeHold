@@ -2,13 +2,14 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideZonelessChangeDetection } from '@angular/core';
 import { ChangesPanelComponent } from './changes-panel.component';
 import { LakehouseService } from './lakehouse.service';
+import { TableReference } from './models';
 import { FakeLakehouseService } from './test-doubles';
 
 describe('ChangesPanelComponent', () => {
   let api: FakeLakehouseService;
   let fixture: ComponentFixture<ChangesPanelComponent>;
 
-  async function mount(tables: string[] = ['main.orders']) {
+  async function mount(tables: TableReference[] = [{ schemaName: 'main', tableName: 'orders' }]) {
     fixture = TestBed.createComponent(ChangesPanelComponent);
     fixture.componentRef.setInput('tenant', 'demo');
     fixture.componentRef.setInput('catalog', 'analytics');
@@ -41,13 +42,12 @@ describe('ChangesPanelComponent', () => {
     expect(api.countOf('getChanges')).toBe(0);
   });
 
-  it('splits a schema-qualified table on the first dot when reading changes', async () => {
-    await mount(['warm.my.table']);
+  it('preserves a table name containing dots when reading changes', async () => {
+    await mount([{ schemaName: 'warm', tableName: 'my.table' }]);
     click('.panel-controls .btn-primary');
     await fixture.whenStable();
 
-    // DuckLake stores tables whose names contain dots. Splitting on the last one asks for a schema
-    // that does not exist.
+    // Structured references avoid reparsing names that DuckLake stores verbatim.
     expect(api.lastArgs('getChanges')).toEqual(['demo', 'analytics', 'warm', 'my.table', 0]);
   });
 
@@ -60,7 +60,12 @@ describe('ChangesPanelComponent', () => {
       truncated: false,
       changes: [
         { snapshotId: 7, rowId: 0, changeType: 'insert', row: { id: 1, status: 'new' } },
-        { snapshotId: 9, rowId: 0, changeType: 'update_postimage', row: { id: 1, status: 'shipped' } },
+        {
+          snapshotId: 9,
+          rowId: 0,
+          changeType: 'update_postimage',
+          row: { id: 1, status: 'shipped' },
+        },
       ],
     };
 
@@ -112,7 +117,9 @@ describe('ChangesPanelComponent', () => {
       await fixture.whenStable();
 
       const endpoint = fixture.nativeElement.querySelector('input[type=url]') as HTMLInputElement;
-      const secret = fixture.nativeElement.querySelector('input[type=password]') as HTMLInputElement;
+      const secret = fixture.nativeElement.querySelector(
+        'input[type=password]',
+      ) as HTMLInputElement;
       endpoint.value = 'https://example.com/hook';
       endpoint.dispatchEvent(new Event('input'));
       secret.value = 'shhh';
@@ -144,7 +151,9 @@ describe('ChangesPanelComponent', () => {
 
       // The secret is write-only — no endpoint returns it — so the page has no further use for it,
       // and holding a credential it cannot re-read is pure risk.
-      const secret = fixture.nativeElement.querySelector('input[type=password]') as HTMLInputElement;
+      const secret = fixture.nativeElement.querySelector(
+        'input[type=password]',
+      ) as HTMLInputElement;
       expect(secret).toBeTruthy();
       expect(secret.value).toBe('');
     });
@@ -198,7 +207,9 @@ describe('ChangesPanelComponent', () => {
     });
 
     it('shows delivery trouble without needing the operator to go looking', async () => {
-      api.subscriptions = [{ ...api.subscriptions[0], consecutiveFailures: 3, lastError: 'refused' }];
+      api.subscriptions = [
+        { ...api.subscriptions[0], consecutiveFailures: 3, lastError: 'refused' },
+      ];
       await mount();
 
       // A subscription you cannot observe is one you do not trust.

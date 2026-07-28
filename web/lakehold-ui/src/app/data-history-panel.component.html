@@ -1,0 +1,261 @@
+<lh-panel-error [title]="errorTitle()" [message]="error()" />
+
+@if (restoreNotice(); as notice) {
+  <div class="restore-notice">{{ notice }}</div>
+}
+
+<div class="panel-controls history-controls">
+  <label class="field">
+    <span>Table</span>
+    <select
+      aria-label="History table"
+      [value]="selectedTableIndex()"
+      [disabled]="tables().length === 0"
+      (change)="selectTable($event)"
+    >
+      @for (table of tables(); track $index; let index = $index) {
+        <option [value]="index">{{ table.schemaName }}.{{ table.tableName }}</option>
+      }
+    </select>
+  </label>
+
+  <label class="field">
+    <span>Baseline</span>
+    <select
+      aria-label="Baseline snapshot"
+      [value]="compareFrom()"
+      [disabled]="snapshots().length < 2"
+      (change)="setCompareFrom($event)"
+    >
+      @for (snapshot of snapshots(); track snapshot.snapshotId) {
+        <option [value]="snapshot.snapshotId">#{{ snapshot.snapshotId }}</option>
+      }
+    </select>
+  </label>
+
+  <label class="field">
+    <span>Target</span>
+    <select
+      aria-label="Target snapshot"
+      [value]="compareTo()"
+      [disabled]="snapshots().length < 2"
+      (change)="setCompareTo($event)"
+    >
+      @for (snapshot of snapshots(); track snapshot.snapshotId) {
+        <option [value]="snapshot.snapshotId">#{{ snapshot.snapshotId }}</option>
+      }
+    </select>
+  </label>
+
+  <button
+    type="button"
+    class="btn btn-primary"
+    [disabled]="!!comparisonProblem() || !selectedTable() || loadingDetail()"
+    (click)="compareSnapshots()"
+  >
+    Compare changes
+  </button>
+
+  <label class="field history-limit">
+    <span>Timeline</span>
+    <select
+      aria-label="Snapshot timeline limit"
+      [value]="snapshotLimit()"
+      (change)="changeLimit($event)"
+    >
+      <option [value]="50">50 snapshots</option>
+      <option [value]="100">100 snapshots</option>
+      <option [value]="250">250 snapshots</option>
+      <option [value]="500">500 snapshots</option>
+    </select>
+  </label>
+
+  <p class="control-note">
+    Browse historical rows, inspect one commit, or compare the selected table between two catalog
+    snapshots. Comparisons show commits after the baseline through the target.
+    @if (comparisonProblem(); as problem) {
+      <span class="warn-text">{{ problem }}</span>
+    }
+  </p>
+</div>
+
+@if (loadingSnapshots()) {
+  <p class="placeholder">Loading catalog history…</p>
+} @else if (snapshots().length === 0 && !error()) {
+  <p class="placeholder">No snapshots recorded.</p>
+} @else if (snapshots().length > 0) {
+  <div class="timeline-scroll">
+    <table class="history-timeline">
+      <thead>
+        <tr>
+          <th scope="col">Snapshot</th>
+          <th scope="col">Committed</th>
+          <th scope="col">Schema</th>
+          <th scope="col">Commit message</th>
+          <th scope="col">Drill-down</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (snapshot of snapshots(); track snapshot.snapshotId; let index = $index) {
+          <tr>
+            <td class="snapshot-id">
+              #{{ snapshot.snapshotId }}
+              @if (index === 0) {
+                <span class="latest-badge">latest</span>
+              }
+            </td>
+            <td>{{ formatTime(snapshot.committedAt) }}</td>
+            <td>
+              v{{ snapshot.schemaVersion }}
+              @if (schemaChanged(index)) {
+                <span class="schema-badge" title="Schema version changed in this commit"
+                  >changed</span
+                >
+              }
+            </td>
+            <td class="commit-message">{{ snapshot.commitMessage || '—' }}</td>
+            <td>
+              <div class="row-actions">
+                <button
+                  type="button"
+                  class="row-btn"
+                  [disabled]="!selectedTable() || loadingDetail()"
+                  [attr.aria-label]="
+                    'Browse ' + tableLabel() + ' at snapshot ' + snapshot.snapshotId
+                  "
+                  (click)="browseSnapshot(snapshot)"
+                >
+                  Browse
+                </button>
+                <button
+                  type="button"
+                  class="row-btn"
+                  [disabled]="!selectedTable() || loadingDetail()"
+                  [attr.aria-label]="
+                    'View ' + tableLabel() + ' changes in snapshot ' + snapshot.snapshotId
+                  "
+                  (click)="inspectSnapshotChanges(snapshot)"
+                >
+                  Changes
+                </button>
+                @if (!readOnly()) {
+                  <button
+                    type="button"
+                    class="row-btn restore-btn"
+                    [disabled]="!selectedTable() || loadingRestore()"
+                    [attr.aria-label]="
+                      'Review restore of ' + tableLabel() + ' to snapshot ' + snapshot.snapshotId
+                    "
+                    (click)="planRestore(snapshot)"
+                  >
+                    Restore…
+                  </button>
+                }
+              </div>
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+
+  @if (snapshots().length === snapshotLimit()) {
+    <p class="panel-note">
+      Showing the newest {{ snapshotLimit() }} snapshots. Increase the Timeline limit to inspect
+      older history.
+    </p>
+  }
+}
+
+@if (loadingRestore()) {
+  <section class="restore-plan">
+    <p class="placeholder">Reviewing row counts and schema compatibility…</p>
+  </section>
+} @else if (restorePlan(); as plan) {
+  <section class="restore-plan" aria-label="Restore plan">
+    <div class="panel-head">
+      <h3>Restore {{ plan.schema }}.{{ plan.table }} from snapshot {{ plan.snapshotId }}</h3>
+      <span class="advisory">review required</span>
+    </div>
+
+    <p class="restore-summary">
+      The live table has <strong>{{ plan.currentRowCount }}</strong> row{{
+        plan.currentRowCount === 1 ? '' : 's'
+      }}. Restore will replace them atomically with
+      <strong>{{ plan.historicalRowCount }}</strong> historical row{{
+        plan.historicalRowCount === 1 ? '' : 's'
+      }}.
+    </p>
+    <p class="panel-note">
+      The current table definition, defaults, nullability, and constraints stay in place. The
+      transaction rolls back completely if any historical row violates them. Reviewed against live
+      snapshot {{ plan.currentSnapshotId }}; a newer commit will require a fresh plan.
+    </p>
+
+    <dl class="restore-columns">
+      <div>
+        <dt>Restored columns</dt>
+        <dd>{{ plan.restoredColumns.join(', ') || 'none' }}</dd>
+      </div>
+      @if (plan.currentOnlyColumns.length > 0) {
+        <div>
+          <dt>Current-only columns</dt>
+          <dd>
+            {{ plan.currentOnlyColumns.join(', ') }} — current defaults or nullability will apply.
+          </dd>
+        </div>
+      }
+      @if (plan.historicalOnlyColumns.length > 0) {
+        <div>
+          <dt>Historical-only columns</dt>
+          <dd>{{ plan.historicalOnlyColumns.join(', ') }} — these values will be ignored.</dd>
+        </div>
+      }
+    </dl>
+
+    <div class="restore-actions">
+      <button type="button" class="btn btn-danger" (click)="confirmRestore()">
+        Confirm atomic restore
+      </button>
+      <button type="button" class="btn" (click)="cancelRestore()">Cancel</button>
+    </div>
+  </section>
+}
+
+@if (loadingDetail()) {
+  <section class="history-detail">
+    <div class="panel-head">
+      <h3>{{ detailTitle() }}</h3>
+    </div>
+    <p class="placeholder">Reading historical data…</p>
+  </section>
+} @else if (historicalRows(); as result) {
+  <section class="history-detail">
+    <div class="panel-head">
+      <h3>{{ detailTitle() }}</h3>
+      <span class="detail-count">
+        {{ result.rows.length }} row{{ result.rows.length === 1 ? '' : 's' }}
+        @if (result.truncated) {
+          · truncated
+        }
+      </span>
+      <button type="button" class="btn" (click)="openPreviewInEditor()">Open SQL in editor</button>
+    </div>
+    <div class="historical-result">
+      <lh-result-grid [result]="result" />
+    </div>
+  </section>
+} @else if (changes(); as page) {
+  <section class="history-detail">
+    <div class="panel-head">
+      <h3>{{ detailTitle() }}</h3>
+      <span class="detail-count">
+        {{ page.changes.length }} change{{ page.changes.length === 1 ? '' : 's' }}
+        @if (page.truncated) {
+          · truncated
+        }
+      </span>
+    </div>
+    <lh-change-grid [page]="page" />
+  </section>
+}

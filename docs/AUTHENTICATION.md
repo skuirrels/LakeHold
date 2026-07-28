@@ -514,6 +514,7 @@ Capability is declared on the route as `Capability` metadata and enforced in one
 | `POST …/catalogs/{catalog}/query` | `TenantData` | Any tenant token for that tenant/catalog |
 | `GET …/schemas`, `…/snapshots`, `…/backups`, `…/ejects`, `…/changes`, `…/subscriptions` | `TenantData` | Any tenant token |
 | `GET /api/tenants/{tenant}/history` | `TenantData` | Any tenant token |
+| `POST …/snapshots/{id}/restore-table` | `TenantWrite` | Editor or owner; defaults to a read-only plan and applies only after confirmation |
 | `POST …/maintenance/{operation}` | `TenantOwner` | Owner only |
 | `POST …/backups/restore` | `TenantOwner` | Owner only |
 | `POST …/eject` | `TenantOwner` | Owner only |
@@ -524,9 +525,11 @@ filter itself rather than inheriting it. It needs one: the run log names every t
 scheduler touched, which is not anonymous-readable. `Listing` rather than `Instance` because a tenant
 has a legitimate reason to check that its own backups ran.
 
-Maintenance, restore, and eject are owner operations because they destroy history, rewrite a catalog,
-or produce a complete copy of the lakehouse. Querying and writing are not: a `Reader` cannot write
-because its catalog is attached read-only, and an `Editor` can write but cannot expire snapshots.
+Maintenance, backup restore, and eject are owner operations because they destroy history, rewrite a
+catalog, or produce a complete copy of the lakehouse. A single-table data restore is a bounded
+`TenantWrite` operation: it returns a plan first, applies only after confirmation, and uses the same
+write authority an editor already has for `DELETE` and `INSERT`. A `Reader` cannot write because its
+catalog is attached read-only, and an `Editor` can write but cannot expire snapshots.
 
 A least-privilege tenant token — narrowed to a catalog, or read-only — is refused at `TenantAdmin`
 even on its own tenant. Least-privilege credentials do not mint broader ones.
@@ -697,7 +700,8 @@ add anything. Everything after is depth.
   `OidcPrincipal` maps a tenant claim (and optional role claim) onto the same `ILakeholdPrincipal`
   tokens produce, so nothing downstream distinguishes a human from a machine.
 - **Step 9** — `TokenRole` (`Owner`/`Editor`/`Reader`) on the token and the principal. Maintenance,
-  restore, and eject are owner operations (`Capability.TenantOwner`); token management requires
+  backup restore, and eject are owner operations (`Capability.TenantOwner`); a reviewed single-table
+  data restore is `Capability.TenantWrite`; token management requires
   owner too; querying is a reader's. `Reader` implies read-only at issuance, so phase 2's flag is the
   degenerate case rather than a second thing to remember. The enum's default is `Owner`, which is what
   every credential minted before roles existed effectively was — so an upgrade changes nothing.
