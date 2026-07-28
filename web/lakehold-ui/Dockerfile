@@ -17,6 +17,10 @@ COPY web/lakehold-ui/package.json web/lakehold-ui/package-lock.json ./
 RUN npm ci --no-audit --no-fund
 
 COPY web/lakehold-ui/ ./
+# The operational website pages import the repository runbooks directly. Keep them outside /app at
+# the same absolute path used by the development Compose mount so the relative imports resolve in
+# both build environments without maintaining a second copy.
+COPY docs/ /docs/
 RUN npm run build
 
 FROM nginx:alpine AS runtime

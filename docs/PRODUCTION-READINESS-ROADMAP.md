@@ -129,6 +129,13 @@ and backoff behavior, and prove that signing secrets and response bodies do not 
 
 ### Actions
 
+- **Operational documentation landed:** [`OPERATIONS.md`](OPERATIONS.md) and the linked
+  [incident-response](runbooks/INCIDENT-RESPONSE.md),
+  [disaster-recovery](runbooks/DISASTER-RECOVERY.md), and
+  [monitoring/alerting](runbooks/MONITORING-AND-ALERTING.md) runbooks define current procedures,
+  explicit limitations, alert gates, and drill evidence. The implementation items below remain
+  readiness work; documentation does not make a same-volume backup off-host or add control-plane
+  restore support.
 - Make metadata, data, backup, and eject roots genuinely configurable; do not overwrite explicitly
   bound values while resolving defaults from the state root.
 - Keep recoverable backups and eject bundles outside the primary host/volume failure domain.

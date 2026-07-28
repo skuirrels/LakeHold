@@ -81,6 +81,9 @@ services:
       - "${UI_PORT:-5399}:5399"
     volumes:
       - ./web/lakehold-ui:/app
+      # Operational pages import the repository Markdown directly so the website and runbooks cannot
+      # drift. Preserve that same absolute path inside the container as the production image build.
+      - ./docs:/docs:ro
       - ui-node-modules:/app/node_modules
     depends_on:
       api:

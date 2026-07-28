@@ -188,16 +188,27 @@ Worth knowing:
 - **Upgrading a deployment that predates this** will find authentication suddenly enforced. That is
   the point, but it is a breaking change for a node whose clients hold no tokens: issue them first,
   or set `LAKEHOLD_REQUIRE_AUTH=false` for the one deploy that bridges the gap.
-- **Back the state volume up with `make backup-state`.** It is the catalog, the Parquet, the backup
-  generations, and the eject bundles — the only thing in the stack that cannot be rebuilt. The
-  archive is a file copy, so stop the stack first if it has to be restorable with certainty; the
-  catalog-consistent tools are LakeHold's own backup and eject. Restore is deliberately manual:
-  ```bash
-  make stop
-  docker run --rm -v lakehold_lakehold-state:/state -v "$PWD":/archive alpine \
-    sh -c 'rm -rf /state/* && tar xzf /archive/<archive>.tar.gz -C /state'
-  make deploy
-  ```
+- **Back the state volume up with `make backup-state`, then copy it off-host.** It is the control
+  plane, catalog metadata, local Parquet, backup generations, and eject bundles — everything in the
+  default stack that cannot be rebuilt. The archive is a file copy, so stop the stack first when it
+  must be application-consistent. Never extract an archive over a populated volume; the
+  [disaster-recovery runbook](docs/runbooks/DISASTER-RECOVERY.md) restores into an empty volume and
+  defines the validation required before traffic returns.
+
+#### Operational runbooks
+
+Production operation starts with [`docs/OPERATIONS.md`](docs/OPERATIONS.md), which defines the
+supported topology, ownership, production entry gate, routine checks, deployment, rollback, and
+evidence handling. The actionable runbooks are:
+
+- [incident response](docs/runbooks/INCIDENT-RESPONSE.md);
+- [disaster recovery](docs/runbooks/DISASTER-RECOVERY.md);
+- [monitoring and alerting](docs/runbooks/MONITORING-AND-ALERTING.md).
+
+They distinguish liveness from readiness, catalog backup from full-state recovery, and same-volume
+artifacts from off-host disaster protection. Assign on-call ownership, configure an OTLP backend,
+export consistent state backups, and complete a clean-node restore drill before accepting production
+traffic.
 
 ### Demo deployment overlay
 
@@ -565,12 +576,19 @@ Worth knowing:
 The metadata catalog is the one part of a DuckLake deployment that is not already an open format, so
 LakeHold exports it to Parquet on a schedule and can rebuild a catalog from that export.
 
+This is a catalog-recovery mechanism, not a complete operational recovery plan. It does not contain
+the control plane, API-token plaintext, table data, configuration, or secrets. In the packaged
+production API the backup root is currently resolved beneath the same state volume as the catalog,
+so a whole-volume failure loses both unless the operator has exported a consistent off-host state
+archive. See [Disaster recovery](docs/runbooks/DISASTER-RECOVERY.md) for the recovery matrix,
+approved procedures, validation, and drill cadence.
+
 ```jsonc
 {
   "Lakehouse": {
-    // A sibling of the data root, never a child: DuckLake's orphan cleanup sweeps everything under
-    // the data path that the catalog does not reference, and a backup is by definition unreferenced.
-    "BackupRoot": "./.lakehold/backups",
+    // The packaged API resolves catalogs/, data/, backups/, and ejects/ as siblings under this root.
+    // Separately bound roots are not preserved by the current host; see the caveat below.
+    "StateRoot": "./.lakehold",
     "BackupRetainCount": 7
   },
   "Lakehold": {
@@ -597,8 +615,11 @@ Worth knowing:
   `ducklake_delete_file`, deleted rows silently return on restore.
 - **PostgreSQL metadata restores into a DuckDB file**, so this is an exit path from the catalog
   database and not just a copy of it.
-- **Object-store backup roots cannot be pruned.** DuckDB has no delete for object stores, so set a
-  lifecycle rule on the prefix. The backup says so rather than reporting "0 pruned".
+- **The engine supports object-store backup roots, but the packaged API does not yet preserve
+  separately bound roots.** `Program.cs` currently resolves backup, metadata, data, and eject roots
+  under `Lakehouse:StateRoot`. The production path therefore needs an off-host state archive today.
+  When a custom host wires an object-store backup root, DuckDB cannot prune it; set a lifecycle rule
+  on the prefix.
 - **Multi-node deployments take a lease per job per catalog**, so every node firing the same cron
   does not run the same sweep. It engages only for PostgreSQL-backed catalogs — a local file cannot
   be opened by two nodes anyway.

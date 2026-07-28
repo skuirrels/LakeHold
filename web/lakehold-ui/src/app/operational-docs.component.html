@@ -4,8 +4,9 @@
       <lh-brand-mark class="mark" />
       LakeHold
     </a>
-    <nav class="nav-links">
+    <nav class="nav-links" aria-label="Documentation navigation">
       <a routerLink="/">Home</a>
+      <a routerLink="/docs">Docs</a>
       <a routerLink="/docs/operations">Operations</a>
       <a class="provider" routerLink="/provider">Provider</a>
       <a routerLink="/compare">Compare</a>
@@ -35,8 +36,7 @@
   </header>
 
   <div class="layout">
-    <!-- Left rail, derived from the headings in docs.content.md. -->
-    <aside class="sidenav" aria-label="Documentation sections">
+    <aside class="sidenav" aria-label="Operational documentation sections">
       <span class="side-label">On this page</span>
       <ul class="nav-tree">
         @for (section of sections; track section.id) {
@@ -69,17 +69,14 @@
     </aside>
 
     <main class="content">
-      <section class="hero"><span class="eyebrow">Documentation</span></section>
+      <section class="hero"><span class="eyebrow">Operations documentation</span></section>
 
-      <!-- Rendered from docs.content.md — the single source shared with the GitHub copy. -->
       <article class="markdown" [innerHTML]="body"></article>
 
       <section class="cta">
-        <h2>Ready to run a query?</h2>
-        <p>
-          The development stack ships with a seeded catalog — 250,000 events, queryable immediately.
-        </p>
-        <a class="btn btn-primary lg" routerLink="/workbench">Open the workbench</a>
+        <h2>Explore the product documentation</h2>
+        <p>Return to installation, feature, API, maintenance, and integration guidance.</p>
+        <a class="btn btn-primary lg" routerLink="/docs">Read LakeHold docs</a>
       </section>
 
       <footer class="foot">

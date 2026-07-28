@@ -18,6 +18,10 @@ test.describe('private production surface', () => {
     for (const route of [
       '/compare',
       '/docs',
+      '/docs/operations',
+      '/docs/incident-response',
+      '/docs/disaster-recovery',
+      '/docs/monitoring',
       '/provider',
       '/provider/docs',
       '/analytics-config.json',
