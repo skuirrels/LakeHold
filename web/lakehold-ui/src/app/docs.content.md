@@ -149,9 +149,20 @@ Two advisories appear there:
   below the catalog's `target_file_size` (or the deployment's advisory floor when it has never set
   one). A *single* small file is never flagged, because a lone file cannot be merged with anything.
 
-Select a table to open its **file list**: real paths, real byte counts, each data file paired with the
-delete file that applies to it, largest first. An **as of** selector re-reads the list at any earlier
-snapshot, so "what did this table's storage look like on Tuesday" is one click.
+Select a table — from this rollup or with **Inspect** in the catalog tree — to open one inspector:
+
+- **Overview** combines the logical schema with the storage figures and the current DuckLake
+  partition keys. If partitioning evolved, its earlier snapshot-bounded specifications remain
+  available as history.
+- **Files** shows real paths and byte counts, with each data file paired to the delete file that
+  applies to it.
+- **Columns** computes a live profile only when opened: exact null counts, min/max, approximate
+  distinct counts and quartiles, followed by an on-demand bounded distribution for one selected
+  column.
+
+Files and Columns share an **as of** selector, so both the physical layout and the values can be read
+at an earlier snapshot. Views remain inspectable and profileable, but correctly show no files or
+partition layout of their own.
 
 > Every figure comes from DuckLake's own catalog, never from listing the data path. A directory
 > listing would show orphaned files and live data identically, and enumerating an object store is an
@@ -415,7 +426,9 @@ them from your own code. They all sit under `/api/tenants/{tenant}/catalogs/{cat
 
 ### Storage and table detail
 
-`GET …/storage` · `GET …/storage/files?schema=&table=&snapshot=&limit=`
+`GET …/storage` · `GET …/storage/files?schema=&table=&snapshot=&limit=`<br>
+`GET …/table-detail?schema=&table=` · `GET …/table-profile?schema=&table=&snapshot=`<br>
+`GET …/column-distribution?schema=&table=&column=&snapshot=&limit=`
 
 The figures behind the Storage panel, from DuckLake's own metadata rather than a directory listing.
 The rollup carries per-table row counts, inlined rows, file counts and sizes, delete-file overhead,
@@ -423,9 +436,15 @@ and the two advisories; the response also reports the threshold each compaction 
 against, so a caller can check the reasoning rather than trust it. Schema and table are query
 parameters, not path segments, because a table name may contain a dot or a slash.
 
-Both are reads and both need only `TenantData` — knowing how large a table is, is not the owner's
-decision to authorise, even though pressing Compact is. Encryption-key columns are never projected
-into a response.
+All are reads and need only `TenantData` — knowing how large a table is or what values an authorised
+reader can query is not the owner's decision to authorise, even though pressing Compact is.
+Encryption-key columns are never projected into a response.
+
+The detail response combines the schema, one table's existing storage projection, and current plus
+historical partition specifications under one Duckling gate. The profile reads the table's **logical
+rows**, not `ducklake_file_column_stats`: physical stats can omit inlined rows and retain values later
+removed by merge-on-read deletes. Distinct counts and quartiles are labelled approximate. A
+distribution is requested separately and capped at 50 buckets; no raw sample rows are returned.
 
 > **Caveat.** The file list returns one row per file and is capped, reporting `truncated` when it
 > stops short. A snapshot predating the table's creation is a `400` carrying the engine's own

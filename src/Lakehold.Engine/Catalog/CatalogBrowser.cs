@@ -33,7 +33,7 @@ public static class CatalogBrowser
 
         // One query for the whole tree: per-table round trips make the explorer's cost scale with
         // catalog size, which is exactly wrong for the wide catalogs this product targets.
-        const string Sql = """
+        var sql = $"""
             SELECT
                 c.table_schema,
                 c.table_name,
@@ -43,9 +43,11 @@ public static class CatalogBrowser
                 c.is_nullable
             FROM information_schema.columns AS c
             LEFT JOIN information_schema.tables AS t
-                ON  t.table_schema = c.table_schema
+                ON  t.table_catalog = c.table_catalog
+                AND t.table_schema = c.table_schema
                 AND t.table_name   = c.table_name
-            WHERE c.table_schema NOT IN ('information_schema', 'pg_catalog')
+            WHERE c.table_catalog = {SqlIdentifier.Literal(duckling.Catalog.CatalogName)}
+              AND c.table_schema NOT IN ('information_schema', 'pg_catalog')
               -- DuckLake surfaces its own metadata tables (ducklake_snapshot, ducklake_table, ...)
               -- through information_schema alongside user tables. Verified against DuckLake on
               -- DuckDB 1.5.3: ~20 internal tables per catalog. They are implementation detail and
@@ -54,7 +56,7 @@ public static class CatalogBrowser
             ORDER BY c.table_schema, c.table_name, c.ordinal_position
             """;
 
-        var result = await duckling.ExecuteQueryAsync(Sql, cancellationToken).ConfigureAwait(false);
+        var result = await duckling.ExecuteQueryAsync(sql, cancellationToken).ConfigureAwait(false);
 
         var schemas = new List<SchemaInfo>();
         var tablesBySchema = new Dictionary<string, List<TableInfo>>(StringComparer.Ordinal);

@@ -66,6 +66,11 @@ export interface Schema {
   tables: SchemaTable[];
 }
 
+export interface TableReference {
+  schemaName: string;
+  tableName: string;
+}
+
 export interface Snapshot {
   snapshotId: number;
   committedAt: string;
@@ -122,6 +127,80 @@ export interface TableFiles {
   snapshotId: number | null;
   truncated: boolean;
   files: DataFile[];
+}
+
+export interface TableDetailColumn {
+  name: string;
+  dataType: string;
+  isNullable: boolean;
+}
+
+export interface PartitionKey {
+  position: number;
+  columnName: string;
+  transform: string;
+}
+
+export interface PartitionSpec {
+  partitionId: number;
+  beginSnapshot: number;
+  endSnapshot: number | null;
+  keys: PartitionKey[];
+}
+
+/** One table or view's logical, physical, and partition detail. */
+export interface TableDetail {
+  schemaName: string;
+  tableName: string;
+  kind: string;
+  columns: TableDetailColumn[];
+  /** Null for views, which own no Parquet files. */
+  storage: TableStorage | null;
+  partitionSpecs: PartitionSpec[];
+  targetFileSizeBytes: number | null;
+  advisoryFileSizeBytes: number;
+}
+
+export interface ColumnProfile {
+  name: string;
+  dataType: string;
+  rowCount: number;
+  nullCount: number;
+  minimum: string | null;
+  maximum: string | null;
+  approxDistinct: string | null;
+  mean: string | null;
+  standardDeviation: string | null;
+  firstQuartile: string | null;
+  median: string | null;
+  thirdQuartile: string | null;
+}
+
+export interface TableProfile {
+  schemaName: string;
+  tableName: string;
+  snapshotId: number | null;
+  rowCount: number;
+  columns: ColumnProfile[];
+}
+
+export interface DistributionBucket {
+  label: string;
+  lowerBound: string | null;
+  upperBound: string | null;
+  count: number;
+}
+
+export interface ColumnDistribution {
+  schemaName: string;
+  tableName: string;
+  columnName: string;
+  dataType: string;
+  snapshotId: number | null;
+  kind: 'range' | 'categorical' | 'unsupported';
+  nullCount: number;
+  truncated: boolean;
+  buckets: DistributionBucket[];
 }
 
 export interface MaintenanceResult {

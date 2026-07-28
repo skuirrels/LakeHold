@@ -7,6 +7,7 @@ import {
   BackupGeneration,
   CatalogStorage,
   ChangePage,
+  ColumnDistribution,
   CreatedToken,
   EjectBundle,
   EjectResult,
@@ -19,7 +20,9 @@ import {
   Schema,
   Snapshot,
   Subscription,
+  TableDetail,
   TableFiles,
+  TableProfile,
   Tenant,
 } from './models';
 
@@ -100,6 +103,58 @@ export class LakehouseService {
 
     return this.http
       .get<TableFiles>(this.catalogUrl(tenant, catalog, 'storage/files'), { params })
+      .pipe(catchError(toMessage));
+  }
+
+  /** Reads one table or view's schema, physical footprint, and partition specification. */
+  getTableDetail(
+    tenant: string,
+    catalog: string,
+    schema: string,
+    table: string,
+  ): Observable<TableDetail> {
+    return this.http
+      .get<TableDetail>(this.catalogUrl(tenant, catalog, 'table-detail'), {
+        params: { schema, table },
+      })
+      .pipe(catchError(toMessage));
+  }
+
+  /** Computes live logical summary statistics for every column. */
+  getTableProfile(
+    tenant: string,
+    catalog: string,
+    schema: string,
+    table: string,
+    snapshot: number | null = null,
+  ): Observable<TableProfile> {
+    const params: Record<string, string | number> = { schema, table };
+    if (snapshot !== null) {
+      params['snapshot'] = snapshot;
+    }
+
+    return this.http
+      .get<TableProfile>(this.catalogUrl(tenant, catalog, 'table-profile'), { params })
+      .pipe(catchError(toMessage));
+  }
+
+  /** Computes a bounded distribution for one selected column. */
+  getColumnDistribution(
+    tenant: string,
+    catalog: string,
+    schema: string,
+    table: string,
+    column: string,
+    snapshot: number | null = null,
+    limit = 20,
+  ): Observable<ColumnDistribution> {
+    const params: Record<string, string | number> = { schema, table, column, limit };
+    if (snapshot !== null) {
+      params['snapshot'] = snapshot;
+    }
+
+    return this.http
+      .get<ColumnDistribution>(this.catalogUrl(tenant, catalog, 'column-distribution'), { params })
       .pipe(catchError(toMessage));
   }
 

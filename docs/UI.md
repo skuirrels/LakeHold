@@ -8,10 +8,10 @@ Like [`MCP.md`](MCP.md) and [`PUBLIC-API.md`](PUBLIC-API.md), this is a specific
 record, written to be worked one step at a time. Nothing here contradicts an invariant in `AGENT.md`;
 where a rule already exists this document says how the UI preserves it rather than restating why.
 
-**Status: Phases 1–4 have landed.** `StorageBrowser` reads the footprint, three routes serve it, and
+**Status: Phases 1–6 have landed.** `StorageBrowser` reads the footprint, five dedicated routes serve
+the storage and inspection surfaces, and
 the workbench has eight panels: the original Results, History and Snapshots, plus Storage (with a
-per-table file list and an as-of snapshot selector), Changes, Backups, Eject, and Schedule. Phase 5 is
-deferred by design.
+unified per-table inspector), Changes, Backups, Eject, and Schedule.
 
 Everything the original specification left open has since been **measured against DuckLake on DuckDB
 1.5.5** rather than reasoned about. Two of those measurements changed the design, and are called out
@@ -27,10 +27,10 @@ maintenance tooling grown up around Polaris and Nessie. The surfaces are strikin
 |---|---|---|---|
 | SQL IDE | "Run this" | Everyone | ✅ workbench |
 | Catalog tree | "What tables, what columns" | Everyone | ✅ `catalog-explorer` |
-| **Table detail** | "How big, how many files, partitioned how" | Databricks, Dremio, Snowflake | ❌ |
-| Column profile | "What is *in* the column — nulls, distribution, min/max" | MotherDuck Column Explorer, DuckDB local UI | ❌ |
+| **Table detail** | "How big, how many files, partitioned how" | Databricks, Dremio, Snowflake | ✅ inspector |
+| Column profile | "What is *in* the column — nulls, distribution, min/max" | MotherDuck Column Explorer, DuckDB local UI | ✅ live profile |
 | History / time travel | "What changed, when; read it as of then" | Databricks History, Iceberg snapshot views | ⚠️ snapshot list only |
-| **Storage & maintenance health** | "Is this fragmented, should I compact, what will cleanup delete" | The Iceberg maintenance category | ⚠️ five buttons, no readout |
+| **Storage & maintenance health** | "Is this fragmented, should I compact, what will cleanup delete" | The Iceberg maintenance category | ✅ readout + advisories |
 | Governance — lineage, grants, usage | "Who reads this, who may" | Unity Catalog and enterprise peers | ❌ deliberately |
 
 Two findings from that survey carry the rest of this document.
@@ -104,6 +104,7 @@ Before this work the engine touched almost none of it — only `ducklake_snapsho
 | `ducklake_snapshots(catalog)` | Snapshot id, time, schema version, change summary | Table function; already used |
 | `ducklake_table_stats`, `ducklake_data_file`, `ducklake_delete_file`, `ducklake_schema` | Row counts and schema names, which no table function carries | **Metadata table** — by name, from the session |
 | `ducklake_file_column_stats` | Per file per column: `column_size_bytes`, `value_count`, `null_count`, min/max | **Metadata table** — by name, from the session |
+| `SUMMARIZE SELECT …` | Live logical column profile: min/max, approximate distinct count, mean/stddev and quartiles | Ordinary Duckling session over the table, optionally at a snapshot |
 
 **Table functions run on the session.** They need no attach, no second connection, and no special
 casing — a Duckling can call them exactly as it runs user SQL, and they therefore inherit the tenant
@@ -300,7 +301,6 @@ In the spirit of `POSTGRES-WIRE.md`'s equivalent section.
 | Usage insights — top readers, query patterns | Same. Query history already answers the narrow version |
 | Grants / permissions editor | Roles and tokens are administered through the API and `AUTHENTICATION.md`. A UI that mints credentials is a surface worth designing deliberately, later, not as a corner of the workbench |
 | File upload / "add data" ingest UI | Managed ingestion is on the roadmap as connectors, not as a drag-and-drop |
-| Column profile — histograms, distributions | The only item here that is deferred rather than declined, and the reason has narrowed: `ducklake_file_column_stats` turns out to be readable from the session like any other metadata table, so this is *not* gated on the attach cost the specification claimed. What remains is priority — it is the least differentiated thing on the list, since MotherDuck's Column Explorer and the DuckDB local UI both do it well. Revisit if the analyst persona ever outranks the operator |
 | Notebook / multi-cell interface | The IDE is deliberately focused. A notebook is a different product decision |
 | A raw object browser | [Above](#why-not-a-file-browser) |
 
@@ -384,8 +384,18 @@ again, so the detail panel never appeared. The fix is `untracked()` around the e
 depends on exactly the two inputs; all four panels use that shape now. Worth recording because it is
 invisible to the type checker and to every build: only clicking the thing reveals it.
 
-**Phase 5 — deferred to evidence.** Column profiling, and whatever the storage view teaches us about
-what operators actually ask next.
+**Phase 5 — unified table inspector. Landed.** The catalog explorer and Storage rollup now open the
+same Overview / Files / Columns inspector. Overview combines the logical schema, the already-landed
+storage figures, and DuckLake's current and historical partition specifications. Views remain
+inspectable but make no physical-storage claim.
+
+**Phase 6 — live column profiles. Landed.** A profile is computed only when Columns opens, and a
+distribution only when one column is selected. The profile reads the logical table — including
+inlined rows and excluding merge-on-read deletes and superseded updates — rather than presenting
+physical file statistics as current truth. Numeric and temporal columns use bounded equal-width
+ranges; categorical columns use bounded top values; complex types say explicitly that no
+distribution is available. Both profile and distribution accept the same as-of snapshot selector
+as the file list.
 
 ## Test plan
 
@@ -512,8 +522,8 @@ collection. Without it the two would have raced intermittently in a way that rea
 
 - ✅ This document records what landed, as `AUTHENTICATION.md` does.
 - ✅ `AGENT.md`'s repository map names `docs/UI.md`.
-- ✅ `ARCHITECTURE.md`'s matrix gains a **Storage / table detail UI** row, reading ✅, plus a
-  **Column profiling UI** row reading ❌ so the one deferred capability is visible rather than absent.
+- ✅ `ARCHITECTURE.md`'s matrix gains a **Storage / table detail UI** row and a
+  **Column profiling UI** row, both reading ✅ now that the inspector and live profiles have landed.
   The *data sharing* row's "no UI" caveat is still accurate and stays. Three neighbouring rows were
   stale and were corrected with it: authentication, SSO/OIDC, and RBAC all read ❌ while the prose
   three lines below said the opposite, `AUTHENTICATION.md` records every phase as landed, and the code
@@ -612,9 +622,9 @@ Answered, by measurement rather than by argument:
 
 Still open:
 
-- **Whether partition information is worth surfacing.** `ducklake_partition_info` exists, but
-  partitioning at `CREATE TABLE` is the top open upstream issue — a UI for a feature users cannot yet
-  express may be premature.
+- ~~Whether partition information is worth surfacing.~~ **Yes.** DuckLake 1.0 supports identity,
+  date/time, and bucket partition transforms plus partition-spec evolution. The inspector reports
+  both the active layout and its snapshot-bounded history.
 - **What the advisory floor should be.** 16 MB is a judgement, not a measurement, and the only number
   here with no evidence behind it. It wants calibrating against a real catalog before it is treated as
   more than a starting point.

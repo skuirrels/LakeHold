@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, input, output, signal } from '@angular/core';
-import { Schema, SchemaTable } from './models';
+import { Schema, SchemaTable, TableReference } from './models';
 
 /** Tree of schemas, tables, and columns for the current catalog. */
 @Component({
@@ -38,6 +38,14 @@ import { Schema, SchemaTable } from './models';
                   <span class="chevron" [class.open]="isOpen(schema.name + '.' + table.name)">▸</span>
                   <span class="table-name">{{ table.name }}</span>
                   <span class="table-kind">{{ table.kind === 'VIEW' ? 'view' : '' }}</span>
+                </button>
+                <button
+                  class="inspect"
+                  type="button"
+                  [attr.aria-label]="'Inspect ' + table.name"
+                  title="Open table detail"
+                  (click)="inspectTable.emit({ schemaName: schema.name, tableName: table.name })">
+                  ⓘ
                 </button>
                 <button
                   class="insert"
@@ -166,10 +174,22 @@ import { Schema, SchemaTable } from './models';
       }
 
       .table-row:hover .insert,
+      .table-row:hover .inspect,
+      .inspect:focus-visible,
       .insert:focus-visible {
         opacity: 1;
       }
 
+      .inspect {
+        opacity: 0;
+        color: var(--text-faint);
+        font-size: 12px;
+        line-height: 1;
+        padding: 4px 5px;
+        flex-shrink: 0;
+      }
+
+      .inspect:hover,
       .insert:hover {
         color: var(--accent);
       }
@@ -209,6 +229,8 @@ export class CatalogExplorerComponent {
 
   /** Emits a `SELECT` for the chosen table. */
   readonly insertSql = output<string>();
+  /** Opens the chosen table or view in the workbench's unified inspector. */
+  readonly inspectTable = output<TableReference>();
 
   protected readonly filter = signal('');
   private readonly open = signal(new Set<string>());

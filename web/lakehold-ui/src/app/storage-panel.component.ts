@@ -1,54 +1,53 @@
 import {
   ChangeDetectionStrategy,
   Component,
-  computed,
+  OnDestroy,
   effect,
   inject,
   input,
   signal,
   untracked,
 } from '@angular/core';
-import { formatBytes, formatCount, formatTime } from './format';
+import { Subscription } from 'rxjs';
+import { formatBytes, formatCount } from './format';
 import { LakehouseService } from './lakehouse.service';
-import { CatalogStorage, Snapshot, TableFiles, TableStorage } from './models';
+import { CatalogStorage, TableReference, TableStorage } from './models';
 import { PanelErrorComponent } from './panel-error.component';
+import { TableDetailComponent } from './table-detail.component';
 
 /**
  * The physical layer: what each table weighs, how many Parquet files it is spread across, and
  * whether the maintenance buttons above are worth pressing.
  *
- * Selecting a table opens its file list with an as-of snapshot selector. See `docs/UI.md` for why
- * this reads DuckLake's catalog rather than listing the data path.
+ * Selecting a table opens its unified detail, file, and column inspector. See `docs/UI.md` for why
+ * physical details read DuckLake's catalog rather than listing the data path.
  */
 @Component({
   selector: 'lh-storage-panel',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [PanelErrorComponent],
+  imports: [PanelErrorComponent, TableDetailComponent],
   templateUrl: './storage-panel.component.html',
   styleUrls: ['./panel-shared.css', './storage-panel.component.css'],
 })
-export class StoragePanelComponent {
+export class StoragePanelComponent implements OnDestroy {
   private readonly api = inject(LakehouseService);
+  private storageRequest?: Subscription;
 
   readonly tenant = input.required<string | null>();
   readonly catalog = input.required<string | null>();
+  /** A table selected outside this panel, normally from the catalog explorer. */
+  readonly inspect = input<TableReference | null>(null);
 
   protected readonly storage = signal<CatalogStorage | null>(null);
   protected readonly loading = signal(false);
   protected readonly error = signal<string | null>(null);
   protected readonly errorTitle = signal('Could not read storage');
 
-  /** The table whose file list is open, and that list. */
-  protected readonly selectedTable = signal<TableStorage | null>(null);
-  protected readonly files = signal<TableFiles | null>(null);
-  protected readonly filesLoading = signal(false);
-  /** Snapshot the file list is read at; null is the current one. */
-  protected readonly fileSnapshot = signal<number | null>(null);
-  protected readonly snapshots = signal<Snapshot[]>([]);
+  /** The table whose inspector is open. */
+  protected readonly selectedTable = signal<TableReference | null>(null);
 
   protected readonly formatBytes = formatBytes;
   protected readonly formatCount = formatCount;
-  protected readonly formatTime = formatTime;
 
   constructor() {
     // Reload whenever the panel is pointed at a different catalog. The panel is created and
@@ -71,6 +70,22 @@ export class StoragePanelComponent {
         this.reload();
       });
     });
+
+    // An explorer selection arrives before this panel's footprint request completes. Depending on
+    // both values opens it as soon as the matching row exists, without teaching the explorer about
+    // storage DTOs or moving table state into the workbench.
+    effect(() => {
+      const requested = this.inspect();
+      if (!requested) {
+        return;
+      }
+
+      untracked(() => this.selectedTable.set(requested));
+    });
+  }
+
+  ngOnDestroy(): void {
+    this.storageRequest?.unsubscribe();
   }
 
   /**
@@ -83,15 +98,27 @@ export class StoragePanelComponent {
   reload(): void {
     const tenant = this.tenant();
     const catalog = this.catalog();
+    this.storageRequest?.unsubscribe();
     if (!tenant || !catalog) {
       this.storage.set(null);
+      this.loading.set(false);
       return;
     }
 
     this.loading.set(true);
-    this.api.getStorage(tenant, catalog).subscribe({
+    this.storageRequest = this.api.getStorage(tenant, catalog).subscribe({
       next: (storage) => {
         this.storage.set(storage);
+        const selected = this.selectedTable();
+        if (selected) {
+          const refreshed = storage.tables.find(
+              (table) =>
+                table.schemaName === selected.schemaName && table.tableName === selected.tableName,
+            );
+          if (refreshed) {
+            this.selectedTable.set(refreshed);
+          }
+        }
         this.loading.set(false);
       },
       error: (err: Error) => {
@@ -100,46 +127,15 @@ export class StoragePanelComponent {
         this.loading.set(false);
       },
     });
-
-    if (this.selectedTable()) {
-      this.refreshFiles();
-    }
   }
 
-  /**
-   * Opens a table's file list.
-   *
-   * Snapshots load alongside it so the as-of selector has something to offer — the panel's
-   * differentiated move, and one the DuckDB-family tools cannot make because they have no snapshot
-   * to select.
-   */
+  /** Opens the unified table inspector. */
   protected openTable(table: TableStorage): void {
     this.selectedTable.set(table);
-    this.fileSnapshot.set(null);
-    this.refreshFiles();
-
-    const tenant = this.tenant();
-    const catalog = this.catalog();
-    if (this.snapshots().length === 0 && tenant && catalog) {
-      this.api.getSnapshots(tenant, catalog).subscribe({
-        // Advisory: without them the selector offers only "Current", which is still usable.
-        next: (snapshots) => this.snapshots.set(snapshots),
-        error: () => undefined,
-      });
-    }
   }
 
   protected closeTable(): void {
     this.selectedTable.set(null);
-    this.files.set(null);
-    this.fileSnapshot.set(null);
-    this.snapshots.set([]);
-  }
-
-  /** Re-reads the file list at a chosen snapshot; the empty value means the current one. */
-  protected selectFileSnapshot(value: string): void {
-    this.fileSnapshot.set(value === '' ? null : Number(value));
-    this.refreshFiles();
   }
 
   /** The advisory a row carries, or null when the table needs nothing. */
@@ -154,62 +150,5 @@ export class StoragePanelComponent {
       return 'Fragmented';
     }
     return null;
-  }
-
-  /**
-   * The file's own name, without the directory.
-   *
-   * Every file in one table's list sits in the same directory, so repeating it per row is noise that
-   * pushes the identifying part off the end. The directory is shown once in the panel header, and
-   * the full path stays in each row's tooltip.
-   */
-  protected fileName(path: string): string {
-    const cut = path.lastIndexOf('/');
-    return cut === -1 ? path : path.slice(cut + 1);
-  }
-
-  /** The directory the listed files share, or null when they somehow do not share one. */
-  protected readonly fileRoot = computed(() => {
-    const list = this.files()?.files ?? [];
-    if (list.length === 0) {
-      return null;
-    }
-
-    const first = list[0].dataFile;
-    const cut = first.lastIndexOf('/');
-    if (cut === -1) {
-      return null;
-    }
-
-    const directory = first.slice(0, cut);
-    return list.every((f) => f.dataFile.startsWith(`${directory}/`)) ? directory : null;
-  });
-
-  private refreshFiles(): void {
-    const tenant = this.tenant();
-    const catalog = this.catalog();
-    const table = this.selectedTable();
-    if (!tenant || !catalog || !table) {
-      return;
-    }
-
-    this.filesLoading.set(true);
-    this.error.set(null);
-    this.api
-      .getTableFiles(tenant, catalog, table.schemaName, table.tableName, this.fileSnapshot())
-      .subscribe({
-        next: (files) => {
-          this.files.set(files);
-          this.filesLoading.set(false);
-        },
-        error: (err: Error) => {
-          // A snapshot predating the table's creation is refused by the engine rather than returning
-          // nothing, so this is a message worth showing.
-          this.errorTitle.set('Could not list files');
-          this.error.set(err.message);
-          this.files.set(null);
-          this.filesLoading.set(false);
-        },
-      });
   }
 }

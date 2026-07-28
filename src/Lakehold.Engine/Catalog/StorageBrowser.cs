@@ -160,8 +160,27 @@ public static class StorageBrowser
     ///     Uses the unguarded execute path throughout, exactly as <see cref="MetadataExporter"/> does
     ///     and for the same reason: the gate is a non-reentrant semaphore, so re-entering it deadlocks.
     /// </remarks>
-    internal static async Task<CatalogStorageInfo> ReadUnguardedAsync(
+    internal static Task<CatalogStorageInfo> ReadUnguardedAsync(
         Duckling duckling,
+        CancellationToken cancellationToken)
+        => ReadUnguardedAsync(duckling, schemaName: null, tableName: null, cancellationToken);
+
+    /// <summary>Reads one table's footprint with the session gate already held.</summary>
+    internal static Task<CatalogStorageInfo> ReadTableUnguardedAsync(
+        Duckling duckling,
+        string schemaName,
+        string tableName,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(schemaName);
+        ArgumentException.ThrowIfNullOrWhiteSpace(tableName);
+        return ReadUnguardedAsync(duckling, schemaName, tableName, cancellationToken);
+    }
+
+    private static async Task<CatalogStorageInfo> ReadUnguardedAsync(
+        Duckling duckling,
+        string? schemaName,
+        string? tableName,
         CancellationToken cancellationToken)
     {
         var metadata = await MetadataExporter
@@ -170,6 +189,13 @@ public static class StorageBrowser
 
         var catalog = duckling.Catalog.CatalogName;
         var meta = SqlIdentifier.Quote(metadata, nameof(metadata));
+        var requestedTable = schemaName is null
+            ? string.Empty
+            : $"""
+
+            WHERE s.schema_name = {SqlIdentifier.Literal(schemaName)}
+              AND ti.table_name = {SqlIdentifier.Literal(tableName!)}
+            """;
 
         // Rows that are live *in Parquet*: what the data files hold, less what the delete files
         // remove. Both figures describe filed data only and are correct for it. The derived counts
@@ -199,6 +225,7 @@ public static class StorageBrowser
                 WHERE end_snapshot IS NULL
                 GROUP BY table_id
             ) AS dl ON dl.table_id = ti.table_id
+            {requestedTable}
             ORDER BY s.schema_name, ti.table_name
             """;
 

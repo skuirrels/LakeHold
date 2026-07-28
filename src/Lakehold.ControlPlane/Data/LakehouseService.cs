@@ -255,6 +255,53 @@ public sealed class LakehouseService(
             .ConfigureAwait(false);
     }
 
+    /// <summary>Returns one table's logical, storage, and partition detail.</summary>
+    public async Task<TableDetailInfo> GetTableDetailAsync(
+        string tenantSlug,
+        string catalogName,
+        string schema,
+        string table,
+        CancellationToken cancellationToken)
+    {
+        var (duckling, _) = await ResolveAsync(tenantSlug, catalogName, cancellationToken).ConfigureAwait(false);
+        return await TableInspector
+            .ReadAsync(duckling, schema, table, cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    /// <summary>Profiles every column over the live logical rows of one table or view.</summary>
+    public async Task<TableProfileInfo> GetTableProfileAsync(
+        string tenantSlug,
+        string catalogName,
+        string schema,
+        string table,
+        long? snapshotId,
+        CancellationToken cancellationToken)
+    {
+        var (duckling, _) = await ResolveAsync(tenantSlug, catalogName, cancellationToken).ConfigureAwait(false);
+        return await ColumnProfiler
+            .ReadAsync(duckling, schema, table, snapshotId, cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    /// <summary>Returns a bounded distribution for one table column.</summary>
+    public async Task<ColumnDistributionInfo> GetColumnDistributionAsync(
+        string tenantSlug,
+        string catalogName,
+        string schema,
+        string table,
+        string column,
+        long? snapshotId,
+        int maxBuckets,
+        CancellationToken cancellationToken)
+    {
+        var (duckling, _) = await ResolveAsync(tenantSlug, catalogName, cancellationToken).ConfigureAwait(false);
+        return await ColumnProfiler
+            .ReadDistributionAsync(
+                duckling, schema, table, column, snapshotId, maxBuckets, cancellationToken)
+            .ConfigureAwait(false);
+    }
+
     /// <summary>Returns a tenant catalog's snapshot history, newest first.</summary>
     public async Task<IReadOnlyList<SnapshotInfo>> GetSnapshotsAsync(
         string tenantSlug,

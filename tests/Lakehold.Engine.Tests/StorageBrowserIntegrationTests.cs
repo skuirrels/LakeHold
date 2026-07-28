@@ -148,6 +148,24 @@ public sealed class ObjectStoreStorageTests : IAsyncLifetime
         Assert.True(deleted.DeleteFileSizeBytes > 0);
     }
 
+    [SkippableFact]
+    public async Task Table_detail_and_profiles_read_logical_rows_from_object_storage()
+    {
+        Skip.If(
+            string.IsNullOrWhiteSpace(_endpoint),
+            $"Set {EndpointVariable}, _KEY, _SECRET and _BUCKET to run object-store tests.");
+
+        var duckling = await _pool!.GetOrStartAsync(_catalog, CreateSecret, CancellationToken.None);
+        var detail = await TableInspector.ReadAsync(
+            duckling, "main", "readings", CancellationToken.None);
+        var profile = await ColumnProfiler.ReadAsync(
+            duckling, "main", "readings", null, CancellationToken.None);
+
+        Assert.Equal(19_500, detail.Storage?.RowCount);
+        Assert.Equal(19_500, profile.RowCount);
+        Assert.Equal("500", Assert.Single(profile.Columns).Minimum);
+    }
+
     /// <summary>Installs the bucket credential on the session's own connection.</summary>
     private void CreateSecret(DuckDBDbContextOptionsBuilder duckDb)
     {
@@ -304,6 +322,24 @@ public sealed class PostgresStorageTests : IAsyncLifetime
         Assert.All(files.Files, f => Assert.Contains(".parquet", f.DataFile, StringComparison.Ordinal));
         var deleted = Assert.Single(files.Files, f => f.DeleteFile is not null);
         Assert.True(deleted.DeleteFileSizeBytes > 0);
+    }
+
+    [SkippableFact]
+    public async Task Table_detail_and_profiles_resolve_postgres_metadata()
+    {
+        Skip.If(
+            string.IsNullOrWhiteSpace(_connection),
+            $"Set {ConnectionVariable} to a libpq connection string to run PostgreSQL tests.");
+
+        var duckling = await _pool!.GetOrStartAsync(_catalog, CreateSecrets, CancellationToken.None);
+        var detail = await TableInspector.ReadAsync(
+            duckling, "warm", "pending", CancellationToken.None);
+        var profile = await ColumnProfiler.ReadAsync(
+            duckling, "warm", "pending", null, CancellationToken.None);
+
+        Assert.Equal(2, detail.Storage?.RowCount);
+        Assert.Equal(2, profile.RowCount);
+        Assert.Equal("1", Assert.Single(profile.Columns).Minimum);
     }
 
     /// <summary>Installs the two secrets a PostgreSQL-backed catalog needs, in connection configuration.</summary>
