@@ -121,7 +121,12 @@ public sealed class PostgresControlPlaneMigrationTests
             await context.SaveChangesAsync();
 
             Assert.True(await context.Tenants.Select(tenant => tenant.Id).SingleAsync() > 0);
-            Assert.Single(await context.Database.GetAppliedMigrationsAsync());
+            Assert.Equal(
+                [
+                    "20260728195348_InitialPostgresControlPlane",
+                    "20260728232510_AddCatalogScopedSavedQueries",
+                ],
+                await context.Database.GetAppliedMigrationsAsync());
         }
         finally
         {

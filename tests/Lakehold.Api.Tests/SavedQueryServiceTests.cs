@@ -1,6 +1,8 @@
 using DuckDB.EFCoreProvider.Extensions;
 using Lakehold.Api.Endpoints;
 using Lakehold.ControlPlane.Data;
+using Lakehold.ControlPlane.Model;
+using Lakehold.Engine.Catalog;
 using Lakehold.Engine.Configuration;
 using Lakehold.Engine.Execution;
 using Microsoft.EntityFrameworkCore;
@@ -45,10 +47,8 @@ public sealed class SavedQueryServiceTests : IAsyncLifetime
 
         await AdminEndpoints.CreateTenantAsync(
             new CreateTenantRequest("acme", "Acme"), _context, TimeProvider.System, default);
-        await AdminEndpoints.CreateCatalogAsync(
-            "acme", new CreateCatalogRequest("analytics"), _context, _options, TimeProvider.System, default);
-        await AdminEndpoints.CreateCatalogAsync(
-            "acme", new CreateCatalogRequest("finance"), _context, _options, TimeProvider.System, default);
+        await CreateLegacyLocalCatalogAsync("analytics");
+        await CreateLegacyLocalCatalogAsync("finance");
 
         await Sql("CREATE TABLE events (country VARCHAR, revenue DECIMAL(18, 2))");
         await Sql("INSERT INTO events VALUES ('GB', 10.00), ('GB', 15.00), ('US', 7.00)");
@@ -251,6 +251,30 @@ public sealed class SavedQueryServiceTests : IAsyncLifetime
 
     private Task<QueryResult> Sql(string sql)
         => _lakehouse.ExecuteAsync("acme", "analytics", sql, default);
+
+    private async Task CreateLegacyLocalCatalogAsync(string name)
+    {
+        var tenantId = await _context.Tenants
+            .Where(tenant => tenant.Slug == "acme")
+            .Select(tenant => tenant.Id)
+            .SingleAsync();
+        var metadataRoot = _options.Value.MetadataRoot;
+        var dataPath = Path.Combine(_options.Value.DataRoot, "acme", name);
+        Directory.CreateDirectory(metadataRoot);
+        Directory.CreateDirectory(dataPath);
+
+        _context.Catalogs.Add(new LakeCatalog
+        {
+            TenantId = tenantId,
+            Name = name,
+            MetadataKind = CatalogMetadataKind.LocalFile,
+            MetadataSource = Path.Combine(metadataRoot, $"{name}.ducklake"),
+            DataPath = dataPath,
+            StorageKind = ParquetStorageKind.Local,
+            CreatedUtc = DateTimeOffset.UtcNow,
+        });
+        await _context.SaveChangesAsync();
+    }
 
     private sealed class CallbackTimeProvider(Func<DateTimeOffset> utcNow) : TimeProvider
     {
