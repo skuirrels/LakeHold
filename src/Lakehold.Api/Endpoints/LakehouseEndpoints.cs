@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Lakehold.Api.Auth;
+using Lakehold.Api.Importing;
 using Lakehold.Api.Scheduling;
 using Lakehold.ControlPlane.Data;
 using Lakehold.ControlPlane.Model;
@@ -41,6 +42,9 @@ public static class LakehouseEndpoints
 
         tenants.MapPost("/{tenantSlug}/catalogs/{catalogName}/query", ExecuteAsync)
             .WithSummary("Executes a statement against a tenant's catalog.");
+
+        tenants.MapCsvImportEndpoints(
+            app.ServiceProvider.GetRequiredService<IOptions<CsvUploadOptions>>().Value.MaxBytes);
 
         tenants.MapSavedQueryEndpoints();
 

@@ -6,6 +6,7 @@ using Lakehold.Api.Auth;
 using Lakehold.Api.Cdc;
 using Lakehold.Api.Endpoints;
 using Lakehold.Api.Health;
+using Lakehold.Api.Importing;
 using Lakehold.Api.Mcp;
 using Lakehold.Api.PgWire;
 using Lakehold.Api.Scheduling;
@@ -46,6 +47,7 @@ builder.Services.AddOpenApi();
 builder.Services.AddProblemDetails();
 
 builder.Services.Configure<LakehouseOptions>(builder.Configuration.GetSection(LakehouseOptions.SectionName));
+builder.Services.Configure<CsvUploadOptions>(builder.Configuration.GetSection(CsvUploadOptions.SectionName));
 
 var stateRoot = Path.GetFullPath(builder.Configuration["Lakehouse:StateRoot"] ?? "./.lakehold");
 Directory.CreateDirectory(stateRoot);
@@ -99,6 +101,8 @@ builder.Services.AddSingleton<DucklingPool>();
 builder.Services.AddSingleton<IDucklingSessionConfigurator, DucklingSessionConfigurator>();
 builder.Services.AddScoped<LakehouseService>();
 builder.Services.AddScoped<SavedQueryService>();
+builder.Services.AddSingleton<CsvScratchSpace>();
+builder.Services.AddScoped<CsvUploadService>();
 
 // Authentication: resolve a bearer token to a principal, then validate the route against it in the
 // endpoint filter. Off by default for token-less requests until issuance and the UI wiring land —
@@ -207,6 +211,10 @@ builder.Services.AddCors(options => options.AddPolicy(DevCors, policy => policy
     .AllowAnyMethod()));
 
 var app = builder.Build();
+
+// Fail fast on invalid scratch limits and scavenge files abandoned by an earlier process before
+// this node can accept a CSV upload.
+_ = app.Services.GetRequiredService<CsvScratchSpace>();
 
 app.MapDefaultEndpoints();
 

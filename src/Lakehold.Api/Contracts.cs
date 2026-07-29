@@ -1,4 +1,5 @@
 using Lakehold.Engine.Execution;
+using Lakehold.Engine.Catalog;
 
 namespace Lakehold.Api;
 
@@ -79,6 +80,50 @@ public sealed record TenantDto(string Slug, string DisplayName, IReadOnlyList<Ca
 /// <param name="Role">Effective tenant role, lower-case for direct display and client comparison.</param>
 /// <param name="ReadOnly">Whether catalogs are attached without write access.</param>
 public sealed record AccessDto(string Mode, string Role, bool ReadOnly);
+
+/// <summary>A column created by a CSV import.</summary>
+public sealed record CsvImportedColumnDto(string Name, string DataType);
+
+/// <summary>One rejected CSV line returned to the browser.</summary>
+public sealed record CsvRejectDto(
+    long Line,
+    string? ColumnName,
+    string ErrorType,
+    string CsvLine,
+    string ErrorMessage);
+
+/// <summary>The created table and bounded reject report for one browser CSV import.</summary>
+public sealed record CsvImportDto(
+    string FileName,
+    string Schema,
+    string Table,
+    long RowsImported,
+    long RejectedRows,
+    long RecordedErrors,
+    bool RejectsTruncated,
+    IReadOnlyList<CsvImportedColumnDto> Columns,
+    IReadOnlyList<CsvRejectDto> Rejects,
+    double ElapsedMilliseconds)
+{
+    /// <summary>Maps the engine result to the browser contract.</summary>
+    public static CsvImportDto From(CsvImportResult result)
+        => new(
+            result.FileName,
+            result.Schema,
+            result.Table,
+            result.RowsImported,
+            result.RejectedRows,
+            result.RecordedErrors,
+            result.RejectsTruncated,
+            [.. result.Columns.Select(column => new CsvImportedColumnDto(column.Name, column.DataType))],
+            [.. result.Rejects.Select(reject => new CsvRejectDto(
+                reject.Line,
+                reject.ColumnName,
+                reject.ErrorType,
+                reject.CsvLine,
+                reject.ErrorMessage))],
+            result.Elapsed.TotalMilliseconds);
+}
 
 /// <summary>Request to provision a tenant. Instance scope.</summary>
 /// <param name="Slug">URL-safe key. Reserved value <c>admin</c> is refused — it collides with the instance-token prefix.</param>

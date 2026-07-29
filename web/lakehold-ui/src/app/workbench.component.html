@@ -277,6 +277,14 @@
               {{ running() ? 'Running…' : 'Run' }}
               <span class="kbd">⌘⏎</span>
             </button>
+            @if (!readOnlyAccess()) {
+              <lh-csv-import
+                [tenant]="tenantSlug()"
+                [catalog]="catalogName()"
+                [schemas]="schemas()"
+                (imported)="onCsvImported($event)"
+              />
+            }
             @if (summary(); as text) {
               <span class="summary">{{ text }}</span>
             }

@@ -102,23 +102,81 @@ public sealed class LakehouseService(
         {
             if (recordHistory)
             {
-                // History is written on both paths — a failed query is exactly what a user comes to
-                // the history panel to find. Recording must not mask the original failure, so a
-                // history write that fails is swallowed rather than replacing the real exception.
-                try
-                {
-                    run.ElapsedMilliseconds = run.ElapsedMilliseconds is 0
-                        ? (DateTimeOffset.UtcNow - run.StartedUtc).TotalMilliseconds
-                        : run.ElapsedMilliseconds;
-
-                    _context.QueryRuns.Add(run);
-                    await _context.SaveChangesAsync(CancellationToken.None).ConfigureAwait(false);
-                }
-                catch (DbUpdateException)
-                {
-                    // Losing an audit row is preferable to losing the query result or the real error.
-                }
+                await SaveQueryRunAsync(run).ConfigureAwait(false);
             }
+        }
+    }
+
+    /// <summary>Imports an uploaded CSV scratch file into a new table and records the operation.</summary>
+    public async Task<CsvImportResult> ImportCsvAsync(
+        string tenantSlug,
+        string catalogName,
+        string filePath,
+        string fileName,
+        string schema,
+        string table,
+        CsvReadOptions options,
+        CancellationToken cancellationToken,
+        int? tokenId = null)
+    {
+        var validatedSchema = SqlIdentifier.Quote(schema);
+        var validatedTable = SqlIdentifier.Quote(table);
+        using var activity = LakeholdTelemetry.Source.StartActivity("lakehold.csv.import");
+        activity?.SetTag(LakeholdTelemetry.TenantKey, tenantSlug);
+        activity?.SetTag(LakeholdTelemetry.CatalogKey, catalogName);
+        var startedAt = TimeProvider.System.GetTimestamp();
+
+        var (duckling, tenantId) = await ResolveAsync(tenantSlug, catalogName, cancellationToken)
+            .ConfigureAwait(false);
+        var auditFileName = string.Concat(
+            Path.GetFileName(fileName).Select(character => char.IsControl(character) ? ' ' : character));
+        var run = new QueryRun
+        {
+            TenantId = tenantId,
+            CatalogName = catalogName,
+            // The real node-local path is deliberately absent from durable history.
+            Sql = $"-- Browser CSV import: {auditFileName}\n"
+                  + $"CREATE TABLE {SqlIdentifier.QuoteName(validatedSchema)}."
+                  + $"{SqlIdentifier.QuoteName(validatedTable)} "
+                  + "AS SELECT * FROM read_csv('<uploaded file>');",
+            StartedUtc = DateTimeOffset.UtcNow,
+            TokenId = tokenId,
+        };
+
+        try
+        {
+            var result = await CsvImporter
+                .ImportAsync(
+                    duckling,
+                    filePath,
+                    fileName,
+                    validatedSchema,
+                    validatedTable,
+                    options,
+                    cancellationToken)
+                .ConfigureAwait(false);
+
+            run.Succeeded = true;
+            run.RowCount = (int)Math.Min(result.RowsImported, int.MaxValue);
+            run.ElapsedMilliseconds = result.Elapsed.TotalMilliseconds;
+
+            RecordQuery(activity, startedAt, LakeholdTelemetry.OutcomeSuccess);
+            activity?.SetTag(LakeholdTelemetry.RowsKey, result.RowsImported);
+            LakeholdTelemetry.QueryRows.Record(result.RowsImported);
+            return result;
+        }
+        catch (Exception ex)
+        {
+            run.Succeeded = false;
+            run.Error = ex.Message;
+            RecordQuery(activity, startedAt, LakeholdTelemetry.OutcomeError);
+            activity?.AddException(ex);
+            activity?.SetStatus(ActivityStatusCode.Error);
+            throw;
+        }
+        finally
+        {
+            await SaveQueryRunAsync(run).ConfigureAwait(false);
         }
     }
 
@@ -203,19 +261,28 @@ public sealed class LakehouseService(
         }
         finally
         {
-            try
-            {
-                run.ElapsedMilliseconds = run.ElapsedMilliseconds is 0
-                    ? (DateTimeOffset.UtcNow - run.StartedUtc).TotalMilliseconds
-                    : run.ElapsedMilliseconds;
+            await SaveQueryRunAsync(run).ConfigureAwait(false);
+        }
+    }
 
-                _context.QueryRuns.Add(run);
-                await _context.SaveChangesAsync(CancellationToken.None).ConfigureAwait(false);
-            }
-            catch (DbUpdateException)
-            {
-                // Same trade as the materialising path: losing an audit row beats losing the error.
-            }
+    /// <summary>
+    ///     Persists successful and failed operations without allowing audit storage to mask their
+    ///     actual result.
+    /// </summary>
+    private async Task SaveQueryRunAsync(QueryRun run)
+    {
+        try
+        {
+            run.ElapsedMilliseconds = run.ElapsedMilliseconds is 0
+                ? (DateTimeOffset.UtcNow - run.StartedUtc).TotalMilliseconds
+                : run.ElapsedMilliseconds;
+
+            _context.QueryRuns.Add(run);
+            await _context.SaveChangesAsync(CancellationToken.None).ConfigureAwait(false);
+        }
+        catch (DbUpdateException)
+        {
+            // Losing an audit row is preferable to losing the operation result or its real error.
         }
     }
 

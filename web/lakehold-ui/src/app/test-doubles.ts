@@ -6,6 +6,7 @@ import {
   ChangePage,
   ColumnDistribution,
   CreatedToken,
+  CsvImportResult,
   EjectBundle,
   EjectResult,
   MaintenanceResult,
@@ -101,6 +102,21 @@ export class FakeLakehouseService {
   backups: BackupGeneration[] = [];
   ejects: EjectBundle[] = [];
   scheduledRuns: ScheduledRun[] = [];
+  csvImport: CsvImportResult = {
+    fileName: 'customers.csv',
+    schema: 'main',
+    table: 'customers',
+    rowsImported: 2,
+    rejectedRows: 0,
+    recordedErrors: 0,
+    rejectsTruncated: false,
+    columns: [
+      { name: 'id', dataType: 'BIGINT' },
+      { name: 'name', dataType: 'VARCHAR' },
+    ],
+    rejects: [],
+    elapsedMilliseconds: 5,
+  };
 
   /** Method names that should fail instead of answering, mapped to the message they fail with. */
   readonly failures = new Map<string, string>();
@@ -244,6 +260,10 @@ export class FakeLakehouseService {
 
   execute(...args: unknown[]): Observable<QueryResponse> {
     return this.answer('execute', args, () => this.queryResponse);
+  }
+
+  importCsv(...args: unknown[]): Observable<CsvImportResult> {
+    return this.answer('importCsv', args, () => this.csvImport);
   }
 
   listSavedQueries(...args: unknown[]): Observable<SavedQuery[]> {

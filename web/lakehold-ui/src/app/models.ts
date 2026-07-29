@@ -49,6 +49,51 @@ export interface QueryResponse {
   rowsAffected: number | null;
 }
 
+export type CsvImportMode = 'automatic' | 'custom';
+export type CsvNewLine = 'lf' | 'cr' | 'crlf';
+
+/** Browser-selected CSV reader settings. Automatic mode omits every DuckDB override. */
+export interface CsvImportRequest {
+  schema: string;
+  table: string;
+  mode: CsvImportMode;
+  delimiter: string;
+  quote: string;
+  escape: string;
+  newLine: CsvNewLine;
+  header: boolean;
+  sampleSize: number;
+  ignoreErrors: boolean;
+  storeRejects: boolean;
+}
+
+export interface CsvImportedColumn {
+  name: string;
+  dataType: string;
+}
+
+export interface CsvReject {
+  line: number;
+  columnName: string | null;
+  errorType: string;
+  csvLine: string;
+  errorMessage: string;
+}
+
+/** Created table and bounded rejects report returned after a browser CSV upload. */
+export interface CsvImportResult {
+  fileName: string;
+  schema: string;
+  table: string;
+  rowsImported: number;
+  rejectedRows: number;
+  recordedErrors: number;
+  rejectsTruncated: boolean;
+  columns: CsvImportedColumn[];
+  rejects: CsvReject[];
+  elapsedMilliseconds: number;
+}
+
 /** A reusable query authored in one catalog and optionally published as a view. */
 export interface SavedQuery {
   id: number;

@@ -15,6 +15,7 @@ import { AuthService } from './auth.service';
 import { BackupsPanelComponent } from './backups-panel.component';
 import { BrandMarkComponent } from './brand-mark.component';
 import { CatalogExplorerComponent } from './catalog-explorer.component';
+import { CsvImportComponent } from './csv-import.component';
 import { ChangesPanelComponent } from './changes-panel.component';
 import { DataHistoryPanelComponent } from './data-history-panel.component';
 import { EjectPanelComponent } from './eject-panel.component';
@@ -23,6 +24,7 @@ import { formatTime } from './format';
 import { ApiError, LakehouseService } from './lakehouse.service';
 import {
   AccessContext,
+  CsvImportResult,
   MaintenanceOperation,
   QueryResponse,
   QueryRun,
@@ -71,6 +73,7 @@ type BottomTab =
     BrandMarkComponent,
     CatalogExplorerComponent,
     ChangesPanelComponent,
+    CsvImportComponent,
     DataHistoryPanelComponent,
     EjectPanelComponent,
     FirstRunComponent,
@@ -447,6 +450,18 @@ export class WorkbenchComponent {
       this.api.execute(tenant, catalog, sql),
       /^\s*(create|drop|alter)\b/i.test(sql),
     );
+  }
+
+  /** Refreshes every catalog surface invalidated by a newly created CSV-backed table. */
+  protected onCsvImported(result: CsvImportResult): void {
+    this.notice.set(
+      `Imported ${result.rowsImported.toLocaleString()} rows into ${result.schema}.${result.table}` +
+        (result.rejectedRows > 0
+          ? `; ${result.rejectedRows.toLocaleString()} malformed rows were rejected.`
+          : '.'),
+    );
+    this.refreshCatalog();
+    this.refreshHistory();
   }
 
   /** Runs the persisted definition by id, so the server — not the browser — chooses the SQL. */
