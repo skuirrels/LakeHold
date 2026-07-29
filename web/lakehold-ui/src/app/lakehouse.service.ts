@@ -43,6 +43,8 @@ export class ApiError extends Error {
   constructor(
     message: string,
     readonly status: number,
+    readonly code: string | null = null,
+    readonly canRetryWithTolerantProfile = false,
   ) {
     super(message);
     this.name = 'ApiError';
@@ -499,9 +501,22 @@ function toMessage(response: HttpErrorResponse): Observable<never> {
 
   // ProblemDetails shape, emitted by AddProblemDetails for unhandled failures.
   if (body && typeof body === 'object' && 'detail' in body) {
-    const { detail } = body as { detail: unknown };
+    const problem = body as {
+      detail: unknown;
+      code?: unknown;
+      canRetryWithTolerantProfile?: unknown;
+    };
+    const { detail } = problem;
     if (typeof detail === 'string' && detail.length > 0) {
-      return throwError(() => new ApiError(detail, response.status));
+      return throwError(
+        () =>
+          new ApiError(
+            detail,
+            response.status,
+            typeof problem.code === 'string' ? problem.code : null,
+            problem.canRetryWithTolerantProfile === true,
+          ),
+      );
     }
   }
 

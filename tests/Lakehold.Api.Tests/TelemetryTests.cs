@@ -6,6 +6,15 @@ using Xunit;
 namespace Lakehold.Api.Tests;
 
 /// <summary>
+///     Global activity and meter listeners must not observe measurements emitted by other tests.
+/// </summary>
+[CollectionDefinition("Telemetry", DisableParallelization = true)]
+public sealed class TelemetryIsolationDefinition
+{
+    public const string Name = "Telemetry";
+}
+
+/// <summary>
 ///     Cover for the telemetry surface: that the source and meter actually emit under a listener,
 ///     and that nothing carries a tenant's SQL or a credential-bearing value.
 /// </summary>
@@ -13,6 +22,7 @@ namespace Lakehold.Api.Tests;
 ///     Instrumentation fails silently — a span nobody records and a counter nobody increments look
 ///     exactly like a quiet system. These assert the wiring end to end rather than trusting it.
 /// </remarks>
+[Collection(TelemetryIsolationDefinition.Name)]
 public sealed class TelemetryTests
 {
     [Fact]

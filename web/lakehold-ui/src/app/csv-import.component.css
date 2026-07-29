@@ -187,10 +187,28 @@ form footer {
   border-radius: 7px;
 }
 
-.import-error pre {
+.import-error p {
   margin: 6px 0 0;
-  white-space: pre-wrap;
-  font: 11px/1.45 var(--mono);
+  font: 12px/1.45 var(--mono);
+}
+
+.retry-action {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid color-mix(in srgb, var(--danger, #ff7b72) 25%, var(--border));
+}
+
+.retry-action small {
+  max-width: 360px;
+  color: var(--text-muted);
+}
+
+.retry-action .btn {
+  flex-shrink: 0;
 }
 
 .import-result {
@@ -287,6 +305,10 @@ form footer {
   .dialog-backdrop {
     align-items: end;
     padding: 0;
+  }
+
+  .retry-action {
+    flex-direction: column;
   }
 
   .import-dialog {

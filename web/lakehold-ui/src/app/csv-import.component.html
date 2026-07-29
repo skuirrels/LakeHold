@@ -145,8 +145,11 @@
                 (change)="setMode('custom')"
               />
               <span>
-                <strong>Custom</strong>
-                <small>Defaults to the semicolon/CRLF full-scan import profile.</small>
+                <strong>Semicolon / CRLF tolerant</strong>
+                <small
+                  >Starts with the full-file, skip-errors profile; every setting remains
+                  editable.</small
+                >
               </span>
             </label>
           </fieldset>
@@ -233,9 +236,25 @@
           }
 
           @if (error(); as message) {
-            <div class="import-error">
+            <div class="import-error" role="alert">
               <strong>Import failed</strong>
-              <pre>{{ message }}</pre>
+              <p>{{ message }}</p>
+              @if (canRetryWithTolerantProfile()) {
+                <div class="retry-action">
+                  <small>
+                    Automatic import is strict. The tolerant profile skips malformed rows and
+                    returns a bounded reject report for review.
+                  </small>
+                  <button
+                    class="btn"
+                    type="button"
+                    [disabled]="busy()"
+                    (click)="retryWithTolerantProfile()"
+                  >
+                    Retry with semicolon / CRLF tolerant profile
+                  </button>
+                </div>
+              }
             </div>
           }
 

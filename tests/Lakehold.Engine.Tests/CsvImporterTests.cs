@@ -133,6 +133,42 @@ public sealed class CsvImporterTests : IAsyncLifetime
     }
 
     [Fact]
+    public void Duckdb_csv_diagnostic_never_returns_the_uploaded_row_or_scratch_path()
+    {
+        const string diagnostic =
+            """
+            Invalid Input Error: CSV Error on Line: 904218
+            Original Line: customer;secret-value
+            Expected Number of Columns: 157 Found: 135
+            file = /tmp/lakehold-csv-imports/private.csv
+            """;
+
+        var failure = CsvImportException.FromDuckDb(diagnostic);
+
+        Assert.True(failure.IsParserError);
+        Assert.Equal(CsvImportException.ParserErrorCode, failure.Code);
+        Assert.Equal(
+            "CSV line 904218 contains 135 columns; 157 were expected.",
+            failure.Message);
+        Assert.DoesNotContain("secret-value", failure.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain("/tmp/", failure.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Generic_duckdb_failure_never_returns_the_uploaded_path()
+    {
+        var failure = CsvImportException.FromDuckDb(
+            "IO Error: Cannot open file '/tmp/lakehold-csv-imports/private.csv'");
+
+        Assert.False(failure.IsParserError);
+        Assert.Equal(CsvImportException.ImportErrorCode, failure.Code);
+        Assert.Equal(
+            "DuckDB could not import the CSV with the selected settings.",
+            failure.Message);
+        Assert.DoesNotContain("/tmp/", failure.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task Existing_table_is_refused_without_changing_it()
     {
         var path = Path.Combine(_root, "existing.csv");

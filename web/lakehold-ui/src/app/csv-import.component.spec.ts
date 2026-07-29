@@ -1,7 +1,8 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideZonelessChangeDetection } from '@angular/core';
+import { of, throwError } from 'rxjs';
 import { CsvImportComponent, suggestTableName } from './csv-import.component';
-import { LakehouseService } from './lakehouse.service';
+import { ApiError, LakehouseService } from './lakehouse.service';
 import { CsvImportRequest } from './models';
 import { FakeLakehouseService } from './test-doubles';
 
@@ -54,6 +55,63 @@ describe('CsvImportComponent', () => {
     expect(request.schema).toBe('main');
     expect(request.table).toBe('predicted_schedules');
     expect(request.mode).toBe('automatic');
+    expect(fixture.nativeElement.textContent).toContain('main.customers is ready');
+  });
+
+  it('offers an explicit tolerant retry and resubmits the retained file with the exact profile', async () => {
+    vi.spyOn(api, 'importCsv')
+      .mockReturnValueOnce(
+        throwError(
+          () =>
+            new ApiError(
+              'CSV line 904218 contains 135 columns; 157 were expected.',
+              400,
+              'csv_parse_error',
+              true,
+            ),
+        ),
+      )
+      .mockReturnValueOnce(of(api.csvImport));
+    await mount();
+    const file = await openWithFile('sch_predicted_schedules.csv');
+
+    (fixture.nativeElement.querySelector('form') as HTMLFormElement).dispatchEvent(
+      new Event('submit'),
+    );
+    await fixture.whenStable();
+
+    expect(fixture.nativeElement.textContent).toContain(
+      'CSV line 904218 contains 135 columns; 157 were expected.',
+    );
+    const retry = Array.from<HTMLButtonElement>(
+      fixture.nativeElement.querySelectorAll('button'),
+    ).find((button) =>
+      button.textContent?.includes('Retry with semicolon / CRLF tolerant profile'),
+    );
+    expect(retry).toBeDefined();
+
+    retry!.click();
+    await fixture.whenStable();
+
+    expect(api.importCsv).toHaveBeenCalledTimes(2);
+    const [tenant, catalog, uploaded, request] = vi.mocked(api.importCsv).mock.calls[1] as [
+      string,
+      string,
+      File,
+      CsvImportRequest,
+    ];
+    expect([tenant, catalog, uploaded]).toEqual(['demo', 'analytics', file]);
+    expect(request).toMatchObject({
+      mode: 'custom',
+      delimiter: ';',
+      quote: '"',
+      escape: '',
+      newLine: 'crlf',
+      header: true,
+      sampleSize: -1,
+      ignoreErrors: true,
+      storeRejects: true,
+    });
     expect(fixture.nativeElement.textContent).toContain('main.customers is ready');
   });
 

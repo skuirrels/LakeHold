@@ -212,6 +212,13 @@ public static class CsvImporter
                 rejects,
                 Stopwatch.GetElapsedTime(startedAt));
         }
+        catch (DuckDB.NET.Data.DuckDBException ex)
+        {
+            // DuckDB includes uploaded row contents and the node-local file path in its parser
+            // diagnostic. Translate at the engine boundary so neither durable query history,
+            // telemetry, nor the HTTP response can retain that sensitive context.
+            throw CsvImportException.FromDuckDb(ex.Message);
+        }
         finally
         {
             if (storeRejects)
