@@ -169,9 +169,11 @@ Worth knowing:
 - **Demo seeding is off.** `Lakehold:SeedDemoData` defaults to the environment, so a production node
   never invents a `demo` tenant holding 250,000 rows. Schema initialisation still runs — that is
   what creates tables added since a database was first initialised.
-- **PostgreSQL is required but not bundled.** It is both the shared application control plane and
-  the default DuckLake metadata catalog. Point the two connection strings at managed or
-  operator-owned PostgreSQL; they may use separate databases/users for least privilege.
+- **PostgreSQL is required but not bundled in the standard production stack.** It is both the
+  shared application control plane and the default DuckLake metadata catalog. Point the two
+  connection strings at managed or operator-owned PostgreSQL; they may use separate databases/users
+  for least privilege. The separate evaluation-only demo overlay includes a private PostgreSQL
+  container so `make demo` is self-contained.
 - **Parquet storage is independent.** A local path remains supported for a deliberate single-node
   or shared-filesystem deployment. S3/S3-compatible, GCS, and Azure Blob/ADLS profiles are the
   recommended multi-node choices.
@@ -232,11 +234,15 @@ This refuses tracked local changes, pulls the current branch with `--ff-only`, t
 and UI images before starting them in website mode. The site listens on port `8080` by default; use
 `LAKEHOLD_PORT=8081 make demo` when that port is already occupied.
 
-`compose.demo.yaml` owns the website mode, demo seeding, authentication, and the read-only visitor
-scope. It defaults to `demo/analytics`; `LAKEHOLD_DEMO_TENANT` and `LAKEHOLD_DEMO_CATALOG` can point
-the overlay at a different seeded catalog. This does not disable authentication: credential-less
-requests receive a reader scoped to that one catalog, while a valid operator token retains its
-normal capabilities.
+`compose.demo.yaml` owns the website mode, demo seeding, authentication, the read-only visitor
+scope, and a private PostgreSQL 17 service whose metadata survives restarts in the
+`lakehold_demo-postgres-data` volume. It defaults to `demo/analytics`;
+`LAKEHOLD_DEMO_TENANT` and `LAKEHOLD_DEMO_CATALOG` can point the overlay at a different seeded
+catalog. `LAKEHOLD_DEMO_POSTGRES_PASSWORD` can replace the evaluation-only database password before
+the volume is first created. This does not disable authentication: credential-less requests receive
+a reader scoped to that one catalog, while a valid operator token retains its normal capabilities.
+Production deployments should continue to use managed or operator-owned PostgreSQL through the two
+connection-string variables above.
 
 ### Running the app on the host instead
 
