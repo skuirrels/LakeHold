@@ -366,6 +366,13 @@
           </div>
 
           <div class="output-body">
+            @if (catalogError(); as message) {
+              <div class="banner error-banner">
+                <strong>Could not load the catalog</strong>
+                <pre>{{ message }}</pre>
+              </div>
+            }
+
             @if (error(); as message) {
               <div class="banner error-banner">
                 <strong>{{ errorTitle() }}</strong>

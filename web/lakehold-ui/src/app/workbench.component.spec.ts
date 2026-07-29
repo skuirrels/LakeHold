@@ -1,6 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideZonelessChangeDetection } from '@angular/core';
 import { provideRouter } from '@angular/router';
+import { of, Subject } from 'rxjs';
 import { ApiError, LakehouseService } from './lakehouse.service';
 import { FakeLakehouseService, tableStorage } from './test-doubles';
 import { WorkbenchComponent } from './workbench.component';
@@ -298,6 +299,40 @@ describe('WorkbenchComponent', () => {
       const status = fixture.nativeElement.querySelector('.connection-status') as HTMLElement;
       expect(status.textContent?.trim()).toBe('Not connected');
       expect(status.classList.contains('disconnected')).toBe(true);
+    });
+
+    it('keeps catalog status and errors aligned across stale responses and retries', async () => {
+      const first = new Subject<typeof api.schemas>();
+      const second = new Subject<typeof api.schemas>();
+      let request = 0;
+      api.getSchemas = (...args: unknown[]) => {
+        api.calls.push({ method: 'getSchemas', args });
+        return [first, second][request++] ?? of(api.schemas);
+      };
+
+      await mount();
+      const catalogSelect = fixture.nativeElement.querySelectorAll(
+        '.selectors select',
+      )[1] as HTMLSelectElement;
+
+      catalogSelect.dispatchEvent(new Event('change'));
+      await fixture.whenStable();
+
+      second.error(new Error('new request failed'));
+      await fixture.whenStable();
+      expect(text()).toContain('new request failed');
+      expect(text()).toContain('Not connected');
+
+      first.next([]);
+      first.complete();
+      await fixture.whenStable();
+      expect(text()).toContain('new request failed');
+      expect(text()).toContain('Not connected');
+
+      catalogSelect.dispatchEvent(new Event('change'));
+      await fixture.whenStable();
+      expect(text()).not.toContain('new request failed');
+      expect(text()).toContain('Connected');
     });
 
     it('clears a query failure when the operator opens another panel', async () => {

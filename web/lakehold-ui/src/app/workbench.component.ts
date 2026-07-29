@@ -9,7 +9,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { Observable, of, throwError } from 'rxjs';
+import { EMPTY, Observable, of, throwError } from 'rxjs';
 import { catchError, switchMap } from 'rxjs/operators';
 import { AuthService } from './auth.service';
 import { BackupsPanelComponent } from './backups-panel.component';
@@ -87,6 +87,8 @@ type BottomTab =
 export class WorkbenchComponent {
   private readonly api = inject(LakehouseService);
   private readonly destroyRef = inject(DestroyRef);
+  private tenantRequestGeneration = 0;
+  private catalogRequestGeneration = 0;
   protected readonly auth = inject(AuthService);
 
   /**
@@ -120,6 +122,7 @@ export class WorkbenchComponent {
   protected readonly result = signal<QueryResponse | null>(null);
   protected readonly error = signal<string | null>(null);
   protected readonly errorTitle = signal('Query failed');
+  protected readonly catalogError = signal<string | null>(null);
   protected readonly notice = signal<string | null>(null);
 
   protected readonly history = signal<QueryRun[]>([]);
@@ -257,17 +260,29 @@ export class WorkbenchComponent {
 
   /** Loads the tenants the current credential can see, selecting the first as a starting point. */
   private loadTenants(): void {
+    const requestGeneration = ++this.tenantRequestGeneration;
+    this.catalogRequestGeneration += 1;
     this.catalogConnected.set(false);
+    this.catalogError.set(null);
+    this.schemasLoading.set(false);
     this.api
       .getAccess()
       .pipe(
         switchMap((access) => {
+          if (requestGeneration !== this.tenantRequestGeneration) {
+            return EMPTY;
+          }
+
           this.access.set(access);
           return this.api.listTenants();
         }),
       )
       .subscribe({
         next: (tenants) => {
+          if (requestGeneration !== this.tenantRequestGeneration) {
+            return;
+          }
+
           this.tenants.set(tenants);
           this.error.set(null);
           const first = tenants[0];
@@ -291,6 +306,10 @@ export class WorkbenchComponent {
           }
         },
         error: (err: Error) => {
+          if (requestGeneration !== this.tenantRequestGeneration) {
+            return;
+          }
+
           // 401 is the ordinary first contact with a deployment that requires authentication, so it
           // asks for a token instead of reporting a failure the user cannot act on.
           if (err instanceof ApiError && err.status === 401) {
@@ -487,7 +506,7 @@ export class WorkbenchComponent {
     this.contextPanelOpen.set(opening);
 
     if (!opening) {
-      if (this.compactViewport()) {
+      if (this.compactViewport() || !this.navigationOpen()) {
         this.focusNavigationToggle();
       } else {
         this.focusNavigationDestination();
@@ -632,6 +651,7 @@ export class WorkbenchComponent {
     // A query failure belongs to the editor, not to whatever panel the operator opens next. The
     // panels carry their own banners, which are destroyed with them.
     this.error.set(null);
+    this.catalogError.set(null);
   }
 
   protected refreshQueryHistory(): void {
@@ -647,7 +667,9 @@ export class WorkbenchComponent {
   protected refreshCatalog(): void {
     const tenant = this.tenantSlug();
     const catalog = this.catalogName();
+    const requestGeneration = ++this.catalogRequestGeneration;
     this.catalogConnected.set(false);
+    this.catalogError.set(null);
     if (!tenant || !catalog) {
       this.schemas.set([]);
       this.schemasLoading.set(false);
@@ -657,7 +679,11 @@ export class WorkbenchComponent {
     this.schemasLoading.set(true);
     this.api.getSchemas(tenant, catalog).subscribe({
       next: (schemas) => {
-        if (this.tenantSlug() !== tenant || this.catalogName() !== catalog) {
+        if (
+          requestGeneration !== this.catalogRequestGeneration ||
+          this.tenantSlug() !== tenant ||
+          this.catalogName() !== catalog
+        ) {
           return;
         }
 
@@ -666,11 +692,15 @@ export class WorkbenchComponent {
         this.schemasLoading.set(false);
       },
       error: (err: Error) => {
-        if (this.tenantSlug() !== tenant || this.catalogName() !== catalog) {
+        if (
+          requestGeneration !== this.catalogRequestGeneration ||
+          this.tenantSlug() !== tenant ||
+          this.catalogName() !== catalog
+        ) {
           return;
         }
 
-        this.fail('Could not load the catalog', err.message);
+        this.catalogError.set(err.message);
         this.catalogConnected.set(false);
         this.schemasLoading.set(false);
       },

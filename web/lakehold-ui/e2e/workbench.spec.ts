@@ -81,6 +81,18 @@ test.describe('workbench user journeys', () => {
       .toBeCloseTo(expandedMain!.width, 0);
   });
 
+  test('restores focus when both desktop navigation surfaces are collapsed', async ({ page }) => {
+    const navigation = page.locator('#workbench-navigation');
+    const contextPanel = page.locator('#workbench-context-panel');
+
+    await page.getByRole('button', { name: 'Collapse navigation' }).click();
+    await page.getByRole('button', { name: 'Collapse catalog panel' }).click();
+
+    await expect(navigation).toHaveAttribute('inert', '');
+    await expect(contextPanel).toHaveAttribute('inert', '');
+    await expect(page.getByRole('button', { name: 'Expand navigation' })).toBeFocused();
+  });
+
   test('routes every product-navigation destination to its existing workbench surface', async ({
     page,
   }) => {
