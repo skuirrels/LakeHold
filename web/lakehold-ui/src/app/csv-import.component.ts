@@ -7,8 +7,19 @@ import {
   output,
   signal,
 } from '@angular/core';
-import { LakehouseService } from './lakehouse.service';
+import { ApiError, LakehouseService } from './lakehouse.service';
 import { CsvImportMode, CsvImportRequest, CsvImportResult, CsvNewLine, Schema } from './models';
+
+const TOLERANT_PROFILE = {
+  delimiter: ';',
+  quote: '"',
+  escape: '',
+  newLine: 'crlf' as CsvNewLine,
+  header: true,
+  sampleSize: -1,
+  ignoreErrors: true,
+  storeRejects: true,
+};
 
 /**
  * Browser CSV-to-table workflow.
@@ -35,17 +46,18 @@ export class CsvImportComponent {
   protected readonly schema = signal('main');
   protected readonly table = signal('');
   protected readonly mode = signal<CsvImportMode>('automatic');
-  protected readonly delimiter = signal(';');
-  protected readonly quote = signal('"');
-  protected readonly escape = signal('');
-  protected readonly newLine = signal<CsvNewLine>('crlf');
-  protected readonly header = signal(true);
-  protected readonly sampleSize = signal(-1);
-  protected readonly ignoreErrors = signal(true);
-  protected readonly storeRejects = signal(true);
+  protected readonly delimiter = signal<string>(TOLERANT_PROFILE.delimiter);
+  protected readonly quote = signal<string>(TOLERANT_PROFILE.quote);
+  protected readonly escape = signal<string>(TOLERANT_PROFILE.escape);
+  protected readonly newLine = signal<CsvNewLine>(TOLERANT_PROFILE.newLine);
+  protected readonly header = signal<boolean>(TOLERANT_PROFILE.header);
+  protected readonly sampleSize = signal<number>(TOLERANT_PROFILE.sampleSize);
+  protected readonly ignoreErrors = signal<boolean>(TOLERANT_PROFILE.ignoreErrors);
+  protected readonly storeRejects = signal<boolean>(TOLERANT_PROFILE.storeRejects);
 
   protected readonly busy = signal(false);
   protected readonly error = signal<string | null>(null);
+  protected readonly canRetryWithTolerantProfile = signal(false);
   protected readonly result = signal<CsvImportResult | null>(null);
   protected readonly canImport = computed(
     () =>
@@ -60,6 +72,7 @@ export class CsvImportComponent {
     this.table.set('');
     this.open.set(true);
     this.error.set(null);
+    this.canRetryWithTolerantProfile.set(false);
     this.result.set(null);
   }
 
@@ -75,6 +88,7 @@ export class CsvImportComponent {
     const selected = (event.target as HTMLInputElement).files?.[0] ?? null;
     this.file.set(selected);
     this.error.set(null);
+    this.canRetryWithTolerantProfile.set(false);
     this.result.set(null);
     if (selected && (!this.table().trim() || this.table() === previousSuggestion)) {
       this.table.set(suggestTableName(selected.name));
@@ -84,6 +98,7 @@ export class CsvImportComponent {
   protected setMode(value: string): void {
     this.mode.set(value === 'custom' ? 'custom' : 'automatic');
     this.error.set(null);
+    this.canRetryWithTolerantProfile.set(false);
   }
 
   protected setIgnoreErrors(enabled: boolean): void {
@@ -98,6 +113,21 @@ export class CsvImportComponent {
     if (enabled) {
       this.ignoreErrors.set(true);
     }
+  }
+
+  protected retryWithTolerantProfile(): void {
+    this.mode.set('custom');
+    this.delimiter.set(TOLERANT_PROFILE.delimiter);
+    this.quote.set(TOLERANT_PROFILE.quote);
+    this.escape.set(TOLERANT_PROFILE.escape);
+    this.newLine.set(TOLERANT_PROFILE.newLine);
+    this.header.set(TOLERANT_PROFILE.header);
+    this.sampleSize.set(TOLERANT_PROFILE.sampleSize);
+    this.ignoreErrors.set(TOLERANT_PROFILE.ignoreErrors);
+    this.storeRejects.set(TOLERANT_PROFILE.storeRejects);
+    this.error.set(null);
+    this.canRetryWithTolerantProfile.set(false);
+    this.submit();
   }
 
   protected submit(): void {
@@ -124,6 +154,7 @@ export class CsvImportComponent {
 
     this.busy.set(true);
     this.error.set(null);
+    this.canRetryWithTolerantProfile.set(false);
     this.result.set(null);
     this.api.importCsv(tenant, catalog, file, request).subscribe({
       next: (result) => {
@@ -133,6 +164,12 @@ export class CsvImportComponent {
       },
       error: (error: Error) => {
         this.error.set(error.message);
+        this.canRetryWithTolerantProfile.set(
+          this.mode() === 'automatic' &&
+            error instanceof ApiError &&
+            error.code === 'csv_parse_error' &&
+            error.canRetryWithTolerantProfile,
+        );
         this.busy.set(false);
       },
     });

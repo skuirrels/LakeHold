@@ -140,6 +140,80 @@ public sealed class CsvImportEndpointsTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Automatic_parser_failure_is_sanitized_and_offers_an_explicit_tolerant_retry()
+    {
+        var csv = new System.Text.StringBuilder("id;name\r\n");
+        for (var index = 0; index < 25_000; index++)
+        {
+            csv.Append(index).Append(";Customer ").Append(index).Append("\r\n");
+        }
+
+        // Put the malformed record beyond DuckDB's default 20,480-row sniffing sample. The parser
+        // then commits to the two-column dialect before it reaches this one-column row.
+        csv.Append("25000\r\n");
+        var http = Request(
+            csv.ToString(),
+            new Dictionary<string, StringValues>
+            {
+                ["fileName"] = "customers.csv",
+                ["schema"] = "main",
+                ["table"] = "malformed_customers",
+                ["mode"] = "automatic",
+            });
+
+        var response = await CsvImportEndpoints.ImportAsync(
+            http, "acme", "analytics", _uploads, default);
+
+        var problem = Assert.IsType<ProblemHttpResult>(response);
+        Assert.Equal(StatusCodes.Status400BadRequest, problem.StatusCode);
+        Assert.Equal("CSV parsing failed", problem.ProblemDetails.Title);
+        Assert.Contains("column", problem.ProblemDetails.Detail, StringComparison.Ordinal);
+        Assert.DoesNotContain("Customer", problem.ProblemDetails.Detail, StringComparison.Ordinal);
+        Assert.DoesNotContain(
+            "lakehold-csv-imports",
+            problem.ProblemDetails.Detail,
+            StringComparison.Ordinal);
+        Assert.Equal(
+            CsvImportException.ParserErrorCode,
+            problem.ProblemDetails.Extensions["code"]);
+        Assert.Equal(
+            true,
+            problem.ProblemDetails.Extensions["canRetryWithTolerantProfile"]);
+
+        var audit = await _context.QueryRuns.SingleAsync();
+        Assert.False(audit.Succeeded);
+        Assert.Equal(problem.ProblemDetails.Detail, audit.Error);
+        Assert.DoesNotContain("Customer", audit.Error, StringComparison.Ordinal);
+        Assert.DoesNotContain("/tmp/", audit.Error, StringComparison.Ordinal);
+
+        var retry = Request(
+            csv.ToString(),
+            new Dictionary<string, StringValues>
+            {
+                ["fileName"] = "customers.csv",
+                ["schema"] = "main",
+                ["table"] = "malformed_customers",
+                ["mode"] = "custom",
+                ["delimiter"] = ";",
+                ["quote"] = "\"",
+                ["escape"] = "",
+                ["newLine"] = "crlf",
+                ["header"] = "true",
+                ["sampleSize"] = "-1",
+                ["ignoreErrors"] = "true",
+                ["storeRejects"] = "true",
+            });
+
+        var retryResponse = await CsvImportEndpoints.ImportAsync(
+            retry, "acme", "analytics", _uploads, default);
+
+        var imported = Assert.IsType<Ok<CsvImportDto>>(retryResponse).Value!;
+        Assert.Equal(25_000, imported.RowsImported);
+        Assert.Equal(1, imported.RejectedRows);
+        Assert.Equal(2, await _context.QueryRuns.CountAsync());
+    }
+
+    [Fact]
     public async Task Upload_service_refuses_oversized_files_before_creating_a_table()
     {
         var tinyOptions = Options.Create(new CsvUploadOptions

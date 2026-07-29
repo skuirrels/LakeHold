@@ -84,9 +84,30 @@ public static class CsvImportEndpoints
         {
             return Results.BadRequest(ex.Message);
         }
-        catch (DuckDB.NET.Data.DuckDBException ex)
+        catch (CsvImportException ex)
         {
-            return Results.BadRequest(ex.Message);
+            return Results.Problem(
+                statusCode: StatusCodes.Status400BadRequest,
+                title: ex.IsParserError ? "CSV parsing failed" : "CSV import failed",
+                detail: ex.Message,
+                extensions: new Dictionary<string, object?>
+                {
+                    ["code"] = ex.Code,
+                    ["canRetryWithTolerantProfile"] =
+                        ex.IsParserError && request.AutomaticMode,
+                });
+        }
+        catch (DuckDB.NET.Data.DuckDBException)
+        {
+            return Results.Problem(
+                statusCode: StatusCodes.Status400BadRequest,
+                title: "CSV import failed",
+                detail: "DuckDB could not import the CSV with the selected settings.",
+                extensions: new Dictionary<string, object?>
+                {
+                    ["code"] = CsvImportException.ImportErrorCode,
+                    ["canRetryWithTolerantProfile"] = false,
+                });
         }
     }
 
@@ -110,7 +131,12 @@ public static class CsvImportEndpoints
         var mode = Value(query, "mode");
         if (string.IsNullOrEmpty(mode) || string.Equals(mode, "automatic", StringComparison.Ordinal))
         {
-            request = new CsvImportForm(fileName, schema, table, new CsvReadOptions());
+            request = new CsvImportForm(
+                fileName,
+                schema,
+                table,
+                AutomaticMode: true,
+                Options: new CsvReadOptions());
             error = string.Empty;
             return true;
         }
@@ -156,7 +182,8 @@ public static class CsvImportEndpoints
             fileName,
             schema,
             table,
-            new CsvReadOptions(
+            AutomaticMode: false,
+            Options: new CsvReadOptions(
                 Value(query, "delimiter"),
                 Value(query, "quote"),
                 Value(query, "escape"),
@@ -190,5 +217,6 @@ public static class CsvImportEndpoints
         string FileName,
         string Schema,
         string Table,
+        bool AutomaticMode,
         CsvReadOptions Options);
 }

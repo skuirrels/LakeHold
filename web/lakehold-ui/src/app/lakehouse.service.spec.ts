@@ -245,6 +245,48 @@ describe('LakehouseService', () => {
     } satisfies Partial<ApiError>);
   });
 
+  it('preserves structured CSV retry guidance without exposing the raw engine error', async () => {
+    const result = firstValueFrom(
+      service.importCsv(
+        'demo',
+        'analytics',
+        new File(['id;name\r\n1\r\n'], 'customers.csv', { type: 'text/csv' }),
+        {
+          schema: 'main',
+          table: 'customers',
+          mode: 'automatic',
+          delimiter: ';',
+          quote: '"',
+          escape: '',
+          newLine: 'crlf',
+          header: true,
+          sampleSize: -1,
+          ignoreErrors: true,
+          storeRejects: true,
+        },
+      ),
+    );
+    http
+      .expectOne((request) => request.url.endsWith('/imports/csv'))
+      .flush(
+        {
+          title: 'CSV parsing failed',
+          detail: 'CSV line 3 contains 1 column; 2 were expected.',
+          code: 'csv_parse_error',
+          canRetryWithTolerantProfile: true,
+        },
+        { status: 400, statusText: 'Bad Request' },
+      );
+
+    await expect(result).rejects.toMatchObject({
+      name: 'ApiError',
+      message: 'CSV line 3 contains 1 column; 2 were expected.',
+      status: 400,
+      code: 'csv_parse_error',
+      canRetryWithTolerantProfile: true,
+    } satisfies Partial<ApiError>);
+  });
+
   it('turns a network failure into an actionable message', async () => {
     const result = firstValueFrom(service.listTenants());
     http.expectOne('/api/tenants').error(new ProgressEvent('network'));

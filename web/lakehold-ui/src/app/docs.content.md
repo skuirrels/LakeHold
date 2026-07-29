@@ -146,13 +146,18 @@ the ordinary streaming path rather than being refused.
 
 Choose a browser-local CSV file and create a new table without copying the file onto the API host
 yourself. **Automatic** mode sends no parser overrides and lets DuckDB detect the delimiter, quoting,
-header, line endings, and types. **Custom** mode exposes those choices and defaults to the
-semicolon/CRLF production-export profile:
+header, line endings, and types. **Semicolon / CRLF tolerant** mode exposes those choices and
+defaults to the production-export profile:
 
 ```sql
 delim = ';', quote = '"', escape = '', new_line = '\r\n',
 header = true, sample_size = -1, ignore_errors = true, store_rejects = true
 ```
+
+Automatic mode is intentionally strict. When it encounters a malformed row, the dialog reports only
+the line and column counts—not the uploaded row or the API host's scratch path—and offers an
+explicit retry with the tolerant profile. The retry reuses the selected browser file but never runs
+silently because malformed rows will be skipped.
 
 The upload and import are one streamed request. LakeHold writes the request body directly into
 disposable node-local scratch
