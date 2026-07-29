@@ -7,11 +7,12 @@
 #   make stop         Stop the stack. The state volume survives.
 #   make backup-state Archive the state volume to a tarball in the working directory.
 #   make test         Run the complete backend, frontend, integration, and browser test suite.
+#   make dev          Start the local development stack with hot reload.
 #   make demo         Pull, build, and start the opt-in public website and demo workbench.
 #
-# This drives compose.production.yaml and never compose.yaml. The development stack bind-mounts
-# source and runs a file watcher, so it has no build step to redo — "rebuild and restart" is not a
-# thing you do to it, you just save a file.
+# Deployment targets drive compose.production.yaml; only `make dev` drives compose.yaml. The
+# development stack bind-mounts source and runs a file watcher, so it has no build step to redo —
+# "rebuild and restart" is not a thing you do to it, you just save a file.
 #
 # `make deploy` is the ordinary path and needs nothing but Docker and the compose file: images come
 # from the registry, so a deployment host does not need a checkout, a compiler, or this Makefile.
@@ -23,6 +24,7 @@
 COMPOSE        := docker compose -f compose.production.yaml
 COMPOSE_SOURCE := docker compose -f compose.production.yaml -f compose.build.yaml
 COMPOSE_DEMO   := $(COMPOSE_SOURCE) -f compose.demo.yaml
+COMPOSE_DEV    := docker compose
 BRANCH         := $(shell git rev-parse --abbrev-ref HEAD 2>/dev/null)
 
 # Compose prefixes volumes with the project name, which compose.production.yaml pins to `lakehold`.
@@ -40,12 +42,13 @@ WAIT_TIMEOUT ?= 180
 
 .DEFAULT_GOAL := help
 
-.PHONY: help test demo deploy production check-tree pull build up status logs stop backup-state
+.PHONY: help test dev demo deploy production check-tree pull build up status logs stop backup-state
 
 help:
 	@echo "Lakehold — make targets"
 	@echo ""
 	@echo "  test          Run every test, including live integrations and both E2E suites"
+	@echo "  dev           Start the local development stack with hot reload"
 	@echo "  demo          Pull, build, and start the public website and demo workbench"
 	@echo "  deploy        Update this deployment to the current published images"
 	@echo "  production    Update the private workbench and services from source"
@@ -64,6 +67,14 @@ help:
 # browser simulation cannot touch a developer's catalog.
 test:
 	@./scripts/test-all.sh
+
+# Keep the development stack attached so its logs are visible and Ctrl+C stops it. Compose uses the
+# default compose.yaml here, which bind-mounts the source and runs the API and UI file watchers.
+dev:
+	@echo "==> starting local development stack"
+	@echo "==> website: http://localhost:5399"
+	@echo "==> API:     http://localhost:5200"
+	$(COMPOSE_DEV) up
 
 # Demo is deliberately a separate opt-in overlay; it is the only target that enables the public
 # website. The standard production configuration serves the authentication-protected workbench and
