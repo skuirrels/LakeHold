@@ -1,6 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideZonelessChangeDetection } from '@angular/core';
 import { provideRouter } from '@angular/router';
+import { of, Subject } from 'rxjs';
 import { ApiError, LakehouseService } from './lakehouse.service';
 import { FakeLakehouseService, tableStorage } from './test-doubles';
 import { WorkbenchComponent } from './workbench.component';
@@ -8,6 +9,7 @@ import { WorkbenchComponent } from './workbench.component';
 describe('WorkbenchComponent', () => {
   let api: FakeLakehouseService;
   let fixture: ComponentFixture<WorkbenchComponent>;
+  const originalMatchMedia = window.matchMedia;
 
   async function mount() {
     fixture = TestBed.createComponent(WorkbenchComponent);
@@ -17,6 +19,23 @@ describe('WorkbenchComponent', () => {
 
   function text(): string {
     return fixture.nativeElement.textContent ?? '';
+  }
+
+  function useCompactViewport(compact: boolean): void {
+    Object.defineProperty(window, 'matchMedia', {
+      configurable: true,
+      value: () =>
+        ({
+          matches: compact,
+          media: '(max-width: 900px)',
+          onchange: null,
+          addEventListener: () => undefined,
+          removeEventListener: () => undefined,
+          addListener: () => undefined,
+          removeListener: () => undefined,
+          dispatchEvent: () => true,
+        }) satisfies MediaQueryList,
+    });
   }
 
   /** Clicks a bottom-panel tab by its label. */
@@ -38,6 +57,7 @@ describe('WorkbenchComponent', () => {
   }
 
   beforeEach(() => {
+    sessionStorage.clear();
     api = new FakeLakehouseService();
     TestBed.configureTestingModule({
       providers: [
@@ -48,11 +68,94 @@ describe('WorkbenchComponent', () => {
     });
   });
 
+  afterEach(() => {
+    Object.defineProperty(window, 'matchMedia', {
+      configurable: true,
+      value: originalMatchMedia,
+    });
+  });
+
   it('selects the first workspace and catalog it is given', async () => {
     await mount();
 
     expect(api.lastArgs('getSchemas')).toEqual(['demo', 'analytics']);
     expect(text()).toContain('Demo workspace');
+    expect(fixture.nativeElement.querySelector('.connection-status')?.textContent?.trim()).toBe(
+      'Connected',
+    );
+  });
+
+  describe('navigation shell', () => {
+    it('collapses and restores the product menu without destroying explorer state', async () => {
+      await mount();
+
+      const filter = fixture.nativeElement.querySelector(
+        '[aria-label="Filter catalog objects"]',
+      ) as HTMLInputElement;
+      filter.value = 'events';
+      filter.dispatchEvent(new Event('input'));
+      await fixture.whenStable();
+
+      const toggle = fixture.nativeElement.querySelector('.nav-toggle') as HTMLButtonElement;
+      const navigation = fixture.nativeElement.querySelector(
+        '#workbench-navigation',
+      ) as HTMLElement;
+
+      expect(toggle.getAttribute('aria-expanded')).toBe('true');
+      expect(toggle.getAttribute('aria-label')).toBe('Collapse navigation');
+
+      toggle.click();
+      await fixture.whenStable();
+
+      expect(toggle.getAttribute('aria-expanded')).toBe('false');
+      expect(toggle.getAttribute('aria-label')).toBe('Expand navigation');
+      expect(navigation.getAttribute('aria-hidden')).toBe('true');
+
+      toggle.click();
+      await fixture.whenStable();
+
+      expect(filter.value).toBe('events');
+      expect(navigation.getAttribute('aria-hidden')).toBe('false');
+    });
+
+    it('uses product-navigation items as shortcuts to existing panels', async () => {
+      await mount();
+
+      const queryHistory = [...fixture.nativeElement.querySelectorAll('.nav-item')].find(
+        (button) => (button as HTMLElement).textContent?.trim() === 'Query history',
+      ) as HTMLButtonElement;
+      queryHistory.click();
+      await fixture.whenStable();
+
+      expect(queryHistory.classList.contains('active')).toBe(true);
+      expect(fixture.nativeElement.querySelector('.tabs .tab.active')?.textContent?.trim()).toBe(
+        'Query history',
+      );
+    });
+
+    it('starts compact navigation closed and dismisses its drawer with Escape', async () => {
+      useCompactViewport(true);
+      await mount();
+
+      const root = fixture.nativeElement.querySelector('.body') as HTMLElement;
+      const toggle = fixture.nativeElement.querySelector('.nav-toggle') as HTMLButtonElement;
+      const navigation = fixture.nativeElement.querySelector(
+        '#workbench-navigation',
+      ) as HTMLElement;
+
+      expect(toggle.getAttribute('aria-expanded')).toBe('false');
+      expect(navigation.getAttribute('aria-hidden')).toBe('true');
+
+      toggle.click();
+      await fixture.whenStable();
+      expect(toggle.getAttribute('aria-expanded')).toBe('true');
+
+      root.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      await fixture.whenStable();
+
+      expect(toggle.getAttribute('aria-expanded')).toBe('false');
+      expect(navigation.getAttribute('aria-hidden')).toBe('true');
+    });
   });
 
   describe('first run', () => {
@@ -188,12 +291,133 @@ describe('WorkbenchComponent', () => {
   });
 
   describe('errors', () => {
+    it('ignores a stale workspace response after the credential changes', async () => {
+      const first = new Subject<typeof api.tenants>();
+      const second = new Subject<typeof api.tenants>();
+      const currentTenants: typeof api.tenants = [
+        {
+          slug: 'current',
+          displayName: 'Current workspace',
+          catalogs: [{ name: 'current_catalog', dataPath: '/current', isReadOnly: false }],
+        },
+      ];
+      const staleTenants: typeof api.tenants = [
+        {
+          slug: 'stale',
+          displayName: 'Stale workspace',
+          catalogs: [{ name: 'stale_catalog', dataPath: '/stale', isReadOnly: false }],
+        },
+      ];
+      let request = 0;
+      api.listTenants = (...args: unknown[]) => {
+        api.calls.push({ method: 'listTenants', args });
+        return [first, second][request++] ?? of(api.tenants);
+      };
+
+      await mount();
+
+      (fixture.nativeElement.querySelector('.credential > .btn') as HTMLButtonElement).click();
+      await fixture.whenStable();
+      const token = fixture.nativeElement.querySelector(
+        '.credential input[type="password"]',
+      ) as HTMLInputElement;
+      token.value = 'lkh_current';
+      token.dispatchEvent(new Event('input'));
+      await fixture.whenStable();
+      (
+        fixture.nativeElement.querySelector('.credential-actions .btn-primary') as HTMLButtonElement
+      ).click();
+      await fixture.whenStable();
+
+      second.next(currentTenants);
+      second.complete();
+      await fixture.whenStable();
+      expect(text()).toContain('Current workspace');
+      expect(api.lastArgs('getSchemas')).toEqual(['current', 'current_catalog']);
+
+      first.next(staleTenants);
+      first.complete();
+      await fixture.whenStable();
+      expect(text()).toContain('Current workspace');
+      expect(text()).not.toContain('Stale workspace');
+      expect(api.lastArgs('getSchemas')).toEqual(['current', 'current_catalog']);
+    });
+
     it('names the operation rather than always blaming a query', async () => {
       api.failures.set('getSchemas', 'catalog is gone');
       await mount();
 
       expect(text()).toContain('Could not load the catalog');
       expect(text()).toContain('catalog is gone');
+      const status = fixture.nativeElement.querySelector('.connection-status') as HTMLElement;
+      expect(status.textContent?.trim()).toBe('Not connected');
+      expect(status.classList.contains('disconnected')).toBe(true);
+    });
+
+    it('keeps catalog status and errors aligned across stale responses and retries', async () => {
+      const first = new Subject<typeof api.schemas>();
+      const second = new Subject<typeof api.schemas>();
+      let request = 0;
+      api.getSchemas = (...args: unknown[]) => {
+        api.calls.push({ method: 'getSchemas', args });
+        return [first, second][request++] ?? of(api.schemas);
+      };
+
+      await mount();
+      const catalogSelect = fixture.nativeElement.querySelectorAll(
+        '.selectors select',
+      )[1] as HTMLSelectElement;
+
+      catalogSelect.dispatchEvent(new Event('change'));
+      await fixture.whenStable();
+
+      second.error(new Error('new request failed'));
+      await fixture.whenStable();
+      expect(text()).toContain('new request failed');
+      expect(text()).toContain('Not connected');
+
+      first.next([]);
+      first.complete();
+      await fixture.whenStable();
+      expect(text()).toContain('new request failed');
+      expect(text()).toContain('Not connected');
+
+      catalogSelect.dispatchEvent(new Event('change'));
+      await fixture.whenStable();
+      expect(text()).not.toContain('new request failed');
+      expect(text()).toContain('Connected');
+    });
+
+    it('ignores a stale catalog failure after the current request succeeds', async () => {
+      const first = new Subject<typeof api.schemas>();
+      const second = new Subject<typeof api.schemas>();
+      let request = 0;
+      api.getSchemas = (...args: unknown[]) => {
+        api.calls.push({ method: 'getSchemas', args });
+        return [first, second][request++] ?? of(api.schemas);
+      };
+
+      await mount();
+      const catalogSelect = fixture.nativeElement.querySelectorAll(
+        '.selectors select',
+      )[1] as HTMLSelectElement;
+
+      catalogSelect.dispatchEvent(new Event('change'));
+      await fixture.whenStable();
+
+      second.next([]);
+      second.complete();
+      await fixture.whenStable();
+      expect(fixture.nativeElement.querySelector('.connection-status')?.textContent?.trim()).toBe(
+        'Connected',
+      );
+
+      first.error(new Error('stale request failed'));
+      await fixture.whenStable();
+      expect(text()).not.toContain('stale request failed');
+      expect(fixture.nativeElement.querySelector('.connection-status')?.textContent?.trim()).toBe(
+        'Connected',
+      );
     });
 
     it('clears a query failure when the operator opens another panel', async () => {

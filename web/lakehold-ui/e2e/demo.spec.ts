@@ -3,10 +3,7 @@ import { expect, test } from '@playwright/test';
 test.describe('demo workbench', () => {
   test.skip(!process.env['LAKEHOLD_DEMO'], 'runs only against the disposable demo stack');
 
-  test('@demo opens directly as a safe, useful visitor experience', async ({
-    page,
-    request,
-  }) => {
+  test('@demo opens directly as a safe, useful visitor experience', async ({ page, request }) => {
     const baseURL = process.env['LAKEHOLD_E2E_BASE_URL'] ?? 'http://127.0.0.1:6599';
 
     await page.goto('/');
@@ -34,10 +31,10 @@ test.describe('demo workbench', () => {
       await expect(page.getByRole('button', { name: operation, exact: true })).toHaveCount(0);
     }
 
-    await page.getByRole('button', { name: 'Changes', exact: true }).click();
+    await page.getByRole('main').getByRole('button', { name: 'Changes', exact: true }).click();
     await expect(page.getByRole('button', { name: 'New subscription' })).toHaveCount(0);
 
-    await page.getByRole('button', { name: 'Eject', exact: true }).click();
+    await page.getByRole('main').getByRole('button', { name: 'Eject', exact: true }).click();
     await expect(page.getByRole('button', { name: 'Eject now' })).toHaveCount(0);
 
     const access = await request.get(`${baseURL}/api/access`);

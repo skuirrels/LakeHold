@@ -15,12 +15,38 @@
 .topbar {
   display: flex;
   align-items: center;
-  gap: 24px;
-  padding: 0 16px;
-  height: 52px;
+  gap: 12px;
+  padding: 0 14px;
+  height: 56px;
   flex-shrink: 0;
   background: var(--surface-1);
   border-bottom: 1px solid var(--border);
+}
+
+.nav-toggle {
+  width: 32px;
+  height: 32px;
+  display: inline-grid;
+  place-items: center;
+  flex-shrink: 0;
+  color: var(--text-muted);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+}
+
+.nav-toggle:hover {
+  color: var(--text);
+  background: var(--surface-3);
+  border-color: var(--border);
+}
+
+.nav-toggle svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
 }
 
 /* The brand is the way back to the marketing site, so it is an anchor rather than a label. Colour
@@ -43,6 +69,10 @@
 
 .mark {
   color: var(--accent);
+}
+
+.topbar-spacer {
+  flex: 1;
 }
 
 .selectors {
@@ -161,7 +191,6 @@
   display: flex;
   align-items: center;
   gap: 7px;
-  margin-left: auto;
 }
 
 .maint-label {
@@ -173,7 +202,6 @@
 }
 
 .access-badge {
-  margin-left: auto;
   padding: 4px 9px;
   color: var(--accent);
   background: color-mix(in srgb, var(--accent) 10%, transparent);
@@ -248,6 +276,11 @@
   display: flex;
   flex: 1;
   min-height: 0;
+  position: relative;
+}
+
+.nav-backdrop {
+  display: none;
 }
 
 .sidebar {
@@ -258,9 +291,22 @@
   background: var(--surface-1);
   border-right: 1px solid var(--border);
   min-height: 0;
+  overflow: hidden;
+  opacity: 1;
+  transition:
+    width 150ms ease,
+    opacity 100ms ease;
+}
+
+.body.context-closed .sidebar {
+  width: 0;
+  border-right-width: 0;
+  opacity: 0;
+  pointer-events: none;
 }
 
 .sidebar-tabs {
+  width: 270px;
   display: flex;
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
@@ -286,8 +332,23 @@
   border-bottom-color: var(--accent);
 }
 
+.context-toggle {
+  width: 34px;
+  flex-shrink: 0;
+  color: var(--text-faint);
+  border-left: 1px solid var(--border);
+  font-size: 20px;
+  line-height: 1;
+}
+
+.context-toggle:hover {
+  color: var(--text);
+  background: var(--surface-2);
+}
+
 .sidebar lh-catalog-explorer,
 .sidebar lh-saved-queries-panel {
+  width: 270px;
   flex: 1;
   min-height: 0;
   overflow: hidden;
@@ -299,6 +360,72 @@
   flex-direction: column;
   min-width: 0;
   min-height: 0;
+}
+
+.workspace-header {
+  padding: 15px 16px 13px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+  background: var(--surface-1);
+  border-bottom: 1px solid var(--border);
+}
+
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-faint);
+  font-size: 11px;
+}
+
+.breadcrumb strong {
+  color: var(--info);
+  font-weight: 600;
+}
+
+.title-line {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.title-line h1 {
+  margin: 0;
+  color: var(--text);
+  font-size: 20px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+
+.connection-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.status-dot {
+  width: 7px;
+  height: 7px;
+  background: var(--ok);
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--ok) 12%, transparent);
+}
+
+.connection-status.disconnected .status-dot {
+  background: var(--error);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--error) 12%, transparent);
+}
+
+.workspace-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  min-width: 0;
 }
 
 .demo-banner {
@@ -555,12 +682,111 @@
   color: var(--text-dim, var(--text-faint));
 }
 
+@media (max-width: 1180px) {
+  .workspace-controls {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .maint-label {
+    display: none;
+  }
+}
+
 @media (max-width: 900px) {
   .sidebar {
-    display: none;
+    position: fixed;
+    top: 56px;
+    bottom: 0;
+    left: 0;
+    z-index: 32;
+    height: auto;
+    opacity: 1;
+    box-shadow: 16px 0 32px rgb(0 0 0 / 0.4);
+    transition: transform 150ms ease;
+  }
+
+  .sidebar {
+    width: min(320px, calc(100vw - 40px));
+    z-index: 33;
+  }
+
+  .sidebar-tabs,
+  .sidebar lh-catalog-explorer,
+  .sidebar lh-saved-queries-panel {
+    width: min(320px, calc(100vw - 40px));
+  }
+
+  .body.context-closed .sidebar {
+    width: min(320px, calc(100vw - 40px));
+    border-right: 1px solid var(--border);
+    opacity: 1;
+    transform: translateX(-101%);
+  }
+
+  .nav-backdrop {
+    position: fixed;
+    inset: 56px 0 0;
+    z-index: 31;
+    display: block;
+    background: rgb(0 0 0 / 0.55);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 150ms ease;
+  }
+
+  .nav-backdrop.visible {
+    opacity: 1;
+    pointer-events: auto;
   }
 
   .maintenance {
     display: none;
+  }
+
+  .workspace-header {
+    padding: 12px 14px;
+  }
+
+  .workspace-controls {
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .main {
+    width: 100%;
+  }
+}
+
+@media (max-width: 620px) {
+  .topbar {
+    padding-inline: 10px;
+  }
+
+  .access-badge {
+    display: none;
+  }
+
+  .workspace-controls {
+    align-items: stretch;
+  }
+
+  .selectors {
+    width: 100%;
+    gap: 8px;
+  }
+
+  .selectors .field {
+    min-width: 0;
+    flex: 1;
+    align-items: stretch;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  .selectors select {
+    width: 100%;
+    min-width: 0;
   }
 }

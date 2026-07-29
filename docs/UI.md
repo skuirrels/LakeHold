@@ -12,7 +12,10 @@ where a rule already exists this document says how the UI preserves it rather th
 the storage and inspection surfaces, and
 the workbench has eight panels: Results, Query history, Data history, Storage (with a unified
 per-table inspector), Changes, Backups, Eject, and Schedule. The left rail switches between the
-catalog explorer and the catalog-scoped saved-query library.
+catalog explorer and the catalog-scoped saved-query library. A separate product-navigation rail
+groups those existing surfaces into Workbench, Data, and Operations; its hamburger collapses the
+rail without destroying editor or explorer state. On compact screens the same rail is a
+keyboard-dismissible drawer rather than permanently hiding navigation.
 
 Everything the original specification left open has since been **measured against DuckLake on DuckDB
 1.5.5** rather than reasoned about. Two of those measurements changed the design, and are called out
@@ -502,7 +505,7 @@ from the test runner, so it type-checks under the app config too; it is excluded
 | `backups-panel.component.spec.ts` | No restore offered for an incomplete generation, the proposed target, the refusal forwarded verbatim |
 | `eject-panel.component.spec.ts` | No dry run, the history flag, bundle expand/collapse, incomplete marked untrusted |
 | `schedule-panel.component.spec.ts` | Instance-wide run-log loading, scoped row rendering, success/failure states, and error-vs-empty truthfulness |
-| `workbench.component.spec.ts` | First-run sign-in and tenant/catalog/token provisioning, views excluded from pickers, error cleared on tab change, dry-run then apply, panel refresh paths, and Data history integration |
+| `workbench.component.spec.ts` | First-run sign-in and tenant/catalog/token provisioning, collapsible and compact navigation, views excluded from pickers, error cleared on tab change, dry-run then apply, panel refresh paths, and Data history integration |
 
 **Four assertions were mutation-tested** — a green test that cannot fail is worse than no test, because
 it reads as coverage. Reverting `untracked()` fails two storage-panel tests; removing the

@@ -1,80 +1,32 @@
-<div class="workbench">
-  <header class="topbar">
+<div class="workbench" (keydown.escape)="closeNavigationOverlays()">
+  <header
+    class="topbar"
+    [attr.aria-hidden]="navigationOverlayOpen() ? 'true' : null"
+    [attr.inert]="navigationOverlayOpen() ? '' : null"
+  >
+    @if (firstRun() === 'none') {
+      <button
+        #navigationToggle
+        class="nav-toggle"
+        type="button"
+        aria-controls="workbench-navigation"
+        [attr.aria-expanded]="navigationOpen()"
+        [attr.aria-label]="navigationOpen() ? 'Collapse navigation' : 'Expand navigation'"
+        [title]="navigationOpen() ? 'Collapse navigation' : 'Expand navigation'"
+        (click)="toggleNavigation()"
+      >
+        <svg viewBox="0 0 20 20" aria-hidden="true">
+          <path d="M3 5h14M3 10h14M3 15h14" />
+        </svg>
+      </button>
+    }
+
     <a class="brand" routerLink="/" title="Back to the LakeHold home page">
       <lh-brand-mark class="mark" [size]="20" />
       <span class="name">LakeHold</span>
     </a>
 
-    <!-- The pickers and the maintenance menu act on a selected catalog, so during a first run
-         they have nothing to act on. Hiding them keeps the header honest rather than offering
-         five buttons that quietly do nothing. -->
-    @if (firstRun() === 'none') {
-      <div class="selectors">
-        <label class="field">
-          <span>Workspace</span>
-          <select [value]="tenantSlug() ?? ''" (change)="selectTenant($any($event.target).value)">
-            @for (tenant of tenants(); track tenant.slug) {
-              <option [value]="tenant.slug">{{ tenant.displayName }}</option>
-            }
-          </select>
-        </label>
-
-        <label class="field">
-          <span>Catalog</span>
-          <select [value]="catalogName() ?? ''" (change)="selectCatalog($any($event.target).value)">
-            @for (catalog of catalogs(); track catalog.name) {
-              <option [value]="catalog.name">{{ catalog.name }}</option>
-            }
-          </select>
-        </label>
-      </div>
-
-      @if (!readOnlyAccess()) {
-        <div class="maintenance">
-          <span class="maint-label">Maintenance</span>
-          <button
-            class="btn"
-            type="button"
-            title="Write inlined commits out as Parquet"
-            (click)="runMaintenance('flush')"
-          >
-            Flush
-          </button>
-          <button
-            class="btn"
-            type="button"
-            title="Merge small Parquet files"
-            (click)="runMaintenance('compact')"
-          >
-            Compact
-          </button>
-          <button
-            class="btn"
-            type="button"
-            title="Export catalog metadata to Parquet beside the data"
-            (click)="runMaintenance('backup')"
-          >
-            Backup
-          </button>
-          <button
-            class="btn"
-            type="button"
-            title="Drop snapshots older than 7 days"
-            (click)="runMaintenance('expire')"
-          >
-            Expire
-          </button>
-          <button
-            class="btn"
-            type="button"
-            title="Delete data files no longer referenced by any snapshot"
-            (click)="runMaintenance('cleanup')"
-          >
-            Cleanup
-          </button>
-        </div>
-      }
-    }
+    <span class="topbar-spacer"></span>
 
     @if (demoMode()) {
       <span class="access-badge">Live read-only demo</span>
@@ -138,8 +90,34 @@
       (adoptToken)="useIssuedToken()"
     />
   } @else {
-    <div class="body">
-      <aside class="sidebar">
+    <div class="body" [class.context-closed]="!contextPanelOpen()">
+      <lh-workbench-navigation
+        id="workbench-navigation"
+        [destination]="navigationDestination()"
+        [open]="navigationOpen()"
+        (navigate)="openNavigation($event)"
+      />
+
+      <button
+        class="nav-backdrop"
+        type="button"
+        tabindex="-1"
+        aria-label="Close navigation"
+        [class.visible]="navigationOverlayOpen()"
+        [attr.aria-hidden]="navigationOverlayOpen() ? null : 'true'"
+        [attr.inert]="navigationOverlayOpen() ? null : ''"
+        [disabled]="!navigationOverlayOpen()"
+        (click)="closeNavigationOverlays()"
+      ></button>
+
+      <aside
+        #contextPanel
+        id="workbench-context-panel"
+        class="sidebar"
+        aria-label="Catalog and saved queries"
+        [attr.aria-hidden]="!contextPanelOpen()"
+        [attr.inert]="contextPanelOpen() ? null : ''"
+      >
         <div class="sidebar-tabs">
           <button
             type="button"
@@ -156,6 +134,15 @@
             (click)="showSidebar('queries')"
           >
             Saved queries
+          </button>
+          <button
+            class="context-toggle"
+            type="button"
+            aria-label="Collapse catalog panel"
+            title="Collapse catalog panel"
+            (click)="toggleContextPanel()"
+          >
+            ‹
           </button>
         </div>
         @if (sidebarTab() === 'catalog') {
@@ -178,7 +165,100 @@
         }
       </aside>
 
-      <main class="main">
+      <main
+        class="main"
+        [attr.aria-hidden]="navigationOverlayOpen() ? 'true' : null"
+        [attr.inert]="navigationOverlayOpen() ? '' : null"
+      >
+        <header class="workspace-header">
+          <div class="workspace-heading">
+            <span class="breadcrumb"
+              ><strong>SQL</strong><span aria-hidden="true">›</span>Workbench</span
+            >
+            <div class="title-line">
+              <h1>Query editor</h1>
+              <span class="connection-status" [class.disconnected]="!catalogConnected()">
+                <span class="status-dot" aria-hidden="true"></span>
+                {{ catalogConnected() ? 'Connected' : 'Not connected' }}
+              </span>
+            </div>
+          </div>
+
+          <div class="workspace-controls">
+            <div class="selectors">
+              <label class="field">
+                <span>Workspace</span>
+                <select
+                  [value]="tenantSlug() ?? ''"
+                  (change)="selectTenant($any($event.target).value)"
+                >
+                  @for (tenant of tenants(); track tenant.slug) {
+                    <option [value]="tenant.slug">{{ tenant.displayName }}</option>
+                  }
+                </select>
+              </label>
+
+              <label class="field">
+                <span>Catalog</span>
+                <select
+                  [value]="catalogName() ?? ''"
+                  (change)="selectCatalog($any($event.target).value)"
+                >
+                  @for (catalog of catalogs(); track catalog.name) {
+                    <option [value]="catalog.name">{{ catalog.name }}</option>
+                  }
+                </select>
+              </label>
+            </div>
+
+            @if (!readOnlyAccess()) {
+              <div class="maintenance">
+                <span class="maint-label">Maintenance</span>
+                <button
+                  class="btn"
+                  type="button"
+                  title="Write inlined commits out as Parquet"
+                  (click)="runMaintenance('flush')"
+                >
+                  Flush
+                </button>
+                <button
+                  class="btn"
+                  type="button"
+                  title="Merge small Parquet files"
+                  (click)="runMaintenance('compact')"
+                >
+                  Compact
+                </button>
+                <button
+                  class="btn"
+                  type="button"
+                  title="Export catalog metadata to Parquet beside the data"
+                  (click)="runMaintenance('backup')"
+                >
+                  Backup
+                </button>
+                <button
+                  class="btn"
+                  type="button"
+                  title="Drop snapshots older than 7 days"
+                  (click)="runMaintenance('expire')"
+                >
+                  Expire
+                </button>
+                <button
+                  class="btn"
+                  type="button"
+                  title="Delete data files no longer referenced by any snapshot"
+                  (click)="runMaintenance('cleanup')"
+                >
+                  Cleanup
+                </button>
+              </div>
+            }
+          </div>
+        </header>
+
         @if (demoMode()) {
           <div class="demo-banner">
             <strong>You’re exploring a live LakeHold demo.</strong>
@@ -286,6 +366,13 @@
           </div>
 
           <div class="output-body">
+            @if (catalogError(); as message) {
+              <div class="banner error-banner">
+                <strong>Could not load the catalog</strong>
+                <pre>{{ message }}</pre>
+              </div>
+            }
+
             @if (error(); as message) {
               <div class="banner error-banner">
                 <strong>{{ errorTitle() }}</strong>

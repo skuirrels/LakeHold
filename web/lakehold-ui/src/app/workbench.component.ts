@@ -3,12 +3,13 @@ import {
   Component,
   computed,
   DestroyRef,
+  ElementRef,
   inject,
   signal,
   viewChild,
 } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { Observable, of, throwError } from 'rxjs';
+import { EMPTY, Observable, of, throwError } from 'rxjs';
 import { catchError, switchMap } from 'rxjs/operators';
 import { AuthService } from './auth.service';
 import { BackupsPanelComponent } from './backups-panel.component';
@@ -33,6 +34,10 @@ import { ResultGridComponent } from './result-grid.component';
 import { SavedQueriesPanelComponent } from './saved-queries-panel.component';
 import { SchedulePanelComponent } from './schedule-panel.component';
 import { StoragePanelComponent } from './storage-panel.component';
+import {
+  WorkbenchDestination,
+  WorkbenchNavigationComponent,
+} from './workbench-navigation.component';
 
 const STARTER_SQL = `-- Aggregate 250k rows in a few milliseconds.
 SELECT
@@ -46,18 +51,6 @@ ORDER BY revenue DESC;`;
 
 type BottomTab =
   'results' | 'history' | 'snapshots' | 'storage' | 'backups' | 'ejects' | 'changes' | 'schedule';
-
-type WorkbenchDestination =
-  | 'workbench'
-  | 'catalog'
-  | 'queries'
-  | 'history'
-  | 'snapshots'
-  | 'storage'
-  | 'changes'
-  | 'backups'
-  | 'ejects'
-  | 'schedule';
 
 /**
  * The SQL IDE.
@@ -86,6 +79,7 @@ type WorkbenchDestination =
     SavedQueriesPanelComponent,
     SchedulePanelComponent,
     StoragePanelComponent,
+    WorkbenchNavigationComponent,
   ],
   templateUrl: './workbench.component.html',
   styleUrl: './workbench.component.css',
@@ -93,6 +87,8 @@ type WorkbenchDestination =
 export class WorkbenchComponent {
   private readonly api = inject(LakehouseService);
   private readonly destroyRef = inject(DestroyRef);
+  private tenantRequestGeneration = 0;
+  private catalogRequestGeneration = 0;
   protected readonly auth = inject(AuthService);
 
   /**
@@ -104,6 +100,9 @@ export class WorkbenchComponent {
   private readonly storagePanel = viewChild(StoragePanelComponent);
   private readonly backupsPanel = viewChild(BackupsPanelComponent);
   private readonly dataHistoryPanel = viewChild(DataHistoryPanelComponent);
+  private readonly navigationToggle = viewChild<ElementRef<HTMLButtonElement>>('navigationToggle');
+  private readonly productNavigation = viewChild(WorkbenchNavigationComponent);
+  private readonly contextPanel = viewChild<ElementRef<HTMLElement>>('contextPanel');
 
   /** Whether the credential popover is open, and the token being typed into it. */
   protected readonly credentialOpen = signal(false);
@@ -116,12 +115,14 @@ export class WorkbenchComponent {
 
   protected readonly schemas = signal<Schema[]>([]);
   protected readonly schemasLoading = signal(false);
+  protected readonly catalogConnected = signal(false);
 
   protected readonly sql = signal(STARTER_SQL);
   protected readonly running = signal(false);
   protected readonly result = signal<QueryResponse | null>(null);
   protected readonly error = signal<string | null>(null);
   protected readonly errorTitle = signal('Query failed');
+  protected readonly catalogError = signal<string | null>(null);
   protected readonly notice = signal<string | null>(null);
 
   protected readonly history = signal<QueryRun[]>([]);
@@ -133,6 +134,9 @@ export class WorkbenchComponent {
   protected readonly navigationOpen = signal(true);
   protected readonly contextPanelOpen = signal(true);
   protected readonly compactViewport = signal(false);
+  protected readonly navigationOverlayOpen = computed(
+    () => this.compactViewport() && (this.navigationOpen() || this.contextPanelOpen()),
+  );
   protected readonly inspectedTable = signal<TableReference | null>(null);
 
   /**
@@ -228,9 +232,18 @@ export class WorkbenchComponent {
 
     const media = window.matchMedia('(max-width: 900px)');
     const apply = (compact: boolean): void => {
+      const focusWillBeHidden =
+        compact &&
+        typeof document !== 'undefined' &&
+        (this.productNavigation()?.contains(document.activeElement) ||
+          this.contextPanel()?.nativeElement.contains(document.activeElement));
+
       this.compactViewport.set(compact);
       this.navigationOpen.set(!compact);
       this.contextPanelOpen.set(!compact);
+      if (focusWillBeHidden) {
+        this.focusNavigationToggle();
+      }
     };
 
     apply(media.matches);
@@ -247,16 +260,29 @@ export class WorkbenchComponent {
 
   /** Loads the tenants the current credential can see, selecting the first as a starting point. */
   private loadTenants(): void {
+    const requestGeneration = ++this.tenantRequestGeneration;
+    this.catalogRequestGeneration += 1;
+    this.catalogConnected.set(false);
+    this.catalogError.set(null);
+    this.schemasLoading.set(false);
     this.api
       .getAccess()
       .pipe(
         switchMap((access) => {
+          if (requestGeneration !== this.tenantRequestGeneration) {
+            return EMPTY;
+          }
+
           this.access.set(access);
           return this.api.listTenants();
         }),
       )
       .subscribe({
         next: (tenants) => {
+          if (requestGeneration !== this.tenantRequestGeneration) {
+            return;
+          }
+
           this.tenants.set(tenants);
           this.error.set(null);
           const first = tenants[0];
@@ -276,9 +302,14 @@ export class WorkbenchComponent {
             this.catalogName.set(null);
             this.schemas.set([]);
             this.history.set([]);
+            this.catalogConnected.set(false);
           }
         },
         error: (err: Error) => {
+          if (requestGeneration !== this.tenantRequestGeneration) {
+            return;
+          }
+
           // 401 is the ordinary first contact with a deployment that requires authentication, so it
           // asks for a token instead of reporting a failure the user cannot act on.
           if (err instanceof ApiError && err.status === 401) {
@@ -288,11 +319,13 @@ export class WorkbenchComponent {
             this.tenants.set([]);
             this.tenantSlug.set(null);
             this.catalogName.set(null);
+            this.catalogConnected.set(false);
             this.error.set(null);
             return;
           }
 
           this.firstRun.set('none');
+          this.catalogConnected.set(false);
           this.fail('Could not load workspaces', err.message);
         },
       });
@@ -454,20 +487,37 @@ export class WorkbenchComponent {
     this.navigationOpen.set(opening);
     if (opening && this.compactViewport()) {
       this.contextPanelOpen.set(false);
+      this.focusNavigationDestination();
     }
   }
 
   protected closeNavigationOverlays(): void {
-    if (!this.compactViewport()) {
+    if (!this.navigationOverlayOpen()) {
       return;
     }
 
     this.navigationOpen.set(false);
     this.contextPanelOpen.set(false);
+    this.focusNavigationToggle();
   }
 
   protected toggleContextPanel(): void {
-    this.contextPanelOpen.update((open) => !open);
+    const opening = !this.contextPanelOpen();
+    this.contextPanelOpen.set(opening);
+
+    if (!opening) {
+      if (this.compactViewport() || !this.navigationOpen()) {
+        this.focusNavigationToggle();
+      } else {
+        this.focusNavigationDestination();
+      }
+      return;
+    }
+
+    if (this.compactViewport()) {
+      this.navigationOpen.set(false);
+      this.focusContextPanel();
+    }
   }
 
   protected openNavigation(destination: WorkbenchDestination): void {
@@ -493,6 +543,9 @@ export class WorkbenchComponent {
 
     if (this.compactViewport()) {
       this.navigationOpen.set(false);
+      if (destination !== 'catalog' && destination !== 'queries') {
+        this.focusNavigationToggle();
+      }
     }
   }
 
@@ -502,7 +555,32 @@ export class WorkbenchComponent {
     this.navigationDestination.set(tab);
     if (this.compactViewport()) {
       this.navigationOpen.set(false);
+      this.focusContextPanel();
     }
+  }
+
+  private focusNavigationToggle(): void {
+    this.afterRender(() => this.navigationToggle()?.nativeElement.focus());
+  }
+
+  private focusNavigationDestination(): void {
+    this.afterRender(() => this.productNavigation()?.focusCurrentDestination());
+  }
+
+  private focusContextPanel(): void {
+    this.afterRender(() =>
+      this.contextPanel()
+        ?.nativeElement.querySelector<HTMLButtonElement>('.sidebar-tab.active')
+        ?.focus(),
+    );
+  }
+
+  private afterRender(action: () => void): void {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    window.setTimeout(action);
   }
 
   protected inspectTable(table: TableReference): void {
@@ -573,6 +651,7 @@ export class WorkbenchComponent {
     // A query failure belongs to the editor, not to whatever panel the operator opens next. The
     // panels carry their own banners, which are destroyed with them.
     this.error.set(null);
+    this.catalogError.set(null);
   }
 
   protected refreshQueryHistory(): void {
@@ -588,19 +667,41 @@ export class WorkbenchComponent {
   protected refreshCatalog(): void {
     const tenant = this.tenantSlug();
     const catalog = this.catalogName();
+    const requestGeneration = ++this.catalogRequestGeneration;
+    this.catalogConnected.set(false);
+    this.catalogError.set(null);
     if (!tenant || !catalog) {
       this.schemas.set([]);
+      this.schemasLoading.set(false);
       return;
     }
 
     this.schemasLoading.set(true);
     this.api.getSchemas(tenant, catalog).subscribe({
       next: (schemas) => {
+        if (
+          requestGeneration !== this.catalogRequestGeneration ||
+          this.tenantSlug() !== tenant ||
+          this.catalogName() !== catalog
+        ) {
+          return;
+        }
+
         this.schemas.set(schemas);
+        this.catalogConnected.set(true);
         this.schemasLoading.set(false);
       },
       error: (err: Error) => {
-        this.fail('Could not load the catalog', err.message);
+        if (
+          requestGeneration !== this.catalogRequestGeneration ||
+          this.tenantSlug() !== tenant ||
+          this.catalogName() !== catalog
+        ) {
+          return;
+        }
+
+        this.catalogError.set(err.message);
+        this.catalogConnected.set(false);
         this.schemasLoading.set(false);
       },
     });
