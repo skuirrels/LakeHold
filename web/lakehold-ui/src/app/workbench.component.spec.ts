@@ -110,7 +110,7 @@ describe('WorkbenchComponent', () => {
     expect(fixture.nativeElement.querySelector('lh-system-settings')).toBeTruthy();
   });
 
-  it('keeps System Settings reachable for an instance credential before a workspace exists', async () => {
+  it('offers first-run provisioning to an instance administrator on an empty node', async () => {
     api.access = {
       mode: 'authenticated',
       role: 'owner',
@@ -121,8 +121,8 @@ describe('WorkbenchComponent', () => {
 
     await mount();
 
-    expect(fixture.nativeElement.querySelector('lh-system-settings')).toBeTruthy();
-    expect(text()).not.toContain('No workspaces yet');
+    expect(fixture.nativeElement.querySelector('lh-system-settings')).toBeNull();
+    expect(text()).toContain('No workspaces yet');
   });
 
   it('returns to the workbench when an instance credential is replaced by a tenant credential', async () => {

@@ -307,9 +307,10 @@ export class WorkbenchComponent {
 
           this.tenants.set(tenants);
           this.error.set(null);
-          if (this.access()?.systemAdmin) {
+          if (this.access()?.systemAdmin && tenants.length > 0) {
             // An instance credential administers the node but cannot query tenant data. Keep its
-            // administration surface reachable even before the first workspace exists.
+            // administration surface reachable once the first workspace exists. An empty node must
+            // still offer first-run provisioning.
             this.firstRun.set('none');
             this.signInRejected.set(false);
             this.navigationDestination.set('settings');
