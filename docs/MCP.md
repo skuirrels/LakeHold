@@ -17,7 +17,10 @@ behind a credential it always demands; it publishes RFC 9728 protected-resource 
 configured; and a sixth tool, `execute`, appears only where an operator has opted into writes. What
 remains is recorded under [Phases](#phases) with the reason rather than as an aspiration.
 
-It is **off by default**. `Lakehold:Mcp:Enabled` turns it on.
+It is enabled for `make dev` and the development Compose stack. Production configuration remains
+closed before first use. An instance operator can then change Enabled, Allow writes, maximum rows,
+and the public base URL under **Workbench → System Settings**; the shared PostgreSQL row takes effect
+on the next request across every API node, without a restart.
 
 ## Why this, and why now
 
@@ -193,7 +196,7 @@ and a document advertising none is worse than none: a client discovers it, learn
 somewhere less obvious. There the challenge stays a bare `Bearer` and API tokens are the only
 credential.
 
-**Set `Lakehold:Mcp:PublicBaseUrl` behind a reverse proxy.** The metadata advertises a `resource` and
+**Set Public base URL in System Settings behind a reverse proxy.** The metadata advertises a `resource` and
 the challenge cites the document's own URL; a client compares the first against the URL it called and
 follows the second, so both must be the address the *client* uses. In the documented production
 topology the API runs unpublished behind nginx, where `Request.Scheme` and `Request.Host` describe the
@@ -248,6 +251,15 @@ The endpoint speaks Streamable HTTP at `Lakehold:Mcp:Route` (default `/mcp`) and
 an ordinary LakeHold API token in an `Authorization: Bearer` header. Issue one scoped to what the
 agent should reach — a catalog-narrowed, reader-role token is the right default, and it costs nothing
 because the surface forces a read-only attachment anyway:
+
+First sign in through the configured identity provider as a system administrator (or use the
+break-glass instance credential), then enable MCP in **Workbench → System Settings**. A fresh
+development stack already has it enabled. The settings page shows a copyable endpoint on the
+Workbench origin; the development server proxies that path to the API, while direct access on
+`http://localhost:5200/mcp` remains available. In the **API tokens** card on that same page, choose
+the workspace, narrow the credential to the catalog the agent needs, retain the reader default, and
+generate it. Existing credentials and their last-use state are listed below; revoking one closes its
+MCP and HTTP access. The plaintext is shown once. The equivalent public API call is:
 
 ```bash
 curl -X POST https://lakehold.example.com/api/tenants/demo/tokens \
@@ -323,7 +335,8 @@ The `query` tool attaches the catalog **read-only regardless of the credential's
 never changes — not even where writes are enabled. A credential that may write over HTTP cannot write
 through `query`.
 
-Writes are a *separate* tool, `execute`, registered only when `Lakehold:Mcp:AllowWrites` is set. The
+Writes are a *separate* tool, `execute`, exposed only when **Allow write commands** is saved in System
+Settings. The
 reason is the tool annotations: MCP clients read `readOnly` and `destructive` to decide whether to ask
 a human before calling, and those live in an attribute fixed at compile time. A `query` that sometimes
 wrote would advertise itself read-only while writing, or destructive while doing nothing of the kind —
@@ -357,7 +370,8 @@ invented twice.
 
 ## The context budget is a separate budget
 
-`Lakehold:Mcp:MaxRowsPerResult`, defaulting **well below** `LakehouseOptions.MaxRowsPerResult`.
+**Maximum rows per MCP result** in System Settings, defaulting **well below**
+`LakehouseOptions.MaxRowsPerResult`.
 
 Invariant 6 says the cap belongs to paths that materialise a result, and the MCP `query` tool
 materialises one — so a cap applies and this is not a new rule. What *is* new is that the number
@@ -371,7 +385,7 @@ reasoning about a prefix of the data.
 **The ceiling applies to every list-shaped tool, not only `query`.** This was a review finding: a
 change feed page defaults to 1000 and admits 10000 over HTTP, which are the right numbers for a
 consumer writing to a database and the wrong ones for a context window. A tool that returned them would
-defeat the budget this option exists to keep, so `McpOptions.BoundPageSize` bounds `list_snapshots` and
+defeat the budget this option exists to keep, so the runtime settings snapshot bounds `list_snapshots` and
 `list_changes` by the same number, and a test asserts it for both.
 
 ## Audit
@@ -415,7 +429,7 @@ do not read two names for one event.
 
 **Phase 5 — partly landed, partly blocked, and one item with nothing to carry.**
 
-- **Writes behind explicit configuration — landed.** `Lakehold:Mcp:AllowWrites` plus a read-write
+- **Writes behind an explicit runtime setting — landed.** Allow writes plus a read-write
   credential, as a separate `execute` tool for the annotation reason above.
 - **RFC 9728 protected-resource metadata — landed.** See the authentication section.
 - **An MCP-origin marker on query history — blocked, and not on anything MCP.** A run is attributed to
@@ -434,17 +448,22 @@ do not read two names for one event.
   that would consume this server like any other client. That is where Agent Framework returns, and it
   is a UI decision rather than a continuation of this document.
 
-## Configuration
+## Configuration and live settings
+
+The file values below are bootstrap defaults only. They are used until an instance operator saves
+System Settings. After that, the PostgreSQL singleton is authoritative for Enabled, PublicBaseUrl,
+AllowWrites, and MaxRowsPerResult. `Route` remains a startup setting because changing the mapped URL
+requires rebuilding the endpoint table.
 
 ```jsonc
 // appsettings — all non-secret, so it lives in source control (the token does not)
 "Lakehold": {
   "Mcp": {
-    "Enabled": false,        // closed by default: this surface lets an agent execute SQL
+    "Enabled": false,        // production bootstrap; Development overrides this to true
     "Route": "/mcp",
     "PublicBaseUrl": "",     // required behind a reverse proxy; see below
-    "AllowWrites": false,    // registers the destructive `execute` tool when set
-    "MaxRowsPerResult": 200  // 0 or less applies no MCP-specific ceiling, only the engine's
+    "AllowWrites": false,    // bootstrap only; System Settings controls the live tool list
+    "MaxRowsPerResult": 200  // bootstrap only; the UI accepts 1..10,000
   }
 }
 ```
@@ -547,6 +566,5 @@ Shipping this is not done until:
   SDK does. Revisit when 2.0.0 stable is published.
 - ~~Whether `RouteCapability` is renamed.~~ Settled: moved in Phase 1, renamed to `Capability`
   immediately after, for the reason given above.
-- ~~Whether the MCP endpoint is separately toggleable.~~ Settled: `Lakehold:Mcp:Enabled`, defaulting
-  to **false**, matching `PgWire`. A surface that lets an agent execute SQL is not something a
-  deployment should acquire by upgrading.
+- ~~Whether the MCP endpoint is separately toggleable.~~ Settled: a shared runtime setting,
+  bootstrapped by `Lakehold:Mcp:Enabled`. Production starts false; development starts true.

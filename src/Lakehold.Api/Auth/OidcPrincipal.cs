@@ -29,6 +29,20 @@ public static class OidcPrincipal
             return null;
         }
 
+        if (user.FindAll(options.SystemAdminClaim)
+            .Any(claim => string.Equals(claim.Value, options.SystemAdminValue, StringComparison.Ordinal)))
+        {
+            return new LakeholdPrincipal(
+                IsAuthenticated: true,
+                Scope: TokenScope.Instance,
+                TenantId: null,
+                TenantSlug: null,
+                CatalogName: null,
+                IsReadOnly: false,
+                TokenId: null,
+                Role: TokenRole.Owner);
+        }
+
         var tenantSlug = user.FindFirstValue(options.TenantClaim);
         if (string.IsNullOrEmpty(tenantSlug))
         {

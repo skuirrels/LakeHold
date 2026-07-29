@@ -31,6 +31,16 @@ describe('FirstRunComponent', () => {
     expect(input.value).toBe('');
   });
 
+  it('offers browser OIDC without removing the break-glass token path', async () => {
+    await mount('unauthorized');
+    fixture.componentRef.setInput('oidcEnabled', true);
+    await fixture.whenStable();
+
+    const link = fixture.nativeElement.querySelector('.oidc-sign-in') as HTMLAnchorElement;
+    expect(link.getAttribute('href')).toBe('/auth/login?returnUrl=/workbench');
+    expect(fixture.nativeElement.querySelector('input[type="password"]')).toBeTruthy();
+  });
+
   it('uses the slug as the display name when the optional name is blank', async () => {
     await mount();
     const received: WorkspaceRequest[] = [];

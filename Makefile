@@ -74,6 +74,7 @@ dev:
 	@echo "==> starting local development stack"
 	@echo "==> website: http://localhost:5399"
 	@echo "==> API:     http://localhost:5200"
+	@echo "==> MCP:     http://localhost:5200/mcp"
 	$(COMPOSE_DEV) up
 
 # Demo is deliberately a separate opt-in overlay; it is the only target that enables the public

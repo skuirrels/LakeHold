@@ -50,6 +50,12 @@ export interface WorkspaceRequest {
             <strong>Setting up a new node?</strong> LakeHold writes a one-time bootstrap token to
             the API startup log. Use it here to create the first workspace and its owner credential.
           </p>
+          @if (oidcEnabled()) {
+            <a class="oidc-sign-in" href="/auth/login?returnUrl=/workbench">
+              Continue with your identity provider
+            </a>
+            <div class="or"><span>or use an API token</span></div>
+          }
           @if (rejected()) {
             <div class="banner">
               <strong>The token this tab holds was refused</strong>
@@ -267,6 +273,36 @@ export interface WorkspaceRequest {
         color: var(--text);
       }
 
+      .oidc-sign-in {
+        display: block;
+        margin: 0 0 16px;
+        padding: 9px 14px;
+        color: var(--surface-0);
+        background: var(--accent);
+        border-radius: var(--radius-sm);
+        font-size: 13px;
+        font-weight: 650;
+        text-align: center;
+        text-decoration: none;
+      }
+
+      .or {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin: 0 0 16px;
+        color: var(--text-faint);
+        font-size: 11px;
+      }
+
+      .or::before,
+      .or::after {
+        height: 1px;
+        flex: 1;
+        background: var(--border);
+        content: '';
+      }
+
       /* Shown once and copied by hand, so it wraps rather than scrolling out of sight and is tinted
          to read as the one thing on the card that matters. */
       .token {
@@ -314,6 +350,9 @@ export class FirstRunComponent {
 
   /** Whether the credential already held was refused, as opposed to none having been offered yet. */
   readonly rejected = input(false);
+
+  /** Whether the API can start an interactive human sign-in. */
+  readonly oidcEnabled = input(false);
 
   /** The freshly minted token, shown once. Its presence is what selects the final panel. */
   readonly issuedToken = input<string | null>(null);

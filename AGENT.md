@@ -47,7 +47,8 @@ integration.
 - `docs/POSTGRES-WIRE.md`: the wire protocol surface, its connection model, and what is
   deliberately unimplemented. Update it with the endpoint.
 - `docs/AUTHENTICATION.md`: the phased plan for API authentication, now fully implemented — API
-  tokens, provisioning, read-only-by-attachment, audit, wire convergence, OIDC, and roles. A route
+  tokens, provisioning, read-only-by-attachment, audit, wire convergence, OIDC browser sessions,
+  system-administrator claims, and roles. Browser cookie keys are shared through PostgreSQL. A route
   declares a `Capability` and `LakeholdAuthorizationFilter` enforces it in one place. Note that
   `Lakehold:Auth:RequireAuthentication` still defaults to **false**, so a token-less request falls
   back to trusting the route until an operator turns it on. Read it before adding any surface that
@@ -56,8 +57,10 @@ integration.
   lakehouse. Builds on `docs/AUTHENTICATION.md` (auth is its gate); the cross-cutting API conventions
   (versioning, `problem+json`, pagination, async jobs) live here.
 - `docs/MCP.md`: the phased spec and running record for the MCP server under `src/Lakehold.Api/Mcp/`.
-  Phases 1-4 have landed: five read-only tools and a schema resource, off unless
-  `Lakehold:Mcp:Enabled`. Records why the dependency is the MCP C# SDK and *not* Microsoft Agent
+  Phases 1-5 have landed: five read-only tools, a schema resource, and optional writes. Development
+  enables it by default; instance-level System Settings persist live controls in PostgreSQL and use
+  the existing public tenant-token endpoint to mint scoped client credentials. Records
+  why the dependency is the MCP C# SDK and *not* Microsoft Agent
   Framework (LakeHold is the server, not the agent), which tools are deliberately withheld from an
   agent and why, and how to connect Claude Code and Codex. Read it before adding an agent-reachable
   surface.
@@ -258,7 +261,7 @@ only and use `dotnet run` / `npm start`.
 
 The dev server's proxy target comes from `NG_API_URL` (`web/lakehold-ui/proxy.conf.mjs`), falling
 back to `localhost:5200`. It has to stay dynamic: inside a container `localhost` is the UI container,
-so a hard-coded target proxies to nothing and every API call fails with a 500.
+so a hard-coded target proxies to nothing and every API or MCP call fails with a 500.
 
 Do not edit or commit build output, dependency caches, IDE state, or runtime lakehouse data:
 

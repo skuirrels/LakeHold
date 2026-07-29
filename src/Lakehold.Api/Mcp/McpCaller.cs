@@ -11,6 +11,8 @@ namespace Lakehold.Api.Mcp;
 /// </summary>
 internal static class McpCaller
 {
+    internal const string SettingsItemKey = "Lakehold.Mcp.RuntimeSettings";
+
     /// <summary>The credential this call is acting as, or throws if there somehow is none.</summary>
     /// <remarks>
     ///     <see cref="McpAuthenticationFilter"/> refuses a credential-less caller before any tool or
@@ -28,6 +30,20 @@ internal static class McpCaller
         return principal.IsAuthenticated
             ? principal
             : throw new McpException("A credential is required.");
+    }
+
+    /// <summary>The runtime settings snapshot loaded before this transport request was accepted.</summary>
+    public static McpRuntimeSettings Settings(IHttpContextAccessor accessor)
+    {
+        ArgumentNullException.ThrowIfNull(accessor);
+
+        var http = accessor.HttpContext
+            ?? throw new McpException("This server is only available over the HTTP transport.");
+
+        return http.Items.TryGetValue(SettingsItemKey, out var value)
+            && value is McpRuntimeSettings settings
+                ? settings
+                : throw new McpException("MCP runtime settings were not resolved for this request.");
     }
 
     /// <summary>Resolves the principal and enforces <see cref="Capability.TenantData"/>, or throws.</summary>

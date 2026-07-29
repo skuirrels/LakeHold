@@ -31,7 +31,9 @@ segment, but it is validated against the credential rather than trusted.
 |---|---|---|
 | Discovery | `GET /api/tenants` | Now scoped to the credential; still unversioned and unpaginated. |
 | Provisioning | `POST`/`DELETE /api/tenants`, `…/catalogs` | Synchronous; no async job model. |
-| Tokens | `POST`/`GET`/`DELETE …/{tenant}/tokens` | No pagination; no last-used tracking on the request path. |
+| Tokens | `POST`/`GET`/`DELETE …/{tenant}/tokens` | Creation is used by System Settings and returns the plaintext once; listing has no pagination and request-path last-used tracking remains absent. |
+| System settings | `GET`/`PUT /api/system-settings` | Instance credential only; optimistic version; MCP changes apply on the next request without restart. |
+| Browser authentication | `GET /auth/session`, `/auth/login`, `/auth/logout` | Optional OIDC authorization-code flow; returns an HttpOnly LakeHold session, not provider tokens. |
 | Query | `POST …/catalogs/{c}/query` | No time-travel option; result capped, no streaming variant. |
 | CSV import | `POST …/catalogs/{c}/imports/csv` | Streamed request body, synchronous, new tables only; per-file, aggregate scratch, concurrency, free-space, and bounded-reject limits apply. Imports above the configured ceiling still need a direct-to-object-storage path. |
 | Saved queries | `GET`/`POST`/`PUT`/`DELETE …/saved-queries`, `POST …/{id}/{execute\|publish\|unpublish}` | Catalog-scoped and revisioned; still unversioned and unpaginated. |

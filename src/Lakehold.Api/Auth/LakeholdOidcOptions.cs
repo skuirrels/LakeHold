@@ -19,6 +19,15 @@ public sealed class LakeholdOidcOptions
     /// <summary>The audience a token must carry to be accepted. Empty skips audience validation.</summary>
     public string Audience { get; set; } = string.Empty;
 
+    /// <summary>Public client identifier used by the Workbench authorization-code flow.</summary>
+    public string ClientId { get; set; } = string.Empty;
+
+    /// <summary>
+    ///     Optional confidential-client secret. Supply it through environment or a secret store,
+    ///     never an application settings file.
+    /// </summary>
+    public string ClientSecret { get; set; } = string.Empty;
+
     /// <summary>Whether HTTPS metadata is required of the authority. Only relax this against a local IdP.</summary>
     public bool RequireHttpsMetadata { get; set; } = true;
 
@@ -31,6 +40,18 @@ public sealed class LakeholdOidcOptions
     /// <summary>Claim naming the caller's role within the tenant, if the IdP emits one.</summary>
     public string RoleClaim { get; set; } = "role";
 
+    /// <summary>Claim whose configured value grants instance-wide administration.</summary>
+    public string SystemAdminClaim { get; set; } = "lakehold_admin";
+
+    /// <summary>Exact claim value granting instance-wide administration.</summary>
+    public string SystemAdminValue { get; set; } = "true";
+
+    /// <summary>Additional scopes requested by the browser sign-in flow.</summary>
+    public string[] Scopes { get; set; } = [];
+
     /// <summary>Whether an authority is configured at all.</summary>
     public bool Enabled => Authority.Length > 0;
+
+    /// <summary>Whether interactive browser sign-in has enough configuration to run.</summary>
+    public bool BrowserLoginEnabled => Enabled && ClientId.Length > 0;
 }

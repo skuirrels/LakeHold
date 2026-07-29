@@ -36,6 +36,40 @@ public sealed class OidcPrincipalTests
     }
 
     [Fact]
+    public void A_configured_system_admin_claim_becomes_an_instance_principal()
+    {
+        var options = new LakeholdOidcOptions
+        {
+            Authority = "https://idp.test",
+            SystemAdminClaim = "groups",
+            SystemAdminValue = "lakehold-administrators",
+        };
+
+        var principal = OidcPrincipal.TryResolve(
+            User(("groups", "ordinary-users"), ("groups", "lakehold-administrators")),
+            options);
+
+        Assert.NotNull(principal);
+        Assert.Equal(TokenScope.Instance, principal.Scope);
+        Assert.Equal(TokenRole.Owner, principal.Role);
+        Assert.Null(principal.TenantSlug);
+        Assert.Null(principal.TokenId);
+    }
+
+    [Fact]
+    public void An_unmatched_system_admin_claim_still_requires_a_tenant()
+    {
+        var options = new LakeholdOidcOptions
+        {
+            Authority = "https://idp.test",
+            SystemAdminClaim = "groups",
+            SystemAdminValue = "lakehold-administrators",
+        };
+
+        Assert.Null(OidcPrincipal.TryResolve(User(("groups", "ordinary-users")), options));
+    }
+
+    [Fact]
     public void A_reader_claim_is_read_only()
     {
         var principal = OidcPrincipal.TryResolve(User(("tenant", "demo"), ("role", "reader")), Options);

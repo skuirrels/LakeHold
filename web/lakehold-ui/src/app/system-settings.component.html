@@ -1,0 +1,117 @@
+<section class="settings-page">
+  <header>
+    <span class="eyebrow">Instance administration</span>
+    <h1>System Settings</h1>
+    <p>Control the command surface shared by every LakeHold API node.</p>
+  </header>
+
+  @if (loading()) {
+    <p class="state">Loading settings…</p>
+  } @else if (!settings() && error(); as message) {
+    <div class="state load-error">
+      <p class="message error">{{ message }}</p>
+      <button class="retry" type="button" (click)="load()">Retry</button>
+    </div>
+  } @else if (settings(); as current) {
+    <form class="settings-card" (submit)="$event.preventDefault(); save()">
+      <div class="card-heading">
+        <div>
+          <h2>Model Context Protocol</h2>
+          <p>Connect Codex, Claude, or another MCP client to this instance.</p>
+        </div>
+        <span class="status" [class.on]="enabled()">{{ enabled() ? 'Enabled' : 'Disabled' }}</span>
+      </div>
+
+      <label class="toggle-row">
+        <span>
+          <strong>Enable MCP server</strong>
+          <small
+            >Serves Streamable HTTP at {{ current.mcpRoute }}. Authentication is always
+            required.</small
+          >
+        </span>
+        <input
+          type="checkbox"
+          [checked]="enabled()"
+          (change)="enabled.set($any($event.target).checked)"
+        />
+      </label>
+
+      <label class="toggle-row">
+        <span>
+          <strong>Allow write commands</strong>
+          <small>
+            Exposes the destructive <code>execute</code> tool. The caller still needs a read-write
+            tenant credential.
+          </small>
+        </span>
+        <input
+          type="checkbox"
+          [checked]="allowWrites()"
+          (change)="allowWrites.set($any($event.target).checked)"
+        />
+      </label>
+
+      <div class="field-grid">
+        <label>
+          <span>Maximum rows per MCP result</span>
+          <input
+            type="number"
+            min="1"
+            max="10000"
+            required
+            [value]="maxRows()"
+            (input)="setMaxRows($any($event.target).value)"
+          />
+          <small>Bounds query results and list pages before they enter the model context.</small>
+        </label>
+
+        <label>
+          <span>Public base URL</span>
+          <input
+            type="url"
+            placeholder="https://lakehold.example.com"
+            [maxLength]="publicBaseUrlMaxLength"
+            [value]="publicBaseUrl()"
+            (input)="publicBaseUrl.set($any($event.target).value)"
+          />
+          <small
+            >Leave empty for local/direct access. Set this when LakeHold is behind a proxy.</small
+          >
+        </label>
+      </div>
+
+      <div class="connection">
+        <span>Client endpoint</span>
+        <code>{{ publicBaseUrl() || browserBaseUrl }}{{ current.mcpRoute }}</code>
+      </div>
+
+      @if (error(); as message) {
+        <p class="message error">{{ message }}</p>
+      }
+      @if (notice(); as message) {
+        <p class="message success">{{ message }}</p>
+      }
+
+      <footer>
+        <span>
+          Revision {{ current.version }}
+          @if (current.updatedUtc) {
+            · last saved {{ current.updatedUtc }}
+          }
+        </span>
+        <button
+          class="save"
+          type="submit"
+          [disabled]="saving() || maxRows() < 1 || maxRows() > 10000"
+        >
+          {{ saving() ? 'Saving…' : 'Save settings' }}
+        </button>
+      </footer>
+    </form>
+  }
+</section>
+
+@if (settings()) {
+  <lh-token-administration />
+}

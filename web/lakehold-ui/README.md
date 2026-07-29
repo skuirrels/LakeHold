@@ -22,8 +22,9 @@ npm ci
 npm start
 ```
 
-Open <http://localhost:5399>. The Angular dev server hot-reloads source changes and proxies `/api`
-to `NG_API_URL`, falling back to `http://localhost:5200`.
+Open <http://localhost:5399>. The Angular dev server hot-reloads source changes and proxies `/api`,
+`/mcp`, and MCP authorization metadata to `NG_API_URL`, falling back to
+`http://localhost:5200`.
 
 ## Tests
 

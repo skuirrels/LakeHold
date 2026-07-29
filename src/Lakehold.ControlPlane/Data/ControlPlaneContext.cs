@@ -2,6 +2,7 @@
 // rejects it at model validation. It therefore lives in the provider's own namespace rather than
 // Microsoft.EntityFrameworkCore, and this using is what marks the dependency on native storage.
 using DuckDB.EFCoreProvider.Extensions;
+using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Lakehold.ControlPlane.Model;
 
@@ -14,8 +15,13 @@ namespace Lakehold.ControlPlane.Data;
 ///     PostgreSQL is the production provider. Native DuckDB remains supported only for the legacy
 ///     importer and fast isolated tests; production startup never selects it implicitly.
 /// </remarks>
-public sealed class ControlPlaneContext(DbContextOptions<ControlPlaneContext> options) : DbContext(options)
+public sealed class ControlPlaneContext(DbContextOptions<ControlPlaneContext> options)
+    : DbContext(options), IDataProtectionKeyContext
 {
+    public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
+
+    public DbSet<SystemSettings> SystemSettings => Set<SystemSettings>();
+
     public DbSet<Tenant> Tenants => Set<Tenant>();
 
     public DbSet<LakeCatalog> Catalogs => Set<LakeCatalog>();
@@ -32,6 +38,21 @@ public sealed class ControlPlaneContext(DbContextOptions<ControlPlaneContext> op
     {
         ArgumentNullException.ThrowIfNull(modelBuilder);
         var isDuckDb = Database.ProviderName?.Contains("DuckDB", StringComparison.OrdinalIgnoreCase) is true;
+
+        modelBuilder.Entity<DataProtectionKey>(entity =>
+        {
+            entity.HasKey(key => key.Id);
+            ConfigureGeneratedId(entity.Property(key => key.Id), isDuckDb);
+        });
+
+        modelBuilder.Entity<SystemSettings>(entity =>
+        {
+            entity.HasKey(s => s.Id);
+            entity.Property(s => s.Id).ValueGeneratedNever();
+            entity.Property(s => s.McpPublicBaseUrl)
+                .HasMaxLength(Lakehold.ControlPlane.Model.SystemSettings.McpPublicBaseUrlMaxLength);
+            entity.Property(s => s.ConcurrencyVersion).IsConcurrencyToken();
+        });
 
         modelBuilder.Entity<Tenant>(entity =>
         {

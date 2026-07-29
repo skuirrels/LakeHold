@@ -248,6 +248,50 @@ public sealed class McpServerTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task A_saved_row_cap_applies_to_the_next_call_without_restarting()
+    {
+        await using (var scope = _app.Services.CreateAsyncScope())
+        {
+            await scope.ServiceProvider.GetRequiredService<McpRuntimeSettingsStore>()
+                .SaveAsync(
+                    enabled: true,
+                    allowWrites: false,
+                    maxRowsPerResult: 2,
+                    publicBaseUrl: null,
+                    expectedVersion: 0,
+                    CancellationToken.None);
+        }
+
+        try
+        {
+            await using var client = await ConnectAsync(_demoToken);
+            var result = await client.CallToolAsync(
+                "query",
+                new Dictionary<string, object?>
+                {
+                    ["tenant"] = "demo",
+                    ["catalog"] = "analytics",
+                    ["sql"] = "SELECT * FROM range(20)",
+                });
+
+            Assert.True(result.IsError is not true, Text(result));
+            Assert.Equal(2, Payload(result).GetProperty("rowCount").GetInt32());
+        }
+        finally
+        {
+            await using var scope = _app.Services.CreateAsyncScope();
+            await scope.ServiceProvider.GetRequiredService<McpRuntimeSettingsStore>()
+                .SaveAsync(
+                    enabled: true,
+                    allowWrites: false,
+                    maxRowsPerResult: 5,
+                    publicBaseUrl: null,
+                    expectedVersion: 1,
+                    CancellationToken.None);
+        }
+    }
+
+    [Fact]
     public async Task A_write_fails_in_the_engine_even_for_an_owner_credential()
     {
         // The claim the whole surface rests on. This credential is an owner and may write over HTTP;
@@ -507,7 +551,10 @@ public sealed class McpServerTests : IAsyncLifetime
             "list_changes",
             new Dictionary<string, object?>
             {
-                ["tenant"] = "demo", ["catalog"] = "analytics", ["table"] = "changed", ["fromSnapshot"] = 0,
+                ["tenant"] = "demo",
+                ["catalog"] = "analytics",
+                ["table"] = "changed",
+                ["fromSnapshot"] = 0,
             });
 
         var last = Payload(all).GetProperty("toSnapshot").GetInt64();
@@ -516,7 +563,9 @@ public sealed class McpServerTests : IAsyncLifetime
             "list_changes",
             new Dictionary<string, object?>
             {
-                ["tenant"] = "demo", ["catalog"] = "analytics", ["table"] = "changed",
+                ["tenant"] = "demo",
+                ["catalog"] = "analytics",
+                ["table"] = "changed",
                 ["fromSnapshot"] = last + 1,
             });
 
@@ -533,7 +582,9 @@ public sealed class McpServerTests : IAsyncLifetime
             "list_changes",
             new Dictionary<string, object?>
             {
-                ["tenant"] = "demo", ["catalog"] = "analytics", ["table"] = "no_such_table",
+                ["tenant"] = "demo",
+                ["catalog"] = "analytics",
+                ["table"] = "no_such_table",
                 ["fromSnapshot"] = 0,
             });
 
@@ -558,8 +609,11 @@ public sealed class McpServerTests : IAsyncLifetime
             "list_changes",
             new Dictionary<string, object?>
             {
-                ["tenant"] = "demo", ["catalog"] = "analytics", ["table"] = "changed",
-                ["fromSnapshot"] = 0, ["limit"] = 10_000,
+                ["tenant"] = "demo",
+                ["catalog"] = "analytics",
+                ["table"] = "changed",
+                ["fromSnapshot"] = 0,
+                ["limit"] = 10_000,
             });
 
         Assert.True(changes.IsError is not true, Text(changes));

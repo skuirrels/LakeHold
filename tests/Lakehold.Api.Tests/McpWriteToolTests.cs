@@ -102,7 +102,8 @@ public sealed class McpWriteToolTests : IAsyncLifetime
             "execute",
             new Dictionary<string, object?>
             {
-                ["tenant"] = "demo", ["catalog"] = "analytics",
+                ["tenant"] = "demo",
+                ["catalog"] = "analytics",
                 ["sql"] = "CREATE TABLE written (i INTEGER)",
             });
 
@@ -113,7 +114,8 @@ public sealed class McpWriteToolTests : IAsyncLifetime
             "query",
             new Dictionary<string, object?>
             {
-                ["tenant"] = "demo", ["catalog"] = "analytics",
+                ["tenant"] = "demo",
+                ["catalog"] = "analytics",
                 ["sql"] = "SELECT count(*) FROM duckdb_tables() WHERE table_name = 'written'",
             });
 
@@ -133,7 +135,8 @@ public sealed class McpWriteToolTests : IAsyncLifetime
             "query",
             new Dictionary<string, object?>
             {
-                ["tenant"] = "demo", ["catalog"] = "analytics",
+                ["tenant"] = "demo",
+                ["catalog"] = "analytics",
                 ["sql"] = "CREATE TABLE query_must_not_create (i INTEGER)",
             });
 
@@ -153,7 +156,8 @@ public sealed class McpWriteToolTests : IAsyncLifetime
             "execute",
             new Dictionary<string, object?>
             {
-                ["tenant"] = "demo", ["catalog"] = "analytics",
+                ["tenant"] = "demo",
+                ["catalog"] = "analytics",
                 ["sql"] = "CREATE TABLE reader_must_not_create (i INTEGER)",
             });
 
@@ -171,11 +175,61 @@ public sealed class McpWriteToolTests : IAsyncLifetime
             "execute",
             new Dictionary<string, object?>
             {
-                ["tenant"] = "other", ["catalog"] = "c", ["sql"] = "CREATE TABLE t (i INTEGER)",
+                ["tenant"] = "other",
+                ["catalog"] = "c",
+                ["sql"] = "CREATE TABLE t (i INTEGER)",
             });
 
         Assert.True(result.IsError);
         Assert.Contains("was not found for tenant 'other'", Text(result), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task A_saved_write_setting_applies_to_an_existing_server_and_client()
+    {
+        var app = await StartAsync(allowWrites: false);
+        await using var client = await ConnectAsync(app, _writerToken);
+        Assert.DoesNotContain("execute", (await client.ListToolsAsync()).Select(tool => tool.Name));
+
+        await using (var scope = app.Services.CreateAsyncScope())
+        {
+            await scope.ServiceProvider.GetRequiredService<McpRuntimeSettingsStore>()
+                .SaveAsync(
+                    enabled: true,
+                    allowWrites: true,
+                    maxRowsPerResult: 200,
+                    publicBaseUrl: null,
+                    expectedVersion: 0,
+                    CancellationToken.None);
+        }
+
+        Assert.Contains("execute", (await client.ListToolsAsync()).Select(tool => tool.Name));
+
+        await using (var scope = app.Services.CreateAsyncScope())
+        {
+            await scope.ServiceProvider.GetRequiredService<McpRuntimeSettingsStore>()
+                .SaveAsync(
+                    enabled: true,
+                    allowWrites: false,
+                    maxRowsPerResult: 200,
+                    publicBaseUrl: null,
+                    expectedVersion: 1,
+                    CancellationToken.None);
+        }
+
+        // The client discovered execute while it was enabled. A direct call from that stale cache
+        // must still observe the just-saved setting instead of reaching DuckDB.
+        var blocked = await client.CallToolAsync(
+            "execute",
+            new Dictionary<string, object?>
+            {
+                ["tenant"] = "demo",
+                ["catalog"] = "analytics",
+                ["sql"] = "CREATE TABLE must_not_exist (i INTEGER)",
+            });
+
+        Assert.True(blocked.IsError);
+        Assert.Contains("disabled", Text(blocked), StringComparison.OrdinalIgnoreCase);
     }
 
     private static JsonElement Payload(CallToolResult result) =>
@@ -186,8 +240,7 @@ public sealed class McpWriteToolTests : IAsyncLifetime
 
     private async Task<WebApplication> StartAsync(bool allowWrites)
     {
-        // A separate host per case: AllowWrites decides what is registered at start-up, so it cannot be
-        // varied within one server. Each gets its own state root so the catalogs stay independent.
+        // Each case gets its own state root so catalogs and persisted runtime settings stay independent.
         var root = Path.Combine(_root, allowWrites ? "rw" : "ro", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(root);
 

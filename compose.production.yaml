@@ -50,6 +50,22 @@ services:
       # node mints a bootstrap token on first start and logs it once — see README.md — so turning it
       # on here costs one `docker compose logs` rather than a locked-out deployment.
       Lakehold__Auth__RequireAuthentication: ${LAKEHOLD_REQUIRE_AUTH:-true}
+      Lakehold__BootstrapToken: ${LAKEHOLD_BOOTSTRAP_TOKEN:-}
+      # Trust the proxy headers supplied by the colocated Workbench nginx so OIDC callback URLs use
+      # the browser-facing scheme and host rather than the API container address.
+      ASPNETCORE_FORWARDEDHEADERS_ENABLED: "true"
+
+      # Optional human sign-in. ClientId enables the browser authorization-code flow; the same
+      # authority continues to validate bearer JWTs for API/MCP clients.
+      Lakehold__Oidc__Authority: ${LAKEHOLD_OIDC_AUTHORITY:-}
+      Lakehold__Oidc__Audience: ${LAKEHOLD_OIDC_AUDIENCE:-}
+      Lakehold__Oidc__ClientId: ${LAKEHOLD_OIDC_CLIENT_ID:-}
+      Lakehold__Oidc__ClientSecret: ${LAKEHOLD_OIDC_CLIENT_SECRET:-}
+      Lakehold__Oidc__RequireHttpsMetadata: ${LAKEHOLD_OIDC_REQUIRE_HTTPS_METADATA:-true}
+      Lakehold__Oidc__TenantClaim: ${LAKEHOLD_OIDC_TENANT_CLAIM:-tenant}
+      Lakehold__Oidc__RoleClaim: ${LAKEHOLD_OIDC_ROLE_CLAIM:-role}
+      Lakehold__Oidc__SystemAdminClaim: ${LAKEHOLD_OIDC_SYSTEM_ADMIN_CLAIM:-lakehold_admin}
+      Lakehold__Oidc__SystemAdminValue: ${LAKEHOLD_OIDC_SYSTEM_ADMIN_VALUE:-true}
 
       # Telemetry goes wherever the deployment collects it. Unset means no exporter.
       OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}

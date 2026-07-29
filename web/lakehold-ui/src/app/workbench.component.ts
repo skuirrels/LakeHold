@@ -24,6 +24,7 @@ import { formatTime } from './format';
 import { ApiError, LakehouseService } from './lakehouse.service';
 import {
   AccessContext,
+  BrowserSession,
   CsvImportResult,
   MaintenanceOperation,
   QueryResponse,
@@ -36,6 +37,7 @@ import { ResultGridComponent } from './result-grid.component';
 import { SavedQueriesPanelComponent } from './saved-queries-panel.component';
 import { SchedulePanelComponent } from './schedule-panel.component';
 import { StoragePanelComponent } from './storage-panel.component';
+import { SystemSettingsComponent } from './system-settings.component';
 import {
   WorkbenchDestination,
   WorkbenchNavigationComponent,
@@ -82,6 +84,7 @@ type BottomTab =
     SavedQueriesPanelComponent,
     SchedulePanelComponent,
     StoragePanelComponent,
+    SystemSettingsComponent,
     WorkbenchNavigationComponent,
   ],
   templateUrl: './workbench.component.html',
@@ -93,6 +96,7 @@ export class WorkbenchComponent {
   private tenantRequestGeneration = 0;
   private catalogRequestGeneration = 0;
   protected readonly auth = inject(AuthService);
+  protected readonly browserSession = signal<BrowserSession | null>(null);
 
   /**
    * The panels a committed maintenance operation invalidates.
@@ -218,7 +222,22 @@ export class WorkbenchComponent {
 
   constructor() {
     this.watchNavigationBreakpoint();
-    this.loadTenants();
+    this.loadBrowserSession();
+  }
+
+  private loadBrowserSession(): void {
+    this.api.getBrowserSession().subscribe({
+      next: (session) => {
+        this.browserSession.set(session);
+        if (session.authenticated) {
+          // A pasted machine credential wins because it adds an Authorization header. Remove that
+          // stale override once a human session exists, then load the human's effective access.
+          this.auth.clear();
+        }
+        this.loadTenants();
+      },
+      error: () => this.loadTenants(),
+    });
   }
 
   /**
@@ -288,6 +307,27 @@ export class WorkbenchComponent {
 
           this.tenants.set(tenants);
           this.error.set(null);
+          if (this.access()?.systemAdmin && tenants.length > 0) {
+            // An instance credential administers the node but cannot query tenant data. Keep its
+            // administration surface reachable once the first workspace exists. An empty node must
+            // still offer first-run provisioning.
+            this.firstRun.set('none');
+            this.signInRejected.set(false);
+            this.navigationDestination.set('settings');
+            this.tenantSlug.set(null);
+            this.catalogName.set(null);
+            this.schemas.set([]);
+            this.history.set([]);
+            this.catalogConnected.set(false);
+            return;
+          }
+
+          // A credential can be replaced while the settings page is open. Tenant credentials cannot
+          // use that instance-only destination, so return to a surface the new principal owns.
+          if (this.navigationDestination() === 'settings') {
+            this.navigationDestination.set('workbench');
+          }
+
           const first = tenants[0];
           if (first) {
             this.firstRun.set('none');
@@ -359,7 +399,15 @@ export class WorkbenchComponent {
       .pipe(
         catchError(ignoreConflict),
         switchMap(() => this.api.createCatalog(slug, catalog).pipe(catchError(ignoreConflict))),
-        switchMap(() => this.api.createToken(slug, 'workbench', 'owner')),
+        switchMap(() =>
+          this.api.createToken(slug, {
+            name: 'workbench',
+            role: 'owner',
+            readOnly: false,
+            catalogName: null,
+            expiresUtc: null,
+          }),
+        ),
       )
       .subscribe({
         next: (created) => {
@@ -547,6 +595,9 @@ export class WorkbenchComponent {
         break;
       case 'queries':
         this.showSidebar('queries');
+        break;
+      case 'settings':
+        this.contextPanelOpen.set(false);
         break;
       default:
         this.showTab(destination, false);

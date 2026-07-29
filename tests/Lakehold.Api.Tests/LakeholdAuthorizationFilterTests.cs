@@ -6,6 +6,7 @@ using Lakehold.ControlPlane.Security;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using System.Security.Claims;
 using Xunit;
 
 namespace Lakehold.Api.Tests;
@@ -142,6 +143,22 @@ public sealed class LakeholdAuthorizationFilterTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task An_authenticated_identity_without_a_Lakehold_subject_never_falls_through_to_open_access()
+    {
+        var identity = new ClaimsIdentity([new Claim("sub", "unmapped-user")], "oidc");
+
+        var (status, passed) = await RunAsync(
+            _services,
+            bearer: null,
+            "demo",
+            "analytics",
+            user: new ClaimsPrincipal(identity));
+
+        Assert.False(passed);
+        Assert.Equal(StatusCodes.Status401Unauthorized, status);
+    }
+
+    [Fact]
     public async Task No_token_is_refused_when_authentication_is_required()
     {
         await using var services = BuildServices(requireAuthentication: true);
@@ -271,11 +288,21 @@ public sealed class LakeholdAuthorizationFilterTests : IAsyncLifetime
     }
 
     private static async Task<(int Status, bool Passed)> RunAsync(
-        IServiceProvider services, string? bearer, string? tenant, string? catalog, Capability? capability = null)
+        IServiceProvider services,
+        string? bearer,
+        string? tenant,
+        string? catalog,
+        Capability? capability = null,
+        ClaimsPrincipal? user = null)
     {
         using var scope = services.CreateScope();
 
         var http = new DefaultHttpContext { RequestServices = scope.ServiceProvider };
+        if (user is not null)
+        {
+            http.User = user;
+        }
+
         http.Response.Body = new MemoryStream();
         if (tenant is not null)
         {

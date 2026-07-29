@@ -55,6 +55,13 @@ public sealed class LakeholdAuthorizationFilter : IEndpointFilter
             // A JWT bearer (or any scheme that populated http.User) the middleware already validated.
             principal = oidc;
         }
+        else if (http.User.Identity?.IsAuthenticated == true)
+        {
+            // A validated identity that Lakehold cannot map is still a presented credential. Never
+            // let it fall through to demo or legacy anonymous access merely because that deployment
+            // also permits requests without credentials.
+            return Unauthorized(http);
+        }
         else if (bearer is not null)
         {
             // A bearer was presented but is neither a valid token nor a valid JWT. A presented

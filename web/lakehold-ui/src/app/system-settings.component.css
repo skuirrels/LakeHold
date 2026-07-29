@@ -1,0 +1,210 @@
+:host {
+  display: block;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  min-height: 100%;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.settings-page {
+  width: min(880px, calc(100% - 48px));
+  margin: 0 auto;
+  padding: 42px 0 64px;
+}
+
+header {
+  margin-bottom: 28px;
+}
+
+.eyebrow {
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+h1 {
+  margin: 7px 0 6px;
+  font-size: 28px;
+}
+
+h2 {
+  margin: 0 0 5px;
+  font-size: 17px;
+}
+
+p {
+  margin: 0;
+  color: var(--text-dim);
+}
+
+.settings-card {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.card-heading,
+.toggle-row,
+.field-grid,
+.connection,
+footer {
+  padding: 20px 22px;
+  border-bottom: 1px solid var(--border);
+}
+
+.card-heading,
+.toggle-row,
+footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.status {
+  padding: 4px 9px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text-faint);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.status.on {
+  border-color: color-mix(in srgb, var(--success) 50%, var(--border));
+  color: var(--success);
+}
+
+.toggle-row {
+  cursor: pointer;
+}
+
+.toggle-row span {
+  display: grid;
+  gap: 5px;
+}
+
+small {
+  color: var(--text-faint);
+  line-height: 1.45;
+}
+
+input[type='checkbox'] {
+  width: 38px;
+  height: 20px;
+  accent-color: var(--accent);
+}
+
+.field-grid {
+  display: grid;
+  grid-template-columns: minmax(180px, 0.65fr) minmax(260px, 1.35fr);
+  gap: 20px;
+}
+
+.field-grid label {
+  display: grid;
+  gap: 7px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.field-grid input {
+  min-width: 0;
+  padding: 9px 10px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+}
+
+.connection {
+  display: grid;
+  gap: 8px;
+  font-size: 12px;
+}
+
+code {
+  color: var(--accent);
+  font-family: var(--mono);
+}
+
+.message {
+  margin: 18px 22px 0;
+  padding: 10px 12px;
+  border-radius: 5px;
+  font-size: 12px;
+}
+
+.error {
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+  color: var(--danger);
+}
+
+.success {
+  background: color-mix(in srgb, var(--success) 12%, transparent);
+  color: var(--success);
+}
+
+footer {
+  border-bottom: 0;
+  color: var(--text-faint);
+  font-size: 11px;
+}
+
+.save {
+  padding: 8px 14px;
+  border: 1px solid var(--accent);
+  border-radius: 5px;
+  background: var(--accent);
+  color: var(--bg);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.save:disabled {
+  cursor: wait;
+  opacity: 0.55;
+}
+
+.state {
+  padding: 24px;
+}
+
+.load-error {
+  display: grid;
+  justify-items: start;
+  gap: 12px;
+}
+
+.load-error .message {
+  margin: 0;
+}
+
+.retry {
+  padding: 8px 14px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+@media (max-width: 700px) {
+  .settings-page {
+    width: min(100% - 28px, 880px);
+    padding-top: 24px;
+  }
+
+  .field-grid {
+    grid-template-columns: 1fr;
+  }
+}

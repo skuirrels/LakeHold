@@ -319,9 +319,6 @@ public static partial class AdminEndpoints
             }
         }
 
-        // An unrecognised role name falls back to owner rather than silently narrowing: a caller who
-        // asked for something we do not understand should not receive a credential quieter than they
-        // expect, and the request is otherwise well-formed.
         var issued = ApiTokenFactory.Issue(
             TokenScope.Tenant,
             tenant,

@@ -228,4 +228,39 @@ public sealed class AdminEndpointsTests : IAsyncLifetime
         Assert.IsType<BadRequest<string>>(Unwrap(result));
         Assert.Equal(0, await _context.ApiTokens.CountAsync());
     }
+
+    [Fact]
+    public async Task A_public_token_request_persists_its_role_catalog_and_expiry()
+    {
+        await AdminEndpoints.CreateTenantAsync(
+            new CreateTenantRequest("acme", "Acme"), _context, TimeProvider.System, default);
+        await AdminEndpoints.CreateCatalogAsync(
+            "acme",
+            new CreateCatalogRequest("analytics"),
+            _context,
+            _options,
+            TimeProvider.System,
+            default);
+        var expiry = new DateTimeOffset(2030, 1, 1, 0, 0, 0, TimeSpan.Zero);
+
+        var result = await AdminEndpoints.CreateTokenAsync(
+            "acme",
+            new CreateTokenRequest(
+                "codex-agent",
+                ReadOnly: true,
+                CatalogName: "analytics",
+                ExpiresUtc: expiry,
+                Role: "editor"),
+            _context,
+            TimeProvider.System,
+            default);
+
+        Assert.IsType<Created<CreatedTokenDto>>(Unwrap(result));
+        var stored = await _context.ApiTokens.SingleAsync();
+        Assert.Equal("codex-agent", stored.Name);
+        Assert.Equal(TokenRole.Editor, stored.Role);
+        Assert.True(stored.ReadOnly);
+        Assert.Equal("analytics", stored.CatalogName);
+        Assert.Equal(expiry, stored.ExpiresUtc);
+    }
 }

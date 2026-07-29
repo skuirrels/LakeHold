@@ -3,6 +3,36 @@ using Lakehold.Engine.Catalog;
 namespace Lakehold.ControlPlane.Model;
 
 /// <summary>
+///     The instance-wide operator settings shared by every API node.
+/// </summary>
+/// <remarks>
+///     This is intentionally a singleton row. Settings that must take effect without a process
+///     restart belong in the shared control plane, not in node-local configuration or an in-memory
+///     options cache.
+/// </remarks>
+public sealed class SystemSettings
+{
+    /// <summary>Maximum length of the externally reachable MCP base URL.</summary>
+    public const int McpPublicBaseUrlMaxLength = 2048;
+
+    /// <summary>The fixed singleton key.</summary>
+    public int Id { get; set; } = 1;
+
+    public bool McpEnabled { get; set; }
+
+    public bool McpAllowWrites { get; set; }
+
+    public int McpMaxRowsPerResult { get; set; }
+
+    public string? McpPublicBaseUrl { get; set; }
+
+    /// <summary>Optimistic version used to reject two operators overwriting one another.</summary>
+    public int ConcurrencyVersion { get; set; }
+
+    public DateTimeOffset UpdatedUtc { get; set; }
+}
+
+/// <summary>
 ///     An isolation boundary: an organisation, team, or environment. A tenant owns catalogs, and
 ///     a query always executes in exactly one tenant's context.
 /// </summary>

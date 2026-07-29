@@ -7,7 +7,7 @@ using ModelContextProtocol.Server;
 namespace Lakehold.Api.Mcp;
 
 /// <summary>
-///     The write tool, registered only when <see cref="McpOptions.AllowWrites"/> is set.
+///     The write tool, exposed only when the persisted runtime setting permits writes.
 /// </summary>
 /// <remarks>
 ///     <para>
@@ -56,6 +56,13 @@ public sealed class LakeholdWriteTools(LakehouseService lakehouse, IHttpContextA
         }
 
         var principal = McpCaller.Authorize(httpContextAccessor, tenant, catalog);
+
+        if (!McpCaller.Settings(httpContextAccessor).AllowWrites)
+        {
+            // The request filter protects direct calls made from a stale client tool cache. Keep a
+            // second check here so any future transport or SDK dispatch change still fails closed.
+            throw new McpException("Writing through MCP is disabled in LakeHold System Settings.");
+        }
 
         if (principal.IsReadOnly)
         {

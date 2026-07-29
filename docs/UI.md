@@ -17,6 +17,16 @@ groups those existing surfaces into Workbench, Data, and Operations; its hamburg
 rail without destroying editor or explorer state. On compact screens the same rail is a
 keyboard-dismissible drawer rather than permanently hiding navigation.
 
+An instance-scoped credential gets one additional destination: **System Settings**. It owns the
+runtime MCP controls (enabled, writes, row ceiling, and public base URL). Saving persists one
+optimistically versioned PostgreSQL row, and the API reads that shared state for the next MCP request,
+so the change applies across nodes without restarting the process. The same destination includes
+**API tokens**: an administrator can issue a tenant token, optionally narrow it to one catalog, choose
+its role and expiry, and copy the plaintext once. Existing client credentials can be reviewed and
+revoked from the same card. A human system administrator reaches this surface through the configured
+OIDC provider; the browser receives an HttpOnly LakeHold session rather than an identity-provider
+token. The browser calls the existing public token endpoints and never persists generated secrets.
+
 Everything the original specification left open has since been **measured against DuckLake on DuckDB
 1.5.5** rather than reasoned about. Two of those measurements changed the design, and are called out
 below where they land: `ducklake_table_info` does not see inlined data, and the metadata catalog is
@@ -303,8 +313,7 @@ In the spirit of `POSTGRES-WIRE.md`'s equivalent section.
 |---|---|
 | Lineage graph | Unity Catalog's governance moat. It needs a query graph LakeHold does not collect, and it is not why a self-hoster chooses this product |
 | Usage insights — top readers, query patterns | Same. Query history already answers the narrow version |
-| Grants / permissions editor | Roles and tokens are administered through the API and `AUTHENTICATION.md`. A UI that mints credentials is a surface worth designing deliberately, later, not as a corner of the workbench |
-| File upload / "add data" ingest UI | Managed ingestion is on the roadmap as connectors, not as a drag-and-drop |
+| Grants / permissions editor | System Settings now mints scoped API tokens, but listing, revocation, role assignment to people, and a general grants editor remain deliberately out of scope |
 | Notebook / multi-cell interface | The IDE is deliberately focused. A notebook is a different product decision |
 | A raw object browser | [Above](#why-not-a-file-browser) |
 
@@ -505,6 +514,7 @@ from the test runner, so it type-checks under the app config too; it is excluded
 | `backups-panel.component.spec.ts` | No restore offered for an incomplete generation, the proposed target, the refusal forwarded verbatim |
 | `eject-panel.component.spec.ts` | No dry run, the history flag, bundle expand/collapse, incomplete marked untrusted |
 | `schedule-panel.component.spec.ts` | Instance-wide run-log loading, scoped row rendering, success/failure states, and error-vs-empty truthfulness |
+| `token-administration.component.spec.ts` | Least-privilege defaults, exact public API request, one-time secret display, failure, and empty-workspace states |
 | `workbench.component.spec.ts` | First-run sign-in and tenant/catalog/token provisioning, collapsible and compact navigation, views excluded from pickers, error cleared on tab change, dry-run then apply, panel refresh paths, and Data history integration |
 
 **Four assertions were mutation-tested** — a green test that cannot fail is worse than no test, because

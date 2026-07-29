@@ -17,7 +17,8 @@ export type WorkbenchDestination =
   | 'changes'
   | 'backups'
   | 'ejects'
-  | 'schedule';
+  | 'schedule'
+  | 'settings';
 
 /** The product-level Workbench rail; its destinations remain owned by the parent shell. */
 @Component({
@@ -38,6 +39,7 @@ export class WorkbenchNavigationComponent {
 
   readonly destination = input.required<WorkbenchDestination>();
   readonly open = input(true);
+  readonly systemAdmin = input(false);
   readonly navigate = output<WorkbenchDestination>();
 
   focusCurrentDestination(): void {

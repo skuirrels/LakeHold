@@ -295,7 +295,8 @@ a token, where does the first one come from?
   writes it to the log **once**, and never again. It has to be instance-scoped: on a production node
   there is no tenant for it to belong to, and minting the first tenant is the job it exists for.
 - `Lakehold__BootstrapToken` in the environment overrides it, for deployments that provision
-  credentials externally and cannot scrape a log.
+  credentials externally and cannot scrape a log. The supplied Compose files expose this as
+  `LAKEHOLD_BOOTSTRAP_TOKEN` in `.env`.
 - The bootstrap path runs only when the token table is empty, so it cannot be used to mint a second
   admin credential on a running deployment.
 
@@ -354,13 +355,13 @@ because a read-only token would silently get a writable session.
 
 ## Phase 3 — OIDC for the workbench
 
-Standard ASP.NET Core JWT bearer against whatever the operator runs — Keycloak, Entra, Authentik,
-Auth0. Configuration is authority + audience; absent configuration, the whole path stays off and the
-air-gapped story is unchanged.
+Standard ASP.NET Core OIDC against whatever the operator runs — Keycloak, Entra, Authentik, Auth0.
+Bearer clients use JWT validation; the Workbench uses authorization code + PKCE and an HttpOnly
+session cookie. Absent an authority, the whole path stays off and the air-gapped story is unchanged.
 
-Mapping an identity to tenants is the real work, not the JWT validation. Start with the simplest
-thing that is honest: a claim naming the tenant, configurable in name, with a `TenantMember` table if
-per-user membership is needed. Do not invent group syncing until someone asks.
+Mapping an identity to capability is the real work, not protocol validation. A configured claim/value
+grants instance administration; otherwise a claim names the tenant and an optional role claim narrows
+capability. Add a `TenantMember` table only if per-user membership is needed.
 
 Both schemes coexist: tokens for machines, OIDC for humans, one `ILakeholdPrincipal` behind both so
 nothing downstream knows the difference.
@@ -420,11 +421,9 @@ passes review until the day it matters.
 
 To settle before or during the step they block, not before starting:
 
-1. **How does the workbench hold a token?** *Partly resolved.* It holds one in `sessionStorage`,
-   cleared when the tab closes, sent only to `/api`. That is deliberately not `localStorage`, and
-   deliberately not the final answer: OIDC (phase 3) is, because it keeps a long-lived LakeHold
-   credential out of the browser entirely. A short-lived cookie exchanged for a token remains the
-   other option if operators want the workbench usable without an IdP.
+1. **How does the workbench authenticate?** *Resolved.* Interactive humans use OIDC authorization
+   code + PKCE and an HttpOnly LakeHold cookie; machine and break-glass tokens remain the explicit
+   `sessionStorage` fallback and are sent only to `/api`.
 2. **Do tokens scope to a catalog, or only to a tenant?** *Resolved: both, layered.* A token belongs
    to a tenant and may optionally be narrowed to one catalog via `ApiToken.CatalogName` (null = the
    whole tenant). Subject stays separate from `TokenScope`, which remains purely capability, and the
@@ -451,14 +450,18 @@ mean. It is written for someone operating a deployment rather than someone chang
 | `Lakehold:BootstrapToken` | unset | Pre-seeds the first instance token instead of minting one. Only read when the token table is empty. A secret — set it through the environment, never `appsettings.json`. |
 | `Lakehold:Oidc:Authority` | empty | OIDC issuer. **Empty disables OIDC entirely**, which is what keeps an air-gapped install free of an identity-provider dependency. |
 | `Lakehold:Oidc:Audience` | empty | Audience a JWT must carry. Empty skips audience validation. |
+| `Lakehold:Oidc:ClientId` | empty | Enables Workbench browser login. Register `/auth/callback` at the provider. |
+| `Lakehold:Oidc:ClientSecret` | empty | Optional confidential-client secret. Set through environment/secret store only. |
 | `Lakehold:Oidc:RequireHttpsMetadata` | `true` | Only relax against a local IdP. |
 | `Lakehold:Oidc:TenantClaim` | `tenant` | Claim naming the tenant a human belongs to. |
 | `Lakehold:Oidc:RoleClaim` | `role` | Claim naming the role. Absent claim means `editor`. |
+| `Lakehold:Oidc:SystemAdminClaim` | `lakehold_admin` | Claim checked before tenant mapping for instance administration. |
+| `Lakehold:Oidc:SystemAdminValue` | `true` | Exact value of `SystemAdminClaim` that grants instance scope. |
 | `Lakehold:PgWire:AllowTokenAuthentication` | `false` | Lets the wire endpoint accept an API token as the password, against the same store. |
 
-Secrets — `Lakehold__BootstrapToken`, wire passwords, TLS certificate passwords — belong in the
-environment or a secret store. `.env` is the local mechanism and is gitignored; `.env.example`
-documents each one without carrying a value.
+Secrets — `Lakehold__BootstrapToken`, `Lakehold__Oidc__ClientSecret`, wire passwords, and TLS
+certificate passwords — belong in the environment or a secret store. `.env` is the local mechanism
+and is gitignored; `.env.example` documents each one without carrying a value.
 
 ### Credential model
 
@@ -607,7 +610,9 @@ one client at a time.
 ### OIDC
 
 Humans authenticate with OIDC; machines use tokens. Both resolve to the same `ILakeholdPrincipal`,
-so nothing downstream distinguishes them.
+so nothing downstream distinguishes them. The Workbench uses authorization code + PKCE and exchanges
+the result server-side for an HttpOnly cookie. Cookie-protection keys live in the PostgreSQL control
+plane, so the session remains valid when a later request reaches another API node.
 
 ```json
 {
@@ -615,16 +620,29 @@ so nothing downstream distinguishes them.
     "Oidc": {
       "Authority": "https://keycloak.example.com/realms/lakehold",
       "Audience": "lakehold",
+      "ClientId": "lakehold-workbench",
       "TenantClaim": "tenant",
-      "RoleClaim": "role"
+      "RoleClaim": "role",
+      "SystemAdminClaim": "groups",
+      "SystemAdminValue": "lakehold-administrators"
     }
   }
 }
 ```
 
-A JWT that authenticates but carries no tenant claim resolves to **nothing** rather than to a
-tenant-less principal: an identity the product cannot map to a catalog is not one it can serve, and
-guessing would be the wrong kind of helpful. With no authority configured the whole path stays off.
+Register `https://<lakehold-host>/auth/callback` at the provider. Put a confidential-client secret in
+`Lakehold__Oidc__ClientSecret` when required, and configure the provider to include the mapped claims
+in the ID token. A matching system-admin claim resolves to an instance principal and can open System
+Settings, change MCP controls, and issue/list/revoke tenant client credentials. Otherwise a tenant
+claim is required; an identity carrying neither is refused and never falls through to anonymous
+access. With no authority configured the whole path stays off.
+
+The supplied Compose files expose these as the `.env` names
+`LAKEHOLD_OIDC_AUTHORITY`, `LAKEHOLD_OIDC_AUDIENCE`, `LAKEHOLD_OIDC_CLIENT_ID`,
+`LAKEHOLD_OIDC_CLIENT_SECRET`, `LAKEHOLD_OIDC_TENANT_CLAIM`,
+`LAKEHOLD_OIDC_ROLE_CLAIM`, `LAKEHOLD_OIDC_SYSTEM_ADMIN_CLAIM`, and
+`LAKEHOLD_OIDC_SYSTEM_ADMIN_VALUE`. A local HTTP-only identity provider may additionally set
+`LAKEHOLD_OIDC_REQUIRE_HTTPS_METADATA=false`; production should leave it true.
 
 ### What is deliberately not built
 
@@ -646,11 +664,11 @@ Each step ships on its own and leaves the product working:
 | 2 | Middleware, `ILakeholdPrincipal` (incl. catalog narrowing), `LakehouseService` takes the principal | Cross-tenant and cross-catalog refusal test | Done |
 | 3 | Token management endpoints and bootstrap | Token shown once; revocation effective | Done |
 | 3b | Provisioning endpoints for tenants and catalogs | A fresh deployment can be set up with only the bootstrap token | Done |
-| 4 | Workbench sends credentials | Question 1 answered for machines; OIDC is the durable answer | Done |
+| 4 | Workbench sends credentials | API-token fallback plus HttpOnly OIDC browser session | Done |
 | 5 | Read-only attachment, pool key includes mode | `INSERT` refused by the engine | Done |
 | 6 | `QueryRun.TokenId` and history surfacing | Audit shows the principal | Done |
 | 7 | Wire endpoint on the token store | Revocation closes both surfaces | Done |
-| 8 | OIDC | JWT validated; tenant claim mapped to a principal | Done |
+| 8 | OIDC | Browser login and JWT validation; tenant/admin claim mapped to a principal | Done |
 | 9 | Roles | Maintenance restricted to owners | Done |
 
 Steps 1–3 are the ones that changed the product from open to closable. Step 3b is what makes a
@@ -682,9 +700,9 @@ add anything. Everything after is depth.
   DuckLake metadata and Parquet are deliberately left in place (invariant 10's reasoning applied to
   provisioning). `GET /api/tenants` is now scoped: an instance token sees every tenant, a tenant token
   sees only its own.
-- **Step 4** — the workbench holds a token in `sessionStorage` (`AuthService`) and an
-  `authInterceptor` attaches it to `/api` calls only. A header control sets and clears it. With no
-  token set the UI behaves exactly as before, which is what keeps development token-less.
+- **Step 4** — machine and break-glass tokens remain in `sessionStorage` and are attached only to
+  `/api`. Interactive humans use `/auth/login`; the server performs code + PKCE and returns an
+  HttpOnly cookie. The Workbench never receives the provider token.
 - **Step 5** — a read-only principal produces a read-only attachment: `LakehouseService` narrows the
   descriptor and `DucklingPool` now keys sessions by catalog **and attachment mode**, so a read-only
   and a read-write session for one catalog cannot collide. `EvictAsync` drops both modes.
@@ -697,10 +715,10 @@ add anything. Everything after is depth.
   together**. It uses the cleartext exchange by necessity (a hashed store cannot answer MD5's
   challenge) and the API refuses to start with it enabled outside TLS. Configured `TenantPasswords`
   keep working alongside it.
-- **Step 8** — `LakeholdOidcOptions` plus standard JWT bearer validation, wired only when an authority
-  is configured, so an air-gapped install never acquires an identity-provider dependency.
-  `OidcPrincipal` maps a tenant claim (and optional role claim) onto the same `ILakeholdPrincipal`
-  tokens produce, so nothing downstream distinguishes a human from a machine.
+- **Step 8** — `LakeholdOidcOptions`, standard JWT bearer validation, and browser authorization code
+  are wired only when an authority is configured. `OidcPrincipal` maps either a system-admin claim
+  to instance scope or tenant/role claims to tenant scope. Shared PostgreSQL data-protection keys
+  keep the browser session multi-node safe.
 - **Step 9** — `TokenRole` (`Owner`/`Editor`/`Reader`) on the token and the principal. Maintenance,
   backup restore, and eject are owner operations (`Capability.TenantOwner`); a reviewed single-table
   data restore is `Capability.TenantWrite`; token management requires
@@ -726,10 +744,9 @@ on upgrade, which is a decision to make per deployment rather than one to inheri
 
 ### Still open
 
-- **Question 1 remains partly open.** The workbench holds a bearer token in `sessionStorage`, which is
-  better than `localStorage` but is still the interim answer. The durable one is OIDC (step 8), where
-  the browser never holds a long-lived LakeHold credential, or a short-lived cookie exchanged for a
-  token.
+- **Instance-token lifecycle** remains deliberately narrow. The bootstrap credential is still issued
+  once and has no list/rotate/revoke UI; OIDC system administrators remove it from normal human use,
+  but an explicit break-glass rotation/recovery workflow remains worth adding.
 - **Question 3 (per-principal quotas)** is untouched. `MaxRowsPerResult` and the statement timeout
   remain per-node. The entity does not make it awkward to add.
 - **Question 4 (rate limiting on authentication attempts)** is untouched on the HTTP path; the wire

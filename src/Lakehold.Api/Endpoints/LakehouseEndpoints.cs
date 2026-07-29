@@ -145,7 +145,8 @@ public static class LakehouseEndpoints
         return TypedResults.Ok(new AccessDto(
             mode,
             principal.Role.ToString().ToLowerInvariant(),
-            principal.IsReadOnly));
+            principal.IsReadOnly,
+            principal.IsAuthenticated && principal.Scope == TokenScope.Instance));
     }
 
     private static async Task<Ok<IReadOnlyList<TenantDto>>> ListTenantsAsync(

@@ -4,10 +4,13 @@ import { Observable, throwError } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import {
   AccessContext,
+  ApiToken,
   BackupGeneration,
+  BrowserSession,
   CatalogStorage,
   ChangePage,
   ColumnDistribution,
+  CreateTokenRequest,
   CreatedToken,
   CsvImportRequest,
   CsvImportResult,
@@ -23,11 +26,13 @@ import {
   Schema,
   Snapshot,
   Subscription,
+  SystemSettings,
   TableDetail,
   TableFiles,
   TableProfile,
   TableRestore,
   Tenant,
+  UpdateSystemSettings,
 } from './models';
 
 /** Base URL of the API. Overridden at build time for a non-default deployment. */
@@ -58,6 +63,20 @@ export class LakehouseService {
 
   getAccess(): Observable<AccessContext> {
     return this.http.get<AccessContext>(`${API_BASE}/access`).pipe(catchError(toMessage));
+  }
+
+  getBrowserSession(): Observable<BrowserSession> {
+    return this.http.get<BrowserSession>('/auth/session').pipe(catchError(toMessage));
+  }
+
+  getSystemSettings(): Observable<SystemSettings> {
+    return this.http.get<SystemSettings>(`${API_BASE}/system-settings`).pipe(catchError(toMessage));
+  }
+
+  saveSystemSettings(settings: UpdateSystemSettings): Observable<SystemSettings> {
+    return this.http
+      .put<SystemSettings>(`${API_BASE}/system-settings`, settings)
+      .pipe(catchError(toMessage));
   }
 
   listTenants(): Observable<Tenant[]> {
@@ -353,12 +372,21 @@ export class LakehouseService {
    * The workbench needs this immediately after provisioning: a bootstrap token creates tenants but
    * deliberately cannot read data, so the browser has to trade it for a credential that can.
    */
-  createToken(tenant: string, name: string, role: string): Observable<CreatedToken> {
+  createToken(tenant: string, request: CreateTokenRequest): Observable<CreatedToken> {
     return this.http
-      .post<CreatedToken>(`${API_BASE}/tenants/${encodeURIComponent(tenant)}/tokens`, {
-        name,
-        role,
-      })
+      .post<CreatedToken>(`${API_BASE}/tenants/${encodeURIComponent(tenant)}/tokens`, request)
+      .pipe(catchError(toMessage));
+  }
+
+  listTokens(tenant: string): Observable<ApiToken[]> {
+    return this.http
+      .get<ApiToken[]>(`${API_BASE}/tenants/${encodeURIComponent(tenant)}/tokens`)
+      .pipe(catchError(toMessage));
+  }
+
+  revokeToken(tenant: string, id: number): Observable<void> {
+    return this.http
+      .delete<void>(`${API_BASE}/tenants/${encodeURIComponent(tenant)}/tokens/${id}`)
       .pipe(catchError(toMessage));
   }
 
