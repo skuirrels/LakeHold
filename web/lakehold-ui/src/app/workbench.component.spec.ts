@@ -57,6 +57,7 @@ describe('WorkbenchComponent', () => {
   }
 
   beforeEach(() => {
+    sessionStorage.clear();
     api = new FakeLakehouseService();
     TestBed.configureTestingModule({
       providers: [
@@ -290,6 +291,58 @@ describe('WorkbenchComponent', () => {
   });
 
   describe('errors', () => {
+    it('ignores a stale workspace response after the credential changes', async () => {
+      const first = new Subject<typeof api.tenants>();
+      const second = new Subject<typeof api.tenants>();
+      const currentTenants: typeof api.tenants = [
+        {
+          slug: 'current',
+          displayName: 'Current workspace',
+          catalogs: [{ name: 'current_catalog', dataPath: '/current', isReadOnly: false }],
+        },
+      ];
+      const staleTenants: typeof api.tenants = [
+        {
+          slug: 'stale',
+          displayName: 'Stale workspace',
+          catalogs: [{ name: 'stale_catalog', dataPath: '/stale', isReadOnly: false }],
+        },
+      ];
+      let request = 0;
+      api.listTenants = (...args: unknown[]) => {
+        api.calls.push({ method: 'listTenants', args });
+        return [first, second][request++] ?? of(api.tenants);
+      };
+
+      await mount();
+
+      (fixture.nativeElement.querySelector('.credential > .btn') as HTMLButtonElement).click();
+      await fixture.whenStable();
+      const token = fixture.nativeElement.querySelector(
+        '.credential input[type="password"]',
+      ) as HTMLInputElement;
+      token.value = 'lkh_current';
+      token.dispatchEvent(new Event('input'));
+      await fixture.whenStable();
+      (
+        fixture.nativeElement.querySelector('.credential-actions .btn-primary') as HTMLButtonElement
+      ).click();
+      await fixture.whenStable();
+
+      second.next(currentTenants);
+      second.complete();
+      await fixture.whenStable();
+      expect(text()).toContain('Current workspace');
+      expect(api.lastArgs('getSchemas')).toEqual(['current', 'current_catalog']);
+
+      first.next(staleTenants);
+      first.complete();
+      await fixture.whenStable();
+      expect(text()).toContain('Current workspace');
+      expect(text()).not.toContain('Stale workspace');
+      expect(api.lastArgs('getSchemas')).toEqual(['current', 'current_catalog']);
+    });
+
     it('names the operation rather than always blaming a query', async () => {
       api.failures.set('getSchemas', 'catalog is gone');
       await mount();
@@ -333,6 +386,38 @@ describe('WorkbenchComponent', () => {
       await fixture.whenStable();
       expect(text()).not.toContain('new request failed');
       expect(text()).toContain('Connected');
+    });
+
+    it('ignores a stale catalog failure after the current request succeeds', async () => {
+      const first = new Subject<typeof api.schemas>();
+      const second = new Subject<typeof api.schemas>();
+      let request = 0;
+      api.getSchemas = (...args: unknown[]) => {
+        api.calls.push({ method: 'getSchemas', args });
+        return [first, second][request++] ?? of(api.schemas);
+      };
+
+      await mount();
+      const catalogSelect = fixture.nativeElement.querySelectorAll(
+        '.selectors select',
+      )[1] as HTMLSelectElement;
+
+      catalogSelect.dispatchEvent(new Event('change'));
+      await fixture.whenStable();
+
+      second.next([]);
+      second.complete();
+      await fixture.whenStable();
+      expect(fixture.nativeElement.querySelector('.connection-status')?.textContent?.trim()).toBe(
+        'Connected',
+      );
+
+      first.error(new Error('stale request failed'));
+      await fixture.whenStable();
+      expect(text()).not.toContain('stale request failed');
+      expect(fixture.nativeElement.querySelector('.connection-status')?.textContent?.trim()).toBe(
+        'Connected',
+      );
     });
 
     it('clears a query failure when the operator opens another panel', async () => {
