@@ -131,10 +131,11 @@ status:
 logs:
 	@$(COMPOSE) logs -f --tail 100
 
-# Never `down -v` here. The lakehold-state volume can hold local Parquet, backups, and eject bundles.
-# PostgreSQL is protected separately and is intentionally not bundled in the production stack.
+# Never `down -v` here. The lakehold-state volume can hold local Parquet, backups, and eject bundles,
+# while a demo deployment's PostgreSQL metadata lives in its own persistent volume. The standard
+# production stack still keeps PostgreSQL outside Compose.
 stop:
-	@$(COMPOSE) down
+	@$(COMPOSE) down --remove-orphans
 
 # A disaster copy of node-local state: local Parquet, backup generations, and eject bundles. It does
 # not include the PostgreSQL control plane or PostgreSQL DuckLake metadata.

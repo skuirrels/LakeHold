@@ -6,16 +6,37 @@
 #
 #   make demo
 #
-# The customer-facing production file contains no demo settings. This overlay owns all of them, and
-# may be pointed at a different seeded tenant/catalog without changing the standard installation.
+# The customer-facing production file contains no demo settings or bundled database. This overlay
+# owns the complete evaluation deployment, including a private PostgreSQL service, so `make demo`
+# remains self-contained while the standard production topology keeps PostgreSQL operator-managed.
 
 services:
   api:
     environment:
+      ConnectionStrings__ControlPlane: Host=demo-postgres;Port=5432;Database=lakeholdmeta;Username=lakehold;Password=${LAKEHOLD_DEMO_POSTGRES_PASSWORD:-lakehold}
+      ConnectionStrings__DuckLakeMetadata: Host=demo-postgres;Port=5432;Database=lakeholdmeta;Username=lakehold;Password=${LAKEHOLD_DEMO_POSTGRES_PASSWORD:-lakehold}
       Lakehold__SeedDemoData: "true"
       Lakehold__Auth__RequireAuthentication: "true"
       Lakehold__Auth__DemoTenant: ${LAKEHOLD_DEMO_TENANT:-demo}
       Lakehold__Auth__DemoCatalog: ${LAKEHOLD_DEMO_CATALOG:-analytics}
+    depends_on:
+      demo-postgres:
+        condition: service_healthy
+
+  demo-postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: lakehold
+      POSTGRES_PASSWORD: ${LAKEHOLD_DEMO_POSTGRES_PASSWORD:-lakehold}
+      POSTGRES_DB: lakeholdmeta
+    volumes:
+      - demo-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lakehold -d lakeholdmeta"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
 
   workbench:
     environment:
@@ -25,3 +46,6 @@ services:
       # Optional and intentionally website-only. A private production Workbench neither receives
       # this value nor exposes the runtime analytics endpoint.
       LAKEHOLD_GOOGLE_ANALYTICS_ID: ${LAKEHOLD_GOOGLE_ANALYTICS_ID:-}
+
+volumes:
+  demo-postgres-data:
