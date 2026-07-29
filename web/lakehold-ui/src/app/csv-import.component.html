@@ -1,0 +1,252 @@
+<button class="btn" type="button" [disabled]="!tenant() || !catalog()" (click)="begin()">
+  Import CSV
+</button>
+
+@if (open()) {
+  <div class="dialog-backdrop" (click)="close()">
+    <section
+      class="import-dialog"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="csv-import-title"
+      (click)="$event.stopPropagation()"
+    >
+      <header>
+        <div>
+          <span class="eyebrow">Add data</span>
+          <h2 id="csv-import-title">Import CSV as a table</h2>
+        </div>
+        <button
+          class="close"
+          type="button"
+          aria-label="Close CSV import"
+          [disabled]="busy()"
+          (click)="close()"
+        >
+          ×
+        </button>
+      </header>
+
+      @if (result(); as imported) {
+        <div class="import-result">
+          <div class="success-mark" aria-hidden="true">✓</div>
+          <div>
+            <h3>{{ imported.schema }}.{{ imported.table }} is ready</h3>
+            <p>
+              {{ imported.rowsImported.toLocaleString() }} rows imported from
+              <strong>{{ imported.fileName }}</strong>
+              in {{ imported.elapsedMilliseconds.toFixed(0) }} ms.
+            </p>
+          </div>
+        </div>
+
+        <div class="column-summary">
+          @for (column of imported.columns; track column.name) {
+            <span
+              ><strong>{{ column.name }}</strong> {{ column.dataType }}</span
+            >
+          }
+        </div>
+
+        @if (imported.recordedErrors > 0) {
+          <div class="reject-summary">
+            <strong
+              >{{ imported.rejectsTruncated ? 'At least ' : ''
+              }}{{ imported.rejectedRows.toLocaleString() }} rejected
+              {{ imported.rejectedRows === 1 ? 'row' : 'rows' }}</strong
+            >
+            <span>
+              {{ imported.recordedErrors.toLocaleString() }} parser
+              {{ imported.recordedErrors === 1 ? 'error' : 'errors'
+              }}{{
+                imported.rejectsTruncated ? ' recorded before the safety limit.' : ' recorded.'
+              }}
+              @if (imported.rejectsTruncated) {
+                Showing the first {{ imported.rejects.length }}.
+              }
+            </span>
+          </div>
+          <div class="reject-list">
+            @for (reject of imported.rejects; track $index) {
+              <article>
+                <span class="reject-line">Line {{ reject.line }}</span>
+                <strong>{{ reject.errorType }}</strong>
+                @if (reject.columnName) {
+                  <span>· {{ reject.columnName }}</span>
+                }
+                <code>{{ reject.csvLine }}</code>
+                <p>{{ reject.errorMessage }}</p>
+              </article>
+            }
+          </div>
+        }
+
+        <footer>
+          <button class="btn btn-primary" type="button" (click)="close()">Done</button>
+        </footer>
+      } @else {
+        <form (submit)="$event.preventDefault(); submit()">
+          <label class="file-field">
+            <span>CSV file</span>
+            <input type="file" accept=".csv,text/csv" required (change)="chooseFile($event)" />
+            @if (file(); as selected) {
+              <small>{{ selected.name }} · {{ selected.size.toLocaleString() }} bytes</small>
+            }
+          </label>
+
+          <div class="target-grid">
+            <label>
+              <span>Schema</span>
+              <select [value]="schema()" (change)="schema.set($any($event.target).value)">
+                @for (item of schemas(); track item.name) {
+                  <option [value]="item.name">{{ item.name }}</option>
+                }
+                @if (schemas().length === 0) {
+                  <option value="main">main</option>
+                }
+              </select>
+            </label>
+            <label>
+              <span>New table</span>
+              <input
+                type="text"
+                maxlength="63"
+                pattern="[A-Za-z_][A-Za-z0-9_]*"
+                required
+                [value]="table()"
+                (input)="table.set($any($event.target).value)"
+              />
+            </label>
+          </div>
+
+          <fieldset class="mode">
+            <legend>CSV format</legend>
+            <label>
+              <input
+                type="radio"
+                name="csv-mode"
+                value="automatic"
+                [checked]="mode() === 'automatic'"
+                (change)="setMode('automatic')"
+              />
+              <span>
+                <strong>Automatic</strong>
+                <small
+                  >Let DuckDB detect delimiter, quoting, headers, line endings, and types.</small
+                >
+              </span>
+            </label>
+            <label>
+              <input
+                type="radio"
+                name="csv-mode"
+                value="custom"
+                [checked]="mode() === 'custom'"
+                (change)="setMode('custom')"
+              />
+              <span>
+                <strong>Custom</strong>
+                <small>Defaults to the semicolon/CRLF full-scan import profile.</small>
+              </span>
+            </label>
+          </fieldset>
+
+          @if (mode() === 'custom') {
+            <div class="advanced-grid">
+              <label>
+                <span>Delimiter</span>
+                <input
+                  type="text"
+                  maxlength="4"
+                  required
+                  [value]="delimiter()"
+                  (input)="delimiter.set($any($event.target).value)"
+                />
+              </label>
+              <label>
+                <span>Quote</span>
+                <input
+                  type="text"
+                  maxlength="4"
+                  [value]="quote()"
+                  (input)="quote.set($any($event.target).value)"
+                />
+              </label>
+              <label>
+                <span>Escape</span>
+                <input
+                  type="text"
+                  maxlength="4"
+                  placeholder="Empty"
+                  [value]="escape()"
+                  (input)="escape.set($any($event.target).value)"
+                />
+              </label>
+              <label>
+                <span>Line endings</span>
+                <select [value]="newLine()" (change)="newLine.set($any($event.target).value)">
+                  <option value="crlf">CRLF (\r\n)</option>
+                  <option value="lf">LF (\n)</option>
+                  <option value="cr">CR (\r)</option>
+                </select>
+              </label>
+              <label>
+                <span>Sample rows</span>
+                <input
+                  type="number"
+                  min="-1"
+                  required
+                  [value]="sampleSize()"
+                  (input)="sampleSize.set(+$any($event.target).value)"
+                />
+                <small>-1 scans the full file.</small>
+              </label>
+            </div>
+
+            <div class="check-grid">
+              <label>
+                <input
+                  type="checkbox"
+                  [checked]="header()"
+                  (change)="header.set($any($event.target).checked)"
+                />
+                First row is a header
+              </label>
+              <label>
+                <input
+                  type="checkbox"
+                  [checked]="ignoreErrors()"
+                  [disabled]="storeRejects()"
+                  (change)="setIgnoreErrors($any($event.target).checked)"
+                />
+                Skip malformed rows
+              </label>
+              <label>
+                <input
+                  type="checkbox"
+                  [checked]="storeRejects()"
+                  (change)="setStoreRejects($any($event.target).checked)"
+                />
+                Return rejected rows
+              </label>
+            </div>
+          }
+
+          @if (error(); as message) {
+            <div class="import-error">
+              <strong>Import failed</strong>
+              <pre>{{ message }}</pre>
+            </div>
+          }
+
+          <footer>
+            <button class="btn" type="button" [disabled]="busy()" (click)="close()">Cancel</button>
+            <button class="btn btn-primary" type="submit" [disabled]="!canImport()">
+              {{ busy() ? 'Uploading and importing…' : 'Create table' }}
+            </button>
+          </footer>
+        </form>
+      }
+    </section>
+  </div>
+}

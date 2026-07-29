@@ -33,6 +33,7 @@ segment, but it is validated against the credential rather than trusted.
 | Provisioning | `POST`/`DELETE /api/tenants`, `…/catalogs` | Synchronous; no async job model. |
 | Tokens | `POST`/`GET`/`DELETE …/{tenant}/tokens` | No pagination; no last-used tracking on the request path. |
 | Query | `POST …/catalogs/{c}/query` | No time-travel option; result capped, no streaming variant. |
+| CSV import | `POST …/catalogs/{c}/imports/csv` | Streamed request body, synchronous, new tables only; per-file, aggregate scratch, concurrency, free-space, and bounded-reject limits apply. Imports above the configured ceiling still need a direct-to-object-storage path. |
 | Saved queries | `GET`/`POST`/`PUT`/`DELETE …/saved-queries`, `POST …/{id}/{execute\|publish\|unpublish}` | Catalog-scoped and revisioned; still unversioned and unpaginated. |
 | Schema | `GET …/catalogs/{c}/schemas` | — |
 | Storage | `GET …/catalogs/{c}/storage`, `GET …/storage/files` | Read-only footprint and snapshot-aware file inventory; unversioned and unpaginated. |

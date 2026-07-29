@@ -1,4 +1,4 @@
-import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse, HttpHeaders, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, throwError } from 'rxjs';
 import { catchError } from 'rxjs/operators';
@@ -9,6 +9,8 @@ import {
   ChangePage,
   ColumnDistribution,
   CreatedToken,
+  CsvImportRequest,
+  CsvImportResult,
   EjectBundle,
   EjectResult,
   MaintenanceOperation,
@@ -63,6 +65,40 @@ export class LakehouseService {
   execute(tenant: string, catalog: string, sql: string): Observable<QueryResponse> {
     return this.http
       .post<QueryResponse>(this.catalogUrl(tenant, catalog, 'query'), { sql })
+      .pipe(catchError(toMessage));
+  }
+
+  importCsv(
+    tenant: string,
+    catalog: string,
+    file: File,
+    request: CsvImportRequest,
+  ): Observable<CsvImportResult> {
+    let params = new HttpParams()
+      .set('fileName', file.name)
+      .set('schema', request.schema)
+      .set('table', request.table)
+      .set('mode', request.mode);
+
+    if (request.mode === 'custom') {
+      params = params
+        .set('delimiter', request.delimiter)
+        .set('quote', request.quote)
+        .set('escape', request.escape)
+        .set('newLine', request.newLine)
+        .set('header', request.header)
+        .set('sampleSize', request.sampleSize)
+        .set('ignoreErrors', request.ignoreErrors)
+        .set('storeRejects', request.storeRejects);
+    }
+
+    return this.http
+      .post<CsvImportResult>(this.catalogUrl(tenant, catalog, 'imports/csv'), file, {
+        params,
+        headers: new HttpHeaders({
+          'Content-Type': file.type === 'text/csv' ? 'text/csv' : 'application/octet-stream',
+        }),
+      })
       .pipe(catchError(toMessage));
   }
 

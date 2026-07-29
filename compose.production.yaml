@@ -60,11 +60,16 @@ services:
       Lakehouse__EjectSigningKey: ${LAKEHOLD_EJECT_SIGNING_KEY:-}
       Lakehold__PgWire__Enabled: ${LAKEHOLD_PGWIRE_ENABLED:-false}
       Lakehold__PgWire__Password: ${LAKEHOLD_PGWIRE_PASSWORD:-}
+      # Browser imports use this volume only within one request. The API additionally enforces
+      # aggregate reservations and retains a free-space floor before accepting bytes.
+      Lakehold__CsvImport__ScratchRoot: /var/lib/lakehold-imports
 
     volumes:
       # Local Parquet (when selected), backups, and eject bundles. Control-plane and DuckLake
       # metadata are in PostgreSQL, never in this node-local volume.
       - lakehold-state:/var/lib/lakehold
+      # Disposable and separately lifecycle-managed from durable lakehouse state.
+      - lakehold-imports:/var/lib/lakehold-imports
 
     # A query is memory-hungry by design and DuckDB will use what it is given. Bounding the container
     # keeps one runaway statement from taking the host down with it; LakehouseOptions.MemoryLimit
@@ -104,3 +109,4 @@ services:
 
 volumes:
   lakehold-state:
+  lakehold-imports:

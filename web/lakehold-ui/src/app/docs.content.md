@@ -142,6 +142,37 @@ A plain, fast editor for arbitrary SQL. Press `⌘⏎` (`Ctrl+Enter`) or click *
 DuckDB/DuckLake statement is accepted — statements it does not specifically recognise fall back to
 the ordinary streaming path rather than being refused.
 
+### CSV import — _centre pane → Import CSV_
+
+Choose a browser-local CSV file and create a new table without copying the file onto the API host
+yourself. **Automatic** mode sends no parser overrides and lets DuckDB detect the delimiter, quoting,
+header, line endings, and types. **Custom** mode exposes those choices and defaults to the
+semicolon/CRLF production-export profile:
+
+```sql
+delim = ';', quote = '"', escape = '', new_line = '\r\n',
+header = true, sample_size = -1, ignore_errors = true, store_rejects = true
+```
+
+The upload and import are one streamed request. LakeHold writes the request body directly into
+disposable node-local scratch
+space, creates the table through the selected catalog's DuckDB session, and removes the scratch file
+before returning. Durable rows go to the catalog's configured local or object storage; no later
+request depends on the node that accepted the upload. Imports require editor or owner access and
+never replace an existing table.
+
+When rejects are enabled, DuckDB skips malformed rows and LakeHold returns up to the first 100
+parser errors to the dialog. Capture is deliberately capped at one sentinel beyond that preview, so
+a hostile or badly malformed file cannot create an unbounded reject table; the dialog marks the
+report as truncated when more errors exist. Temporary reject tables are uniquely named and removed
+after the response is assembled.
+
+The default per-file and aggregate node scratch ceilings are both 5 GiB, with two concurrent uploads
+and a 1 GiB free-space floor. Configure them with `Lakehold:CsvImport:MaxBytes`,
+`MaxAggregateScratchBytes`, `MaxConcurrentUploads`, `MinimumFreeBytes`, and `ScratchRoot`. LakeHold
+also scavenges scratch files older than `StaleFileAge` during coordinator startup. Reverse proxies
+must allow the same per-request size.
+
 ### Results grid — _Output → Results_
 
 Streams the result of the last statement into a grid, with the row count and elapsed time shown in

@@ -43,6 +43,63 @@ describe('LakehouseService', () => {
     });
   });
 
+  it('streams the file body with exact custom CSV reader settings', () => {
+    const file = new File(['id;name\r\n1;Alice\r\n'], 'schedules.csv', { type: 'text/csv' });
+    service
+      .importCsv('north wind', 'sales/eu', file, {
+        schema: 'main',
+        table: 'predicted_schedules',
+        mode: 'custom',
+        delimiter: ';',
+        quote: '"',
+        escape: '',
+        newLine: 'crlf',
+        header: true,
+        sampleSize: -1,
+        ignoreErrors: true,
+        storeRejects: true,
+      })
+      .subscribe();
+
+    const request = http.expectOne(
+      (candidate) =>
+        candidate.url === '/api/tenants/north%20wind/catalogs/sales%2Feu/imports/csv' &&
+        candidate.params.get('fileName') === 'schedules.csv',
+    );
+    expect(request.request.method).toBe('POST');
+    expect(request.request.body).toBe(file);
+    expect(request.request.headers.get('Content-Type')).toBe('text/csv');
+    expect(
+      Object.fromEntries(
+        request.request.params.keys().map((key) => [key, request.request.params.get(key)]),
+      ),
+    ).toMatchObject({
+      schema: 'main',
+      table: 'predicted_schedules',
+      mode: 'custom',
+      delimiter: ';',
+      quote: '"',
+      escape: '',
+      newLine: 'crlf',
+      header: 'true',
+      sampleSize: '-1',
+      ignoreErrors: 'true',
+      storeRejects: 'true',
+    });
+    request.flush({
+      fileName: 'schedules.csv',
+      schema: 'main',
+      table: 'predicted_schedules',
+      rowsImported: 1,
+      rejectedRows: 0,
+      recordedErrors: 0,
+      rejectsTruncated: false,
+      columns: [],
+      rejects: [],
+      elapsedMilliseconds: 1,
+    });
+  });
+
   it('uses revisioned catalog routes for saved-query publication', () => {
     service.publishSavedQuery('north wind', 'sales/eu', 17, 3, 'reporting', 'revenue').subscribe();
 
