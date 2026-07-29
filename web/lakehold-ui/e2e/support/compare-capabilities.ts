@@ -66,8 +66,9 @@ export const compareCapabilities: readonly CompareCapability[] = [
   },
   {
     dimension: 'Accounts, SSO, permissions',
-    claim: 'API tokens, OIDC, three roles; opt-in, no admin UI or row policies',
-    tone: 'weak',
+    claim:
+      'OIDC browser login, scoped API tokens, three roles, and client-token administration; no row policies',
+    tone: 'neutral',
     evidence: [
       {
         lane: 'phase2',
@@ -85,8 +86,9 @@ export const compareCapabilities: readonly CompareCapability[] = [
       {
         lane: 'declared-boundary',
         path: 'web/lakehold-ui/src/app/comparison.component.ts',
-        marker: 'no admin UI or row policies',
-        proves: 'The absent administration and row-policy surfaces remain explicit limitations.',
+        marker: 'client-token administration; no row policies',
+        proves:
+          'The shipped credential administration and remaining row-policy limitation are explicit.',
       },
     ],
   },
