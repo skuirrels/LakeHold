@@ -47,6 +47,19 @@ services:
       # mean this container rather than the collector.
       OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4317
       OTEL_SERVICE_NAME: lakehold-api
+      # Bootstrap default for a fresh development database. Once System Settings is saved, its
+      # shared PostgreSQL row wins and changes apply without restarting this container.
+      Lakehold__Mcp__Enabled: "true"
+      Lakehold__BootstrapToken: ${LAKEHOLD_BOOTSTRAP_TOKEN:-}
+      Lakehold__Oidc__Authority: ${LAKEHOLD_OIDC_AUTHORITY:-}
+      Lakehold__Oidc__Audience: ${LAKEHOLD_OIDC_AUDIENCE:-}
+      Lakehold__Oidc__ClientId: ${LAKEHOLD_OIDC_CLIENT_ID:-}
+      Lakehold__Oidc__ClientSecret: ${LAKEHOLD_OIDC_CLIENT_SECRET:-}
+      Lakehold__Oidc__RequireHttpsMetadata: ${LAKEHOLD_OIDC_REQUIRE_HTTPS_METADATA:-true}
+      Lakehold__Oidc__TenantClaim: ${LAKEHOLD_OIDC_TENANT_CLAIM:-tenant}
+      Lakehold__Oidc__RoleClaim: ${LAKEHOLD_OIDC_ROLE_CLAIM:-role}
+      Lakehold__Oidc__SystemAdminClaim: ${LAKEHOLD_OIDC_SYSTEM_ADMIN_CLAIM:-lakehold_admin}
+      Lakehold__Oidc__SystemAdminValue: ${LAKEHOLD_OIDC_SYSTEM_ADMIN_VALUE:-true}
       ConnectionStrings__ControlPlane: Host=postgres;Port=5432;Database=${POSTGRES_DB:-lakeholdmeta};Username=${POSTGRES_USER:-lakehold};Password=${POSTGRES_PASSWORD:-lakehold}
       ConnectionStrings__DuckLakeMetadata: Host=postgres;Port=5432;Database=${POSTGRES_DB:-lakeholdmeta};Username=${POSTGRES_USER:-lakehold};Password=${POSTGRES_PASSWORD:-lakehold}
     ports:

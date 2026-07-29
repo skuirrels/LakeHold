@@ -1,7 +1,9 @@
 using System.Net;
 using System.Text.Json;
+using DuckDB.EFCoreProvider.Extensions;
 using Lakehold.Api.Auth;
 using Lakehold.Api.Mcp;
+using Lakehold.ControlPlane.Data;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
@@ -124,10 +126,37 @@ public sealed class McpResourceMetadataTests
             StringComparison.Ordinal);
     }
 
+    [Fact]
+    public async Task A_saved_public_base_url_applies_without_restarting()
+    {
+        await using var app = await StartAsync(authority: "https://idp.example.com");
+
+        await using (var scope = app.Services.CreateAsyncScope())
+        {
+            await scope.ServiceProvider.GetRequiredService<McpRuntimeSettingsStore>()
+                .SaveAsync(
+                    enabled: true,
+                    allowWrites: false,
+                    maxRowsPerResult: 200,
+                    publicBaseUrl: "https://new.example.com",
+                    expectedVersion: 0,
+                    CancellationToken.None);
+        }
+
+        using var client = app.GetTestClient();
+        using var response = await client.GetAsync(new Uri(McpResourceMetadata.Path, UriKind.Relative));
+        using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+
+        Assert.Equal("https://new.example.com/mcp", json.RootElement.GetProperty("resource").GetString());
+    }
+
     private static async Task<WebApplication> StartAsync(string authority, string publicBaseUrl = "")
     {
         var builder = WebApplication.CreateSlimBuilder();
         builder.WebHost.UseTestServer();
+        var controlPlanePath = Path.Combine(
+            Path.GetTempPath(),
+            $"lakehold-mcp-metadata-{Guid.NewGuid():N}.duckdb");
         builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
         {
             ["Lakehold:Mcp:Enabled"] = "true",
@@ -139,12 +168,17 @@ public sealed class McpResourceMetadataTests
         builder.Services.Configure<McpOptions>(builder.Configuration.GetSection(McpOptions.SectionName));
         builder.Services.Configure<LakeholdOidcOptions>(o => o.Authority = authority);
         builder.Services.Configure<LakeholdAuthOptions>(o => o.RequireAuthentication = false);
+        builder.Services.AddSingleton(TimeProvider.System);
+        builder.Services.AddDbContext<ControlPlaneContext>(options =>
+            options.UseDuckDB($"Data Source={controlPlanePath}"));
         builder.AddLakeholdMcp();
 
         var app = builder.Build();
         app.MapLakeholdMcp();
         app.MapMcpResourceMetadata();
         await app.StartAsync();
+        await using var scope = app.Services.CreateAsyncScope();
+        await scope.ServiceProvider.GetRequiredService<ControlPlaneContext>().Database.EnsureCreatedAsync();
         return app;
     }
 }

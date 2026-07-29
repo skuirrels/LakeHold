@@ -5,7 +5,6 @@ using Lakehold.ControlPlane.Model;
 using Lakehold.ControlPlane.Security;
 using Lakehold.Engine.Catalog;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
 using ModelContextProtocol;
 using ModelContextProtocol.Server;
 
@@ -20,8 +19,7 @@ namespace Lakehold.Api.Mcp;
 public sealed class LakeholdTools(
     LakehouseService lakehouse,
     ControlPlaneContext controlPlane,
-    IHttpContextAccessor httpContextAccessor,
-    IOptions<McpOptions> options)
+    IHttpContextAccessor httpContextAccessor)
 {
     /// <summary>Lists what the calling credential can reach: its tenants and their catalogs.</summary>
     /// <remarks>
@@ -139,11 +137,12 @@ public sealed class LakeholdTools(
         int limit = 50)
     {
         McpCaller.Authorize(httpContextAccessor, tenant, catalog);
+        var settings = McpCaller.Settings(httpContextAccessor);
 
         try
         {
             var snapshots = await lakehouse
-                .GetSnapshotsAsync(tenant, catalog, options.Value.BoundPageSize(limit, 500), cancellationToken)
+                .GetSnapshotsAsync(tenant, catalog, settings.BoundPageSize(limit, 500), cancellationToken)
                 .ConfigureAwait(false);
 
             return [.. snapshots.Select(s => new McpSnapshot(s.SnapshotId, s.CommittedAt, s.SchemaVersion, s.CommitMessage))];
@@ -195,6 +194,7 @@ public sealed class LakeholdTools(
         [Description("Maximum changes to return. Bounded by the server's MCP page ceiling.")] int limit = 200)
     {
         McpCaller.Authorize(httpContextAccessor, tenant, catalog);
+        var settings = McpCaller.Settings(httpContextAccessor);
 
         try
         {
@@ -205,7 +205,7 @@ public sealed class LakeholdTools(
             var page = await lakehouse
                 .GetChangesAsync(
                     tenant, catalog, schema, table, fromSnapshot, to,
-                    options.Value.BoundPageSize(limit, 10_000), cancellationToken)
+                    settings.BoundPageSize(limit, 10_000), cancellationToken)
                 .ConfigureAwait(false);
 
             return new McpChangePage(
@@ -288,7 +288,7 @@ public sealed class LakeholdTools(
             // Zero or less means no MCP-specific ceiling. Applying Take(0) instead would return an
             // empty result that claimed to be truncated, which reads as "the table is empty" to a
             // caller that cannot see the configuration.
-            var cap = options.Value.MaxRowsPerResult;
+            var cap = McpCaller.Settings(httpContextAccessor).MaxRowsPerResult;
             var rows = cap > 0 && result.Rows.Count > cap
                 ? result.Rows.Take(cap).ToList()
                 : result.Rows;

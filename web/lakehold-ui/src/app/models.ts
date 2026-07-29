@@ -17,6 +17,59 @@ export interface AccessContext {
   mode: 'open' | 'authenticated' | 'demo';
   role: 'owner' | 'editor' | 'reader';
   readOnly: boolean;
+  systemAdmin: boolean;
+}
+
+/** Browser OIDC availability and the current same-origin session. */
+export interface BrowserSession {
+  oidcEnabled: boolean;
+  authenticated: boolean;
+  displayName: string | null;
+  systemAdmin: boolean;
+}
+
+/** Instance-wide MCP settings, versioned for optimistic saves. */
+export interface SystemSettings {
+  mcpEnabled: boolean;
+  mcpAllowWrites: boolean;
+  mcpMaxRowsPerResult: number;
+  mcpPublicBaseUrl: string;
+  mcpRoute: string;
+  version: number;
+  updatedUtc: string | null;
+}
+
+export interface UpdateSystemSettings {
+  mcpEnabled: boolean;
+  mcpAllowWrites: boolean;
+  mcpMaxRowsPerResult: number;
+  mcpPublicBaseUrl: string;
+  version: number;
+}
+
+export type TokenRole = 'reader' | 'editor' | 'owner';
+
+/** Complete request accepted by the public tenant-token endpoint. */
+export interface CreateTokenRequest {
+  name: string;
+  readOnly: boolean;
+  catalogName: string | null;
+  expiresUtc: string | null;
+  role: TokenRole;
+}
+
+/** Revocable token metadata. The plaintext secret is deliberately absent. */
+export interface ApiToken {
+  id: number;
+  name: string;
+  scope: string;
+  role: string;
+  catalogName: string | null;
+  readOnly: boolean;
+  createdUtc: string;
+  expiresUtc: string | null;
+  revokedUtc: string | null;
+  lastUsedUtc: string | null;
 }
 
 export interface Column {

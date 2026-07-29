@@ -17,6 +17,19 @@ namespace Lakehold.Api.Tests;
 public sealed class PostgresControlPlaneMigrationTests
 {
     [Fact]
+    public void Browser_authentication_key_ring_migration_is_discoverable()
+    {
+        var options = new DbContextOptionsBuilder<ControlPlaneContext>()
+            .UseNpgsql("Host=localhost;Database=not-opened;Username=unused;Password=unused")
+            .Options;
+        using var context = new ControlPlaneContext(options);
+
+        Assert.Contains(
+            "20260729194500_AddBrowserAuthentication",
+            context.Database.GetMigrations());
+    }
+
+    [Fact]
     public async Task Object_storage_credentials_are_scoped_to_the_tenant_catalog_prefixes()
     {
         var suffix = Guid.NewGuid().ToString("N")[..12];
@@ -125,8 +138,11 @@ public sealed class PostgresControlPlaneMigrationTests
                 [
                     "20260728195348_InitialPostgresControlPlane",
                     "20260728232510_AddCatalogScopedSavedQueries",
+                    "20260729173815_AddSystemSettings",
+                    "20260729194500_AddBrowserAuthentication",
                 ],
                 await context.Database.GetAppliedMigrationsAsync());
+            Assert.Equal(0, await context.DataProtectionKeys.CountAsync());
         }
         finally
         {

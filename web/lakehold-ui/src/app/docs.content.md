@@ -51,8 +51,8 @@ dotnet run --project src/Lakehold.Api                      # API on :5200
 npm start --prefix web/lakehold-ui                         # UI on :5399
 ```
 
-Same URLs either way. The dev server proxies `/api` to `NG_API_URL`, which falls back to
-`localhost:5200` when nothing sets it.
+Same URLs either way. The dev server proxies `/api`, `/mcp`, and MCP authorization metadata to
+`NG_API_URL`, which falls back to `localhost:5200` when nothing sets it.
 
 ### 3. Open the workbench
 
@@ -77,13 +77,13 @@ There are five ways into a LakeHold catalog. They resolve through the same capab
 boundaries, so you can mix them freely. MCP is stricter than the development HTTP API: it always
 requires a credential.
 
-| Tool                  | What it is                                                                                                                                                                                                                                                                    | Best for                                                              |
-| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
-| **The workbench**     | A browser SQL IDE for exploring a catalog, running statements, browsing history and snapshots, and triggering maintenance. Ships seeded.                                                                                                                                      | Exploration and operations.                                           |
-| **A Postgres client** | LakeHold speaks the PostgreSQL wire protocol, so `psql`, DBeaver, or Npgsql connect to a catalog with no driver or plugin. The user is the tenant and the database is the catalog.                                                                                            | Existing SQL clients and streamed results.                            |
-| **.NET & EF Core**    | Through `DuckDB.EFCoreProvider` your application model and your lake tables are one model.                                                                                                                                                                                    | .NET applications on the same schema.                                 |
-| **The HTTP API**      | Minimal-API endpoints for queries, schemas, history, snapshots, maintenance, eject, backup/restore, and change-feed subscriptions.                                                                                                                                            | Automation and integration.                                           |
-| **MCP**               | An authenticated Model Context Protocol server with tenant discovery, schema, snapshots, changes, query resources/tools, and optional operator-gated writes. Enable it with `Lakehold:Mcp:Enabled`; writes additionally require `AllowWrites` and a write-capable credential. | AI agents that need discoverable, capability-scoped lakehouse access. |
+| Tool                  | What it is                                                                                                                                                                                                                                                                            | Best for                                                              |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| **The workbench**     | A browser SQL IDE for exploring a catalog, running statements, browsing history and snapshots, and triggering maintenance. Ships seeded.                                                                                                                                              | Exploration and operations.                                           |
+| **A Postgres client** | LakeHold speaks the PostgreSQL wire protocol, so `psql`, DBeaver, or Npgsql connect to a catalog with no driver or plugin. The user is the tenant and the database is the catalog.                                                                                                    | Existing SQL clients and streamed results.                            |
+| **.NET & EF Core**    | Through `DuckDB.EFCoreProvider` your application model and your lake tables are one model.                                                                                                                                                                                            | .NET applications on the same schema.                                 |
+| **The HTTP API**      | Minimal-API endpoints for queries, schemas, history, snapshots, maintenance, eject, backup/restore, and change-feed subscriptions.                                                                                                                                                    | Automation and integration.                                           |
+| **MCP**               | An authenticated Model Context Protocol server with tenant discovery, schema, snapshots, changes, query resources/tools, and optional operator-gated writes. Development enables it by default; an instance operator changes the live controls under System Settings with no restart. | AI agents that need discoverable, capability-scoped lakehouse access. |
 
 ---
 
@@ -710,9 +710,14 @@ un-revoke — issue a new token.
 
 ### Signing in to the workbench
 
-The workbench has a **Sign in** control in its header. Paste a token and it is held for that browser
-session only, and sent as a bearer token on API calls. With no token set the workbench behaves
-exactly as it does today, which is what keeps local development frictionless.
+Where OIDC is configured, **Continue with your identity provider** starts an authorization-code +
+PKCE login. The API returns an HttpOnly session cookie; provider tokens never enter browser
+JavaScript. A person carrying the configured system-admin claim opens System Settings and can change
+MCP controls and issue, review, or revoke client credentials.
+
+The token field remains the machine and break-glass path. A pasted token is held for that browser
+session only and sent as a bearer token on API calls. With neither OIDC nor a token, the workbench
+behaves anonymously only where the deployment has explicitly left authentication optional.
 
 When a deployment requires authentication and the browser has no usable token, the workbench says so
 and asks for one instead of showing empty pickers — the same panel that runs the first-workspace flow
@@ -736,10 +741,10 @@ or cleartext is explicitly acknowledged, rather than quietly putting a credentia
 
 ### Signing in as a human
 
-Humans can use **OIDC** instead (Keycloak, Entra, Authentik, Auth0). Configure an authority and a
-tenant claim; leave it unset and the whole path stays off, so an air-gapped install never takes a
-dependency on an identity provider. Tokens and OIDC resolve to the same principal, so nothing
-downstream distinguishes a person from a machine.
+Humans can use **OIDC** (Keycloak, Entra, Authentik, Auth0). Configure an authority and client id,
+register `/auth/callback`, and map either tenant/role claims or the system-admin claim. Leave it unset
+and the whole path stays off, so an air-gapped install never takes an identity-provider dependency.
+Tokens and OIDC resolve to the same principal and capability policy.
 
 The full design, the endpoint and capability tables, and the runbook for closing the door on a fresh
 deployment are in

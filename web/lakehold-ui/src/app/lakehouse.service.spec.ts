@@ -20,12 +20,83 @@ describe('LakehouseService', () => {
 
   it('reads the effective workbench access before loading tenant data', () => {
     service.getAccess().subscribe((access) => {
-      expect(access).toEqual({ mode: 'demo', role: 'reader', readOnly: true });
+      expect(access).toEqual({ mode: 'demo', role: 'reader', readOnly: true, systemAdmin: false });
     });
 
     const request = http.expectOne('/api/access');
     expect(request.request.method).toBe('GET');
-    request.flush({ mode: 'demo', role: 'reader', readOnly: true });
+    request.flush({ mode: 'demo', role: 'reader', readOnly: true, systemAdmin: false });
+  });
+
+  it('discovers the same-origin browser authentication session', () => {
+    service.getBrowserSession().subscribe();
+
+    const request = http.expectOne('/auth/session');
+    expect(request.request.method).toBe('GET');
+    request.flush({
+      oidcEnabled: true,
+      authenticated: true,
+      displayName: 'Ada Administrator',
+      systemAdmin: true,
+    });
+  });
+
+  it('saves versioned system settings to the instance endpoint', () => {
+    service
+      .saveSystemSettings({
+        mcpEnabled: true,
+        mcpAllowWrites: false,
+        mcpMaxRowsPerResult: 250,
+        mcpPublicBaseUrl: 'https://lakehold.example.com',
+        version: 4,
+      })
+      .subscribe();
+
+    const request = http.expectOne('/api/system-settings');
+    expect(request.request.method).toBe('PUT');
+    expect(request.request.body).toEqual({
+      mcpEnabled: true,
+      mcpAllowWrites: false,
+      mcpMaxRowsPerResult: 250,
+      mcpPublicBaseUrl: 'https://lakehold.example.com',
+      version: 4,
+    });
+    request.flush({
+      ...request.request.body,
+      mcpRoute: '/mcp',
+      version: 5,
+      updatedUtc: '2026-07-29T17:00:00Z',
+    });
+  });
+
+  it('mints a scoped token through the public tenant endpoint', () => {
+    const body = {
+      name: 'codex-agent',
+      role: 'reader' as const,
+      readOnly: false,
+      catalogName: 'analytics',
+      expiresUtc: '2030-01-01T00:00:00.000Z',
+    };
+
+    service.createToken('north wind', body).subscribe();
+
+    const request = http.expectOne('/api/tenants/north%20wind/tokens');
+    expect(request.request.method).toBe('POST');
+    expect(request.request.body).toEqual(body);
+    request.flush({ id: 7, name: 'codex-agent', token: 'lkh_north-wind_secret' });
+  });
+
+  it('lists and revokes client credentials through the tenant token API', () => {
+    service.listTokens('north wind').subscribe();
+    service.revokeToken('north wind', 7).subscribe();
+
+    const list = http.expectOne('/api/tenants/north%20wind/tokens');
+    expect(list.request.method).toBe('GET');
+    list.flush([]);
+
+    const revoke = http.expectOne('/api/tenants/north%20wind/tokens/7');
+    expect(revoke.request.method).toBe('DELETE');
+    revoke.flush(null);
   });
 
   it('encodes tenant and catalog names in query routes', () => {

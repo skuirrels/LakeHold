@@ -32,6 +32,19 @@ public sealed class McpAuthenticationFilter : IEndpointFilter
 
         var http = context.HttpContext;
         var services = http.RequestServices;
+        var settings = await services
+            .GetRequiredService<McpRuntimeSettingsStore>()
+            .GetAsync(http.RequestAborted)
+            .ConfigureAwait(false);
+
+        if (!settings.Enabled)
+        {
+            // Keep a disabled autonomous-command surface undiscoverable. The route stays mapped so a
+            // later settings save can enable it without rebuilding the endpoint table.
+            return Results.NotFound();
+        }
+
+        http.Items[McpCaller.SettingsItemKey] = settings;
 
         var oidc = services.GetRequiredService<IOptions<LakeholdOidcOptions>>().Value;
         var bearer = ExtractBearer(http.Request.Headers.Authorization);
@@ -58,9 +71,8 @@ public sealed class McpAuthenticationFilter : IEndpointFilter
             // is where to go next: RFC 9728 wants the metadata document cited here, which is how a
             // client that has no credential discovers the authorization server. Only when OIDC is
             // configured, because otherwise there is no such document to cite.
-            var mcp = services.GetRequiredService<IOptions<McpOptions>>().Value;
             http.Response.Headers.WWWAuthenticate = oidc.Enabled
-                ? $"Bearer resource_metadata=\"{McpResourceMetadata.AbsoluteUri(http, mcp)}\""
+                ? $"Bearer resource_metadata=\"{McpResourceMetadata.AbsoluteUri(http, settings)}\""
                 : "Bearer";
 
             return Results.Problem(statusCode: StatusCodes.Status401Unauthorized, title: "Unauthorized");

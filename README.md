@@ -256,8 +256,9 @@ dotnet run --project src/Lakehold.Api      # API on :5200
 npm start --prefix web/lakehold-ui         # website on :5399
 ```
 
-Same URLs either way. The dev server proxies `/api` to `NG_API_URL`, which compose sets to the API
-container and which falls back to `localhost:5200` when nothing sets it.
+Same URLs either way. The dev server proxies `/api`, `/mcp`, and MCP authorization metadata to
+`NG_API_URL`, which compose sets to the API container and which falls back to `localhost:5200` when
+nothing sets it.
 
 ---
 
@@ -457,8 +458,10 @@ provisions tenants, catalogs, and other tokens, and deliberately cannot read dat
 credential is a visible provisioning problem, not a silent data breach.
 
 The workbench does this for you: open the site, paste the bootstrap token when it asks, name a
-workspace and a catalog, and it mints the token that can query them and shows it once. The same three
-steps by hand:
+workspace and a catalog, and it mints the token that can query them and shows it once. An
+administrator can later issue, review, and revoke least-privilege credentials under **System
+Settings → API tokens**, including catalog scope, role, and optional expiry. Revocation closes MCP
+and the public API immediately. The same three bootstrap steps by hand:
 
 ```bash
 docker compose -f compose.production.yaml up -d
@@ -481,7 +484,8 @@ Worth knowing:
 
 - **A token is shown once** and stored only as a SHA-256 hash with its public prefix, so it cannot be
   recovered from the API or the database. `Lakehold__BootstrapToken` overrides the minted one where a
-  platform injects credentials.
+  platform injects credentials; the supplied Compose files map `LAKEHOLD_BOOTSTRAP_TOKEN` from
+  `.env` to that setting.
 - **A token defaults to `reader`**, as does one naming an unrecognised role, so a typo costs read
   access rather than granting everything. Pass `owner` or `editor` deliberately. Tokens issued before
   roles existed remain owners — the column's default preserves what they already were.
@@ -494,8 +498,11 @@ Worth knowing:
 - **Revocation closes both surfaces** when the wire endpoint runs on the token store
   (`Lakehold:PgWire:AllowTokenAuthentication`), rather than leaving a BI tool connected on a
   credential the API already refuses.
-- **OIDC** covers humans — configure an authority and a tenant claim. Leave it unset and the path
-  stays off entirely, so an air-gapped install takes no identity-provider dependency.
+- **OIDC** covers humans through an authorization-code + PKCE Workbench login. Set an authority and
+  client id, register `https://<lakehold-host>/auth/callback`, and map the configured system-admin
+  claim to people allowed to manage MCP client credentials. Their session is an HttpOnly cookie
+  protected by keys shared through PostgreSQL; provider tokens never reach browser JavaScript.
+  Leave the authority unset and the path stays off, preserving air-gapped operation.
 
 The full design, including what is deliberately still open, is in
 [`docs/AUTHENTICATION.md`](docs/AUTHENTICATION.md).
@@ -715,7 +722,9 @@ Also shipped: **authentication and tenant identity** — API tokens with tenant 
 instance-scoped provisioning and bootstrap, read-only capability enforced by attachment, per-statement
 audit, the PostgreSQL wire endpoint on the same token store (so revocation closes both surfaces),
 OIDC, owner/editor/reader roles, and an authenticated **MCP server for AI agents** with read tools,
-resources, OAuth protected-resource metadata, and operator-gated writes. See
+resources, OAuth protected-resource metadata, and operator-gated writes. Development enables MCP by
+default, and the instance credential can change its live controls under **System Settings** without
+restarting the API. See
 [`docs/AUTHENTICATION.md`](docs/AUTHENTICATION.md) and [`docs/MCP.md`](docs/MCP.md); note that HTTP
 API enforcement is opt-in per deployment via `Lakehold:Auth:RequireAuthentication`, while MCP always
 requires a credential.

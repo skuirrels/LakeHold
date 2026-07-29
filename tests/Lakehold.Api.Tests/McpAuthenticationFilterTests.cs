@@ -33,7 +33,9 @@ public sealed class McpAuthenticationFilterTests : IAsyncLifetime
         services.AddLogging();
         services.AddDbContext<ControlPlaneContext>(o => o.UseDuckDB($"Data Source={Path.Combine(_root, "cp.duckdb")}"));
         services.AddScoped<ApiTokenAuthenticator>();
+        services.AddScoped<McpRuntimeSettingsStore>();
         services.AddSingleton(TimeProvider.System);
+        services.Configure<McpOptions>(options => options.Enabled = true);
         // Deliberately false: the whole point is that MCP refuses anyway.
         services.Configure<LakeholdAuthOptions>(o => o.RequireAuthentication = false);
         services.Configure<LakeholdOidcOptions>(_ => { });
@@ -94,6 +96,73 @@ public sealed class McpAuthenticationFilterTests : IAsyncLifetime
         Assert.NotNull(principal);
         Assert.True(principal!.IsAuthenticated);
         Assert.Equal("demo", principal.TenantSlug);
+    }
+
+    [Fact]
+    public async Task A_runtime_disable_is_applied_without_rebuilding_the_endpoint()
+    {
+        await using (var scope = _services.CreateAsyncScope())
+        {
+            await scope.ServiceProvider.GetRequiredService<McpRuntimeSettingsStore>()
+                .SaveAsync(
+                    enabled: false,
+                    allowWrites: false,
+                    maxRowsPerResult: 200,
+                    publicBaseUrl: null,
+                    expectedVersion: 0,
+                    CancellationToken.None);
+        }
+
+        try
+        {
+            var (status, passed, _) = await RunAsync(_token);
+
+            Assert.False(passed);
+            Assert.Equal(StatusCodes.Status404NotFound, status);
+        }
+        finally
+        {
+            await using var scope = _services.CreateAsyncScope();
+            await scope.ServiceProvider.GetRequiredService<McpRuntimeSettingsStore>()
+                .SaveAsync(
+                    enabled: true,
+                    allowWrites: false,
+                    maxRowsPerResult: 200,
+                    publicBaseUrl: null,
+                    expectedVersion: 1,
+                    CancellationToken.None);
+        }
+    }
+
+    [Fact]
+    public async Task Public_base_url_length_is_validated_before_persistence()
+    {
+        const string prefix = "https://lakehold.example.com/";
+        var longestValid = prefix + new string(
+            'a',
+            SystemSettings.McpPublicBaseUrlMaxLength - prefix.Length);
+
+        await using var scope = _services.CreateAsyncScope();
+        var store = scope.ServiceProvider.GetRequiredService<McpRuntimeSettingsStore>();
+        var saved = await store.SaveAsync(
+            enabled: true,
+            allowWrites: false,
+            maxRowsPerResult: 200,
+            publicBaseUrl: longestValid,
+            expectedVersion: 0,
+            CancellationToken.None);
+
+        Assert.Equal(longestValid, saved.PublicBaseUrl);
+
+        var exception = await Assert.ThrowsAsync<SystemSettingsValidationException>(() =>
+            store.SaveAsync(
+                enabled: true,
+                allowWrites: false,
+                maxRowsPerResult: 200,
+                publicBaseUrl: longestValid + "a",
+                expectedVersion: saved.Version,
+                CancellationToken.None));
+        Assert.Contains("2048", exception.Message, StringComparison.Ordinal);
     }
 
     [Theory]

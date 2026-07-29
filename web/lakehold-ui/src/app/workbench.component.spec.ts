@@ -68,6 +68,96 @@ describe('WorkbenchComponent', () => {
     });
   });
 
+  it('lands an instance credential on System Settings instead of the tenant SQL editor', async () => {
+    api.access = {
+      mode: 'authenticated',
+      role: 'owner',
+      readOnly: false,
+      systemAdmin: true,
+    };
+
+    await mount();
+
+    expect(text()).toContain('System Settings');
+    expect(fixture.nativeElement.querySelector('lh-system-settings')).toBeTruthy();
+    expect(api.countOf('getSchemas')).toBe(0);
+  });
+
+  it('uses an authenticated browser session and offers logout without retaining a pasted token', async () => {
+    sessionStorage.setItem('lakehold.token', 'lkh_stale_machine_token');
+    api.browserSession = {
+      oidcEnabled: true,
+      authenticated: true,
+      displayName: 'Ada Administrator',
+      systemAdmin: true,
+    };
+    api.access = {
+      mode: 'authenticated',
+      role: 'owner',
+      readOnly: false,
+      systemAdmin: true,
+    };
+
+    await mount();
+
+    expect(sessionStorage.getItem('lakehold.token')).toBeNull();
+    expect(text()).toContain('Ada Administrator');
+    expect(
+      (fixture.nativeElement.querySelector('.browser-session a') as HTMLAnchorElement).getAttribute(
+        'href',
+      ),
+    ).toBe('/auth/logout?returnUrl=/workbench');
+    expect(fixture.nativeElement.querySelector('lh-system-settings')).toBeTruthy();
+  });
+
+  it('keeps System Settings reachable for an instance credential before a workspace exists', async () => {
+    api.access = {
+      mode: 'authenticated',
+      role: 'owner',
+      readOnly: false,
+      systemAdmin: true,
+    };
+    api.tenants = [];
+
+    await mount();
+
+    expect(fixture.nativeElement.querySelector('lh-system-settings')).toBeTruthy();
+    expect(text()).not.toContain('No workspaces yet');
+  });
+
+  it('returns to the workbench when an instance credential is replaced by a tenant credential', async () => {
+    api.access = {
+      mode: 'authenticated',
+      role: 'owner',
+      readOnly: false,
+      systemAdmin: true,
+    };
+    await mount();
+    expect(fixture.nativeElement.querySelector('lh-system-settings')).toBeTruthy();
+
+    api.access = {
+      mode: 'authenticated',
+      role: 'owner',
+      readOnly: false,
+      systemAdmin: false,
+    };
+    (fixture.nativeElement.querySelector('.credential > .btn') as HTMLButtonElement).click();
+    await fixture.whenStable();
+    const token = fixture.nativeElement.querySelector(
+      '.credential input[type="password"]',
+    ) as HTMLInputElement;
+    token.value = 'lkh_tenant_replacement';
+    token.dispatchEvent(new Event('input'));
+    (
+      fixture.nativeElement.querySelector('.credential-actions .btn-primary') as HTMLButtonElement
+    ).click();
+    await fixture.whenStable();
+
+    expect(fixture.nativeElement.querySelector('lh-system-settings')).toBeNull();
+    expect(fixture.nativeElement.querySelector('[aria-label="SQL editor"]')).toBeTruthy();
+    expect(api.lastArgs('getSchemas')).toEqual(['demo', 'analytics']);
+  });
+
   afterEach(() => {
     Object.defineProperty(window, 'matchMedia', {
       configurable: true,
@@ -171,7 +261,7 @@ describe('WorkbenchComponent', () => {
     });
 
     it('opens a friendly read-only demo without exposing mutation controls', async () => {
-      api.access = { mode: 'demo', role: 'reader', readOnly: true };
+      api.access = { mode: 'demo', role: 'reader', readOnly: true, systemAdmin: false };
       api.backups = [
         {
           generation: '20260726T120000Z',
@@ -238,7 +328,19 @@ describe('WorkbenchComponent', () => {
       expect(provisioning).toEqual([
         ['createTenant', ['northwind', 'Northwind Traders']],
         ['createCatalog', ['northwind', 'warehouse']],
-        ['createToken', ['northwind', 'workbench', 'owner']],
+        [
+          'createToken',
+          [
+            'northwind',
+            {
+              name: 'workbench',
+              role: 'owner',
+              readOnly: false,
+              catalogName: null,
+              expiresUtc: null,
+            },
+          ],
+        ],
       ]);
       expect(text()).toContain('Workspace ready');
       expect(text()).toContain('lkh_new-owner-token');

@@ -1,0 +1,210 @@
+<section class="token-card">
+  <header class="card-heading">
+    <div>
+      <h2>API tokens</h2>
+      <p>Issue a scoped credential for Codex, Claude, scripts, or another client.</p>
+    </div>
+    <button class="refresh" type="button" [disabled]="loading()" (click)="loadTenants()">
+      Refresh
+    </button>
+  </header>
+
+  @if (loading()) {
+    <p class="state">Loading workspaces…</p>
+  } @else if (tenants().length === 0) {
+    <p class="state">Create a workspace and catalog before issuing a client token.</p>
+  } @else {
+    <form (submit)="$event.preventDefault(); create()">
+      <div class="field-grid">
+        <label>
+          <span>Token name</span>
+          <input
+            name="token-name"
+            type="text"
+            maxlength="200"
+            autocomplete="off"
+            required
+            placeholder="codex-agent"
+            [value]="tokenName()"
+            (input)="tokenName.set($any($event.target).value)"
+          />
+          <small>A label for audit history. The secret itself is never stored.</small>
+        </label>
+
+        <label>
+          <span>Workspace</span>
+          <select
+            name="tenant"
+            [value]="tenantSlug()"
+            (change)="selectTenant($any($event.target).value)"
+          >
+            @for (tenant of tenants(); track tenant.slug) {
+              <option [value]="tenant.slug">{{ tenant.displayName }} ({{ tenant.slug }})</option>
+            }
+          </select>
+        </label>
+
+        <label>
+          <span>Catalog scope</span>
+          <select
+            name="catalog"
+            [value]="catalogName()"
+            (change)="catalogName.set($any($event.target).value)"
+          >
+            <option value="" [selected]="catalogName() === ''">
+              All catalogs in this workspace
+            </option>
+            @for (catalog of selectedTenant()?.catalogs ?? []; track catalog.name) {
+              <option [value]="catalog.name" [selected]="catalogName() === catalog.name">
+                {{ catalog.name }}
+              </option>
+            }
+          </select>
+          <small>Choose one catalog for the narrowest agent credential.</small>
+        </label>
+
+        <label>
+          <span>Role</span>
+          <select name="role" [value]="role()" (change)="role.set($any($event.target).value)">
+            <option value="reader">Reader</option>
+            <option value="editor">Editor</option>
+            <option value="owner">Owner</option>
+          </select>
+          <small>Reader is the safe default for an autonomous client.</small>
+        </label>
+
+        <label>
+          <span>Expires <em>optional</em></span>
+          <input
+            name="expires"
+            type="datetime-local"
+            [value]="expiresLocal()"
+            (input)="expiresLocal.set($any($event.target).value)"
+          />
+        </label>
+      </div>
+
+      <label class="read-only">
+        <input
+          name="read-only"
+          type="checkbox"
+          [checked]="readOnly()"
+          (change)="readOnly.set($any($event.target).checked)"
+        />
+        <span>
+          <strong>Force a read-only catalog attachment</strong>
+          <small>Useful with an owner or editor role when the client must never write data.</small>
+        </span>
+      </label>
+
+      @if (error(); as message) {
+        <p class="message error">{{ message }}</p>
+      }
+
+      <footer>
+        <span>The plaintext token is returned once and cannot be recovered later.</span>
+        <button class="create" type="submit" [disabled]="!canCreate()">
+          {{ creating() ? 'Generating…' : 'Generate token' }}
+        </button>
+      </footer>
+    </form>
+  }
+
+  @if (createdToken(); as created) {
+    <div class="issued" aria-live="polite">
+      <div>
+        <strong>Copy this token now</strong>
+        <p>LakeHold stored only its hash. Closing this message permanently hides the secret.</p>
+      </div>
+      <textarea
+        readonly
+        rows="3"
+        [value]="created.token"
+        aria-label="Generated API token"
+      ></textarea>
+      <div class="issued-actions">
+        <button type="button" class="copy" (click)="copyToken()">Copy token</button>
+        <button type="button" class="dismiss" (click)="dismissToken()">I have saved it</button>
+        @if (copyStatus(); as status) {
+          <span>{{ status }}</span>
+        }
+      </div>
+    </div>
+  }
+
+  @if (!loading() && tenants().length > 0) {
+    <section class="token-list" aria-labelledby="client-token-heading">
+      <div class="list-heading">
+        <div>
+          <h3 id="client-token-heading">Issued client credentials</h3>
+          <p>Revoke a credential to close its HTTP, MCP, and token-authenticated wire access.</p>
+        </div>
+        <button type="button" [disabled]="tokensLoading()" (click)="loadTenants()">
+          {{ tokensLoading() ? 'Refreshing…' : 'Refresh list' }}
+        </button>
+      </div>
+
+      @if (tokensLoading()) {
+        <p class="state">Loading client credentials…</p>
+      } @else if (tokens().length === 0) {
+        <p class="state">No client credentials have been issued for this workspace.</p>
+      } @else {
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Access</th>
+                <th>Status</th>
+                <th>Last used</th>
+                <th><span class="sr-only">Actions</span></th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (token of tokens(); track token.id) {
+                <tr>
+                  <td>
+                    <strong>{{ token.name }}</strong>
+                    <small>Issued {{ token.createdUtc }}</small>
+                  </td>
+                  <td>
+                    {{ token.role }}
+                    <small>{{ token.catalogName || 'All catalogs' }}</small>
+                  </td>
+                  <td>
+                    <span class="status" [class.inactive]="tokenStatus(token) !== 'Active'">
+                      {{ tokenStatus(token) }}
+                    </span>
+                    @if (token.expiresUtc && tokenStatus(token) === 'Active') {
+                      <small>Expires {{ token.expiresUtc }}</small>
+                    }
+                  </td>
+                  <td>{{ token.lastUsedUtc || 'Never' }}</td>
+                  <td class="row-action">
+                    @if (tokenStatus(token) === 'Active') {
+                      <button
+                        type="button"
+                        class="revoke"
+                        [class.confirm]="pendingRevokeId() === token.id"
+                        [disabled]="revokingId() !== null"
+                        (click)="requestRevoke(token.id)"
+                      >
+                        {{
+                          revokingId() === token.id
+                            ? 'Revoking…'
+                            : pendingRevokeId() === token.id
+                              ? 'Confirm revoke'
+                              : 'Revoke'
+                        }}
+                      </button>
+                    }
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    </section>
+  }
+</section>

@@ -79,7 +79,33 @@ public sealed record TenantDto(string Slug, string DisplayName, IReadOnlyList<Ca
 /// <param name="Mode"><c>open</c>, <c>authenticated</c>, or <c>demo</c>.</param>
 /// <param name="Role">Effective tenant role, lower-case for direct display and client comparison.</param>
 /// <param name="ReadOnly">Whether catalogs are attached without write access.</param>
-public sealed record AccessDto(string Mode, string Role, bool ReadOnly);
+/// <param name="SystemAdmin">Whether this credential may manage instance-wide settings.</param>
+public sealed record AccessDto(string Mode, string Role, bool ReadOnly, bool SystemAdmin);
+
+/// <summary>Non-secret state used by the Workbench to offer the configured sign-in method.</summary>
+public sealed record BrowserSessionDto(
+    bool OidcEnabled,
+    bool Authenticated,
+    string? DisplayName,
+    bool SystemAdmin);
+
+/// <summary>Instance-wide settings currently effective for MCP requests.</summary>
+public sealed record SystemSettingsDto(
+    bool McpEnabled,
+    bool McpAllowWrites,
+    int McpMaxRowsPerResult,
+    string McpPublicBaseUrl,
+    string McpRoute,
+    int Version,
+    DateTimeOffset? UpdatedUtc);
+
+/// <summary>A complete, optimistic replacement of the mutable MCP settings.</summary>
+public sealed record UpdateSystemSettingsRequest(
+    bool McpEnabled,
+    bool McpAllowWrites,
+    int McpMaxRowsPerResult,
+    string? McpPublicBaseUrl,
+    int Version);
 
 /// <summary>A column created by a CSV import.</summary>
 public sealed record CsvImportedColumnDto(string Name, string DataType);
@@ -148,9 +174,9 @@ public sealed record CreateCatalogRequest(
 /// <param name="CatalogName">Optional least-privilege narrowing to one catalog in the tenant.</param>
 /// <param name="ExpiresUtc">Optional expiry; a token past this instant is refused.</param>
 /// <param name="Role">
-///     <c>owner</c>, <c>editor</c>, or <c>reader</c>. Defaults to <c>owner</c>, which is what a token
-///     minted before roles existed effectively was. A <c>reader</c> is read-only regardless of
-///     <paramref name="ReadOnly"/>.
+///     <c>owner</c>, <c>editor</c>, or <c>reader</c>. New tokens default to <c>reader</c>. Tokens
+///     persisted before roles existed retain their historical owner capability. A <c>reader</c> is
+///     read-only regardless of <paramref name="ReadOnly"/>.
 /// </param>
 public sealed record CreateTokenRequest(
     string Name,

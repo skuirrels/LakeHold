@@ -42,14 +42,22 @@ public static class McpResourceMetadata
     {
         ArgumentNullException.ThrowIfNull(app);
 
-        var mcp = app.ServiceProvider.GetRequiredService<IOptions<McpOptions>>().Value;
         var oidc = app.ServiceProvider.GetRequiredService<IOptions<LakeholdOidcOptions>>().Value;
-        if (!mcp.Enabled || !oidc.Enabled)
+        if (!oidc.Enabled)
         {
             return app;
         }
 
-        app.MapGet(Path, (HttpContext http) => Results.Json(Describe(http, mcp, oidc)))
+        app.MapGet(Path, async (
+                HttpContext http,
+                McpRuntimeSettingsStore store,
+                CancellationToken cancellationToken) =>
+            {
+                var settings = await store.GetAsync(cancellationToken).ConfigureAwait(false);
+                return settings.Enabled
+                    ? Results.Json(Describe(http, settings, oidc))
+                    : Results.NotFound();
+            })
             .WithTags("Lakehouse")
             .WithSummary("OAuth 2.0 Protected Resource Metadata for the MCP endpoint (RFC 9728).")
             .AllowAnonymous();
@@ -65,6 +73,14 @@ public static class McpResourceMetadata
         return Absolute(http, options, Path).ToString();
     }
 
+    /// <summary>The metadata URI using the currently persisted public address.</summary>
+    public static string AbsoluteUri(HttpContext http, McpRuntimeSettings settings)
+    {
+        ArgumentNullException.ThrowIfNull(http);
+        ArgumentNullException.ThrowIfNull(settings);
+        return Absolute(http, settings.PublicBaseUrl, Path).ToString();
+    }
+
     /// <summary>
     ///     Resolves a path against the address <em>clients</em> use, which is not always the address
     ///     this process was called on.
@@ -76,9 +92,12 @@ public static class McpResourceMetadata
     ///     produces a reachable URL.
     /// </remarks>
     private static Uri Absolute(HttpContext http, McpOptions options, string path)
+        => Absolute(http, options.PublicBaseUrl, path);
+
+    private static Uri Absolute(HttpContext http, string publicBaseUrl, string path)
     {
-        if (!string.IsNullOrWhiteSpace(options.PublicBaseUrl)
-            && Uri.TryCreate(options.PublicBaseUrl.TrimEnd('/') + path, UriKind.Absolute, out var declared))
+        if (!string.IsNullOrWhiteSpace(publicBaseUrl)
+            && Uri.TryCreate(publicBaseUrl.TrimEnd('/') + path, UriKind.Absolute, out var declared))
         {
             return declared;
         }
@@ -101,6 +120,18 @@ public static class McpResourceMetadata
 
             // Header only. Lakehold reads a bearer from the Authorization header and nowhere else —
             // never a query parameter, which would put a credential in access logs and referrers.
+            BearerMethodsSupported = ["header"],
+            ResourceName = "Lakehold MCP",
+        };
+
+    private static ProtectedResourceMetadata Describe(
+        HttpContext http,
+        McpRuntimeSettings mcp,
+        LakeholdOidcOptions oidc) =>
+        new()
+        {
+            Resource = Absolute(http, mcp.PublicBaseUrl, mcp.Route).ToString(),
+            AuthorizationServers = [oidc.Authority],
             BearerMethodsSupported = ["header"],
             ResourceName = "Lakehold MCP",
         };

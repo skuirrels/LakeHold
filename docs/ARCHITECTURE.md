@@ -317,7 +317,7 @@ readable by Spark, Trino, or Snowflake.
 | Elastic scale-out (multi-node) | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ single-writer node |
 | Per-tenant isolation as a product primitive | ✅ hypertenancy | ✅ | ✅ | ⚠️ projects | ❌ DIY | ⚠️ engine-level + credential, see below |
 | Authentication / tenant identity | ✅ | ✅ | ✅ | ✅ | ⚠️ DIY | ⚠️ shipped, enforcement opt-in |
-| SSO / OIDC | ✅ | ✅ | ✅ | ✅ | ⚠️ | ✅ authority + tenant claim |
+| SSO / OIDC | ✅ | ✅ | ✅ | ✅ | ⚠️ | ✅ browser login + tenant/admin claims |
 | RBAC beyond tenancy | ✅ | ✅ | ✅ | ✅ | ⚠️ | ⚠️ owner/editor/reader per token |
 | Web SQL IDE | ✅ mature | ✅ | ✅ | ✅ | ❌ add Superset | ✅ Monaco, focused |
 | Catalog explorer | ✅ | ✅ | ✅ | ✅ | ⚠️ | ✅ |

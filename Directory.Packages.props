@@ -54,9 +54,11 @@
          GHSA-v5pm-xwqc-g5wc (high). Transitive pinning is enabled, so this reaches the
          restore graph. -->
     <PackageVersion Include="Microsoft.OpenApi" Version="2.11.0" />
-    <!-- OIDC for the workbench. Validation only: Lakehold is a resource server, never an identity
-         provider, and the whole path stays off unless an authority is configured. -->
+    <!-- OIDC for bearer clients and the Workbench authorization-code session. Lakehold remains a
+         relying party/resource server, never an identity provider. -->
     <PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.10" />
+    <PackageVersion Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" Version="10.0.10" />
+    <PackageVersion Include="Microsoft.AspNetCore.DataProtection.EntityFrameworkCore" Version="10.0.10" />
     <!--
       Pre-release on purpose. SDK 2.0 tracks MCP revision 2026-07-28; 1.4.x tracks the superseded one,
       so shipping against 1.4.x would mean rewriting immediately. See docs/MCP.md.

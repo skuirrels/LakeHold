@@ -4,9 +4,9 @@ import { Injectable, computed, signal } from '@angular/core';
  * Holds the API credential the workbench presents.
  *
  * The token lives in `sessionStorage`, not `localStorage`: it is cleared when the tab closes, which
- * narrows the window a stolen token is usable rather than persisting it indefinitely. This is still
- * the interim answer for machines and single-operator installs — the durable answer for humans is
- * OIDC (see `docs/AUTHENTICATION.md`), where the browser never holds a long-lived bearer at all.
+ * narrows the window a stolen token is usable rather than persisting it indefinitely. This is the
+ * machine and break-glass path. Interactive humans use the same-origin OIDC session, where
+ * JavaScript never receives the identity-provider token.
  *
  * While the API leaves authentication optional, no token is needed and the workbench works exactly
  * as before; setting one is what lets it keep working once a deployment requires authentication.

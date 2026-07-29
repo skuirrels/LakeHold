@@ -1,4 +1,3 @@
-using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Lakehold.Api;
@@ -104,9 +103,9 @@ builder.Services.AddScoped<SavedQueryService>();
 builder.Services.AddSingleton<CsvScratchSpace>();
 builder.Services.AddScoped<CsvUploadService>();
 
-// Authentication: resolve a bearer token to a principal, then validate the route against it in the
-// endpoint filter. Off by default for token-less requests until issuance and the UI wiring land —
-// see LakeholdAuthOptions and docs/AUTHENTICATION.md.
+// Authentication: resolve a bearer token or browser identity to a principal, then validate the
+// route against it in the endpoint filter. Development may allow credential-less requests; a
+// presented credential is always validated and can never fall through to that legacy path.
 builder.Services.Configure<LakeholdAuthOptions>(builder.Configuration.GetSection(LakeholdAuthOptions.Section));
 builder.Services.TryAddSingleton(TimeProvider.System);
 builder.Services.AddScoped<ApiTokenAuthenticator>();
@@ -115,32 +114,9 @@ builder.Services.AddScoped<ApiTokenAuthenticator>();
 // turns this on: absent one the whole path stays off, so an air-gapped install never acquires a
 // dependency on an identity provider it cannot reach. See docs/AUTHENTICATION.md.
 builder.Services.Configure<LakeholdOidcOptions>(builder.Configuration.GetSection(LakeholdOidcOptions.Section));
-var oidc = builder.Configuration.GetSection(LakeholdOidcOptions.Section).Get<LakeholdOidcOptions>() ?? new LakeholdOidcOptions();
-if (oidc.Enabled)
-{
-    builder.Services
-        .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-        .AddJwtBearer(options =>
-        {
-            options.Authority = oidc.Authority;
-            options.RequireHttpsMetadata = oidc.RequireHttpsMetadata;
-
-            // An unset audience validates the issuer and signature but not the audience. That is a
-            // deliberate choice left to the operator, not a default: some IdPs do not issue an
-            // audience a resource server can match, and refusing to start would be worse than
-            // documenting the narrower guarantee.
-            if (oidc.Audience.Length > 0)
-            {
-                options.Audience = oidc.Audience;
-            }
-            else
-            {
-                options.TokenValidationParameters.ValidateAudience = false;
-            }
-        });
-
-    builder.Services.AddAuthorization();
-}
+var oidc = builder.Configuration.GetSection(LakeholdOidcOptions.Section).Get<LakeholdOidcOptions>()
+    ?? new LakeholdOidcOptions();
+builder.Services.AddLakeholdAuthentication(oidc);
 
 // Scheduled flush/backup/compact. A backup that depends on someone pressing a button is not a
 // recovery guarantee; unflushed inlined data is permanently unrecoverable, so both must be automatic.
@@ -235,6 +211,8 @@ if (oidc.Enabled)
 }
 
 app.MapLakehouseEndpoints();
+app.MapSystemSettingsEndpoints();
+app.MapBrowserAuthenticationEndpoints();
 app.MapLakeholdMcp();
 app.MapMcpResourceMetadata();
 

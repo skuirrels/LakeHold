@@ -34,47 +34,54 @@
       <span class="access-badge">Read-only access</span>
     }
 
-    <div class="credential">
-      <button
-        class="btn"
-        type="button"
-        [class.btn-active]="auth.hasToken()"
-        (click)="toggleCredential()"
-        [title]="auth.hasToken() ? 'An API token is set for this session' : 'No API token set'"
-      >
-        {{ auth.hasToken() ? 'Token set' : demoMode() ? 'Operator sign in' : 'Sign in' }}
-      </button>
+    @if (browserSession()?.authenticated) {
+      <div class="browser-session">
+        <span>{{ browserSession()?.displayName || 'Signed in' }}</span>
+        <a class="btn" href="/auth/logout?returnUrl=/workbench">Sign out</a>
+      </div>
+    } @else {
+      <div class="credential">
+        <button
+          class="btn"
+          type="button"
+          [class.btn-active]="auth.hasToken()"
+          (click)="toggleCredential()"
+          [title]="auth.hasToken() ? 'An API token is set for this session' : 'No API token set'"
+        >
+          {{ auth.hasToken() ? 'Token set' : demoMode() ? 'Operator sign in' : 'Sign in' }}
+        </button>
 
-      @if (credentialOpen()) {
-        <div class="credential-popover">
-          <label class="field">
-            <span>API token</span>
-            <input
-              type="password"
-              autocomplete="off"
-              placeholder="lkh_…"
-              [value]="tokenDraft()"
-              (input)="tokenDraft.set($any($event.target).value)"
-              (keydown.enter)="saveCredential()"
-            />
-          </label>
-          <div class="credential-actions">
-            <button class="btn btn-primary" type="button" (click)="saveCredential()">Save</button>
-            @if (auth.hasToken()) {
-              <button class="btn" type="button" (click)="clearCredential()">Clear</button>
-            }
+        @if (credentialOpen()) {
+          <div class="credential-popover">
+            <label class="field">
+              <span>API token</span>
+              <input
+                type="password"
+                autocomplete="off"
+                placeholder="lkh_…"
+                [value]="tokenDraft()"
+                (input)="tokenDraft.set($any($event.target).value)"
+                (keydown.enter)="saveCredential()"
+              />
+            </label>
+            <div class="credential-actions">
+              <button class="btn btn-primary" type="button" (click)="saveCredential()">Save</button>
+              @if (auth.hasToken()) {
+                <button class="btn" type="button" (click)="clearCredential()">Clear</button>
+              }
+            </div>
+            <p class="credential-hint">
+              @if (demoMode()) {
+                Operators can paste a LakeHold API token to leave the public read-only demo.
+              } @else {
+                Sent as a bearer token on API calls this tab makes. Kept for this browser session
+                only.
+              }
+            </p>
           </div>
-          <p class="credential-hint">
-            @if (demoMode()) {
-              Operators can paste a LakeHold API token to leave the public read-only demo.
-            } @else {
-              Sent as a bearer token on API calls this tab makes. Kept for this browser session
-              only.
-            }
-          </p>
-        </div>
-      }
-    </div>
+        }
+      </div>
+    }
   </header>
 
   @if (firstRun() !== 'none') {
@@ -83,6 +90,7 @@
       [busy]="setupBusy()"
       [error]="setupError()"
       [rejected]="signInRejected()"
+      [oidcEnabled]="browserSession()?.oidcEnabled ?? false"
       [issuedToken]="issuedToken()"
       [workspace]="setupSlug()"
       (signIn)="signInWith($event)"
@@ -95,6 +103,7 @@
         id="workbench-navigation"
         [destination]="navigationDestination()"
         [open]="navigationOpen()"
+        [systemAdmin]="access()?.systemAdmin ?? false"
         (navigate)="openNavigation($event)"
       />
 
@@ -110,389 +119,400 @@
         (click)="closeNavigationOverlays()"
       ></button>
 
-      <aside
-        #contextPanel
-        id="workbench-context-panel"
-        class="sidebar"
-        aria-label="Catalog and saved queries"
-        [attr.aria-hidden]="!contextPanelOpen()"
-        [attr.inert]="contextPanelOpen() ? null : ''"
-      >
-        <div class="sidebar-tabs">
-          <button
-            type="button"
-            class="sidebar-tab"
-            [class.active]="sidebarTab() === 'catalog'"
-            (click)="showSidebar('catalog')"
-          >
-            Catalog
-          </button>
-          <button
-            type="button"
-            class="sidebar-tab"
-            [class.active]="sidebarTab() === 'queries'"
-            (click)="showSidebar('queries')"
-          >
-            Saved queries
-          </button>
-          <button
-            class="context-toggle"
-            type="button"
-            aria-label="Collapse catalog panel"
-            title="Collapse catalog panel"
-            (click)="toggleContextPanel()"
-          >
-            ‹
-          </button>
-        </div>
-        @if (sidebarTab() === 'catalog') {
-          <lh-catalog-explorer
-            [schemas]="schemas()"
-            [loading]="schemasLoading()"
-            (insertSql)="insertSql($event)"
-            (inspectTable)="inspectTable($event)"
-          />
-        } @else {
-          <lh-saved-queries-panel
-            [tenant]="tenantSlug()"
-            [catalog]="catalogName()"
-            [sql]="sql()"
-            [readOnly]="readOnlyAccess()"
-            (openSql)="insertSql($event)"
-            (executeQuery)="runSavedQuery($event)"
-            (schemaChanged)="refreshCatalog()"
-          />
-        }
-      </aside>
-
-      <main
-        class="main"
-        [attr.aria-hidden]="navigationOverlayOpen() ? 'true' : null"
-        [attr.inert]="navigationOverlayOpen() ? '' : null"
-      >
-        <header class="workspace-header">
-          <div class="workspace-heading">
-            <span class="breadcrumb"
-              ><strong>SQL</strong><span aria-hidden="true">›</span>Workbench</span
-            >
-            <div class="title-line">
-              <h1>Query editor</h1>
-              <span class="connection-status" [class.disconnected]="!catalogConnected()">
-                <span class="status-dot" aria-hidden="true"></span>
-                {{ catalogConnected() ? 'Connected' : 'Not connected' }}
-              </span>
-            </div>
-          </div>
-
-          <div class="workspace-controls">
-            <div class="selectors">
-              <label class="field">
-                <span>Workspace</span>
-                <select
-                  [value]="tenantSlug() ?? ''"
-                  (change)="selectTenant($any($event.target).value)"
-                >
-                  @for (tenant of tenants(); track tenant.slug) {
-                    <option [value]="tenant.slug">{{ tenant.displayName }}</option>
-                  }
-                </select>
-              </label>
-
-              <label class="field">
-                <span>Catalog</span>
-                <select
-                  [value]="catalogName() ?? ''"
-                  (change)="selectCatalog($any($event.target).value)"
-                >
-                  @for (catalog of catalogs(); track catalog.name) {
-                    <option [value]="catalog.name">{{ catalog.name }}</option>
-                  }
-                </select>
-              </label>
-            </div>
-
-            @if (!readOnlyAccess()) {
-              <div class="maintenance">
-                <span class="maint-label">Maintenance</span>
-                <button
-                  class="btn"
-                  type="button"
-                  title="Write inlined commits out as Parquet"
-                  (click)="runMaintenance('flush')"
-                >
-                  Flush
-                </button>
-                <button
-                  class="btn"
-                  type="button"
-                  title="Merge small Parquet files"
-                  (click)="runMaintenance('compact')"
-                >
-                  Compact
-                </button>
-                <button
-                  class="btn"
-                  type="button"
-                  title="Export catalog metadata to Parquet beside the data"
-                  (click)="runMaintenance('backup')"
-                >
-                  Backup
-                </button>
-                <button
-                  class="btn"
-                  type="button"
-                  title="Drop snapshots older than 7 days"
-                  (click)="runMaintenance('expire')"
-                >
-                  Expire
-                </button>
-                <button
-                  class="btn"
-                  type="button"
-                  title="Delete data files no longer referenced by any snapshot"
-                  (click)="runMaintenance('cleanup')"
-                >
-                  Cleanup
-                </button>
-              </div>
-            }
-          </div>
-        </header>
-
-        @if (demoMode()) {
-          <div class="demo-banner">
-            <strong>You’re exploring a live LakeHold demo.</strong>
-            Browse the seeded catalog and run read-only SQL. Changes are disabled, so everyone gets
-            the same safe workspace.
-          </div>
-        }
-        <section class="editor-pane">
-          <div class="editor-toolbar">
-            <button
-              class="btn btn-primary"
-              type="button"
-              [disabled]="running() || !ready()"
-              (click)="run()"
-            >
-              {{ running() ? 'Running…' : 'Run' }}
-              <span class="kbd">⌘⏎</span>
-            </button>
-            @if (!readOnlyAccess()) {
-              <lh-csv-import
-                [tenant]="tenantSlug()"
-                [catalog]="catalogName()"
-                [schemas]="schemas()"
-                (imported)="onCsvImported($event)"
-              />
-            }
-            @if (summary(); as text) {
-              <span class="summary">{{ text }}</span>
-            }
-            @if (result()?.truncated) {
-              <span class="tag warn-tag">Row limit reached — showing a prefix of the result</span>
-            }
-          </div>
-
-          <textarea
-            class="editor"
-            spellcheck="false"
-            autocomplete="off"
-            autocapitalize="off"
-            aria-label="SQL editor"
-            [value]="sql()"
-            (input)="sql.set($any($event.target).value)"
-            (keydown)="onEditorKeydown($event)"
-          ></textarea>
-        </section>
-
-        <section class="output-pane">
-          <div class="tabs">
+      @if (navigationDestination() === 'settings') {
+        <main
+          class="main settings-main"
+          [attr.aria-hidden]="navigationOverlayOpen() ? 'true' : null"
+          [attr.inert]="navigationOverlayOpen() ? '' : null"
+        >
+          <lh-system-settings />
+        </main>
+      } @else {
+        <aside
+          #contextPanel
+          id="workbench-context-panel"
+          class="sidebar"
+          aria-label="Catalog and saved queries"
+          [attr.aria-hidden]="!contextPanelOpen()"
+          [attr.inert]="contextPanelOpen() ? null : ''"
+        >
+          <div class="sidebar-tabs">
             <button
               type="button"
-              class="tab"
-              [class.active]="tab() === 'results'"
-              (click)="showTab('results')"
+              class="sidebar-tab"
+              [class.active]="sidebarTab() === 'catalog'"
+              (click)="showSidebar('catalog')"
             >
-              Results
+              Catalog
             </button>
             <button
               type="button"
-              class="tab"
-              [class.active]="tab() === 'history'"
-              (click)="showTab('history')"
+              class="sidebar-tab"
+              [class.active]="sidebarTab() === 'queries'"
+              (click)="showSidebar('queries')"
             >
-              Query history
+              Saved queries
             </button>
             <button
+              class="context-toggle"
               type="button"
-              class="tab"
-              [class.active]="tab() === 'snapshots'"
-              (click)="showTab('snapshots')"
+              aria-label="Collapse catalog panel"
+              title="Collapse catalog panel"
+              (click)="toggleContextPanel()"
             >
-              Data history
-            </button>
-            <button
-              type="button"
-              class="tab"
-              [class.active]="tab() === 'storage'"
-              (click)="showTab('storage')"
-            >
-              Storage
-            </button>
-            <button
-              type="button"
-              class="tab"
-              [class.active]="tab() === 'changes'"
-              (click)="showTab('changes')"
-            >
-              Changes
-            </button>
-            <button
-              type="button"
-              class="tab"
-              [class.active]="tab() === 'backups'"
-              (click)="showTab('backups')"
-            >
-              Backups
-            </button>
-            <button
-              type="button"
-              class="tab"
-              [class.active]="tab() === 'ejects'"
-              (click)="showTab('ejects')"
-            >
-              Eject
-            </button>
-            <button
-              type="button"
-              class="tab"
-              [class.active]="tab() === 'schedule'"
-              (click)="showTab('schedule')"
-            >
-              Schedule
+              ‹
             </button>
           </div>
+          @if (sidebarTab() === 'catalog') {
+            <lh-catalog-explorer
+              [schemas]="schemas()"
+              [loading]="schemasLoading()"
+              (insertSql)="insertSql($event)"
+              (inspectTable)="inspectTable($event)"
+            />
+          } @else {
+            <lh-saved-queries-panel
+              [tenant]="tenantSlug()"
+              [catalog]="catalogName()"
+              [sql]="sql()"
+              [readOnly]="readOnlyAccess()"
+              (openSql)="insertSql($event)"
+              (executeQuery)="runSavedQuery($event)"
+              (schemaChanged)="refreshCatalog()"
+            />
+          }
+        </aside>
 
-          <div class="output-body">
-            @if (catalogError(); as message) {
-              <div class="banner error-banner">
-                <strong>Could not load the catalog</strong>
-                <pre>{{ message }}</pre>
-              </div>
-            }
-
-            @if (error(); as message) {
-              <div class="banner error-banner">
-                <strong>{{ errorTitle() }}</strong>
-                <pre>{{ message }}</pre>
-              </div>
-            }
-
-            @if (notice(); as message) {
-              <div
-                class="banner"
-                [class.ok-banner]="!pendingApply()"
-                [class.dry-banner]="pendingApply()"
+        <main
+          class="main"
+          [attr.aria-hidden]="navigationOverlayOpen() ? 'true' : null"
+          [attr.inert]="navigationOverlayOpen() ? '' : null"
+        >
+          <header class="workspace-header">
+            <div class="workspace-heading">
+              <span class="breadcrumb"
+                ><strong>SQL</strong><span aria-hidden="true">›</span>Workbench</span
               >
-                <span>{{ message }}</span>
-                @if (pendingApply()) {
-                  <span class="dry-actions">
-                    <strong>Dry run — nothing was changed.</strong>
-                    <button class="btn btn-danger" type="button" (click)="confirmApply()">
-                      Apply for real
-                    </button>
-                    <button class="btn" type="button" (click)="cancelApply()">Cancel</button>
-                  </span>
-                }
+              <div class="title-line">
+                <h1>Query editor</h1>
+                <span class="connection-status" [class.disconnected]="!catalogConnected()">
+                  <span class="status-dot" aria-hidden="true"></span>
+                  {{ catalogConnected() ? 'Connected' : 'Not connected' }}
+                </span>
               </div>
-            }
+            </div>
 
-            @switch (tab()) {
-              @case ('results') {
-                @if (result()) {
-                  <lh-result-grid [result]="result()" />
-                } @else if (!error()) {
-                  <p class="placeholder">Run a statement to see results.</p>
-                }
-              }
-
-              @case ('history') {
-                @if (history().length === 0) {
-                  <p class="placeholder">No queries yet.</p>
-                } @else {
-                  <ul class="history">
-                    @for (run of history(); track run.id) {
-                      <li>
-                        <button type="button" class="history-row" (click)="replay(run)">
-                          <span class="status" [class.failed]="!run.succeeded">{{
-                            run.succeeded ? '●' : '▲'
-                          }}</span>
-                          <span class="history-sql">{{ run.sql }}</span>
-                          <span class="history-meta">
-                            {{ run.rowCount }} rows · {{ run.elapsedMilliseconds.toFixed(0) }} ms ·
-                            {{ formatTime(run.startedUtc) }}
-                            @if (run.tokenName) {
-                              · <span class="history-token">{{ run.tokenName }}</span>
-                            }
-                          </span>
-                        </button>
-                      </li>
+            <div class="workspace-controls">
+              <div class="selectors">
+                <label class="field">
+                  <span>Workspace</span>
+                  <select
+                    [value]="tenantSlug() ?? ''"
+                    (change)="selectTenant($any($event.target).value)"
+                  >
+                    @for (tenant of tenants(); track tenant.slug) {
+                      <option [value]="tenant.slug">{{ tenant.displayName }}</option>
                     }
-                  </ul>
+                  </select>
+                </label>
+
+                <label class="field">
+                  <span>Catalog</span>
+                  <select
+                    [value]="catalogName() ?? ''"
+                    (change)="selectCatalog($any($event.target).value)"
+                  >
+                    @for (catalog of catalogs(); track catalog.name) {
+                      <option [value]="catalog.name">{{ catalog.name }}</option>
+                    }
+                  </select>
+                </label>
+              </div>
+
+              @if (!readOnlyAccess()) {
+                <div class="maintenance">
+                  <span class="maint-label">Maintenance</span>
+                  <button
+                    class="btn"
+                    type="button"
+                    title="Write inlined commits out as Parquet"
+                    (click)="runMaintenance('flush')"
+                  >
+                    Flush
+                  </button>
+                  <button
+                    class="btn"
+                    type="button"
+                    title="Merge small Parquet files"
+                    (click)="runMaintenance('compact')"
+                  >
+                    Compact
+                  </button>
+                  <button
+                    class="btn"
+                    type="button"
+                    title="Export catalog metadata to Parquet beside the data"
+                    (click)="runMaintenance('backup')"
+                  >
+                    Backup
+                  </button>
+                  <button
+                    class="btn"
+                    type="button"
+                    title="Drop snapshots older than 7 days"
+                    (click)="runMaintenance('expire')"
+                  >
+                    Expire
+                  </button>
+                  <button
+                    class="btn"
+                    type="button"
+                    title="Delete data files no longer referenced by any snapshot"
+                    (click)="runMaintenance('cleanup')"
+                  >
+                    Cleanup
+                  </button>
+                </div>
+              }
+            </div>
+          </header>
+
+          @if (demoMode()) {
+            <div class="demo-banner">
+              <strong>You’re exploring a live LakeHold demo.</strong>
+              Browse the seeded catalog and run read-only SQL. Changes are disabled, so everyone
+              gets the same safe workspace.
+            </div>
+          }
+          <section class="editor-pane">
+            <div class="editor-toolbar">
+              <button
+                class="btn btn-primary"
+                type="button"
+                [disabled]="running() || !ready()"
+                (click)="run()"
+              >
+                {{ running() ? 'Running…' : 'Run' }}
+                <span class="kbd">⌘⏎</span>
+              </button>
+              @if (!readOnlyAccess()) {
+                <lh-csv-import
+                  [tenant]="tenantSlug()"
+                  [catalog]="catalogName()"
+                  [schemas]="schemas()"
+                  (imported)="onCsvImported($event)"
+                />
+              }
+              @if (summary(); as text) {
+                <span class="summary">{{ text }}</span>
+              }
+              @if (result()?.truncated) {
+                <span class="tag warn-tag">Row limit reached — showing a prefix of the result</span>
+              }
+            </div>
+
+            <textarea
+              class="editor"
+              spellcheck="false"
+              autocomplete="off"
+              autocapitalize="off"
+              aria-label="SQL editor"
+              [value]="sql()"
+              (input)="sql.set($any($event.target).value)"
+              (keydown)="onEditorKeydown($event)"
+            ></textarea>
+          </section>
+
+          <section class="output-pane">
+            <div class="tabs">
+              <button
+                type="button"
+                class="tab"
+                [class.active]="tab() === 'results'"
+                (click)="showTab('results')"
+              >
+                Results
+              </button>
+              <button
+                type="button"
+                class="tab"
+                [class.active]="tab() === 'history'"
+                (click)="showTab('history')"
+              >
+                Query history
+              </button>
+              <button
+                type="button"
+                class="tab"
+                [class.active]="tab() === 'snapshots'"
+                (click)="showTab('snapshots')"
+              >
+                Data history
+              </button>
+              <button
+                type="button"
+                class="tab"
+                [class.active]="tab() === 'storage'"
+                (click)="showTab('storage')"
+              >
+                Storage
+              </button>
+              <button
+                type="button"
+                class="tab"
+                [class.active]="tab() === 'changes'"
+                (click)="showTab('changes')"
+              >
+                Changes
+              </button>
+              <button
+                type="button"
+                class="tab"
+                [class.active]="tab() === 'backups'"
+                (click)="showTab('backups')"
+              >
+                Backups
+              </button>
+              <button
+                type="button"
+                class="tab"
+                [class.active]="tab() === 'ejects'"
+                (click)="showTab('ejects')"
+              >
+                Eject
+              </button>
+              <button
+                type="button"
+                class="tab"
+                [class.active]="tab() === 'schedule'"
+                (click)="showTab('schedule')"
+              >
+                Schedule
+              </button>
+            </div>
+
+            <div class="output-body">
+              @if (catalogError(); as message) {
+                <div class="banner error-banner">
+                  <strong>Could not load the catalog</strong>
+                  <pre>{{ message }}</pre>
+                </div>
+              }
+
+              @if (error(); as message) {
+                <div class="banner error-banner">
+                  <strong>{{ errorTitle() }}</strong>
+                  <pre>{{ message }}</pre>
+                </div>
+              }
+
+              @if (notice(); as message) {
+                <div
+                  class="banner"
+                  [class.ok-banner]="!pendingApply()"
+                  [class.dry-banner]="pendingApply()"
+                >
+                  <span>{{ message }}</span>
+                  @if (pendingApply()) {
+                    <span class="dry-actions">
+                      <strong>Dry run — nothing was changed.</strong>
+                      <button class="btn btn-danger" type="button" (click)="confirmApply()">
+                        Apply for real
+                      </button>
+                      <button class="btn" type="button" (click)="cancelApply()">Cancel</button>
+                    </span>
+                  }
+                </div>
+              }
+
+              @switch (tab()) {
+                @case ('results') {
+                  @if (result()) {
+                    <lh-result-grid [result]="result()" />
+                  } @else if (!error()) {
+                    <p class="placeholder">Run a statement to see results.</p>
+                  }
+                }
+
+                @case ('history') {
+                  @if (history().length === 0) {
+                    <p class="placeholder">No queries yet.</p>
+                  } @else {
+                    <ul class="history">
+                      @for (run of history(); track run.id) {
+                        <li>
+                          <button type="button" class="history-row" (click)="replay(run)">
+                            <span class="status" [class.failed]="!run.succeeded">{{
+                              run.succeeded ? '●' : '▲'
+                            }}</span>
+                            <span class="history-sql">{{ run.sql }}</span>
+                            <span class="history-meta">
+                              {{ run.rowCount }} rows · {{ run.elapsedMilliseconds.toFixed(0) }} ms
+                              ·
+                              {{ formatTime(run.startedUtc) }}
+                              @if (run.tokenName) {
+                                · <span class="history-token">{{ run.tokenName }}</span>
+                              }
+                            </span>
+                          </button>
+                        </li>
+                      }
+                    </ul>
+                  }
+                }
+
+                @case ('snapshots') {
+                  <lh-data-history-panel
+                    [tenant]="tenantSlug()"
+                    [catalog]="catalogName()"
+                    [tables]="baseTableReferences()"
+                    [readOnly]="readOnlyAccess()"
+                    (prepareSql)="insertSql($event)"
+                    (queryExecuted)="refreshQueryHistory()"
+                  />
+                }
+
+                @case ('storage') {
+                  <lh-storage-panel
+                    [tenant]="tenantSlug()"
+                    [catalog]="catalogName()"
+                    [inspect]="inspectedTable()"
+                  />
+                }
+
+                @case ('changes') {
+                  <lh-changes-panel
+                    [tenant]="tenantSlug()"
+                    [catalog]="catalogName()"
+                    [tables]="baseTableReferences()"
+                    [readOnly]="readOnlyAccess()"
+                  />
+                }
+
+                @case ('backups') {
+                  <lh-backups-panel
+                    [tenant]="tenantSlug()"
+                    [catalog]="catalogName()"
+                    [readOnly]="readOnlyAccess()"
+                  />
+                }
+
+                @case ('ejects') {
+                  <lh-eject-panel
+                    [tenant]="tenantSlug()"
+                    [catalog]="catalogName()"
+                    [readOnly]="readOnlyAccess()"
+                  />
+                }
+
+                @case ('schedule') {
+                  <lh-schedule-panel />
                 }
               }
-
-              @case ('snapshots') {
-                <lh-data-history-panel
-                  [tenant]="tenantSlug()"
-                  [catalog]="catalogName()"
-                  [tables]="baseTableReferences()"
-                  [readOnly]="readOnlyAccess()"
-                  (prepareSql)="insertSql($event)"
-                  (queryExecuted)="refreshQueryHistory()"
-                />
-              }
-
-              @case ('storage') {
-                <lh-storage-panel
-                  [tenant]="tenantSlug()"
-                  [catalog]="catalogName()"
-                  [inspect]="inspectedTable()"
-                />
-              }
-
-              @case ('changes') {
-                <lh-changes-panel
-                  [tenant]="tenantSlug()"
-                  [catalog]="catalogName()"
-                  [tables]="baseTableReferences()"
-                  [readOnly]="readOnlyAccess()"
-                />
-              }
-
-              @case ('backups') {
-                <lh-backups-panel
-                  [tenant]="tenantSlug()"
-                  [catalog]="catalogName()"
-                  [readOnly]="readOnlyAccess()"
-                />
-              }
-
-              @case ('ejects') {
-                <lh-eject-panel
-                  [tenant]="tenantSlug()"
-                  [catalog]="catalogName()"
-                  [readOnly]="readOnlyAccess()"
-                />
-              }
-
-              @case ('schedule') {
-                <lh-schedule-panel />
-              }
-            }
-          </div>
-        </section>
-      </main>
+            </div>
+          </section>
+        </main>
+      }
     </div>
   }
 </div>

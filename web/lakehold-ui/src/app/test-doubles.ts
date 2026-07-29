@@ -1,7 +1,9 @@
 import { Observable, of, throwError } from 'rxjs';
 import {
   AccessContext,
+  ApiToken,
   BackupGeneration,
+  BrowserSession,
   CatalogStorage,
   ChangePage,
   ColumnDistribution,
@@ -18,6 +20,7 @@ import {
   Schema,
   Snapshot,
   Subscription,
+  SystemSettings,
   TableDetail,
   TableFiles,
   TableProfile,
@@ -203,7 +206,22 @@ export class FakeLakehouseService {
 
   // ---- Surfaces the workbench itself uses --------------------------------------------------
 
-  access: AccessContext = { mode: 'open', role: 'owner', readOnly: false };
+  access: AccessContext = { mode: 'open', role: 'owner', readOnly: false, systemAdmin: false };
+  browserSession: BrowserSession = {
+    oidcEnabled: false,
+    authenticated: false,
+    displayName: null,
+    systemAdmin: false,
+  };
+  systemSettings: SystemSettings = {
+    mcpEnabled: true,
+    mcpAllowWrites: false,
+    mcpMaxRowsPerResult: 200,
+    mcpPublicBaseUrl: '',
+    mcpRoute: '/mcp',
+    version: 1,
+    updatedUtc: null,
+  };
   tenants: Tenant[] = [
     {
       slug: 'demo',
@@ -229,9 +247,31 @@ export class FakeLakehouseService {
     dryRun: false,
   };
   createdToken: CreatedToken = { id: 1, name: 'workbench', token: 'lkh_new-owner-token' };
+  tokens: ApiToken[] = [];
 
   getAccess(...args: unknown[]): Observable<AccessContext> {
     return this.answer('getAccess', args, () => this.access);
+  }
+
+  getBrowserSession(...args: unknown[]): Observable<BrowserSession> {
+    return this.answer('getBrowserSession', args, () => this.browserSession);
+  }
+
+  getSystemSettings(...args: unknown[]): Observable<SystemSettings> {
+    return this.answer('getSystemSettings', args, () => this.systemSettings);
+  }
+
+  saveSystemSettings(...args: unknown[]): Observable<SystemSettings> {
+    return this.answer('saveSystemSettings', args, () => {
+      const request = args[0] as SystemSettings;
+      this.systemSettings = {
+        ...this.systemSettings,
+        ...request,
+        version: this.systemSettings.version + 1,
+        updatedUtc: new Date().toISOString(),
+      };
+      return this.systemSettings;
+    });
   }
 
   listTenants(...args: unknown[]): Observable<Tenant[]> {
@@ -248,6 +288,14 @@ export class FakeLakehouseService {
 
   createToken(...args: unknown[]): Observable<CreatedToken> {
     return this.answer('createToken', args, () => this.createdToken);
+  }
+
+  listTokens(...args: unknown[]): Observable<ApiToken[]> {
+    return this.answer('listTokens', args, () => this.tokens);
+  }
+
+  revokeToken(...args: unknown[]): Observable<void> {
+    return this.answer('revokeToken', args, () => undefined as void);
   }
 
   getSchemas(...args: unknown[]): Observable<Schema[]> {
