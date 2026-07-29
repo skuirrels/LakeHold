@@ -63,7 +63,10 @@ export class ComparisonComponent {
     },
     {
       dimension: 'Accounts, SSO, permissions',
-      lakehold: { text: 'API tokens, OIDC, three roles; opt-in, no admin UI or row policies', tone: 'weak' },
+      lakehold: {
+        text: 'OIDC browser login, scoped API tokens, three roles, and client-token administration; no row policies',
+        tone: 'neutral',
+      },
       motherduck: { text: 'Accounts, SSO, org roles', tone: 'good' },
       clickhouse: { text: 'Users, roles, row policies', tone: 'good' },
       cloud: { text: 'Mature RBAC, SSO, lineage', tone: 'good' },
