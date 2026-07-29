@@ -3,6 +3,7 @@
     type="button"
     class="nav-item"
     [class.active]="destination() === 'workbench'"
+    [attr.aria-current]="destination() === 'workbench' ? 'page' : null"
     (click)="navigate.emit('workbench')"
   >
     <svg viewBox="0 0 20 20" aria-hidden="true">
@@ -14,6 +15,7 @@
     type="button"
     class="nav-item"
     [class.active]="destination() === 'catalog'"
+    [attr.aria-current]="destination() === 'catalog' ? 'page' : null"
     (click)="navigate.emit('catalog')"
   >
     <svg viewBox="0 0 20 20" aria-hidden="true">
@@ -28,6 +30,7 @@
     type="button"
     class="nav-item"
     [class.active]="destination() === 'queries'"
+    [attr.aria-current]="destination() === 'queries' ? 'page' : null"
     (click)="navigate.emit('queries')"
   >
     <svg viewBox="0 0 20 20" aria-hidden="true">
@@ -39,6 +42,7 @@
     type="button"
     class="nav-item"
     [class.active]="destination() === 'history'"
+    [attr.aria-current]="destination() === 'history' ? 'page' : null"
     (click)="navigate.emit('history')"
   >
     <svg viewBox="0 0 20 20" aria-hidden="true">
@@ -54,6 +58,7 @@
     type="button"
     class="nav-item"
     [class.active]="destination() === 'snapshots'"
+    [attr.aria-current]="destination() === 'snapshots' ? 'page' : null"
     (click)="navigate.emit('snapshots')"
   >
     <svg viewBox="0 0 20 20" aria-hidden="true">
@@ -66,6 +71,7 @@
     type="button"
     class="nav-item"
     [class.active]="destination() === 'storage'"
+    [attr.aria-current]="destination() === 'storage' ? 'page' : null"
     (click)="navigate.emit('storage')"
   >
     <svg viewBox="0 0 20 20" aria-hidden="true">
@@ -80,6 +86,7 @@
     type="button"
     class="nav-item"
     [class.active]="destination() === 'changes'"
+    [attr.aria-current]="destination() === 'changes' ? 'page' : null"
     (click)="navigate.emit('changes')"
   >
     <svg viewBox="0 0 20 20" aria-hidden="true">
@@ -98,6 +105,7 @@
     type="button"
     class="nav-item"
     [class.active]="destination() === 'backups'"
+    [attr.aria-current]="destination() === 'backups' ? 'page' : null"
     (click)="navigate.emit('backups')"
   >
     <svg viewBox="0 0 20 20" aria-hidden="true">
@@ -109,6 +117,7 @@
     type="button"
     class="nav-item"
     [class.active]="destination() === 'ejects'"
+    [attr.aria-current]="destination() === 'ejects' ? 'page' : null"
     (click)="navigate.emit('ejects')"
   >
     <svg viewBox="0 0 20 20" aria-hidden="true">
@@ -120,6 +129,7 @@
     type="button"
     class="nav-item"
     [class.active]="destination() === 'schedule'"
+    [attr.aria-current]="destination() === 'schedule' ? 'page' : null"
     (click)="navigate.emit('schedule')"
   >
     <svg viewBox="0 0 20 20" aria-hidden="true">

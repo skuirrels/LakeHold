@@ -5,7 +5,9 @@
   display: flex;
   flex-direction: column;
   gap: 18px;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   background: var(--surface-1);
   border-right: 1px solid var(--border);
   opacity: 1;

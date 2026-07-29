@@ -46,7 +46,7 @@ test.describe('workbench user journeys', () => {
     const navigation = page.locator('#workbench-navigation');
     const toggle = page.getByRole('button', { name: 'Collapse navigation' });
     const filter = page.getByLabel('Filter catalog objects');
-    const main = page.getByRole('main');
+    const main = page.locator('main');
 
     await filter.fill('events');
     await expect(navigation).toBeVisible();
@@ -101,6 +101,7 @@ test.describe('workbench user journeys', () => {
       const button = navigation.getByRole('button', { name: destination, exact: true });
       await button.click();
       await expect(button).toHaveClass(/active/);
+      await expect(button).toHaveAttribute('aria-current', 'page');
       await expect(activeTab).toHaveText(tab);
     }
 
@@ -110,11 +111,13 @@ test.describe('workbench user journeys', () => {
     });
     await savedQueries.click();
     await expect(savedQueries).toHaveClass(/active/);
+    await expect(savedQueries).toHaveAttribute('aria-current', 'page');
     await expect(page.locator('lh-saved-queries-panel')).toBeVisible();
 
     const catalog = navigation.getByRole('button', { name: 'Catalog', exact: true });
     await catalog.click();
     await expect(catalog).toHaveClass(/active/);
+    await expect(catalog).toHaveAttribute('aria-current', 'page');
     await expect(page.getByLabel('Filter catalog objects')).toBeVisible();
   });
 
@@ -191,23 +194,40 @@ test.describe('responsive workbench navigation', () => {
     await openWorkbench(page);
 
     const navigation = page.locator('#workbench-navigation');
-    const backdrop = page.getByRole('button', { name: 'Close navigation' });
+    const backdrop = page.locator('.nav-backdrop');
+    const toggle = page.getByRole('button', { name: 'Expand navigation' });
+    const main = page.locator('main');
+    const topbar = page.locator('.topbar');
     await expectOffCanvas(navigation);
     await expect(backdrop).not.toHaveClass(/visible/);
+    await expect(backdrop).toHaveAttribute('aria-hidden', 'true');
+    await expect(backdrop).toHaveAttribute('inert', '');
+    await expect(backdrop).toBeDisabled();
 
-    await page.getByRole('button', { name: 'Expand navigation' }).click();
+    await toggle.click();
     await expect(navigation).toHaveAttribute('aria-hidden', 'false');
     await expect(navigation).not.toHaveAttribute('inert', '');
     await expect.poll(async () => (await navigation.boundingBox())?.x).toBeCloseTo(0, 0);
     await expect(backdrop).toHaveClass(/visible/);
+    await expect(backdrop).not.toHaveAttribute('aria-hidden', 'true');
+    await expect(backdrop).not.toHaveAttribute('inert', '');
+    await expect(backdrop).toBeEnabled();
+    await expect(main).toHaveAttribute('aria-hidden', 'true');
+    await expect(main).toHaveAttribute('inert', '');
+    await expect(topbar).toHaveAttribute('aria-hidden', 'true');
+    await expect(topbar).toHaveAttribute('inert', '');
+    await expect(navigation.getByRole('button', { name: 'Workbench', exact: true })).toBeFocused();
     await page.keyboard.press('Escape');
 
     await expectOffCanvas(navigation);
     await expect(backdrop).not.toHaveClass(/visible/);
-    await expect(page.getByRole('button', { name: 'Expand navigation' })).toHaveAttribute(
-      'aria-expanded',
-      'false',
-    );
+    await expect(backdrop).toHaveAttribute('aria-hidden', 'true');
+    await expect(main).not.toHaveAttribute('aria-hidden', 'true');
+    await expect(main).not.toHaveAttribute('inert', '');
+    await expect(topbar).not.toHaveAttribute('aria-hidden', 'true');
+    await expect(topbar).not.toHaveAttribute('inert', '');
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    await expect(toggle).toBeFocused();
   });
 
   test('hands off mobile navigation to panels and dismisses contextual navigation by backdrop', async ({
@@ -217,9 +237,11 @@ test.describe('responsive workbench navigation', () => {
     await openWorkbench(page);
 
     const navigation = page.locator('#workbench-navigation');
-    const backdrop = page.getByRole('button', { name: 'Close navigation' });
+    const backdrop = page.locator('.nav-backdrop');
     const contextPanel = page.locator('aside[aria-label="Catalog and saved queries"]');
-    const toggle = page.getByRole('button', { name: 'Expand navigation' });
+    const toggle = page.locator('.nav-toggle');
+    const main = page.locator('main');
+    const topbar = page.locator('.topbar');
 
     await toggle.click();
     await navigation.getByRole('button', { name: 'Storage', exact: true }).click();
@@ -239,10 +261,34 @@ test.describe('responsive workbench navigation', () => {
     await expect.poll(async () => (await contextPanel.boundingBox())?.x).toBeCloseTo(0, 0);
     await expect(page.getByLabel('Filter catalog objects')).toBeVisible();
     await expect(backdrop).toHaveClass(/visible/);
+    await expect(contextPanel.locator('.sidebar-tab.active')).toBeFocused();
+    await expect(main).toHaveAttribute('inert', '');
+    await expect(topbar).toHaveAttribute('inert', '');
 
     await backdrop.click();
     await expectOffCanvas(contextPanel);
     await expect(backdrop).not.toHaveClass(/visible/);
+    await expect(toggle).toBeFocused();
+    await expect(main).not.toHaveAttribute('inert', '');
+    await expect(topbar).not.toHaveAttribute('inert', '');
+  });
+
+  test('scrolls the navigation rail to reach operations on a short viewport', async ({ page }) => {
+    await page.setViewportSize({ width: 760, height: 375 });
+    await openWorkbench(page);
+
+    const navigation = page.locator('#workbench-navigation');
+    await page.getByRole('button', { name: 'Expand navigation' }).click();
+
+    const schedule = navigation.locator('.nav-item', { hasText: /^Schedule$/ });
+    await schedule.scrollIntoViewIfNeeded();
+    await expect(schedule).toBeInViewport();
+    await expect.poll(() => navigation.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+
+    await schedule.click();
+    await expect(schedule).toHaveAttribute('aria-current', 'page');
+    await expect(page.locator('main .tabs .tab.active')).toHaveText('Schedule');
+    await expectOffCanvas(navigation);
   });
 
   test('resets both navigation surfaces when crossing the compact breakpoint', async ({ page }) => {
@@ -251,17 +297,18 @@ test.describe('responsive workbench navigation', () => {
 
     const navigation = page.locator('#workbench-navigation');
     const contextPanel = page.locator('aside[aria-label="Catalog and saved queries"]');
+    const catalogFilter = page.getByLabel('Filter catalog objects');
 
     await expect(navigation).toBeVisible();
     await expect(contextPanel).toBeVisible();
+    await catalogFilter.focus();
 
     await page.setViewportSize({ width: 760, height: 900 });
     await expectOffCanvas(navigation);
     await expectOffCanvas(contextPanel);
-    await expect(page.getByRole('button', { name: 'Expand navigation' })).toHaveAttribute(
-      'aria-expanded',
-      'false',
-    );
+    const toggle = page.getByRole('button', { name: 'Expand navigation' });
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    await expect(toggle).toBeFocused();
 
     await page.setViewportSize({ width: 1280, height: 900 });
     await expect(navigation).toBeVisible();

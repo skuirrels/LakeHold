@@ -1,7 +1,12 @@
 <div class="workbench" (keydown.escape)="closeNavigationOverlays()">
-  <header class="topbar">
+  <header
+    class="topbar"
+    [attr.aria-hidden]="navigationOverlayOpen() ? 'true' : null"
+    [attr.inert]="navigationOverlayOpen() ? '' : null"
+  >
     @if (firstRun() === 'none') {
       <button
+        #navigationToggle
         class="nav-toggle"
         type="button"
         aria-controls="workbench-navigation"
@@ -98,11 +103,15 @@
         type="button"
         tabindex="-1"
         aria-label="Close navigation"
-        [class.visible]="compactViewport() && (navigationOpen() || contextPanelOpen())"
+        [class.visible]="navigationOverlayOpen()"
+        [attr.aria-hidden]="navigationOverlayOpen() ? null : 'true'"
+        [attr.inert]="navigationOverlayOpen() ? null : ''"
+        [disabled]="!navigationOverlayOpen()"
         (click)="closeNavigationOverlays()"
       ></button>
 
       <aside
+        #contextPanel
         id="workbench-context-panel"
         class="sidebar"
         aria-label="Catalog and saved queries"
@@ -156,7 +165,11 @@
         }
       </aside>
 
-      <main class="main">
+      <main
+        class="main"
+        [attr.aria-hidden]="navigationOverlayOpen() ? 'true' : null"
+        [attr.inert]="navigationOverlayOpen() ? '' : null"
+      >
         <header class="workspace-header">
           <div class="workspace-heading">
             <span class="breadcrumb"
@@ -164,9 +177,9 @@
             >
             <div class="title-line">
               <h1>Query editor</h1>
-              <span class="connection-status" [class.disconnected]="!ready()">
+              <span class="connection-status" [class.disconnected]="!catalogConnected()">
                 <span class="status-dot" aria-hidden="true"></span>
-                {{ ready() ? 'Connected' : 'Not connected' }}
+                {{ catalogConnected() ? 'Connected' : 'Not connected' }}
               </span>
             </div>
           </div>

@@ -78,6 +78,9 @@ describe('WorkbenchComponent', () => {
 
     expect(api.lastArgs('getSchemas')).toEqual(['demo', 'analytics']);
     expect(text()).toContain('Demo workspace');
+    expect(fixture.nativeElement.querySelector('.connection-status')?.textContent?.trim()).toBe(
+      'Connected',
+    );
   });
 
   describe('navigation shell', () => {
@@ -292,6 +295,9 @@ describe('WorkbenchComponent', () => {
 
       expect(text()).toContain('Could not load the catalog');
       expect(text()).toContain('catalog is gone');
+      const status = fixture.nativeElement.querySelector('.connection-status') as HTMLElement;
+      expect(status.textContent?.trim()).toBe('Not connected');
+      expect(status.classList.contains('disconnected')).toBe(true);
     });
 
     it('clears a query failure when the operator opens another panel', async () => {

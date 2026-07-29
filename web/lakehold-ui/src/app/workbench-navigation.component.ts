@@ -1,4 +1,11 @@
-import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  ElementRef,
+  inject,
+  input,
+  output,
+} from '@angular/core';
 
 export type WorkbenchDestination =
   | 'workbench'
@@ -27,7 +34,19 @@ export type WorkbenchDestination =
   },
 })
 export class WorkbenchNavigationComponent {
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
+
   readonly destination = input.required<WorkbenchDestination>();
   readonly open = input(true);
   readonly navigate = output<WorkbenchDestination>();
+
+  focusCurrentDestination(): void {
+    this.host.nativeElement
+      .querySelector<HTMLButtonElement>('.nav-item[aria-current="page"]')
+      ?.focus();
+  }
+
+  contains(element: Element | null): boolean {
+    return element !== null && this.host.nativeElement.contains(element);
+  }
 }
