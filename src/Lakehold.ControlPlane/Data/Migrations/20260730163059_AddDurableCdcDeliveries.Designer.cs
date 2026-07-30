@@ -3,6 +3,7 @@ using System;
 using Lakehold.ControlPlane.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Lakehold.ControlPlane.Data.Migrations
 {
     [DbContext(typeof(ControlPlaneContext))]
-    partial class ControlPlaneContextModelSnapshot : ModelSnapshot
+    [Migration("20260730163059_AddDurableCdcDeliveries")]
+    partial class AddDurableCdcDeliveries
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -21,25 +24,6 @@ namespace Lakehold.ControlPlane.Data.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
-
-            modelBuilder.Entity("Microsoft.AspNetCore.DataProtection.EntityFrameworkCore.DataProtectionKey", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("FriendlyName")
-                        .HasColumnType("text");
-
-                    b.Property<string>("Xml")
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("DataProtectionKeys");
-                });
 
             modelBuilder.Entity("Lakehold.ControlPlane.Model.ApiToken", b =>
                 {
@@ -102,47 +86,6 @@ namespace Lakehold.ControlPlane.Data.Migrations
                     b.HasIndex("TenantId");
 
                     b.ToTable("ApiTokens");
-                });
-
-            modelBuilder.Entity("Lakehold.ControlPlane.Model.CdcConsumer", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<bool>("Active")
-                        .HasColumnType("boolean");
-
-                    b.Property<string>("CatalogName")
-                        .IsRequired()
-                        .HasMaxLength(63)
-                        .HasColumnType("character varying(63)");
-
-                    b.Property<DateTimeOffset>("CreatedUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<long>("LastAppliedSnapshot")
-                        .HasColumnType("bigint");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)");
-
-                    b.Property<int>("TenantId")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTimeOffset>("UpdatedUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("TenantId", "CatalogName", "Name")
-                        .IsUnique();
-
-                    b.ToTable("CdcConsumers");
                 });
 
             modelBuilder.Entity("Lakehold.ControlPlane.Model.ChangeDelivery", b =>
@@ -454,36 +397,6 @@ namespace Lakehold.ControlPlane.Data.Migrations
                     b.ToTable("SavedQueries");
                 });
 
-            modelBuilder.Entity("Lakehold.ControlPlane.Model.SystemSettings", b =>
-                {
-                    b.Property<int>("Id")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("ConcurrencyVersion")
-                        .IsConcurrencyToken()
-                        .HasColumnType("integer");
-
-                    b.Property<bool>("McpAllowWrites")
-                        .HasColumnType("boolean");
-
-                    b.Property<bool>("McpEnabled")
-                        .HasColumnType("boolean");
-
-                    b.Property<int>("McpMaxRowsPerResult")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("McpPublicBaseUrl")
-                        .HasMaxLength(2048)
-                        .HasColumnType("character varying(2048)");
-
-                    b.Property<DateTimeOffset>("UpdatedUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("SystemSettings");
-                });
-
             modelBuilder.Entity("Lakehold.ControlPlane.Model.Tenant", b =>
                 {
                     b.Property<int>("Id")
@@ -519,17 +432,6 @@ namespace Lakehold.ControlPlane.Data.Migrations
                         .WithMany()
                         .HasForeignKey("TenantId")
                         .OnDelete(DeleteBehavior.Cascade);
-
-                    b.Navigation("Tenant");
-                });
-
-            modelBuilder.Entity("Lakehold.ControlPlane.Model.CdcConsumer", b =>
-                {
-                    b.HasOne("Lakehold.ControlPlane.Model.Tenant", "Tenant")
-                        .WithMany()
-                        .HasForeignKey("TenantId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
 
                     b.Navigation("Tenant");
                 });

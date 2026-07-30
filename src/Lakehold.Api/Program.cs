@@ -125,8 +125,22 @@ builder.AddMaintenanceScheduling();
 // Outbound CDC: polls subscribed catalogs for new snapshots and posts signed change payloads.
 // DuckLake already records what every snapshot changed, so this reads existing bookkeeping rather
 // than adding a Debezium/Kafka pipeline beside the lakehouse.
-builder.Services.Configure<CdcOptions>(builder.Configuration.GetSection(CdcOptions.SectionName));
-builder.Services.AddHttpClient(ChangeFeedDispatcher.HttpClientName);
+builder.Services
+    .AddOptions<CdcOptions>()
+    .Bind(builder.Configuration.GetSection(CdcOptions.SectionName))
+    .Validate(
+        settings => settings.PollInterval > TimeSpan.Zero
+                    && settings.MaxChangesPerTable is > 0 and <= 10_000
+                    && settings.MaxSnapshotsPerSubscriptionPerSweep > 0
+                    && settings.MaxConcurrentSubscriptions > 0
+                    && settings.DeliveryTimeout > TimeSpan.Zero
+                    && settings.LeaseDuration > settings.DeliveryTimeout
+                    && settings.MaxBackoff >= settings.PollInterval,
+        "CDC intervals and concurrency limits are invalid; LeaseDuration must exceed DeliveryTimeout.")
+    .ValidateOnStart();
+builder.Services
+    .AddHttpClient(ChangeFeedDispatcher.HttpClientName)
+    .ConfigurePrimaryHttpMessageHandler(WebhookConnection.CreateHandler);
 if (builder.Configuration.GetSection(CdcOptions.SectionName).Get<CdcOptions>()?.Enabled ?? true)
 {
     builder.Services.AddHostedService<ChangeFeedDispatcher>();

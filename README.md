@@ -92,7 +92,9 @@ That is the website. Everything else is optional detail.
 The first run takes a few minutes — it restores NuGet packages and runs `npm ci` inside the
 containers — and seeds a `demo` workspace with an `analytics` catalog of 250,000 events and 5,000
 customers, so the workbench is usable the moment it loads. Later starts are fast, and source is
-bind-mounted so saving a file hot-reloads in place.
+bind-mounted so saving a file hot-reloads in place. The API development image bakes in DuckDB's
+required signed extensions, including Excel workbook support, so the running process never needs
+to download them.
 
 New here? The [getting-started guide](web/lakehold-ui/src/app/docs.content.md) walks every feature —
 what it does, how to reach it, and what it is for. That one Markdown file is the single source for
@@ -381,19 +383,24 @@ asking you to run Debezium and Kafka to get it back out. Two surfaces, same sour
 **Pull** — typed change pages:
 
 ```bash
-curl "localhost:5200/api/tenants/demo/catalogs/analytics/changes?table=events&fromSnapshot=5"
+curl "localhost:5200/api/tenants/demo/catalogs/analytics/cdc/snapshots/9/changes?schema=main&table=events&limit=1000"
 ```
 
 ```jsonc
 {
-  "fromSnapshot": 5, "toSnapshot": 9, "truncated": false,
+  "fromSnapshot": 9, "toSnapshot": 9, "truncated": true,
+  "nextCursor": "eyJWZXJzaW9uIjoxLC4uLn0",
   "changes": [
-    { "snapshotId": 6, "rowId": 0, "changeType": "insert",           "row": { "id": 1, "status": "new" } },
-    { "snapshotId": 8, "rowId": 3, "changeType": "update_preimage",  "row": { "id": 4, "status": "new" } },
-    { "snapshotId": 8, "rowId": 3, "changeType": "update_postimage", "row": { "id": 4, "status": "shipped" } }
+    { "snapshotId": 9, "rowId": 3, "changeType": "update_preimage",  "row": { "id": 4, "status": "new" } },
+    { "snapshotId": 9, "rowId": 3, "changeType": "update_postimage", "row": { "id": 4, "status": "shipped" } }
   ]
 }
 ```
+
+Pass the opaque `nextCursor` back unchanged until it is `null`. It is bound to the schema, table,
+and snapshot range; changing any of those inputs fails explicitly rather than silently resuming in
+the wrong feed. The older `/changes` route remains a compatibility alias and returns the same
+cursor.
 
 **Push** — a signed webhook per new snapshot:
 
@@ -410,7 +417,10 @@ curl -X POST localhost:5200/api/tenants/demo/catalogs/analytics/subscriptions \
       "Enabled": true,
       "PollInterval": "00:00:15",      // upper bound on delivery latency
       "MaxChangesPerTable": 1000,      // beyond this, payload sets truncated and you pull the rest
+      "MaxSnapshotsPerSubscriptionPerSweep": 100,
+      "MaxConcurrentSubscriptions": 4,
       "DeliveryTimeout": "00:00:30",
+      "LeaseDuration": "00:01:00",
       "MaxBackoff": "00:30:00"         // a dead endpoint costs one request per cap, not per poll
     }
   }
@@ -423,15 +433,48 @@ Worth knowing:
   Verified on DuckDB 1.5.4 — getting this wrong duplicates or drops a window.
 - **An update is two rows**, `update_preimage` and `update_postimage` sharing a `rowId`. Take net
   effect, or diff them.
-- **Delivery is at-least-once with a resumable cursor.** Windows advance one snapshot at a time and
-  the cursor moves only after a 2xx, so a failing consumer replays rather than skips. Make your
-  handler idempotent on `(snapshotId, rowId, changeType)`.
-- **Payloads are HMAC-SHA256 signed** over a timestamped base — `X-Lakehold-Signature`,
-  `X-Lakehold-Timestamp`, `X-Lakehold-Delivery`. Verify both the signature and the timestamp's
-  freshness to reject replays. The secret is stored to sign with and is never returned by the API or
-  written to a log.
-- **Every node dispatches.** Duplicate notification is possible in a cluster; the receiver has to
-  tolerate it anyway. Set `Enabled: false` on all but one node if that is unacceptable.
+- **Delivery is at-least-once with a durable cursor.** Deliveries advance one snapshot at a time and
+  the cursor moves only after a 2xx. PostgreSQL stores one delivery identity, exact body, attempt
+  state, and expiring lease for each subscription/snapshot pair. Multiple API nodes may dispatch;
+  optimistic claims keep normal operation single-delivery while a crashed worker can be taken over.
+  A crash after the receiver commits can still produce a safe duplicate.
+- **Payloads are HMAC-SHA256 signed** over the exact
+  `v1.<timestamp>.<delivery-id>.<body-bytes>` base. Verify `X-Lakehold-Signature-Version`,
+  `X-Lakehold-Signature`, `X-Lakehold-Timestamp`, and `X-Lakehold-Delivery`, reject stale
+  timestamps, and deduplicate by delivery id. The id and body are stable across retries; every
+  attempt has a fresh timestamp and signature. The secret is write-only and never logged.
+- **The pull feed is authoritative.** A truncated webhook only inlines a prefix. Drain the matching
+  snapshot through the cursor-paged pull route before acknowledging downstream work.
+- **Destinations are policy checked.** Production defaults require HTTPS and reject loopback,
+  private, link-local, multicast, and metadata-service addresses after DNS resolution on every
+  attempt. The socket is pinned to the approved address and redirects are disabled. `AllowHttp` and
+  `AllowUnsafeDestinations` are development-only escape hatches; `AllowedHosts` can narrow egress
+  further.
+- **Retention follows durable consumers.** Replicas register a checkpoint under `/cdc/consumers`.
+  Snapshot expiry reports and refuses to cross any live subscription—including a paused one—or an
+  active consumer watermark.
+  Pause/resume, secret rotation, replay, and retry-now use `PUT …/subscriptions/{id}`; deleting a
+  consumer explicitly abandons its retention claim.
+
+### Replicate LakeHold into DuckDB
+
+The first-party worker bootstraps selected tables at one exact source snapshot and then applies each
+later source snapshot to a dedicated DuckDB file. Target rows and
+`_lakehold_replication.checkpoints` commit in the same DuckDB transaction, so an at-least-once
+source produces exactly-once target effects.
+
+```bash
+export LAKEHOLD_REPLICA_TOKEN='lh_…'
+dotnet run --project src/Lakehold.Replicator -- docs/examples/duckdb-replica.json
+```
+
+The example config selects each table as either `keyed` (with declared unique key columns) or
+`appendOnly`. Keyed inserts, deletes, updates, and key changes are supported. Append-only tables
+stop on an update or delete. This first slice deliberately fails closed on schema changes,
+unsupported nested/complex types, missing or duplicate target keys, snapshot gaps, and target
+schema drift; resolve those conditions or re-bootstrap rather than coercing ahead. The source must
+be a LakeHold/DuckLake catalog—an arbitrary plain DuckDB database has no snapshot change feed to
+consume.
 
 ---
 

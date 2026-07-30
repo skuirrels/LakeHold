@@ -2,13 +2,17 @@
   <Folder Name="/src/">
     <Project Path="src/Lakehold.Api/Lakehold.Api.csproj" />
     <Project Path="src/Lakehold.AppHost/Lakehold.AppHost.csproj" />
+    <Project Path="src/Lakehold.Client/Lakehold.Client.csproj" />
     <Project Path="src/Lakehold.ControlPlane/Lakehold.ControlPlane.csproj" />
     <Project Path="src/Lakehold.ControlPlane.Import/Lakehold.ControlPlane.Import.csproj" />
     <Project Path="src/Lakehold.Engine/Lakehold.Engine.csproj" />
+    <Project Path="src/Lakehold.Replication/Lakehold.Replication.csproj" />
+    <Project Path="src/Lakehold.Replicator/Lakehold.Replicator.csproj" />
     <Project Path="src/Lakehold.ServiceDefaults/Lakehold.ServiceDefaults.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Lakehold.Engine.Tests/Lakehold.Engine.Tests.csproj" />
     <Project Path="tests/Lakehold.Api.Tests/Lakehold.Api.Tests.csproj" />
+    <Project Path="tests/Lakehold.Replication.Tests/Lakehold.Replication.Tests.csproj" />
   </Folder>
 </Solution>

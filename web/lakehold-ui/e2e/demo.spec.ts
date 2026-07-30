@@ -43,6 +43,7 @@ test.describe('demo workbench', () => {
       mode: 'demo',
       role: 'reader',
       readOnly: true,
+      systemAdmin: false,
     });
 
     const visible = await request.get(`${baseURL}/api/tenants`);

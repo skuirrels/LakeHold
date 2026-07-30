@@ -58,6 +58,29 @@ public static class LakehouseMaintenance
             .Select(s => new SnapshotInfo(s.SnapshotId, s.SnapshotTime, s.SchemaVersion, s.CommitMessage))];
     }
 
+    /// <summary>Returns one retained snapshot by id, or null when it is not available.</summary>
+    public static async Task<SnapshotInfo?> GetSnapshotAsync(
+        Duckling duckling,
+        long snapshotId,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(duckling);
+        ArgumentOutOfRangeException.ThrowIfNegative(snapshotId);
+
+        var snapshots = await duckling
+            .InvokeAsync(ct => duckling.Maintenance.GetSnapshotsAsync(ct), cancellationToken)
+            .ConfigureAwait(false);
+        var snapshot = snapshots.FirstOrDefault(item => item.SnapshotId == snapshotId);
+
+        return snapshot is null
+            ? null
+            : new SnapshotInfo(
+                snapshot.SnapshotId,
+                snapshot.SnapshotTime,
+                snapshot.SchemaVersion,
+                snapshot.CommitMessage);
+    }
+
     /// <summary>
     ///     Exports the catalog's metadata to Parquet beside its data, so the storage location alone
     ///     is enough to reconstitute the lakehouse.

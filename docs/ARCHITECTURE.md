@@ -423,19 +423,36 @@ DuckDB 1.5.4 — so a consumer that has processed through snapshot `L` reads the
 `L + 1` and no change is delivered twice. Updates arrive as a paired `update_preimage` /
 `update_postimage` sharing a `rowid`, so a consumer can take net effect or diff the two.
 
-Deliveries advance **one snapshot at a time**, and the cursor moves only after a 2xx. That makes the
-contract at-least-once with a resumable cursor: a crashed or failing consumer replays from where it
-stopped rather than skipping a window. Payloads are HMAC-SHA256 signed (`X-Lakehold-Signature`,
-GitHub/Stripe-style) with a timestamped signing base, so a receiver can reject both forgeries and
-replays. A failing endpoint backs off exponentially rather than retrying every poll.
+Deliveries advance **one snapshot at a time**, and the cursor moves only after a 2xx. PostgreSQL
+holds one durable delivery/outbox row per subscription and snapshot, including its stable delivery
+id, exact JSON body, creation timestamp, retry schedule, and bounded optimistic lease. That makes
+the contract at-least-once: a crashed or failing consumer replays from where it stopped, while
+several API nodes normally produce only one in-flight request for that position.
+
+Payloads are HMAC-SHA256 signed over the exact
+`v1.<timestamp>.<delivery-id>.<body-bytes>` base. The version, timestamp, delivery id, and signature
+have separate protocol headers so receivers can enforce freshness and deduplicate a crash replay.
+The delivery id and body remain stable across retries; the attempt timestamp and signature are fresh.
+Redirects are disabled, HTTPS is the production default, and the destination is DNS-resolved and
+checked against prohibited address ranges and the optional hostname allowlist on every attempt. The
+socket is pinned to that approved address so a second DNS answer cannot bypass the policy. A failing
+endpoint backs off exponentially rather than retrying every poll.
 
 The row cap is deliberate: a webhook is a *notification with the common case inlined*, not a bulk
 transfer channel. A window larger than the cap sets `truncated` and the consumer pulls the remainder
-from the changes API — one large backfill cannot wedge every consumer behind it.
+from the opaque cursor-paged changes API — one large backfill cannot wedge every consumer behind it.
+The pull feed is authoritative.
+
+Live subscriptions, including paused subscriptions, and active registered pull consumers contribute
+retention watermarks. Snapshot expiry refuses to remove the next snapshot any of them still needs.
+The DuckDB replicator registers before bootstrap, advances its source watermark only after a target
+transaction commits, and stores the matching target checkpoint in `_lakehold_replication`.
 
 - **Engine**: `Lakehold.Engine/Catalog/ChangeFeed.cs`
-- **Control plane**: `ChangeSubscription` (secret stored for signing, never returned or logged)
-- **API**: `GET …/changes`, `GET|POST …/subscriptions`, `DELETE …/subscriptions/{id}`
+- **Control plane**: `ChangeSubscription`, `ChangeDelivery`, and `CdcConsumer`
+- **API**: `GET …/cdc/snapshots/{snapshot}/changes`, `…/changes` compatibility alias,
+  subscription controls, and `…/cdc/consumers`
+- **Replica**: `Lakehold.Client`, `Lakehold.Replication`, and `Lakehold.Replicator`
 
 ### 3. Embedded Duckling — not built
 

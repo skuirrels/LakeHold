@@ -70,6 +70,7 @@ docker compose -p "$compose_project" "${compose_files[@]}" \
 echo "==> running every backend test with integrations required"
 dotnet test "$repo_root/Lakehold.slnx" \
   --no-build \
+  --maxcpucount:1 \
   --logger trx \
   --results-directory "$test_results"
 

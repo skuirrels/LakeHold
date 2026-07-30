@@ -148,6 +148,8 @@ control-plane outage does not page separately for every failed API route.
 | Wire connection saturation | Connections > 80% of `MaxConnections` for 10 minutes | SEV-3 | [Query/resource degradation](INCIDENT-RESPONSE.md#query-degradation) |
 | Authentication anomaly | Wire auth failures or HTTP 401s exceed baseline by an agreed rate | SEV-2/3; SEV-1 with exposure evidence | [Security incident](INCIDENT-RESPONSE.md#security-or-isolation-incident) |
 | CDC delivery failing | Consecutive failures ≥ 3 or cursor lag exceeds the consumer SLO | SEV-3; SEV-2 for critical integrations | [CDC delivery failure](INCIDENT-RESPONSE.md#cdc-delivery-failure) |
+| CDC lease takeover | `lakehold.cdc.lease.takeovers` rises outside a planned node restart | SEV-3; investigate worker health and PostgreSQL latency | [CDC delivery failure](INCIDENT-RESPONSE.md#cdc-delivery-failure) |
+| CDC worker saturation | `lakehold.cdc.workers.active` stays at `MaxConcurrentSubscriptions` and `lakehold.cdc.snapshot.lag` rises | SEV-3 | [CDC delivery failure](INCIDENT-RESPONSE.md#cdc-delivery-failure) |
 | Restore drill missed/failed | Required monthly or quarterly drill absent or failed | SEV-3 governance alert | [Disaster recovery](DISASTER-RECOVERY.md#restore-drills) |
 
 For a low-traffic deployment, ratio alerts alone are noisy: one failed request can be 100%. Always

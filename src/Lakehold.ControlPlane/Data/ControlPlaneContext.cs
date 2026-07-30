@@ -32,6 +32,10 @@ public sealed class ControlPlaneContext(DbContextOptions<ControlPlaneContext> op
 
     public DbSet<ChangeSubscription> ChangeSubscriptions => Set<ChangeSubscription>();
 
+    public DbSet<ChangeDelivery> ChangeDeliveries => Set<ChangeDelivery>();
+
+    public DbSet<CdcConsumer> CdcConsumers => Set<CdcConsumer>();
+
     public DbSet<ApiToken> ApiTokens => Set<ApiToken>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -133,6 +137,53 @@ public sealed class ControlPlaneContext(DbContextOptions<ControlPlaneContext> op
             entity.HasOne(s => s.Tenant)
                 .WithMany()
                 .HasForeignKey(s => s.TenantId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            if (isDuckDb)
+            {
+                entity.Ignore(s => s.Deliveries);
+            }
+        });
+
+        modelBuilder.Entity<ChangeDelivery>(entity =>
+        {
+            entity.HasKey(d => d.Id);
+            ConfigureGeneratedId(entity.Property(d => d.Id), isDuckDb);
+            entity.Property(d => d.DeliveryId).HasMaxLength(32);
+            entity.Property(d => d.LeaseOwner).HasMaxLength(64);
+            entity.Property(d => d.LastError).HasMaxLength(4000);
+            entity.Property(d => d.Version).IsConcurrencyToken();
+            entity.HasIndex(d => d.DeliveryId).IsUnique();
+            entity.HasIndex(d => new { d.SubscriptionId, d.SnapshotId }).IsUnique();
+            entity.HasIndex(d => new { d.DeliveredUtc, d.NextAttemptUtc, d.LeaseExpiresUtc });
+
+            if (isDuckDb)
+            {
+                // DuckDB's current foreign-key implementation refuses an update to a referenced
+                // subscription row even when its key is unchanged. The native-DuckDB context exists
+                // only as an isolated test/legacy adapter; production PostgreSQL keeps the FK.
+                entity.Ignore(d => d.Subscription);
+            }
+            else
+            {
+                entity.HasOne(d => d.Subscription)
+                    .WithMany(s => s.Deliveries)
+                    .HasForeignKey(d => d.SubscriptionId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            }
+        });
+
+        modelBuilder.Entity<CdcConsumer>(entity =>
+        {
+            entity.HasKey(c => c.Id);
+            ConfigureGeneratedId(entity.Property(c => c.Id), isDuckDb);
+            entity.Property(c => c.CatalogName).HasMaxLength(63);
+            entity.Property(c => c.Name).HasMaxLength(128);
+            entity.HasIndex(c => new { c.TenantId, c.CatalogName, c.Name }).IsUnique();
+
+            entity.HasOne(c => c.Tenant)
+                .WithMany()
+                .HasForeignKey(c => c.TenantId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
 

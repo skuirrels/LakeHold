@@ -497,7 +497,8 @@ public sealed record ChangePageDto(
     long FromSnapshot,
     long ToSnapshot,
     bool Truncated,
-    IReadOnlyList<ChangeDto> Changes);
+    IReadOnlyList<ChangeDto> Changes,
+    string? NextCursor = null);
 
 /// <summary>One row-level change.</summary>
 /// <param name="ChangeType">
@@ -523,6 +524,13 @@ public sealed record CreateSubscriptionRequest(
     string? Table = null,
     string Schema = "main");
 
+/// <summary>Mutable webhook controls. Omitted fields retain their current value.</summary>
+public sealed record UpdateSubscriptionRequest(
+    bool? Active = null,
+    string? Secret = null,
+    long? ReplayFromSnapshot = null,
+    bool RetryNow = false);
+
 /// <summary>A change subscription, as returned by the API.</summary>
 /// <remarks>
 ///     Deliberately omits the signing secret: it is write-only. Delivery state is included because a
@@ -540,3 +548,19 @@ public sealed record SubscriptionDto(
     DateTimeOffset? LastAttemptUtc,
     string? LastError,
     DateTimeOffset CreatedUtc);
+
+/// <summary>Registers or resumes one durable pull consumer at its committed target checkpoint.</summary>
+public sealed record RegisterCdcConsumerRequest(string Name, long LastAppliedSnapshot);
+
+/// <summary>Advances a durable pull consumer after its target transaction commits.</summary>
+public sealed record AdvanceCdcConsumerRequest(long LastAppliedSnapshot);
+
+/// <summary>Observable retention checkpoint for a durable pull consumer.</summary>
+public sealed record CdcConsumerDto(
+    int Id,
+    string Name,
+    string Catalog,
+    long LastAppliedSnapshot,
+    bool Active,
+    DateTimeOffset CreatedUtc,
+    DateTimeOffset UpdatedUtc);

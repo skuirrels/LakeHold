@@ -521,9 +521,32 @@ public sealed class LakehouseService(
     {
         var (duckling, _) = await ResolveAsync(tenantSlug, catalogName, cancellationToken).ConfigureAwait(false);
 
-        // Retention windows are fixed rather than caller-supplied: a caller should not be able to
-        // pass "older_than => now" and expire the history they are standing on.
-        var weekAgo = DateTimeOffset.UtcNow.AddDays(-7);
+        // Retention is deployment policy rather than a caller parameter: a request must not be able
+        // to pass "older_than => now" and expire the history it is standing on.
+        var retentionCutoff = DateTimeOffset.UtcNow - _options.SnapshotRetention;
+        if (operation == "expire")
+        {
+            var blocker = await FindCdcRetentionBlockerAsync(
+                    tenantSlug,
+                    catalogName,
+                    duckling,
+                    retentionCutoff,
+                    cancellationToken)
+                .ConfigureAwait(false);
+            if (blocker is not null)
+            {
+                if (apply)
+                {
+                    throw new InvalidOperationException(blocker);
+                }
+
+                return new MaintenanceResult(
+                    "expire",
+                    $"CDC retention watermark blocks apply: {blocker}",
+                    TimeSpan.Zero,
+                    DryRun: true);
+            }
+        }
 
         return operation switch
         {
@@ -533,14 +556,65 @@ public sealed class LakehouseService(
             "backup" => await LakehouseMaintenance.BackupCatalogAsync(duckling, _options, cancellationToken).ConfigureAwait(false),
 
             "expire" => await LakehouseMaintenance
-                .ExpireSnapshotsAsync(duckling, weekAgo, dryRun: !apply, cancellationToken).ConfigureAwait(false),
+                .ExpireSnapshotsAsync(duckling, retentionCutoff, dryRun: !apply, cancellationToken).ConfigureAwait(false),
             "cleanup" => await LakehouseMaintenance
-                .CleanupOldFilesAsync(duckling, weekAgo, dryRun: !apply, cancellationToken).ConfigureAwait(false),
+                .CleanupOldFilesAsync(duckling, retentionCutoff, dryRun: !apply, cancellationToken).ConfigureAwait(false),
 
             _ => throw new ArgumentException(
                 $"Unknown maintenance operation '{operation}'. Expected flush, compact, backup, expire, or cleanup.",
                 nameof(operation)),
         };
+    }
+
+    private async Task<string?> FindCdcRetentionBlockerAsync(
+        string tenantSlug,
+        string catalogName,
+        Duckling duckling,
+        DateTimeOffset olderThan,
+        CancellationToken cancellationToken)
+    {
+        var subscriptionCursors = await _context.ChangeSubscriptions
+            .AsNoTracking()
+            // Pause stops delivery, not ownership of the pending history. Deleting the subscription
+            // is the explicit operation that releases this retention watermark.
+            .Where(s => s.Tenant.Slug == tenantSlug && s.CatalogName == catalogName)
+            .Select(s => new { Kind = "subscription", Name = s.Id.ToString(), Cursor = s.LastDeliveredSnapshot })
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+        var consumerCursors = await _context.CdcConsumers
+            .AsNoTracking()
+            .Where(c => c.Active && c.Tenant.Slug == tenantSlug && c.CatalogName == catalogName)
+            .Select(c => new { Kind = "consumer", c.Name, Cursor = c.LastAppliedSnapshot })
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+        var latest = await ChangeFeed.LatestSnapshotAsync(duckling, cancellationToken).ConfigureAwait(false);
+        if (latest is null)
+        {
+            return null;
+        }
+
+        foreach (var cursor in subscriptionCursors
+                     .Concat(consumerCursors)
+                     .Where(item => item.Cursor < latest.Value)
+                     .OrderBy(item => item.Cursor))
+        {
+            var required = cursor.Cursor + 1;
+            var snapshot = await LakehouseMaintenance
+                .GetSnapshotAsync(duckling, required, cancellationToken)
+                .ConfigureAwait(false);
+            if (snapshot is null)
+            {
+                return $"{cursor.Kind} '{cursor.Name}' requires snapshot {required}, which is no longer retained.";
+            }
+
+            if (snapshot.CommittedAt < olderThan)
+            {
+                return $"{cursor.Kind} '{cursor.Name}' requires snapshot {required} committed "
+                       + $"{snapshot.CommittedAt:O}. Advance, abandon, or re-bootstrap it before expiry.";
+            }
+        }
+
+        return null;
     }
 
     /// <summary>
@@ -695,6 +769,19 @@ public sealed class LakehouseService(
         return await ChangeFeed.LatestSnapshotAsync(duckling, cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>Returns one retained snapshot, or null when its history is unavailable.</summary>
+    public async Task<SnapshotInfo?> GetSnapshotAsync(
+        string tenantSlug,
+        string catalogName,
+        long snapshotId,
+        CancellationToken cancellationToken)
+    {
+        var (duckling, _) = await ResolveAsync(tenantSlug, catalogName, cancellationToken).ConfigureAwait(false);
+        return await LakehouseMaintenance
+            .GetSnapshotAsync(duckling, snapshotId, cancellationToken)
+            .ConfigureAwait(false);
+    }
+
     /// <summary>Lists the base tables a change subscription can watch in a tenant's catalog.</summary>
     public async Task<IReadOnlyList<(string Schema, string Table)>> ListChangeTablesAsync(
         string tenantSlug,
@@ -718,11 +805,36 @@ public sealed class LakehouseService(
         long toSnapshot,
         int maxRows,
         CancellationToken cancellationToken)
+        => await GetChangesAsync(
+                tenantSlug,
+                catalogName,
+                schema,
+                table,
+                fromSnapshot,
+                toSnapshot,
+                maxRows,
+                cursor: null,
+                cancellationToken)
+            .ConfigureAwait(false);
+
+    /// <summary>
+    ///     Reads one resumable page of a table's row-level changes over an inclusive snapshot range.
+    /// </summary>
+    public async Task<ChangeFeedPage> GetChangesAsync(
+        string tenantSlug,
+        string catalogName,
+        string schema,
+        string table,
+        long fromSnapshot,
+        long toSnapshot,
+        int maxRows,
+        string? cursor,
+        CancellationToken cancellationToken)
     {
         var (duckling, _) = await ResolveAsync(tenantSlug, catalogName, cancellationToken).ConfigureAwait(false);
 
         return await ChangeFeed
-            .ReadAsync(duckling, schema, table, fromSnapshot, toSnapshot, maxRows, cancellationToken)
+            .ReadAsync(duckling, schema, table, fromSnapshot, toSnapshot, maxRows, cursor, cancellationToken)
             .ConfigureAwait(false);
     }
 

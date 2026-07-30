@@ -583,16 +583,20 @@ absolute path that was actually written.
 
 ### Change data capture
 
-`GET …/changes` · `…/subscriptions`
+`GET …/cdc/snapshots/{snapshot}/changes` · `GET …/changes` · `…/subscriptions` ·
+`…/cdc/consumers`
 
 DuckLake already records what each snapshot changed, so LakeHold exposes it directly: a typed pull
-API for change pages, and outbound webhooks fired per new snapshot and signed with HMAC-SHA256.
-Updates arrive as a paired pre-image and post-image sharing a row id, so you can take net effect or
-diff them. No Debezium, no Kafka, no second pipeline.
+API for opaque cursor-paged change pages, and outbound webhooks fired per new snapshot and signed
+with HMAC-SHA256. Updates arrive as a paired pre-image and post-image sharing a row id, so you can
+take net effect or diff them. No Debezium, no Kafka, no second pipeline.
 
-> **Caveat.** Delivery is at-least-once. The cursor advances one snapshot at a time and only after a
-> 2xx, so a failing consumer replays rather than skips — make your handler idempotent on
-> `(snapshot, row, change type)`.
+> **Caveat.** Delivery is at-least-once. PostgreSQL keeps one stable delivery id/body and expiring
+> worker lease per subscription and snapshot; the cursor advances only after a 2xx, so a crash can
+> replay but cannot skip. Each attempt has a fresh timestamp and signature over the
+> `v1.<timestamp>.<delivery-id>.<body>` base. Deduplicate by delivery id, and use the pull cursor when
+> an inline payload is truncated. Live subscriptions, including paused subscriptions, and active
+> registered consumers block snapshot expiry from removing changes they still need.
 
 ### PostgreSQL wire endpoint
 
@@ -620,9 +624,10 @@ workload has a known shape:
 - **Arbitrary result shapes** — anything you query against a lake catalog — stream through the
   provider's dynamic path, capped and cancellable, without inventing fake entity types.
 
-A first-class client package with a typed `ChangeEvent<T>` change stream is on the roadmap but not
-shipped yet — the .NET story today is a property of the architecture and the provider, not something
-you can add to a `csproj`.
+The repository now includes `Lakehold.Client` and a first-party DuckDB replication worker. The
+initial worker is intentionally narrow: configured keyed or append-only tables, scalar types, and
+fail-closed handling for schema drift or snapshot gaps. It is an executable deployment component,
+not yet a published general-purpose NuGet change-stream package.
 
 ---
 

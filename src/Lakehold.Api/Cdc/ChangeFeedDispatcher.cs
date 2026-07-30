@@ -3,6 +3,7 @@ using System.Text.Json;
 using Lakehold.ControlPlane.Data;
 using Lakehold.ControlPlane.Model;
 using Lakehold.Engine.Catalog;
+using Lakehold.Engine.Telemetry;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
@@ -34,7 +35,7 @@ public sealed record ChangeDeliveryTable(
     bool Truncated,
     IReadOnlyList<ChangeDeliveryRow> Changes);
 
-/// <summary>The body of one webhook delivery: a catalog's changes over one snapshot window.</summary>
+/// <summary>The body of one webhook delivery: a catalog's changes in one snapshot.</summary>
 public sealed record ChangeDeliveryPayload(
     long SubscriptionId,
     string Catalog,
@@ -75,12 +76,10 @@ public sealed record ChangeDeliveryPayload(
 ///         feed, and errors record status codes and exception messages only.
 ///     </para>
 ///     <para>
-///         In a multi-node deployment every node runs this dispatcher, so a window can be delivered
-///         once per node. That is deliberate: the cursor write races are harmless (last write is the
-///         same value), the contract is at-least-once either way, and a per-subscription lease would
-///         put a coordination round-trip in front of every delivery to remove duplicates the
-///         receiver must already tolerate. Run with <c>Lakehold:Cdc:Enabled=false</c> on all but one
-///         node where duplicate notifications are unacceptable.
+///         A durable PostgreSQL delivery row gives every subscription/snapshot pair one identity,
+///         one signed body, and a bounded lease. Multiple API nodes may run the dispatcher; only the
+///         node that claims the current lease posts it, and a crash permits another node to replay
+///         the same body and delivery id after expiry.
 ///     </para>
 /// </remarks>
 public sealed class ChangeFeedDispatcher(
@@ -96,6 +95,7 @@ public sealed class ChangeFeedDispatcher(
     // convention everywhere. The serialised bytes are what gets signed, so sign-then-send uses this
     // exact buffer rather than re-serialising.
     private static readonly JsonSerializerOptions PayloadJson = new(JsonSerializerDefaults.Web);
+    private readonly string _workerId = Guid.NewGuid().ToString("N");
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -135,63 +135,211 @@ public sealed class ChangeFeedDispatcher(
     {
         await using var scope = scopeFactory.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<ControlPlaneContext>();
+        var subscriptionIds = await db.ChangeSubscriptions
+            .AsNoTracking()
+            .Where(s => s.Active)
+            .OrderBy(s => s.Id)
+            .Select(s => s.Id)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        await Parallel.ForEachAsync(
+            subscriptionIds,
+            new ParallelOptions
+            {
+                CancellationToken = cancellationToken,
+                MaxDegreeOfParallelism = Math.Max(1, options.Value.MaxConcurrentSubscriptions),
+            },
+            async (subscriptionId, token) =>
+            {
+                LakeholdTelemetry.CdcWorkersActive.Add(1);
+                try
+                {
+                    for (var advanced = 0;
+                         advanced < options.Value.MaxSnapshotsPerSubscriptionPerSweep
+                         && await SweepSubscriptionAsync(subscriptionId, token).ConfigureAwait(false);
+                         advanced++)
+                    {
+                        // Continue in snapshot order until caught up, blocked, or this sweep's
+                        // fairness ceiling is reached.
+                    }
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    CdcLog.SubscriptionSweepFailed(logger, ex, subscriptionId);
+                }
+                finally
+                {
+                    LakeholdTelemetry.CdcWorkersActive.Add(-1);
+                }
+            })
+            .ConfigureAwait(false);
+    }
+
+    private async Task<bool> SweepSubscriptionAsync(int subscriptionId, CancellationToken cancellationToken)
+    {
+        await using var scope = scopeFactory.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<ControlPlaneContext>();
         var lakehouse = scope.ServiceProvider.GetRequiredService<LakehouseService>();
         var settings = options.Value;
         var now = DateTimeOffset.UtcNow;
 
-        // Tracked, because delivery outcomes are written back to each row. Tenant comes along so the
-        // catalog can be resolved through the same isolation seam queries use.
-        var subscriptions = await db.ChangeSubscriptions
+        var subscription = await db.ChangeSubscriptions
             .Include(s => s.Tenant)
-            .Where(s => s.Active)
-            .OrderBy(s => s.Id)
-            .ToListAsync(cancellationToken)
+            .FirstOrDefaultAsync(s => s.Id == subscriptionId && s.Active, cancellationToken)
+            .ConfigureAwait(false);
+        if (subscription is null)
+        {
+            return false;
+        }
+
+        var latest = await lakehouse
+            .GetLatestSnapshotAsync(subscription.Tenant.Slug, subscription.CatalogName, cancellationToken)
+            .ConfigureAwait(false);
+        if (latest is null || latest.Value <= subscription.LastDeliveredSnapshot)
+        {
+            return false;
+        }
+        LakeholdTelemetry.CdcSnapshotLag.Record(latest.Value - subscription.LastDeliveredSnapshot);
+
+        var snapshotId = subscription.LastDeliveredSnapshot + 1;
+        var snapshot = await lakehouse
+            .GetSnapshotAsync(subscription.Tenant.Slug, subscription.CatalogName, snapshotId, cancellationToken)
+            .ConfigureAwait(false)
+            ?? throw new InvalidOperationException(
+                $"Snapshot {snapshotId} is no longer retained for subscription {subscription.Id}. "
+                + "Re-bootstrap or replay from an available snapshot before advancing its cursor.");
+
+        var delivery = await GetOrCreateDeliveryAsync(
+                db,
+                subscription,
+                snapshot.SnapshotId,
+                now,
+                cancellationToken)
             .ConfigureAwait(false);
 
-        foreach (var subscription in subscriptions)
+        if (delivery.DeliveredUtc is not null
+            || delivery.NextAttemptUtc > now
+            || (delivery.LeaseExpiresUtc > now
+                && !string.Equals(delivery.LeaseOwner, _workerId, StringComparison.Ordinal)))
         {
-            if (InBackoff(subscription, settings, now))
-            {
-                continue;
-            }
+            return false;
+        }
 
-            try
-            {
-                await DeliverPendingAsync(lakehouse, subscription, settings, cancellationToken).ConfigureAwait(false);
-            }
-            catch (Exception ex) when (ex is not OperationCanceledException)
-            {
-                // One subscription's failure must not starve the rest of the sweep.
-                subscription.ConsecutiveFailures++;
-                subscription.LastAttemptUtc = DateTimeOffset.UtcNow;
-                subscription.LastError = Truncate(ex.Message);
-                CdcLog.DeliveryFailed(logger, ex, subscription.Id, subscription.CatalogName);
-            }
+        if (delivery.LeaseExpiresUtc <= now
+            && delivery.LeaseOwner is not null
+            && !string.Equals(delivery.LeaseOwner, _workerId, StringComparison.Ordinal))
+        {
+            LakeholdTelemetry.CdcLeaseTakeovers.Add(1);
+        }
 
-            // Saved per subscription rather than per sweep, so a crash mid-sweep loses at most one
-            // subscription's cursor progress — and at-least-once delivery absorbs exactly that.
+        delivery.LeaseOwner = _workerId;
+        delivery.LeaseExpiresUtc = now + settings.LeaseDuration;
+        delivery.Version++;
+        try
+        {
             await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            // Another node claimed the same durable row from the version we read.
+            LakeholdTelemetry.CdcLeaseConflicts.Add(1);
+            return false;
+        }
+
+        try
+        {
+            await DeliverSnapshotAsync(
+                    db,
+                    lakehouse,
+                    subscription,
+                    delivery,
+                    settings,
+                    cancellationToken)
+                .ConfigureAwait(false);
+            return true;
+        }
+        catch (Exception ex) when (
+            ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
+        {
+            var failedAt = DateTimeOffset.UtcNow;
+            delivery.AttemptCount++;
+            delivery.LastAttemptUtc = failedAt;
+            delivery.NextAttemptUtc = failedAt + BackoffFor(delivery.AttemptCount, settings);
+            delivery.LeaseOwner = null;
+            delivery.LeaseExpiresUtc = null;
+            delivery.LastError = Truncate(ex.Message);
+            delivery.Version++;
+
+            subscription.ConsecutiveFailures++;
+            subscription.LastAttemptUtc = failedAt;
+            subscription.LastError = delivery.LastError;
+            LakeholdTelemetry.CdcDeliveryAttempts.Add(
+                1,
+                new KeyValuePair<string, object?>(
+                    LakeholdTelemetry.OutcomeKey,
+                    LakeholdTelemetry.OutcomeError));
+            CdcLog.DeliveryFailed(logger, ex, subscription.Id, subscription.CatalogName);
+            await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+            return false;
         }
     }
 
-    /// <summary>Delivers the window between a subscription's cursor and the catalog's newest snapshot.</summary>
-    private async Task DeliverPendingAsync(
+    private static async Task<ChangeDelivery> GetOrCreateDeliveryAsync(
+        ControlPlaneContext db,
+        ChangeSubscription subscription,
+        long snapshotId,
+        DateTimeOffset now,
+        CancellationToken cancellationToken)
+    {
+        var existing = await db.ChangeDeliveries
+            .SingleOrDefaultAsync(
+                d => d.SubscriptionId == subscription.Id && d.SnapshotId == snapshotId,
+                cancellationToken)
+            .ConfigureAwait(false);
+        if (existing is not null)
+        {
+            return existing;
+        }
+
+        var created = new ChangeDelivery
+        {
+            SubscriptionId = subscription.Id,
+            DeliveryId = Guid.NewGuid().ToString("N"),
+            SnapshotId = snapshotId,
+            CreatedUtc = now,
+        };
+        db.ChangeDeliveries.Add(created);
+
+        try
+        {
+            await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+            return created;
+        }
+        catch (DbUpdateException)
+        {
+            // A second node may have inserted the unique subscription/snapshot row first.
+            db.Entry(created).State = EntityState.Detached;
+            return await db.ChangeDeliveries
+                .SingleAsync(
+                    d => d.SubscriptionId == subscription.Id && d.SnapshotId == snapshotId,
+                    cancellationToken)
+                .ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>Delivers exactly one source snapshot and completes its durable outbox row.</summary>
+    private async Task DeliverSnapshotAsync(
+        ControlPlaneContext db,
         LakehouseService lakehouse,
         ChangeSubscription subscription,
+        ChangeDelivery delivery,
         CdcOptions settings,
         CancellationToken cancellationToken)
     {
         var tenant = subscription.Tenant.Slug;
         var catalog = subscription.CatalogName;
-
-        var latest = await lakehouse.GetLatestSnapshotAsync(tenant, catalog, cancellationToken).ConfigureAwait(false);
-        if (latest is null || latest.Value <= subscription.LastDeliveredSnapshot)
-        {
-            return;
-        }
-
-        var from = subscription.LastDeliveredSnapshot + 1;
-        var to = latest.Value;
+        var snapshotId = delivery.SnapshotId;
 
         var watched = subscription.TableName is { Length: > 0 }
             ? [(subscription.SchemaName, subscription.TableName)]
@@ -201,7 +349,15 @@ public sealed class ChangeFeedDispatcher(
         foreach (var (schema, table) in watched)
         {
             var page = await lakehouse
-                .GetChangesAsync(tenant, catalog, schema, table, from, to, settings.MaxChangesPerTable, cancellationToken)
+                .GetChangesAsync(
+                    tenant,
+                    catalog,
+                    schema,
+                    table,
+                    snapshotId,
+                    snapshotId,
+                    settings.MaxChangesPerTable,
+                    cancellationToken)
                 .ConfigureAwait(false);
 
             if (page.Changes.Count == 0 && !page.Truncated)
@@ -218,78 +374,153 @@ public sealed class ChangeFeedDispatcher(
 
         if (tables.Count == 0)
         {
-            // The new snapshots touched nothing this subscription watches — a maintenance commit, or
-            // writes to other tables. Advance the cursor without posting, or every later sweep would
-            // rescan the same empty window forever.
-            subscription.LastDeliveredSnapshot = to;
+            // The snapshot touched nothing this subscription watches. Complete the durable delivery
+            // without an outbound request so the next poll can advance in order.
+            CompleteDelivery(subscription, delivery, DateTimeOffset.UtcNow);
+            await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
             return;
         }
 
-        var payload = new ChangeDeliveryPayload(
-            subscription.Id, catalog, from, to, DateTimeOffset.UtcNow, tables);
+        if (delivery.Payload is null)
+        {
+            var payload = new ChangeDeliveryPayload(
+                subscription.Id,
+                catalog,
+                snapshotId,
+                snapshotId,
+                delivery.CreatedUtc,
+                tables);
+            delivery.Payload = JsonSerializer.SerializeToUtf8Bytes(payload, PayloadJson);
+            delivery.Version++;
+            await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        }
 
-        await PostAsync(subscription, payload, settings, cancellationToken).ConfigureAwait(false);
+        await PostAsync(subscription, delivery, settings, cancellationToken).ConfigureAwait(false);
 
-        subscription.LastDeliveredSnapshot = to;
+        var completedAt = DateTimeOffset.UtcNow;
+        CompleteDelivery(subscription, delivery, completedAt);
         subscription.ConsecutiveFailures = 0;
         subscription.LastError = null;
-        subscription.LastAttemptUtc = DateTimeOffset.UtcNow;
+        subscription.LastAttemptUtc = completedAt;
+        LakeholdTelemetry.CdcDeliveryAttempts.Add(
+            1,
+            new KeyValuePair<string, object?>(
+                LakeholdTelemetry.OutcomeKey,
+                LakeholdTelemetry.OutcomeSuccess));
+        LakeholdTelemetry.CdcPayloadBytes.Record(delivery.Payload.Length);
+        await db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
         var deliveredChanges = tables.Sum(t => t.Changes.Count);
         var anyTruncated = tables.Any(t => t.Truncated);
-        CdcLog.Delivered(logger, subscription.Id, catalog, from, to, deliveredChanges, anyTruncated);
+        if (anyTruncated)
+        {
+            LakeholdTelemetry.CdcPayloadsTruncated.Add(1);
+        }
+        CdcLog.Delivered(
+            logger,
+            subscription.Id,
+            catalog,
+            snapshotId,
+            snapshotId,
+            deliveredChanges,
+            anyTruncated);
     }
 
     private async Task PostAsync(
         ChangeSubscription subscription,
-        ChangeDeliveryPayload payload,
+        ChangeDelivery delivery,
         CdcOptions settings,
         CancellationToken cancellationToken)
     {
-        var body = JsonSerializer.SerializeToUtf8Bytes(payload, PayloadJson);
+        var body = delivery.Payload
+            ?? throw new InvalidOperationException($"Delivery {delivery.DeliveryId} has no persisted payload.");
+        // The delivery id and body are stable for deduplication, while the attempt timestamp must be
+        // fresh so a receiver can reject captured requests without making a long-lived retry
+        // permanently unverifiable.
+        var timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        var endpoint = new Uri(subscription.EndpointUrl, UriKind.Absolute);
+        var destination = await WebhookDestinationPolicy
+            .ResolveAsync(endpoint, settings, cancellationToken)
+            .ConfigureAwait(false);
+        if (destination.Error is not null)
+        {
+            throw new InvalidOperationException(destination.Error);
+        }
 
-        using var request = new HttpRequestMessage(HttpMethod.Post, subscription.EndpointUrl);
+        using var request = new HttpRequestMessage(HttpMethod.Post, endpoint);
+        if (destination.Address is not null)
+        {
+            request.Options.Set(WebhookConnection.ApprovedAddress, destination.Address);
+        }
         request.Content = new ByteArrayContent(body);
         request.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json")
         {
             CharSet = Encoding.UTF8.WebName,
         };
 
-        // The signature covers the exact bytes on the wire, so the receiver verifies before parsing.
-        request.Headers.TryAddWithoutValidation(WebhookSigner.SignatureHeader, WebhookSigner.Compute(body, subscription.Secret));
-        request.Headers.TryAddWithoutValidation(WebhookSigner.DeliveryHeader, Guid.NewGuid().ToString("N"));
+        // Every retry reuses the durable delivery id and body, but signs them with this attempt's
+        // fresh timestamp.
+        request.Headers.TryAddWithoutValidation(
+            WebhookSigner.SignatureHeader,
+            WebhookSigner.Compute(body, subscription.Secret, timestamp, delivery.DeliveryId));
+        request.Headers.TryAddWithoutValidation(WebhookSigner.DeliveryHeader, delivery.DeliveryId);
+        request.Headers.TryAddWithoutValidation(
+            WebhookSigner.TimestampHeader,
+            timestamp.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        request.Headers.TryAddWithoutValidation(
+            WebhookSigner.SignatureVersionHeader,
+            WebhookSigner.SignatureVersion);
 
         var client = httpClientFactory.CreateClient(HttpClientName);
 
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeout.CancelAfter(settings.DeliveryTimeout);
 
-        using var response = await client.SendAsync(request, timeout.Token).ConfigureAwait(false);
-        if (!response.IsSuccessStatusCode)
+        var startedAt = TimeProvider.System.GetTimestamp();
+        HttpResponseMessage response;
+        try
         {
-            // The status line is the receiver's answer; the body is not read because an arbitrary
-            // endpoint's response has no business flowing into logs or the subscription row.
-            throw new HttpRequestException(
-                $"Endpoint returned {(int)response.StatusCode} {response.ReasonPhrase} for delivery " +
-                $"of snapshots {payload.FromSnapshot}..{payload.ToSnapshot}.");
+            response = await client.SendAsync(request, timeout.Token).ConfigureAwait(false);
+        }
+        finally
+        {
+            LakeholdTelemetry.CdcDeliveryDuration.Record(
+                TimeProvider.System.GetElapsedTime(startedAt).TotalSeconds);
+        }
+        using (response)
+        {
+            if (!response.IsSuccessStatusCode)
+            {
+                // The status line is the receiver's answer; the body is not read because an arbitrary
+                // endpoint's response has no business flowing into logs or the subscription row.
+                throw new HttpRequestException(
+                    $"Endpoint returned {(int)response.StatusCode} {response.ReasonPhrase} for delivery " +
+                    $"of snapshot {delivery.SnapshotId}.");
+            }
         }
     }
 
-    /// <summary>Whether a failing subscription is still inside its exponential backoff window.</summary>
-    private static bool InBackoff(ChangeSubscription subscription, CdcOptions settings, DateTimeOffset now)
+    private static void CompleteDelivery(
+        ChangeSubscription subscription,
+        ChangeDelivery delivery,
+        DateTimeOffset completedAt)
     {
-        if (subscription.ConsecutiveFailures == 0 || subscription.LastAttemptUtc is null)
-        {
-            return false;
-        }
+        subscription.LastDeliveredSnapshot = delivery.SnapshotId;
+        delivery.AttemptCount++;
+        delivery.LastAttemptUtc = completedAt;
+        delivery.NextAttemptUtc = null;
+        delivery.LeaseOwner = null;
+        delivery.LeaseExpiresUtc = null;
+        delivery.DeliveredUtc = completedAt;
+        delivery.LastError = null;
+        delivery.Version++;
+    }
 
-        // Doubles per failure from the poll interval up to the cap: 15s, 30s, 1m, … A dead endpoint
-        // settles at one attempt per cap interval instead of hammering on every poll.
-        var exponent = Math.Min(subscription.ConsecutiveFailures, 12);
+    private static TimeSpan BackoffFor(int attemptCount, CdcOptions settings)
+    {
+        var exponent = Math.Min(attemptCount, 12);
         var backoffTicks = settings.PollInterval.Ticks * (1L << exponent);
-        var backoff = TimeSpan.FromTicks(Math.Min(backoffTicks, settings.MaxBackoff.Ticks));
-
-        return subscription.LastAttemptUtc.Value + backoff > now;
+        return TimeSpan.FromTicks(Math.Min(backoffTicks, settings.MaxBackoff.Ticks));
     }
 
     private static string ToWireName(ChangeType change) => change switch
@@ -337,4 +568,10 @@ internal static partial class CdcLog
         Level = LogLevel.Information,
         Message = "Change-feed dispatcher is disabled")]
     public static partial void DispatcherDisabled(ILogger logger);
+
+    [LoggerMessage(
+        EventId = 3005,
+        Level = LogLevel.Warning,
+        Message = "Change-feed sweep failed for subscription {SubscriptionId}")]
+    public static partial void SubscriptionSweepFailed(ILogger logger, Exception exception, int subscriptionId);
 }

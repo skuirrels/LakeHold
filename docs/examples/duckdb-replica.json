@@ -1,0 +1,25 @@
+{
+  "sourceUrl": "https://lakehold.example.com",
+  "tokenEnvironmentVariable": "LAKEHOLD_REPLICA_TOKEN",
+  "sourceId": "production-analytics",
+  "tenant": "acme",
+  "catalog": "analytics",
+  "targetPath": "/var/lib/lakehold-replica/analytics.duckdb",
+  "pageSize": 5000,
+  "pollInterval": "00:00:15",
+  "runOnce": false,
+  "tables": [
+    {
+      "schema": "main",
+      "table": "orders",
+      "mode": "keyed",
+      "keyColumns": ["id"]
+    },
+    {
+      "schema": "main",
+      "table": "events",
+      "mode": "appendOnly",
+      "keyColumns": []
+    }
+  ]
+}
