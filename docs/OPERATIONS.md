@@ -147,6 +147,23 @@ curl --fail --silent --show-error \
 It is only an in-memory ring of the latest 100 runs and is empty after an API restart. Exported
 telemetry and off-host backup inventory are the durable evidence that maintenance actually ran.
 
+For catalogs with CDC consumers, also compare source snapshots, subscription cursors, and registered
+replica checkpoints:
+
+```bash
+curl --fail --silent --show-error \
+  -H "Authorization: Bearer $LAKEHOLD_TOKEN" \
+  "$LAKEHOLD_URL/api/tenants/$TENANT/catalogs/$CATALOG/subscriptions"
+curl --fail --silent --show-error \
+  -H "Authorization: Bearer $LAKEHOLD_TOKEN" \
+  "$LAKEHOLD_URL/api/tenants/$TENANT/catalogs/$CATALOG/cdc/consumers"
+```
+
+A lagging subscription remains a retention owner even while paused; an active lagging pull consumer
+does too. Snapshot expiry reports either during dry-run and refuses apply. Advance a consumer only
+after its target transaction commits. Delete it only when the mirror is intentionally abandoned or
+will be re-bootstrapped.
+
 ## Deploy and roll back
 
 Capture the current image digests and take a consistent off-host state backup before an upgrade.

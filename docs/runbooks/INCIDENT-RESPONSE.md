@@ -236,9 +236,12 @@ contents are evidence of where the export stopped.
 
 ## CDC delivery failure
 
-LakeHold delivery is at-least-once. The cursor advances only after a 2xx response, so a receiver can
-see a window again after a timeout or a crash between delivery and cursor persistence. Consumers
-must deduplicate by snapshot and row identifiers.
+LakeHold delivery is at-least-once. PostgreSQL persists one delivery id, exact body, and lease per
+subscription/snapshot; the cursor advances only after a 2xx. A receiver can therefore see the same
+logical delivery after a timeout or a crash between its commit and LakeHold's completion write.
+Each attempt has a fresh timestamp and signature over the
+`v1.<timestamp>.<delivery-id>.<body-bytes>` base. Consumers must verify freshness and deduplicate by
+delivery id.
 
 List the affected catalog's subscriptions and compare `lastDeliveredSnapshot`,
 `consecutiveFailures`, `lastAttemptUtc`, and `lastError` with the catalog's latest snapshot:
@@ -254,12 +257,31 @@ status and latency, and its verification of the LakeHold signature. The dispatch
 backoff up to the configured 30-minute maximum; restoring a receiver should resume from the stored
 cursor without manual intervention.
 
-Do not edit `LastDeliveredSnapshot` in the control plane. Moving it forward skips changes; moving it
-back replays them. Deleting and recreating a subscription also starts the new subscription at the
-catalog's current snapshot, so it is not a safe retry or secret-rotation procedure when an
-undelivered window must be preserved. For a compromised webhook secret, contain the receiver and
-engage the data owner before replacing the subscription; record whether an explicit replay is
-required.
+Use the subscription control route rather than editing PostgreSQL. To pause or retry immediately:
+
+```bash
+curl --fail --silent --show-error -X PUT \
+  -H "Authorization: Bearer $LAKEHOLD_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"active":false}' \
+  "$LAKEHOLD_URL/api/tenants/$TENANT/catalogs/$CATALOG/subscriptions/$SUBSCRIPTION_ID"
+
+curl --fail --silent --show-error -X PUT \
+  -H "Authorization: Bearer $LAKEHOLD_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"active":true,"retryNow":true}' \
+  "$LAKEHOLD_URL/api/tenants/$TENANT/catalogs/$CATALOG/subscriptions/$SUBSCRIPTION_ID"
+```
+
+Replay uses `{"replayFromSnapshot": N}` and is accepted only while `N` is retained. Secret
+replacement uses `{"secret":"…"}` and preserves the cursor and pending delivery identity. Coordinate
+the receiver change because this first rotation API starts signing with the replacement immediately.
+Deleting and recreating a subscription starts at the current source snapshot and is not a replay.
+
+For a DuckDB mirror, list `/cdc/consumers` and compare its `lastAppliedSnapshot` with the target's
+`_lakehold_replication.checkpoints`. The target checkpoint is authoritative after a crash: rerun the
+worker so it idempotently acknowledges that position. Do not advance the source consumer manually
+past the target.
 
 Verify recovery by observing a 2xx, `consecutiveFailures` reset to zero, cursor advancement to the
 expected snapshot, and correct deduplication at the consumer.

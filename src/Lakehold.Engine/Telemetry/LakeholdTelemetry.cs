@@ -148,6 +148,40 @@ public static class LakeholdTelemetry
     public static readonly Counter<long> MaintenanceLeaseAttempts = Meter.CreateCounter<long>(
         "lakehold.maintenance.lease.attempts", "{attempt}", "Scheduled maintenance lease attempts.");
 
+    // ---- change delivery ----
+
+    /// <summary>Webhook delivery attempts, tagged by outcome.</summary>
+    public static readonly Counter<long> CdcDeliveryAttempts = Meter.CreateCounter<long>(
+        "lakehold.cdc.delivery.attempts", "{attempt}", "CDC webhook delivery attempts by outcome.");
+
+    /// <summary>End-to-end duration of one webhook request.</summary>
+    public static readonly Histogram<double> CdcDeliveryDuration = Meter.CreateHistogram<double>(
+        "lakehold.cdc.delivery.duration", "s", "Duration of one CDC webhook request.");
+
+    /// <summary>Bytes in the persisted and signed webhook body.</summary>
+    public static readonly Histogram<long> CdcPayloadBytes = Meter.CreateHistogram<long>(
+        "lakehold.cdc.payload.bytes", "By", "Bytes in one CDC webhook body.");
+
+    /// <summary>Optimistic delivery claims lost to another API node.</summary>
+    public static readonly Counter<long> CdcLeaseConflicts = Meter.CreateCounter<long>(
+        "lakehold.cdc.lease.conflicts", "{conflict}", "CDC delivery claims won by another node.");
+
+    /// <summary>Expired leases reclaimed after another worker stopped progressing.</summary>
+    public static readonly Counter<long> CdcLeaseTakeovers = Meter.CreateCounter<long>(
+        "lakehold.cdc.lease.takeovers", "{takeover}", "Expired CDC delivery leases reclaimed.");
+
+    /// <summary>Subscriptions currently executing on this API node.</summary>
+    public static readonly UpDownCounter<long> CdcWorkersActive = Meter.CreateUpDownCounter<long>(
+        "lakehold.cdc.workers.active", "{worker}", "CDC subscription workers currently active.");
+
+    /// <summary>Source snapshots not yet completed by a subscription when it is polled.</summary>
+    public static readonly Histogram<long> CdcSnapshotLag = Meter.CreateHistogram<long>(
+        "lakehold.cdc.snapshot.lag", "{snapshot}", "CDC subscription lag in source snapshots.");
+
+    /// <summary>Webhook payloads that require the receiver to drain the authoritative pull feed.</summary>
+    public static readonly Counter<long> CdcPayloadsTruncated = Meter.CreateCounter<long>(
+        "lakehold.cdc.payload.truncated", "{payload}", "CDC webhook payloads with truncated inline changes.");
+
     // ---- tag keys ----
 
     /// <summary>Tenant slug. Spans only — see the cardinality note on this class.</summary>

@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <Description>One-way LakeHold to DuckDB replication worker.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../Lakehold.Client/Lakehold.Client.csproj" />
+    <ProjectReference Include="../Lakehold.Replication/Lakehold.Replication.csproj" />
+  </ItemGroup>
+
+</Project>

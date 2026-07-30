@@ -43,7 +43,7 @@ segment, but it is validated against the credential rather than trusted.
 | Maintenance | `POST …/catalogs/{c}/maintenance/{op}?apply=` | Synchronous; heavy ops block the request. |
 | Backup | `GET …/backups`, `POST …/backups/restore` | Synchronous restore; no job model. |
 | Eject | `POST …/eject`, `GET …/ejects` | Synchronous; no download. |
-| CDC | `GET …/changes`, `…/subscriptions` | Solid; keep. |
+| CDC | `GET …/cdc/snapshots/{id}/changes`, compatibility `GET …/changes`, `…/subscriptions`, `…/cdc/consumers` | Cursor-paged and retention-aware; still unversioned and uses bare-string errors. |
 | History | `GET …/{tenant}/history` | Principal now recorded; no cursor pagination. |
 | Scheduling | `GET /api/maintenance/schedule` | Node-global, read-only; schedule is config-only. |
 
@@ -177,7 +177,9 @@ subscriptions. This is a deliberate decision recorded in Open questions, not an 
 
 ### Retention
 
-The expiry window is hard-coded at seven days today. Make it policy, honouring pins:
+The expiry window is deployment configuration (`Lakehouse:SnapshotRetention`, seven days by
+default), and active CDC subscriptions/consumers can extend it. A future tenant policy also needs to
+honour pins:
 
 ```
 GET  …/catalogs/{c}/retention
@@ -186,8 +188,37 @@ POST …/catalogs/{c}/snapshots/expire?apply=      # dry-run plan → apply; ski
 POST …/catalogs/{c}/files/cleanup?apply=         # unchanged semantics
 ```
 
-`expire` and `cleanup` keep exactly today's destructive, dry-run-by-default behaviour (invariant 10);
-the only change is that the window comes from policy and pinned snapshots are excluded from the plan.
+`expire` and `cleanup` keep exactly today's destructive, dry-run-by-default behaviour (invariant 10).
+Today, expiry reports and refuses to cross the next snapshot needed by an active webhook or
+registered pull consumer. The remaining v1 change is tenant-level policy plus pinned snapshots.
+
+### CDC and durable pull consumers
+
+Current unversioned routes:
+
+```text
+GET    …/cdc/snapshots/{snapshot}/changes?schema=&table=&limit=&cursor=
+GET    …/changes?schema=&table=&fromSnapshot=&toSnapshot=&limit=&cursor=
+GET    …/subscriptions
+POST   …/subscriptions
+PUT    …/subscriptions/{id}
+DELETE …/subscriptions/{id}
+GET    …/cdc/consumers
+POST   …/cdc/consumers
+PUT    …/cdc/consumers/{id}/checkpoint
+DELETE …/cdc/consumers/{id}
+```
+
+The snapshot route is the authoritative replication surface. Its opaque cursor is bound to the
+requested schema, table, and snapshot and orders by snapshot, row id, then explicit change-type
+ordinal. `nextCursor: null` means the table is drained. A durable consumer registers its committed
+target checkpoint and advances it monotonically only after its own target transaction commits;
+deletion is an explicit abandonment of the retention claim.
+
+`PUT …/subscriptions/{id}` supports pause/resume, write-only secret replacement, replay from a
+retained snapshot, and retry-now. Webhook retries reuse the durable delivery id and exact body; each
+attempt carries a fresh timestamp and signature so receiver freshness checks remain valid after a
+long outage.
 
 ---
 
@@ -203,7 +234,7 @@ the only change is that the window comes from policy and pinned snapshots are ex
 | **Maintenance** | `POST …/maintenance/{flush\|compact\|backup}` | Non-destructive; `compact`/`backup` become jobs. |
 | **Backup / restore** | `GET …/backups`, `POST …/backups/restore` | Restore becomes a job; keep never-overwrite. |
 | **Eject** | `POST …/eject`, `GET …/ejects`, `GET …/ejects/{id}` | Job model; expose `verified`/`signed`/`complete`. |
-| **CDC** | `GET …/changes`, `…/subscriptions` | Unchanged — already coherent. |
+| **CDC** | snapshot-scoped cursor feed, subscriptions, consumers | Add `/api/v1` alias and `problem+json`; preserve cursor and watermark semantics. |
 | **Schedules** | `GET/PUT …/catalogs/{c}/schedules` | New — schedules become API-settable and tenant-scoped, not config-only. |
 | **Audit** | `GET …/{tenant}/history` | Add the principal (`AUTHENTICATION.md`, audit). |
 | **Discovery** | `GET /api/v1/openapi.json`, `GET /api/v1/tenants` | OpenAPI in all environments; tenant list scoped by token. |

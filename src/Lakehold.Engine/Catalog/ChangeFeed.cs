@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text.Json;
 using Lakehold.Engine.Execution;
 
 namespace Lakehold.Engine.Catalog;
@@ -49,13 +50,18 @@ public sealed record TableChange(
 /// <param name="ToSnapshot">Inclusive upper bound of the range read.</param>
 /// <param name="Changes">The changes, ordered by snapshot then row.</param>
 /// <param name="Truncated">Whether the page hit the row ceiling and omitted later changes.</param>
+/// <param name="NextCursor">
+///     Opaque position immediately after the last returned change, or <see langword="null"/> when
+///     the requested range is complete.
+/// </param>
 public sealed record ChangeFeedPage(
     string Schema,
     string Table,
     long FromSnapshot,
     long ToSnapshot,
     IReadOnlyList<TableChange> Changes,
-    bool Truncated);
+    bool Truncated,
+    string? NextCursor = null);
 
 /// <summary>
 ///     Reads DuckLake's built-in change feed — change data capture with no Debezium, no Kafka, and no
@@ -137,6 +143,30 @@ public static class ChangeFeed
         long toSnapshot,
         int maxRows,
         CancellationToken cancellationToken)
+        => await ReadAsync(
+                duckling,
+                schema,
+                table,
+                fromSnapshot,
+                toSnapshot,
+                maxRows,
+                cursor: null,
+                cancellationToken)
+            .ConfigureAwait(false);
+
+    /// <summary>
+    ///     Reads one bounded page of changes and resumes after an opaque cursor returned by the same
+    ///     table and snapshot range.
+    /// </summary>
+    public static async Task<ChangeFeedPage> ReadAsync(
+        Duckling duckling,
+        string schema,
+        string table,
+        long fromSnapshot,
+        long toSnapshot,
+        int maxRows,
+        string? cursor,
+        CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(duckling);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxRows);
@@ -148,29 +178,51 @@ public static class ChangeFeed
             return new ChangeFeedPage(schema, table, fromSnapshot, toSnapshot, [], Truncated: false);
         }
 
+        var position = cursor is null
+            ? null
+            : ChangeFeedCursor.Decode(cursor, schema, table, fromSnapshot, toSnapshot);
         var catalog = SqlIdentifier.Literal(duckling.Catalog.CatalogName);
         var start = fromSnapshot.ToString(CultureInfo.InvariantCulture);
         var end = toSnapshot.ToString(CultureInfo.InvariantCulture);
+        var after = position is null
+            ? string.Empty
+            : "WHERE (snapshot_id, rowid, _lakehold_change_order, change_type) > "
+              + $"({position.SnapshotId.ToString(CultureInfo.InvariantCulture)}, "
+              + $"{position.RowId.ToString(CultureInfo.InvariantCulture)}, "
+              + $"{position.ChangeOrder.ToString(CultureInfo.InvariantCulture)}, "
+              + $"{SqlIdentifier.Literal(position.ChangeType)}) ";
 
-        // Fetch one more than the ceiling so truncation is detectable. ORDER BY before LIMIT makes the
-        // cut deterministic, so a truncated page is always a prefix and the next read can resume from
-        // where it stopped rather than guessing.
+        // Fetch one more than the ceiling so truncation is detectable. The explicit change ordering
+        // keeps an update's pre-image before its post-image and gives keyset pagination a stable
+        // position even when both halves share snapshot_id and rowid.
         var sql =
-            $"SELECT * FROM ducklake_table_changes({catalog}, {SqlIdentifier.Literal(schema)}, " +
-            $"{SqlIdentifier.Literal(table)}, {start}, {end}) " +
-            $"ORDER BY snapshot_id, rowid LIMIT {(maxRows + 1).ToString(CultureInfo.InvariantCulture)}";
+            "SELECT * FROM ("
+            + "SELECT *, CASE change_type "
+            + "WHEN 'insert' THEN 0 WHEN 'delete' THEN 1 "
+            + "WHEN 'update_preimage' THEN 2 WHEN 'update_postimage' THEN 3 ELSE 4 END "
+            + "AS _lakehold_change_order "
+            + $"FROM ducklake_table_changes({catalog}, {SqlIdentifier.Literal(schema)}, "
+            + $"{SqlIdentifier.Literal(table)}, {start}, {end})) AS lakehold_changes "
+            + after
+            + "ORDER BY snapshot_id, rowid, _lakehold_change_order, change_type "
+            + $"LIMIT {(maxRows + 1).ToString(CultureInfo.InvariantCulture)}";
 
         var result = await duckling.ExecuteQueryAsync(sql, cancellationToken).ConfigureAwait(false);
 
         var snapshotIndex = IndexOf(result.Columns, "snapshot_id");
         var rowIdIndex = IndexOf(result.Columns, "rowid");
         var changeTypeIndex = IndexOf(result.Columns, "change_type");
+        var changeOrderIndex = IndexOf(result.Columns, "_lakehold_change_order");
 
         // The table's data columns are everything the feed adds on top of its three bookkeeping
         // columns. Captured by index so the row projection skips them without string comparisons.
         var dataColumns = result.Columns
             .Select((c, i) => (c.Name, i))
-            .Where(c => c.i != snapshotIndex && c.i != rowIdIndex && c.i != changeTypeIndex)
+            .Where(c =>
+                c.i != snapshotIndex
+                && c.i != rowIdIndex
+                && c.i != changeTypeIndex
+                && c.i != changeOrderIndex)
             .ToArray();
 
         var truncated = result.Rows.Count > maxRows || result.Truncated;
@@ -194,7 +246,22 @@ public static class ChangeFeed
                 values));
         }
 
-        return new ChangeFeedPage(schema, table, fromSnapshot, toSnapshot, changes, truncated);
+        string? nextCursor = null;
+        if (truncated && take > 0)
+        {
+            var last = result.Rows[take - 1];
+            nextCursor = ChangeFeedCursor.Encode(
+                schema,
+                table,
+                fromSnapshot,
+                toSnapshot,
+                ToInt64Nullable(last[snapshotIndex]) ?? 0,
+                ToInt64Nullable(last[rowIdIndex]) ?? 0,
+                Convert.ToInt32(last[changeOrderIndex], CultureInfo.InvariantCulture),
+                Convert.ToString(last[changeTypeIndex], CultureInfo.InvariantCulture) ?? string.Empty);
+        }
+
+        return new ChangeFeedPage(schema, table, fromSnapshot, toSnapshot, changes, truncated, nextCursor);
     }
 
     private static int IndexOf(IReadOnlyList<ResultColumn> columns, string name)
@@ -229,4 +296,78 @@ public static class ChangeFeed
         string s when long.TryParse(s, CultureInfo.InvariantCulture, out var parsed) => parsed,
         _ => Convert.ToInt64(value, CultureInfo.InvariantCulture),
     };
+
+    private sealed record ChangeFeedCursorPayload(
+        int Version,
+        string Schema,
+        string Table,
+        long FromSnapshot,
+        long ToSnapshot,
+        long SnapshotId,
+        long RowId,
+        int ChangeOrder,
+        string ChangeType);
+
+    private static class ChangeFeedCursor
+    {
+        private const int CurrentVersion = 1;
+
+        public static string Encode(
+            string schema,
+            string table,
+            long fromSnapshot,
+            long toSnapshot,
+            long snapshotId,
+            long rowId,
+            int changeOrder,
+            string changeType)
+        {
+            var json = JsonSerializer.SerializeToUtf8Bytes(new ChangeFeedCursorPayload(
+                CurrentVersion,
+                schema,
+                table,
+                fromSnapshot,
+                toSnapshot,
+                snapshotId,
+                rowId,
+                changeOrder,
+                changeType));
+            return Convert.ToBase64String(json).TrimEnd('=').Replace('+', '-').Replace('/', '_');
+        }
+
+        public static ChangeFeedCursorPayload Decode(
+            string cursor,
+            string schema,
+            string table,
+            long fromSnapshot,
+            long toSnapshot)
+        {
+            try
+            {
+                var base64 = cursor.Replace('-', '+').Replace('_', '/');
+                base64 = base64.PadRight(base64.Length + ((4 - (base64.Length % 4)) % 4), '=');
+                var payload = JsonSerializer.Deserialize<ChangeFeedCursorPayload>(
+                    Convert.FromBase64String(base64));
+
+                if (payload is null
+                    || payload.Version != CurrentVersion
+                    || !string.Equals(payload.Schema, schema, StringComparison.Ordinal)
+                    || !string.Equals(payload.Table, table, StringComparison.Ordinal)
+                    || payload.FromSnapshot != fromSnapshot
+                    || payload.ToSnapshot != toSnapshot
+                    || payload.SnapshotId < fromSnapshot
+                    || payload.SnapshotId > toSnapshot
+                    || payload.ChangeOrder is < 0 or > 4)
+                {
+                    throw new ArgumentException("The change-feed cursor does not belong to this table and snapshot range.");
+                }
+
+                return payload;
+            }
+            catch (Exception ex) when (ex is FormatException or JsonException)
+            {
+                throw new ArgumentException("The change-feed cursor is invalid.", nameof(cursor), ex);
+            }
+        }
+    }
 }

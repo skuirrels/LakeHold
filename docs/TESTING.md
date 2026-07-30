@@ -151,7 +151,7 @@ one-time owner token, and then proves:
 - owner, editor, and reader roles have distinct live capabilities, including revocation through a
   real `psql` connection;
 - the typed change feed is readable and a signed webhook survives a forced 503 retry with stable
-  delivery identity and cursor advancement;
+  delivery id, timestamp, body, signature version, signature, and cursor advancement;
 - an earlier snapshot can be queried directly and restored, backup restore rebuilds a new metadata
   file, and a second restore refuses to overwrite it;
 - expiry and orphan cleanup can be dry-run and then applied, eject is row-count verified and signed,
@@ -164,3 +164,26 @@ The remaining Phase 2 expansion scenarios are:
   the user-facing APIs;
 - run two tenants and concurrent operators to prove isolation, queueing, cancellation, and session
   eviction under contention.
+
+## CDC and DuckDB replication lanes
+
+The fast suite has three independent correctness boundaries:
+
+```bash
+dotnet test tests/Lakehold.Engine.Tests --filter FullyQualifiedName~ChangeFeedTests
+dotnet test tests/Lakehold.Api.Tests \
+  --filter 'FullyQualifiedName~ChangeFeedDispatcherTests|FullyQualifiedName~WebhookSignerTests|FullyQualifiedName~WebhookDestinationPolicyTests|FullyQualifiedName~Snapshot_expiry_refuses'
+dotnet test tests/Lakehold.Replication.Tests
+```
+
+The engine lane drains a single snapshot containing more than 10,000 changes and tests an update
+split at a page boundary. The API lane covers stable retry identity/body with fresh attempt
+signatures, versioned signature verification, prohibited and pinned destinations, timeout recovery,
+two concurrent dispatcher instances, and retention refusal including paused subscriptions.
+The replication lane uses a real target DuckDB file to prove bootstrap plus catch-up, atomic
+row/checkpoint commit, idempotent replay, rollback on key mismatch, and fail-closed schema/gap
+handling.
+
+These tests do not replace a release-gate PostgreSQL multi-node and disposable HTTP source/target
+run. Native DuckDB is used as the focused control-plane adapter in unit integration tests; the
+production lease and migration lane must also run against PostgreSQL.

@@ -251,6 +251,75 @@ public sealed class ChangeSubscription
     public DateTimeOffset CreatedUtc { get; set; }
 
     public Tenant Tenant { get; set; } = null!;
+
+    public ICollection<ChangeDelivery> Deliveries { get; } = [];
+}
+
+/// <summary>
+///     Durable identity and lease for one subscription snapshot. HTTP retries reuse this row's
+///     delivery id and creation time, so an expired worker lease can replay safely on another node.
+/// </summary>
+public sealed class ChangeDelivery
+{
+    public int Id { get; set; }
+
+    public int SubscriptionId { get; set; }
+
+    /// <summary>Stable public id shared by every attempt of this logical delivery.</summary>
+    public required string DeliveryId { get; set; }
+
+    /// <summary>The single source snapshot represented by this delivery.</summary>
+    public long SnapshotId { get; set; }
+
+    /// <summary>Stable logical-delivery creation time; attempts use a fresh signed timestamp.</summary>
+    public DateTimeOffset CreatedUtc { get; set; }
+
+    public int AttemptCount { get; set; }
+
+    public DateTimeOffset? LastAttemptUtc { get; set; }
+
+    public DateTimeOffset? NextAttemptUtc { get; set; }
+
+    public string? LeaseOwner { get; set; }
+
+    public DateTimeOffset? LeaseExpiresUtc { get; set; }
+
+    public DateTimeOffset? DeliveredUtc { get; set; }
+
+    /// <summary>Exact UTF-8 JSON body reused for every retry; never written to logs.</summary>
+    public byte[]? Payload { get; set; }
+
+    public string? LastError { get; set; }
+
+    /// <summary>Optimistic claim token; concurrent nodes may update only the version they read.</summary>
+    public long Version { get; set; }
+
+    public ChangeSubscription Subscription { get; set; } = null!;
+}
+
+/// <summary>
+///     Durable pull consumer whose checkpoint participates in snapshot-retention safety. Replicas
+///     register here before bootstrap and advance only after their target transaction commits.
+/// </summary>
+public sealed class CdcConsumer
+{
+    public int Id { get; set; }
+
+    public int TenantId { get; set; }
+
+    public required string CatalogName { get; set; }
+
+    public required string Name { get; set; }
+
+    public long LastAppliedSnapshot { get; set; }
+
+    public bool Active { get; set; } = true;
+
+    public DateTimeOffset CreatedUtc { get; set; }
+
+    public DateTimeOffset UpdatedUtc { get; set; }
+
+    public Tenant Tenant { get; set; } = null!;
 }
 
 /// <summary>

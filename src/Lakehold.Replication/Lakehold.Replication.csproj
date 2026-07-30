@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>Transactional DuckDB target for LakeHold snapshot replication.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Skuirrels.DuckDB.NET.Data.Full" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../Lakehold.Client/Lakehold.Client.csproj" />
+  </ItemGroup>
+
+</Project>

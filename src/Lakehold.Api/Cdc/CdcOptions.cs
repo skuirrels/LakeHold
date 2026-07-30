@@ -8,6 +8,18 @@ public sealed class CdcOptions
     /// <summary>Whether the dispatcher runs at all. Off leaves the pull API as the only CDC surface.</summary>
     public bool Enabled { get; set; } = true;
 
+    /// <summary>Whether non-TLS webhook endpoints are allowed. Intended only for controlled development networks.</summary>
+    public bool AllowHttp { get; set; }
+
+    /// <summary>
+    ///     Disables DNS/address checks for isolated test and development environments. Never enable
+    ///     on an internet-reachable deployment.
+    /// </summary>
+    public bool AllowUnsafeDestinations { get; set; }
+
+    /// <summary>Optional exact hosts or wildcard suffixes such as <c>*.example.com</c>.</summary>
+    public string[] AllowedHosts { get; set; } = [];
+
     /// <summary>
     ///     How often subscriptions are polled for new snapshots.
     /// </summary>
@@ -28,8 +40,19 @@ public sealed class CdcOptions
     /// </remarks>
     public int MaxChangesPerTable { get; set; } = 1_000;
 
+    /// <summary>Maximum ordered snapshots one subscription may advance in a single polling pass.</summary>
+    public int MaxSnapshotsPerSubscriptionPerSweep { get; set; } = 100;
+
+    /// <summary>Maximum subscriptions processed concurrently by one dispatcher node.</summary>
+    public int MaxConcurrentSubscriptions { get; set; } = 4;
+
     /// <summary>Wall-clock ceiling for one webhook post.</summary>
     public TimeSpan DeliveryTimeout { get; set; } = TimeSpan.FromSeconds(30);
+
+    /// <summary>
+    ///     How long one node owns a durable delivery before another node may retry it after a crash.
+    /// </summary>
+    public TimeSpan LeaseDuration { get; set; } = TimeSpan.FromMinutes(1);
 
     /// <summary>
     ///     Ceiling for the exponential backoff applied to a failing subscription. Backoff doubles per

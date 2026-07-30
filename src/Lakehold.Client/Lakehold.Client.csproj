@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>Typed client for LakeHold administration, snapshot queries, and resumable CDC.</Description>
+  </PropertyGroup>
+
+</Project>

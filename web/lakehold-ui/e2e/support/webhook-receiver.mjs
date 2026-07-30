@@ -57,6 +57,8 @@ createServer(async (request, response) => {
       body: body.toString('utf8'),
       delivery: request.headers['x-lakehold-delivery'] ?? null,
       signature: request.headers['x-lakehold-signature'] ?? null,
+      timestamp: request.headers['x-lakehold-timestamp'] ?? null,
+      signatureVersion: request.headers['x-lakehold-signature-version'] ?? null,
       status,
     });
     response.writeHead(status);

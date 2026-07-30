@@ -72,6 +72,8 @@ try
     var savedQueries = await source.SavedQueries.AsNoTracking().ToListAsync();
     var queryRuns = await source.QueryRuns.AsNoTracking().ToListAsync();
     var subscriptions = await source.ChangeSubscriptions.AsNoTracking().ToListAsync();
+    var deliveries = await source.ChangeDeliveries.AsNoTracking().ToListAsync();
+    var consumers = await source.CdcConsumers.AsNoTracking().ToListAsync();
     var tokens = await source.ApiTokens.AsNoTracking().ToListAsync();
 
     Console.WriteLine("Legacy control-plane inventory:");
@@ -80,6 +82,8 @@ try
     Console.WriteLine($"  saved queries:       {savedQueries.Count}");
     Console.WriteLine($"  query runs:          {queryRuns.Count}");
     Console.WriteLine($"  change subscriptions:{subscriptions.Count}");
+    Console.WriteLine($"  change deliveries:   {deliveries.Count}");
+    Console.WriteLine($"  CDC consumers:       {consumers.Count}");
     Console.WriteLine($"  API tokens:          {tokens.Count}");
 
     if (!arguments.Apply)
@@ -106,6 +110,8 @@ try
         + await target.SavedQueries.CountAsync()
         + await target.QueryRuns.CountAsync()
         + await target.ChangeSubscriptions.CountAsync()
+        + await target.ChangeDeliveries.CountAsync()
+        + await target.CdcConsumers.CountAsync()
         + await target.ApiTokens.CountAsync();
     if (targetRows != 0)
     {
@@ -125,10 +131,22 @@ try
     target.SavedQueries.AddRange(savedQueries);
     target.QueryRuns.AddRange(queryRuns);
     target.ChangeSubscriptions.AddRange(subscriptions);
+    target.ChangeDeliveries.AddRange(deliveries);
+    target.CdcConsumers.AddRange(consumers);
     target.ApiTokens.AddRange(tokens);
     await target.SaveChangesAsync();
 
-    string[] tables = ["Tenants", "Catalogs", "SavedQueries", "QueryRuns", "ChangeSubscriptions", "ApiTokens"];
+    string[] tables =
+    [
+        "Tenants",
+        "Catalogs",
+        "SavedQueries",
+        "QueryRuns",
+        "ChangeSubscriptions",
+        "ChangeDeliveries",
+        "CdcConsumers",
+        "ApiTokens",
+    ];
     foreach (var table in tables)
     {
         var resetSequenceSql =
@@ -160,7 +178,17 @@ finally
 
 static async Task<bool> HasApplicationRowsAsync(string connectionString)
 {
-    string[] tables = ["Tenants", "Catalogs", "SavedQueries", "QueryRuns", "ChangeSubscriptions", "ApiTokens"];
+    string[] tables =
+    [
+        "Tenants",
+        "Catalogs",
+        "SavedQueries",
+        "QueryRuns",
+        "ChangeSubscriptions",
+        "ChangeDeliveries",
+        "CdcConsumers",
+        "ApiTokens",
+    ];
     await using var connection = new NpgsqlConnection(connectionString);
     await connection.OpenAsync();
 

@@ -121,6 +121,103 @@ public sealed class ChangeFeedTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Change_feed_cursor_drains_more_than_ten_thousand_changes_in_one_snapshot()
+    {
+        var duckling = await Session();
+        await Run(duckling, "CREATE TABLE bulk_changes (id BIGINT)");
+        await Run(duckling, "INSERT INTO bulk_changes SELECT i FROM range(0, 10050) AS values(i)");
+        var snapshot = (await ChangeFeed.LatestSnapshotAsync(duckling, CancellationToken.None))!.Value;
+
+        var received = new List<TableChange>();
+        string? cursor = null;
+        do
+        {
+            var page = await ChangeFeed.ReadAsync(
+                duckling,
+                "main",
+                "bulk_changes",
+                snapshot,
+                snapshot,
+                maxRows: 997,
+                cursor,
+                CancellationToken.None);
+
+            received.AddRange(page.Changes);
+            cursor = page.NextCursor;
+            Assert.Equal(page.Truncated, cursor is not null);
+        }
+        while (cursor is not null);
+
+        Assert.Equal(10050, received.Count);
+        Assert.Equal(10050, received.Select(c => c.RowId).Distinct().Count());
+        Assert.All(received, change => Assert.Equal(snapshot, change.SnapshotId));
+    }
+
+    [Fact]
+    public async Task Change_feed_cursor_keeps_update_preimage_before_postimage_across_page_boundary()
+    {
+        var duckling = await Session();
+        var latest = (await ChangeFeed.LatestSnapshotAsync(duckling, CancellationToken.None))!.Value;
+        var whole = await ChangeFeed.ReadAsync(duckling, "main", "orders", 0, latest, 100, CancellationToken.None);
+        var updateSnapshot = Assert.Single(
+            whole.Changes
+                .Where(c => c.Change == ChangeType.UpdatePreimage)
+                .Select(c => c.SnapshotId)
+                .Distinct());
+
+        var first = await ChangeFeed.ReadAsync(
+            duckling,
+            "main",
+            "orders",
+            updateSnapshot,
+            updateSnapshot,
+            maxRows: 1,
+            cursor: null,
+            CancellationToken.None);
+        var second = await ChangeFeed.ReadAsync(
+            duckling,
+            "main",
+            "orders",
+            updateSnapshot,
+            updateSnapshot,
+            maxRows: 1,
+            first.NextCursor,
+            CancellationToken.None);
+
+        Assert.Equal(ChangeType.UpdatePreimage, Assert.Single(first.Changes).Change);
+        Assert.Equal(ChangeType.UpdatePostimage, Assert.Single(second.Changes).Change);
+        Assert.Null(second.NextCursor);
+    }
+
+    [Fact]
+    public async Task Change_feed_cursor_is_bound_to_its_table_and_snapshot_range()
+    {
+        var duckling = await Session();
+        var latest = (await ChangeFeed.LatestSnapshotAsync(duckling, CancellationToken.None))!.Value;
+        var first = await ChangeFeed.ReadAsync(
+            duckling,
+            "main",
+            "orders",
+            0,
+            latest,
+            maxRows: 1,
+            cursor: null,
+            CancellationToken.None);
+
+        var error = await Assert.ThrowsAsync<ArgumentException>(() => ChangeFeed.ReadAsync(
+            duckling,
+            "main",
+            "different_table",
+            0,
+            latest,
+            maxRows: 1,
+            first.NextCursor,
+            CancellationToken.None));
+
+        Assert.Contains("does not belong", error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task List_tables_returns_the_catalog_base_tables()
     {
         var duckling = await Session();

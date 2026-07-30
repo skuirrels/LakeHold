@@ -1,6 +1,7 @@
 using DuckDB.EFCoreProvider.Extensions;
 using Lakehold.Api.Endpoints;
 using Lakehold.ControlPlane.Data;
+using Lakehold.ControlPlane.Model;
 using Lakehold.Engine.Catalog;
 using Lakehold.Engine.Configuration;
 using Lakehold.Engine.Execution;
@@ -191,6 +192,123 @@ public sealed class StorageEndpointsTests : IAsyncLifetime
         var staging = Assert.Single((await Storage()).Tables, t => t.TableName == "staging");
         Assert.Equal(1, staging.FileCount);
         Assert.False(staging.NeedsCompaction);
+    }
+
+    [Fact]
+    public async Task Snapshot_expiry_refuses_to_cross_an_active_cdc_watermark()
+    {
+        var snapshots = await _service.GetSnapshotsAsync("acme", "analytics", 100, default);
+        var oldest = snapshots
+            .Where(snapshot => snapshot.SnapshotId > 0)
+            .Min(snapshot => snapshot.SnapshotId);
+
+        var tenant = await _context.Tenants.SingleAsync(tenant => tenant.Slug == "acme");
+        var consumer = new CdcConsumer
+        {
+            TenantId = tenant.Id,
+            CatalogName = "analytics",
+            Name = "warehouse-mirror",
+            LastAppliedSnapshot = oldest - 1,
+            CreatedUtc = DateTimeOffset.UtcNow,
+            UpdatedUtc = DateTimeOffset.UtcNow,
+        };
+        _context.CdcConsumers.Add(consumer);
+        await _context.SaveChangesAsync();
+
+        // Make the fixture's snapshots eligible without sleeping for the production retention
+        // period. The active consumer still owns the oldest required snapshot.
+        _options.Value.SnapshotRetention = TimeSpan.Zero;
+
+        var dryRun = await _service.RunMaintenanceAsync(
+            "acme", "analytics", "expire", apply: false, cancellationToken: default);
+        Assert.Contains("CDC retention watermark blocks apply", dryRun.Detail, StringComparison.Ordinal);
+        Assert.Contains("warehouse-mirror", dryRun.Detail, StringComparison.Ordinal);
+        Assert.Contains($"snapshot {oldest}", dryRun.Detail, StringComparison.Ordinal);
+
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            _service.RunMaintenanceAsync(
+                "acme", "analytics", "expire", apply: true, cancellationToken: default));
+        Assert.Contains("warehouse-mirror", error.Message, StringComparison.Ordinal);
+
+        // Abandon is explicit: inactive consumers no longer pin history.
+        consumer.Active = false;
+        await _context.SaveChangesAsync();
+        var unblocked = await _service.RunMaintenanceAsync(
+            "acme", "analytics", "expire", apply: false, cancellationToken: default);
+        Assert.DoesNotContain("CDC retention watermark blocks apply", unblocked.Detail, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Paused_subscription_continues_to_pin_its_required_snapshot()
+    {
+        var snapshots = await _service.GetSnapshotsAsync("acme", "analytics", 100, default);
+        var oldest = snapshots
+            .Where(snapshot => snapshot.SnapshotId > 0)
+            .Min(snapshot => snapshot.SnapshotId);
+        var tenant = await _context.Tenants.SingleAsync(tenant => tenant.Slug == "acme");
+        _context.ChangeSubscriptions.Add(new ChangeSubscription
+        {
+            TenantId = tenant.Id,
+            CatalogName = "analytics",
+            EndpointUrl = "https://hooks.example.com/cdc",
+            Secret = "a-signing-secret-of-adequate-length",
+            Active = false,
+            LastDeliveredSnapshot = oldest - 1,
+            CreatedUtc = DateTimeOffset.UtcNow,
+        });
+        await _context.SaveChangesAsync();
+        _options.Value.SnapshotRetention = TimeSpan.Zero;
+
+        var dryRun = await _service.RunMaintenanceAsync(
+            "acme", "analytics", "expire", apply: false, cancellationToken: default);
+
+        Assert.Contains("CDC retention watermark blocks apply", dryRun.Detail, StringComparison.Ordinal);
+        Assert.Contains($"snapshot {oldest}", dryRun.Detail, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Cdc_consumer_checkpoint_is_monotonic_and_abandon_is_explicit()
+    {
+        var latest = (await _service.GetLatestSnapshotAsync("acme", "analytics", default))!.Value;
+        var initial = Math.Max(0, latest - 1);
+
+        var registered = await LakehouseEndpoints.RegisterCdcConsumerAsync(
+            "acme",
+            "analytics",
+            new RegisterCdcConsumerRequest("duckdb-mirror", initial),
+            _context,
+            _service,
+            default);
+        var created = Assert.IsType<Created<CdcConsumerDto>>(Unwrap(registered)).Value!;
+        Assert.Equal(initial, created.LastAppliedSnapshot);
+
+        var advanced = await LakehouseEndpoints.AdvanceCdcConsumerAsync(
+            "acme",
+            "analytics",
+            created.Id,
+            new AdvanceCdcConsumerRequest(latest),
+            _context,
+            _service,
+            default);
+        Assert.Equal(latest, Assert.IsType<Ok<CdcConsumerDto>>(Unwrap(advanced)).Value!.LastAppliedSnapshot);
+
+        var backwards = await LakehouseEndpoints.AdvanceCdcConsumerAsync(
+            "acme",
+            "analytics",
+            created.Id,
+            new AdvanceCdcConsumerRequest(initial),
+            _context,
+            _service,
+            default);
+        Assert.Contains(
+            "current value",
+            Assert.IsType<BadRequest<string>>(Unwrap(backwards)).Value!,
+            StringComparison.Ordinal);
+
+        var abandoned = await LakehouseEndpoints.DeleteCdcConsumerAsync(
+            "acme", "analytics", created.Id, _context, default);
+        Assert.IsType<NoContent>(Unwrap(abandoned));
+        Assert.False(await _context.CdcConsumers.AnyAsync(consumer => consumer.Id == created.Id));
     }
 
     [Fact]

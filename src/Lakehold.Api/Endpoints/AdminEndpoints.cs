@@ -276,6 +276,16 @@ public static partial class AdminEndpoints
         }
 
         var descriptor = catalog.ToDescriptor();
+        var subscriptions = await context.ChangeSubscriptions
+            .Where(s => s.TenantId == catalog.TenantId && s.CatalogName == catalogName)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+        var consumers = await context.CdcConsumers
+            .Where(c => c.TenantId == catalog.TenantId && c.CatalogName == catalogName)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+        context.ChangeSubscriptions.RemoveRange(subscriptions);
+        context.CdcConsumers.RemoveRange(consumers);
         context.Catalogs.Remove(catalog);
         await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 

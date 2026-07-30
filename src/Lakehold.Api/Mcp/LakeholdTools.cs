@@ -191,7 +191,8 @@ public sealed class LakeholdTools(
         CancellationToken cancellationToken,
         [Description("Schema holding the table. Defaults to 'main'.")] string schema = "main",
         [Description("Inclusive upper bound. Omit to read to the newest snapshot.")] long? toSnapshot = null,
-        [Description("Maximum changes to return. Bounded by the server's MCP page ceiling.")] int limit = 200)
+        [Description("Maximum changes to return. Bounded by the server's MCP page ceiling.")] int limit = 200,
+        [Description("Opaque cursor from the preceding page for the same table and snapshot range.")] string? cursor = null)
     {
         McpCaller.Authorize(httpContextAccessor, tenant, catalog);
         var settings = McpCaller.Settings(httpContextAccessor);
@@ -205,7 +206,7 @@ public sealed class LakeholdTools(
             var page = await lakehouse
                 .GetChangesAsync(
                     tenant, catalog, schema, table, fromSnapshot, to,
-                    settings.BoundPageSize(limit, 10_000), cancellationToken)
+                    settings.BoundPageSize(limit, 10_000), cursor, cancellationToken)
                 .ConfigureAwait(false);
 
             return new McpChangePage(
@@ -214,7 +215,8 @@ public sealed class LakeholdTools(
                 page.FromSnapshot,
                 page.ToSnapshot,
                 page.Truncated,
-                [.. page.Changes.Select(c => new McpChange(c.SnapshotId, c.RowId, ChangeTypeName(c.Change), c.Row))]);
+                [.. page.Changes.Select(c => new McpChange(c.SnapshotId, c.RowId, ChangeTypeName(c.Change), c.Row))],
+                page.NextCursor);
         }
         catch (CatalogNotFoundException ex)
         {
@@ -362,7 +364,8 @@ public sealed record McpChangePage(
     long FromSnapshot,
     long ToSnapshot,
     bool Truncated,
-    IReadOnlyList<McpChange> Changes);
+    IReadOnlyList<McpChange> Changes,
+    string? NextCursor = null);
 
 /// <summary>A schema and its tables.</summary>
 public sealed record McpSchema(string Name, IReadOnlyList<McpTable> Tables);

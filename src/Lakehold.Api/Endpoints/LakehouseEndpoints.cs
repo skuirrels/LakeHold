@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Lakehold.Api.Auth;
+using Lakehold.Api.Cdc;
 using Lakehold.Api.Importing;
 using Lakehold.Api.Scheduling;
 using Lakehold.ControlPlane.Data;
@@ -109,6 +110,11 @@ public static class LakehouseEndpoints
         tenants.MapGet("/{tenantSlug}/catalogs/{catalogName}/changes", GetChangesAsync)
             .WithSummary("Reads a table's row-level changes over an inclusive snapshot range.");
 
+        tenants.MapGet(
+                "/{tenantSlug}/catalogs/{catalogName}/cdc/snapshots/{snapshot:long}/changes",
+                GetSnapshotChangesAsync)
+            .WithSummary("Reads one resumable page of a table's changes in one snapshot.");
+
         tenants.MapGet("/{tenantSlug}/catalogs/{catalogName}/subscriptions", ListSubscriptionsAsync)
             .WithSummary("Lists the catalog's change subscriptions.");
 
@@ -119,6 +125,31 @@ public static class LakehouseEndpoints
         tenants.MapDelete("/{tenantSlug}/catalogs/{catalogName}/subscriptions/{id:int}", DeleteSubscriptionAsync)
             .RequireCapability(Capability.TenantWrite)
             .WithSummary("Deletes a change subscription.");
+
+        tenants.MapPut(
+                "/{tenantSlug}/catalogs/{catalogName}/subscriptions/{id:int}",
+                UpdateSubscriptionAsync)
+            .RequireCapability(Capability.TenantWrite)
+            .WithSummary("Pauses, resumes, rotates, retries, or replays a change subscription.");
+
+        tenants.MapGet("/{tenantSlug}/catalogs/{catalogName}/cdc/consumers", ListCdcConsumersAsync)
+            .WithSummary("Lists durable pull-consumer checkpoints.");
+
+        tenants.MapPost("/{tenantSlug}/catalogs/{catalogName}/cdc/consumers", RegisterCdcConsumerAsync)
+            .RequireCapability(Capability.TenantWrite)
+            .WithSummary("Registers or resumes a durable pull consumer.");
+
+        tenants.MapPut(
+                "/{tenantSlug}/catalogs/{catalogName}/cdc/consumers/{id:int}/checkpoint",
+                AdvanceCdcConsumerAsync)
+            .RequireCapability(Capability.TenantWrite)
+            .WithSummary("Advances a durable pull consumer after its target commit.");
+
+        tenants.MapDelete(
+                "/{tenantSlug}/catalogs/{catalogName}/cdc/consumers/{id:int}",
+                DeleteCdcConsumerAsync)
+            .RequireCapability(Capability.TenantWrite)
+            .WithSummary("Abandons a durable pull consumer and releases its retention watermark.");
 
         // Outside the /api/tenants group, so it carries the filter itself: the run log names every
         // tenant and catalog the scheduler touched, which is not anonymous-readable. Listing rather
@@ -608,6 +639,10 @@ public static class LakehouseEndpoints
         {
             return TypedResults.BadRequest(ex.Message);
         }
+        catch (InvalidOperationException ex)
+        {
+            return TypedResults.BadRequest(ex.Message);
+        }
         catch (DuckDB.NET.Data.DuckDBException ex)
         {
             return TypedResults.BadRequest(ex.Message);
@@ -753,7 +788,8 @@ public static class LakehouseEndpoints
         CancellationToken cancellationToken,
         string schema = "main",
         long? toSnapshot = null,
-        int limit = 1000)
+        int limit = 1000,
+        string? cursor = null)
     {
         try
         {
@@ -766,7 +802,7 @@ public static class LakehouseEndpoints
             var page = await lakehouse
                 .GetChangesAsync(
                     tenantSlug, catalogName, schema, table, fromSnapshot, to,
-                    Math.Clamp(limit, 1, 10_000), cancellationToken)
+                    Math.Clamp(limit, 1, 10_000), cursor, cancellationToken)
                 .ConfigureAwait(false);
 
             return TypedResults.Ok(new ChangePageDto(
@@ -778,7 +814,8 @@ public static class LakehouseEndpoints
                 [
                     .. page.Changes.Select(c => new ChangeDto(
                         c.SnapshotId, c.RowId, ChangeTypeName(c.Change), c.Row)),
-                ]));
+                ],
+                page.NextCursor));
         }
         catch (CatalogNotFoundException ex)
         {
@@ -795,6 +832,28 @@ public static class LakehouseEndpoints
             return TypedResults.BadRequest(ex.Message);
         }
     }
+
+    private static Task<Results<Ok<ChangePageDto>, NotFound<string>, BadRequest<string>>> GetSnapshotChangesAsync(
+        string tenantSlug,
+        string catalogName,
+        long snapshot,
+        string table,
+        LakehouseService lakehouse,
+        CancellationToken cancellationToken,
+        string schema = "main",
+        int limit = 1000,
+        string? cursor = null)
+        => GetChangesAsync(
+            tenantSlug,
+            catalogName,
+            table,
+            snapshot,
+            lakehouse,
+            cancellationToken,
+            schema,
+            snapshot,
+            limit,
+            cursor);
 
     private static async Task<Results<Ok<IReadOnlyList<SubscriptionDto>>, NotFound<string>>> ListSubscriptionsAsync(
         string tenantSlug,
@@ -823,13 +882,21 @@ public static class LakehouseEndpoints
         CreateSubscriptionRequest request,
         ControlPlaneContext context,
         LakehouseService lakehouse,
+        IOptions<CdcOptions> cdcOptions,
         CancellationToken cancellationToken)
     {
         if (request is null
-            || !Uri.TryCreate(request.EndpointUrl, UriKind.Absolute, out var endpoint)
-            || (endpoint.Scheme != Uri.UriSchemeHttp && endpoint.Scheme != Uri.UriSchemeHttps))
+            || !Uri.TryCreate(request.EndpointUrl, UriKind.Absolute, out var endpoint))
         {
-            return TypedResults.BadRequest("An absolute http or https endpoint URL is required.");
+            return TypedResults.BadRequest("An absolute webhook endpoint URL is required.");
+        }
+
+        var destinationError = await WebhookDestinationPolicy
+            .ValidateAsync(endpoint, cdcOptions.Value, cancellationToken)
+            .ConfigureAwait(false);
+        if (destinationError is not null)
+        {
+            return TypedResults.BadRequest(destinationError);
         }
 
         // The model's column ceilings are enforced here because DuckDB does not enforce VARCHAR
@@ -912,6 +979,248 @@ public static class LakehouseEndpoints
         return TypedResults.NoContent();
     }
 
+    private static async Task<Results<Ok<SubscriptionDto>, NotFound<string>, BadRequest<string>>>
+        UpdateSubscriptionAsync(
+            string tenantSlug,
+            string catalogName,
+            int id,
+            UpdateSubscriptionRequest request,
+            ControlPlaneContext context,
+            LakehouseService lakehouse,
+            CancellationToken cancellationToken)
+    {
+        var subscription = await context.ChangeSubscriptions
+            .FirstOrDefaultAsync(
+                s => s.Id == id && s.Tenant.Slug == tenantSlug && s.CatalogName == catalogName,
+                cancellationToken)
+            .ConfigureAwait(false);
+        if (subscription is null)
+        {
+            return TypedResults.NotFound($"Subscription {id} was not found for '{tenantSlug}/{catalogName}'.");
+        }
+
+        if (request is null)
+        {
+            return TypedResults.BadRequest("A subscription update is required.");
+        }
+
+        if (request.Secret is not null)
+        {
+            if (string.IsNullOrWhiteSpace(request.Secret) || request.Secret.Length is < 16 or > 256)
+            {
+                return TypedResults.BadRequest("A signing secret of 16 to 256 characters is required.");
+            }
+
+            subscription.Secret = request.Secret;
+        }
+
+        if (request.ReplayFromSnapshot is { } replay)
+        {
+            var latest = await lakehouse
+                .GetLatestSnapshotAsync(tenantSlug, catalogName, cancellationToken)
+                .ConfigureAwait(false) ?? 0;
+            if (replay <= 0 || replay > latest
+                || await lakehouse.GetSnapshotAsync(
+                        tenantSlug,
+                        catalogName,
+                        replay,
+                        cancellationToken)
+                    .ConfigureAwait(false) is null)
+            {
+                return TypedResults.BadRequest(
+                    $"Replay must start at a retained snapshot between 1 and {latest}.");
+            }
+
+            var replayed = await context.ChangeDeliveries
+                .Where(d => d.SubscriptionId == id && d.SnapshotId >= replay)
+                .ToListAsync(cancellationToken)
+                .ConfigureAwait(false);
+            context.ChangeDeliveries.RemoveRange(replayed);
+            subscription.LastDeliveredSnapshot = replay - 1;
+            subscription.ConsecutiveFailures = 0;
+            subscription.LastAttemptUtc = null;
+            subscription.LastError = null;
+        }
+
+        if (request.RetryNow)
+        {
+            var pending = await context.ChangeDeliveries
+                .Where(d => d.SubscriptionId == id && d.DeliveredUtc == null)
+                .ToListAsync(cancellationToken)
+                .ConfigureAwait(false);
+            foreach (var delivery in pending)
+            {
+                delivery.NextAttemptUtc = null;
+                delivery.LeaseOwner = null;
+                delivery.LeaseExpiresUtc = null;
+                delivery.Version++;
+            }
+        }
+
+        if (request.Active is { } active)
+        {
+            subscription.Active = active;
+        }
+
+        await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        return TypedResults.Ok(ToDto(subscription));
+    }
+
+    private static async Task<Results<Ok<IReadOnlyList<CdcConsumerDto>>, NotFound<string>>> ListCdcConsumersAsync(
+        string tenantSlug,
+        string catalogName,
+        ControlPlaneContext context,
+        CancellationToken cancellationToken)
+    {
+        if (!await TenantOwnsCatalogAsync(context, tenantSlug, catalogName, cancellationToken).ConfigureAwait(false))
+        {
+            return TypedResults.NotFound($"Catalog '{catalogName}' was not found for tenant '{tenantSlug}'.");
+        }
+
+        var consumers = await context.CdcConsumers
+            .AsNoTracking()
+            .Where(c => c.Tenant.Slug == tenantSlug && c.CatalogName == catalogName)
+            .OrderBy(c => c.Name)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+        return TypedResults.Ok<IReadOnlyList<CdcConsumerDto>>([.. consumers.Select(ToDto)]);
+    }
+
+    internal static async Task<
+        Results<Ok<CdcConsumerDto>, Created<CdcConsumerDto>, NotFound<string>, BadRequest<string>>>
+        RegisterCdcConsumerAsync(
+            string tenantSlug,
+            string catalogName,
+            RegisterCdcConsumerRequest request,
+            ControlPlaneContext context,
+            LakehouseService lakehouse,
+            CancellationToken cancellationToken)
+    {
+        if (request is null || string.IsNullOrWhiteSpace(request.Name) || request.Name.Length > 128)
+        {
+            return TypedResults.BadRequest("A consumer name of 1 to 128 characters is required.");
+        }
+
+        var catalog = await context.Catalogs
+            .AsNoTracking()
+            .Include(c => c.Tenant)
+            .FirstOrDefaultAsync(
+                c => c.Tenant.Slug == tenantSlug && c.Name == catalogName,
+                cancellationToken)
+            .ConfigureAwait(false);
+        if (catalog is null)
+        {
+            return TypedResults.NotFound($"Catalog '{catalogName}' was not found for tenant '{tenantSlug}'.");
+        }
+
+        var latest = await lakehouse
+            .GetLatestSnapshotAsync(tenantSlug, catalogName, cancellationToken)
+            .ConfigureAwait(false) ?? 0;
+        if (request.LastAppliedSnapshot < 0 || request.LastAppliedSnapshot > latest)
+        {
+            return TypedResults.BadRequest(
+                $"The consumer checkpoint must be between 0 and the latest snapshot {latest}.");
+        }
+
+        var existing = await context.CdcConsumers
+            .FirstOrDefaultAsync(
+                c => c.TenantId == catalog.TenantId
+                     && c.CatalogName == catalogName
+                     && c.Name == request.Name,
+                cancellationToken)
+            .ConfigureAwait(false);
+        if (existing is not null)
+        {
+            if (request.LastAppliedSnapshot < existing.LastAppliedSnapshot)
+            {
+                return TypedResults.BadRequest(
+                    $"Consumer '{request.Name}' is already at snapshot {existing.LastAppliedSnapshot}; "
+                    + "a normal checkpoint update cannot move backwards.");
+            }
+
+            existing.LastAppliedSnapshot = request.LastAppliedSnapshot;
+            existing.Active = true;
+            existing.UpdatedUtc = DateTimeOffset.UtcNow;
+            await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+            return TypedResults.Ok(ToDto(existing));
+        }
+
+        var consumer = new CdcConsumer
+        {
+            TenantId = catalog.TenantId,
+            CatalogName = catalogName,
+            Name = request.Name,
+            LastAppliedSnapshot = request.LastAppliedSnapshot,
+            CreatedUtc = DateTimeOffset.UtcNow,
+            UpdatedUtc = DateTimeOffset.UtcNow,
+        };
+        context.CdcConsumers.Add(consumer);
+        await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        return TypedResults.Created(
+            $"/api/tenants/{tenantSlug}/catalogs/{catalogName}/cdc/consumers/{consumer.Id}",
+            ToDto(consumer));
+    }
+
+    internal static async Task<Results<Ok<CdcConsumerDto>, NotFound<string>, BadRequest<string>>>
+        AdvanceCdcConsumerAsync(
+            string tenantSlug,
+            string catalogName,
+            int id,
+            AdvanceCdcConsumerRequest request,
+            ControlPlaneContext context,
+            LakehouseService lakehouse,
+            CancellationToken cancellationToken)
+    {
+        var consumer = await context.CdcConsumers
+            .FirstOrDefaultAsync(
+                c => c.Id == id && c.Tenant.Slug == tenantSlug && c.CatalogName == catalogName,
+                cancellationToken)
+            .ConfigureAwait(false);
+        if (consumer is null)
+        {
+            return TypedResults.NotFound($"CDC consumer {id} was not found for '{tenantSlug}/{catalogName}'.");
+        }
+
+        var latest = await lakehouse
+            .GetLatestSnapshotAsync(tenantSlug, catalogName, cancellationToken)
+            .ConfigureAwait(false) ?? 0;
+        if (request is null
+            || request.LastAppliedSnapshot < consumer.LastAppliedSnapshot
+            || request.LastAppliedSnapshot > latest)
+        {
+            return TypedResults.BadRequest(
+                $"The checkpoint must be between the current value {consumer.LastAppliedSnapshot} "
+                + $"and latest snapshot {latest}.");
+        }
+
+        consumer.LastAppliedSnapshot = request.LastAppliedSnapshot;
+        consumer.UpdatedUtc = DateTimeOffset.UtcNow;
+        await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        return TypedResults.Ok(ToDto(consumer));
+    }
+
+    internal static async Task<Results<NoContent, NotFound<string>>> DeleteCdcConsumerAsync(
+        string tenantSlug,
+        string catalogName,
+        int id,
+        ControlPlaneContext context,
+        CancellationToken cancellationToken)
+    {
+        var consumer = await context.CdcConsumers
+            .FirstOrDefaultAsync(
+                c => c.Id == id && c.Tenant.Slug == tenantSlug && c.CatalogName == catalogName,
+                cancellationToken)
+            .ConfigureAwait(false);
+        if (consumer is null)
+        {
+            return TypedResults.NotFound($"CDC consumer {id} was not found for '{tenantSlug}/{catalogName}'.");
+        }
+
+        context.CdcConsumers.Remove(consumer);
+        await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        return TypedResults.NoContent();
+    }
+
     private static Task<bool> TenantOwnsCatalogAsync(
         ControlPlaneContext context,
         string tenantSlug,
@@ -951,6 +1260,15 @@ public static class LakehouseEndpoints
         s.LastAttemptUtc,
         s.LastError,
         s.CreatedUtc);
+
+    private static CdcConsumerDto ToDto(CdcConsumer consumer) => new(
+        consumer.Id,
+        consumer.Name,
+        consumer.CatalogName,
+        consumer.LastAppliedSnapshot,
+        consumer.Active,
+        consumer.CreatedUtc,
+        consumer.UpdatedUtc);
 
     private static string ChangeTypeName(ChangeType change) => change switch
     {

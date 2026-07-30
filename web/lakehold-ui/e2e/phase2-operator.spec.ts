@@ -294,13 +294,20 @@ test.describe('disposable operator simulation', () => {
       for (const delivery of receiverState.deliveries) {
         const signature =
           'sha256=' +
-          createHmac('sha256', 'phase2-webhook-signing-secret').update(delivery.body).digest('hex');
+          createHmac('sha256', 'phase2-webhook-signing-secret')
+            .update(
+              `${delivery.signatureVersion}.${delivery.timestamp}.${delivery.delivery}.${delivery.body}`,
+            )
+            .digest('hex');
         expect(delivery.signature).toBe(signature);
         expect(delivery.delivery).toMatch(/^[a-f0-9]{32}$/);
+        expect(delivery.timestamp).toMatch(/^\d+$/);
+        expect(delivery.signatureVersion).toBe('v1');
       }
       expect(receiverState.deliveries[1].delivery).toBe(receiverState.deliveries[0].delivery);
       expect(receiverState.deliveries[1].body).toBe(receiverState.deliveries[0].body);
       expect(receiverState.deliveries[1].signature).toBe(receiverState.deliveries[0].signature);
+      expect(receiverState.deliveries[1].timestamp).toBe(receiverState.deliveries[0].timestamp);
 
       await page.getByRole('main').getByRole('button', { name: 'Changes' }).click();
       await expect(page.getByText('delivering', { exact: true })).toBeVisible();
@@ -520,6 +527,8 @@ interface ReceiverState {
     body: string;
     delivery: string | null;
     signature: string | null;
+    timestamp: string | null;
+    signatureVersion: string | null;
     status: number;
   }>;
 }
