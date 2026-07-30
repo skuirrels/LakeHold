@@ -102,14 +102,15 @@ export interface QueryResponse {
   rowsAffected: number | null;
 }
 
-export type CsvImportMode = 'automatic' | 'custom';
+export type TabularImportMode = 'automatic' | 'custom';
 export type CsvNewLine = 'lf' | 'cr' | 'crlf';
 
-/** Browser-selected CSV reader settings. Automatic mode omits every DuckDB override. */
-export interface CsvImportRequest {
+/** Browser-selected tabular-file reader settings. CSV automatic mode omits DuckDB overrides. */
+export interface TabularImportRequest {
   schema: string;
   table: string;
-  mode: CsvImportMode;
+  mode: TabularImportMode;
+  worksheet: string;
   delimiter: string;
   quote: string;
   escape: string;
@@ -120,7 +121,7 @@ export interface CsvImportRequest {
   storeRejects: boolean;
 }
 
-export interface CsvImportedColumn {
+export interface TabularImportedColumn {
   name: string;
   dataType: string;
 }
@@ -133,16 +134,18 @@ export interface CsvReject {
   errorMessage: string;
 }
 
-/** Created table and bounded rejects report returned after a browser CSV upload. */
-export interface CsvImportResult {
+/** Created table and bounded CSV reject report returned after a browser file upload. */
+export interface TabularImportResult {
   fileName: string;
+  format: 'csv' | 'xlsx';
   schema: string;
   table: string;
   rowsImported: number;
   rejectedRows: number;
   recordedErrors: number;
   rejectsTruncated: boolean;
-  columns: CsvImportedColumn[];
+  usedAutomaticFallback: boolean;
+  columns: TabularImportedColumn[];
   rejects: CsvReject[];
   elapsedMilliseconds: number;
 }

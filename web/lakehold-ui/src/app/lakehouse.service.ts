@@ -12,8 +12,6 @@ import {
   ColumnDistribution,
   CreateTokenRequest,
   CreatedToken,
-  CsvImportRequest,
-  CsvImportResult,
   EjectBundle,
   EjectResult,
   MaintenanceOperation,
@@ -27,6 +25,8 @@ import {
   Snapshot,
   Subscription,
   SystemSettings,
+  TabularImportRequest,
+  TabularImportResult,
   TableDetail,
   TableFiles,
   TableProfile,
@@ -89,19 +89,21 @@ export class LakehouseService {
       .pipe(catchError(toMessage));
   }
 
-  importCsv(
+  importFile(
     tenant: string,
     catalog: string,
     file: File,
-    request: CsvImportRequest,
-  ): Observable<CsvImportResult> {
+    request: TabularImportRequest,
+  ): Observable<TabularImportResult> {
     let params = new HttpParams()
       .set('fileName', file.name)
       .set('schema', request.schema)
       .set('table', request.table)
       .set('mode', request.mode);
 
-    if (request.mode === 'custom') {
+    if (file.name.toLowerCase().endsWith('.xlsx') && request.worksheet.trim()) {
+      params = params.set('worksheet', request.worksheet.trim());
+    } else if (request.mode === 'custom') {
       params = params
         .set('delimiter', request.delimiter)
         .set('quote', request.quote)
@@ -114,10 +116,10 @@ export class LakehouseService {
     }
 
     return this.http
-      .post<CsvImportResult>(this.catalogUrl(tenant, catalog, 'imports/csv'), file, {
+      .post<TabularImportResult>(this.catalogUrl(tenant, catalog, 'imports/files'), file, {
         params,
         headers: new HttpHeaders({
-          'Content-Type': file.type === 'text/csv' ? 'text/csv' : 'application/octet-stream',
+          'Content-Type': importContentType(file),
         }),
       })
       .pipe(catchError(toMessage));
@@ -555,4 +557,12 @@ function toMessage(response: HttpErrorResponse): Observable<never> {
         response.status,
       ),
   );
+}
+
+function importContentType(file: File): string {
+  if (file.name.toLowerCase().endsWith('.xlsx')) {
+    return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+  }
+
+  return file.type === 'text/csv' ? 'text/csv' : 'application/octet-stream';
 }

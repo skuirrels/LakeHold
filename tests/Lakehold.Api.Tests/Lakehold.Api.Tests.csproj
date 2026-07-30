@@ -21,4 +21,10 @@
     <ProjectReference Include="../../src/Lakehold.Api/Lakehold.Api.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Include="../../src/Lakehold.Api/Dockerfile"
+          Link="Lakehold.Api.Dockerfile"
+          CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

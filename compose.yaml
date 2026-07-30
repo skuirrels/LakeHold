@@ -8,10 +8,10 @@
 #   Traces          http://localhost:16686
 #   MinIO console   http://localhost:59001
 #
-# The api and ui services run from stock SDK images with the source bind-mounted, so there are no
-# Dockerfiles to keep in step with the projects and `dotnet watch` / `ng serve` still hot-reload on
-# save. Slower to start than running them on the host; the trade is that `docker compose up` is the
-# single command that gives you a working product.
+# The api development image adds LakeHold's signed DuckDB extensions to the stock SDK while the
+# source remains bind-mounted, so `dotnet watch` and `ng serve` still hot-reload on save. Slower to
+# start than running them on the host; the trade is that `docker compose up` is the single command
+# that gives you a working product without downloading extensions at application runtime.
 #
 # To run those two on the host instead — a faster inner loop — start only the backing services:
 #
@@ -33,7 +33,10 @@ name: lakehold-dev
 services:
   # The API. Runs `dotnet watch` against the bind-mounted source, so a save rebuilds in place.
   api:
-    image: mcr.microsoft.com/dotnet/sdk:10.0
+    build:
+      context: .
+      dockerfile: src/Lakehold.Api/Dockerfile
+      target: development
     container_name: lakehold-api
     working_dir: /src
     command: dotnet watch run --project src/Lakehold.Api --non-interactive --no-launch-profile
@@ -67,7 +70,7 @@ services:
     volumes:
       - .:/src
       # Named volumes keep build output, the NuGet cache, and lakehouse state out of the bind mount,
-      # so the container never fights the host's own obj/bin (different RIDs) and restore is not
+      # so the container never fights the host's own obj/bin (different RIDs), restore is not
       # repeated on every start.
       - nuget-cache:/root/.nuget/packages
       - api-state:/src/src/Lakehold.Api/.lakehold

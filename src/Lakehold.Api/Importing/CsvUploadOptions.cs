@@ -1,6 +1,9 @@
 namespace Lakehold.Api.Importing;
 
-/// <summary>Limits for browser CSV imports.</summary>
+/// <summary>
+///     Limits shared by browser CSV and XLSX imports. The existing configuration section name is
+///     retained for deployment compatibility.
+/// </summary>
 public sealed class CsvUploadOptions
 {
     public const string SectionName = "Lakehold:CsvImport";

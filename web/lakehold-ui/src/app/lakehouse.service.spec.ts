@@ -117,10 +117,11 @@ describe('LakehouseService', () => {
   it('streams the file body with exact custom CSV reader settings', () => {
     const file = new File(['id;name\r\n1;Alice\r\n'], 'schedules.csv', { type: 'text/csv' });
     service
-      .importCsv('north wind', 'sales/eu', file, {
+      .importFile('north wind', 'sales/eu', file, {
         schema: 'main',
         table: 'predicted_schedules',
         mode: 'custom',
+        worksheet: '',
         delimiter: ';',
         quote: '"',
         escape: '',
@@ -134,7 +135,7 @@ describe('LakehouseService', () => {
 
     const request = http.expectOne(
       (candidate) =>
-        candidate.url === '/api/tenants/north%20wind/catalogs/sales%2Feu/imports/csv' &&
+        candidate.url === '/api/tenants/north%20wind/catalogs/sales%2Feu/imports/files' &&
         candidate.params.get('fileName') === 'schedules.csv',
     );
     expect(request.request.method).toBe('POST');
@@ -159,12 +160,62 @@ describe('LakehouseService', () => {
     });
     request.flush({
       fileName: 'schedules.csv',
+      format: 'csv',
       schema: 'main',
       table: 'predicted_schedules',
       rowsImported: 1,
       rejectedRows: 0,
       recordedErrors: 0,
       rejectsTruncated: false,
+      usedAutomaticFallback: false,
+      columns: [],
+      rejects: [],
+      elapsedMilliseconds: 1,
+    });
+  });
+
+  it('streams XLSX with its official content type and optional worksheet', () => {
+    const file = new File(['workbook'], 'customers.xlsx', {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    });
+    service
+      .importFile('demo', 'analytics', file, {
+        schema: 'main',
+        table: 'customers',
+        mode: 'automatic',
+        worksheet: 'Customers',
+        delimiter: ';',
+        quote: '"',
+        escape: '',
+        newLine: 'crlf',
+        header: true,
+        sampleSize: -1,
+        ignoreErrors: true,
+        storeRejects: true,
+      })
+      .subscribe();
+
+    const request = http.expectOne(
+      (candidate) =>
+        candidate.url === '/api/tenants/demo/catalogs/analytics/imports/files' &&
+        candidate.params.get('worksheet') === 'Customers',
+    );
+    expect(request.request.method).toBe('POST');
+    expect(request.request.body).toBe(file);
+    expect(request.request.headers.get('Content-Type')).toBe(
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
+    expect(request.request.params.has('delimiter')).toBe(false);
+    request.flush({
+      fileName: 'customers.xlsx',
+      format: 'xlsx',
+      schema: 'main',
+      table: 'customers',
+      rowsImported: 2,
+      rejectedRows: 0,
+      recordedErrors: 0,
+      rejectsTruncated: false,
+      usedAutomaticFallback: false,
       columns: [],
       rejects: [],
       elapsedMilliseconds: 1,
@@ -316,9 +367,9 @@ describe('LakehouseService', () => {
     } satisfies Partial<ApiError>);
   });
 
-  it('preserves structured CSV retry guidance without exposing the raw engine error', async () => {
+  it('preserves a structured import error without exposing the raw engine error', async () => {
     const result = firstValueFrom(
-      service.importCsv(
+      service.importFile(
         'demo',
         'analytics',
         new File(['id;name\r\n1\r\n'], 'customers.csv', { type: 'text/csv' }),
@@ -326,6 +377,7 @@ describe('LakehouseService', () => {
           schema: 'main',
           table: 'customers',
           mode: 'automatic',
+          worksheet: '',
           delimiter: ';',
           quote: '"',
           escape: '',
@@ -338,13 +390,12 @@ describe('LakehouseService', () => {
       ),
     );
     http
-      .expectOne((request) => request.url.endsWith('/imports/csv'))
+      .expectOne((request) => request.url.endsWith('/imports/files'))
       .flush(
         {
           title: 'CSV parsing failed',
           detail: 'CSV line 3 contains 1 column; 2 were expected.',
           code: 'csv_parse_error',
-          canRetryWithTolerantProfile: true,
         },
         { status: 400, statusText: 'Bad Request' },
       );
@@ -354,7 +405,6 @@ describe('LakehouseService', () => {
       message: 'CSV line 3 contains 1 column; 2 were expected.',
       status: 400,
       code: 'csv_parse_error',
-      canRetryWithTolerantProfile: true,
     } satisfies Partial<ApiError>);
   });
 

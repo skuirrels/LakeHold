@@ -1,6 +1,7 @@
 using Lakehold.Api.Endpoints;
 using Lakehold.Api.Importing;
 using Lakehold.ControlPlane.Data;
+using DuckDB.NET.Data;
 using DuckDB.EFCoreProvider.Extensions;
 using Lakehold.Engine.Catalog;
 using Lakehold.Engine.Configuration;
@@ -15,15 +16,15 @@ using Xunit;
 
 namespace Lakehold.Api.Tests;
 
-/// <summary>Covers streamed bodies, scratch limits, and the API-to-engine CSV import path.</summary>
-public sealed class CsvImportEndpointsTests : IAsyncLifetime
+/// <summary>Covers streamed bodies, scratch limits, and the API-to-engine CSV/XLSX import path.</summary>
+public sealed class TabularImportEndpointsTests : IAsyncLifetime
 {
     private readonly string _root = Path.Combine(
         Path.GetTempPath(), "lakehold-csv-api-tests", Guid.NewGuid().ToString("N"));
     private ControlPlaneContext _context = null!;
     private DucklingPool _pool = null!;
-    private CsvScratchSpace _scratch = null!;
-    private CsvUploadService _uploads = null!;
+    private TabularScratchSpace _scratch = null!;
+    private TabularUploadService _uploads = null!;
 
     public async Task InitializeAsync()
     {
@@ -50,8 +51,8 @@ public sealed class CsvImportEndpointsTests : IAsyncLifetime
             MinimumFreeBytes = 0,
             ScratchRoot = Path.Combine(_root, "scratch"),
         });
-        _scratch = new CsvScratchSpace(uploadOptions, TimeProvider.System);
-        _uploads = new CsvUploadService(lakehouse, uploadOptions, _scratch);
+        _scratch = new TabularScratchSpace(uploadOptions, TimeProvider.System);
+        _uploads = new TabularUploadService(lakehouse, uploadOptions, _scratch);
 
         await AdminEndpoints.CreateTenantAsync(
             new CreateTenantRequest("acme", "Acme"), _context, TimeProvider.System, default);
@@ -102,10 +103,10 @@ public sealed class CsvImportEndpointsTests : IAsyncLifetime
                 ["storeRejects"] = "true",
             });
 
-        var response = await CsvImportEndpoints.ImportAsync(
+        var response = await TabularImportEndpoints.ImportAsync(
             http, "acme", "analytics", _uploads, default);
 
-        var imported = Assert.IsType<Ok<CsvImportDto>>(response).Value!;
+        var imported = Assert.IsType<Ok<TabularImportDto>>(response).Value!;
         Assert.Equal("predicted_schedules", imported.Table);
         Assert.Equal(2, imported.RowsImported);
         Assert.Equal(1, imported.RejectedRows);
@@ -131,16 +132,48 @@ public sealed class CsvImportEndpointsTests : IAsyncLifetime
                 ["mode"] = "automatic",
             });
 
-        var response = await CsvImportEndpoints.ImportAsync(
+        var response = await TabularImportEndpoints.ImportAsync(
             http, "acme", "analytics", _uploads, default);
 
-        var imported = Assert.IsType<Ok<CsvImportDto>>(response).Value!;
+        var imported = Assert.IsType<Ok<TabularImportDto>>(response).Value!;
         Assert.Equal(1, imported.RowsImported);
         Assert.Equal(["id", "name"], imported.Columns.Select(column => column.Name));
     }
 
     [Fact]
-    public async Task Automatic_parser_failure_is_sanitized_and_offers_an_explicit_tolerant_retry()
+    public async Task Xlsx_upload_imports_the_selected_worksheet()
+    {
+        var workbook = await CreateWorkbookAsync();
+        var http = Request(
+            workbook,
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            new Dictionary<string, StringValues>
+            {
+                ["fileName"] = "customers.xlsx",
+                ["schema"] = "main",
+                ["table"] = "xlsx_customers",
+                ["mode"] = "automatic",
+                ["worksheet"] = "Customers",
+            });
+
+        var response = await TabularImportEndpoints.ImportAsync(
+            http, "acme", "analytics", _uploads, default);
+
+        var imported = Assert.IsType<Ok<TabularImportDto>>(response).Value!;
+        Assert.Equal("xlsx", imported.Format);
+        Assert.Equal(2, imported.RowsImported);
+        Assert.Equal(["id", "name"], imported.Columns.Select(column => column.Name));
+        Assert.False(imported.UsedAutomaticFallback);
+
+        var audit = await _context.QueryRuns.SingleAsync();
+        Assert.True(audit.Succeeded);
+        Assert.Contains("Browser XLSX import", audit.Sql, StringComparison.Ordinal);
+        Assert.DoesNotContain(_root, audit.Sql, StringComparison.Ordinal);
+        Assert.Empty(Directory.EnumerateFiles(_scratch.ScratchRoot));
+    }
+
+    [Fact]
+    public async Task Automatic_mode_recovers_from_a_late_malformed_row_in_the_same_request()
     {
         var csv = new System.Text.StringBuilder("id;name\r\n");
         for (var index = 0; index < 25_000; index++)
@@ -161,56 +194,22 @@ public sealed class CsvImportEndpointsTests : IAsyncLifetime
                 ["mode"] = "automatic",
             });
 
-        var response = await CsvImportEndpoints.ImportAsync(
+        var response = await TabularImportEndpoints.ImportAsync(
             http, "acme", "analytics", _uploads, default);
 
-        var problem = Assert.IsType<ProblemHttpResult>(response);
-        Assert.Equal(StatusCodes.Status400BadRequest, problem.StatusCode);
-        Assert.Equal("CSV parsing failed", problem.ProblemDetails.Title);
-        Assert.Contains("column", problem.ProblemDetails.Detail, StringComparison.Ordinal);
-        Assert.DoesNotContain("Customer", problem.ProblemDetails.Detail, StringComparison.Ordinal);
-        Assert.DoesNotContain(
-            "lakehold-csv-imports",
-            problem.ProblemDetails.Detail,
-            StringComparison.Ordinal);
-        Assert.Equal(
-            CsvImportException.ParserErrorCode,
-            problem.ProblemDetails.Extensions["code"]);
-        Assert.Equal(
-            true,
-            problem.ProblemDetails.Extensions["canRetryWithTolerantProfile"]);
-
-        var audit = await _context.QueryRuns.SingleAsync();
-        Assert.False(audit.Succeeded);
-        Assert.Equal(problem.ProblemDetails.Detail, audit.Error);
-        Assert.DoesNotContain("Customer", audit.Error, StringComparison.Ordinal);
-        Assert.DoesNotContain("/tmp/", audit.Error, StringComparison.Ordinal);
-
-        var retry = Request(
-            csv.ToString(),
-            new Dictionary<string, StringValues>
-            {
-                ["fileName"] = "customers.csv",
-                ["schema"] = "main",
-                ["table"] = "malformed_customers",
-                ["mode"] = "custom",
-                ["delimiter"] = ";",
-                ["quote"] = "\"",
-                ["escape"] = "",
-                ["newLine"] = "crlf",
-                ["header"] = "true",
-                ["sampleSize"] = "-1",
-                ["ignoreErrors"] = "true",
-                ["storeRejects"] = "true",
-            });
-
-        var retryResponse = await CsvImportEndpoints.ImportAsync(
-            retry, "acme", "analytics", _uploads, default);
-
-        var imported = Assert.IsType<Ok<CsvImportDto>>(retryResponse).Value!;
+        var imported = Assert.IsType<Ok<TabularImportDto>>(response).Value!;
+        Assert.Equal("csv", imported.Format);
         Assert.Equal(25_000, imported.RowsImported);
         Assert.Equal(1, imported.RejectedRows);
-        Assert.Equal(2, await _context.QueryRuns.CountAsync());
+        Assert.True(imported.UsedAutomaticFallback);
+        Assert.NotEmpty(imported.Rejects);
+
+        var audit = await _context.QueryRuns.SingleAsync();
+        Assert.True(audit.Succeeded);
+        Assert.Contains("Automatic recovery", audit.Sql, StringComparison.Ordinal);
+        Assert.DoesNotContain("Customer", audit.Sql, StringComparison.Ordinal);
+        Assert.DoesNotContain("/tmp/", audit.Sql, StringComparison.Ordinal);
+        Assert.Empty(Directory.EnumerateFiles(_scratch.ScratchRoot));
     }
 
     [Fact]
@@ -223,8 +222,8 @@ public sealed class CsvImportEndpointsTests : IAsyncLifetime
             MinimumFreeBytes = 0,
             ScratchRoot = Path.Combine(_root, "tiny-scratch"),
         });
-        using var tinyScratch = new CsvScratchSpace(tinyOptions, TimeProvider.System);
-        var tinyUploads = new CsvUploadService(
+        using var tinyScratch = new TabularScratchSpace(tinyOptions, TimeProvider.System);
+        var tinyUploads = new TabularUploadService(
             new LakehouseService(
                 _context,
                 _pool,
@@ -245,7 +244,7 @@ public sealed class CsvImportEndpointsTests : IAsyncLifetime
                 ["mode"] = "automatic",
             });
 
-        var response = await CsvImportEndpoints.ImportAsync(
+        var response = await TabularImportEndpoints.ImportAsync(
             http, "acme", "analytics", tinyUploads, default);
 
         var problem = Assert.IsType<ProblemHttpResult>(response);
@@ -270,10 +269,60 @@ public sealed class CsvImportEndpointsTests : IAsyncLifetime
                 ["mode"] = "automatic",
             });
 
-        var response = await CsvImportEndpoints.ImportAsync(
+        var response = await TabularImportEndpoints.ImportAsync(
             http, "acme", "analytics", _uploads, default);
 
         Assert.IsType<BadRequest<string>>(response);
+        Assert.Empty(_context.QueryRuns);
+    }
+
+    [Fact]
+    public async Task Legacy_xls_is_rejected_before_the_upload_body_is_read()
+    {
+        var http = Request(
+            "legacy workbook",
+            new Dictionary<string, StringValues>
+            {
+                ["fileName"] = "customers.xls",
+                ["schema"] = "main",
+                ["table"] = "customers",
+                ["mode"] = "automatic",
+            });
+        var body = new TrackingStream(http.Request.Body);
+        http.Request.Body = body;
+
+        var response = await TabularImportEndpoints.ImportAsync(
+            http, "acme", "analytics", _uploads, default);
+
+        var badRequest = Assert.IsType<BadRequest<string>>(response);
+        Assert.Contains(".xls", badRequest.Value, StringComparison.Ordinal);
+        Assert.Equal(0, body.ReadCount);
+        Assert.Empty(_context.QueryRuns);
+    }
+
+    [Fact]
+    public async Task Csv_compatibility_route_rejects_xlsx_before_the_upload_body_is_read()
+    {
+        var http = Request(
+            "not read",
+            new Dictionary<string, StringValues>
+            {
+                ["fileName"] = "customers.xlsx",
+                ["schema"] = "main",
+                ["table"] = "customers",
+                ["mode"] = "automatic",
+            });
+        http.Request.ContentType =
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+        var body = new TrackingStream(http.Request.Body);
+        http.Request.Body = body;
+
+        var response = await TabularImportEndpoints.ImportCsvAsync(
+            http, "acme", "analytics", _uploads, default);
+
+        var badRequest = Assert.IsType<BadRequest<string>>(response);
+        Assert.Contains("CSV files only", badRequest.Value, StringComparison.Ordinal);
+        Assert.Equal(0, body.ReadCount);
         Assert.Empty(_context.QueryRuns);
     }
 
@@ -291,7 +340,7 @@ public sealed class CsvImportEndpointsTests : IAsyncLifetime
                 ["mode"] = "automatic",
             });
 
-        var response = await CsvImportEndpoints.ImportAsync(
+        var response = await TabularImportEndpoints.ImportAsync(
             http, "acme", "analytics", _uploads, default);
 
         var problem = Assert.IsType<ProblemHttpResult>(response);
@@ -322,7 +371,7 @@ public sealed class CsvImportEndpointsTests : IAsyncLifetime
         var body = new TrackingStream(http.Request.Body);
         http.Request.Body = body;
 
-        var response = await CsvImportEndpoints.ImportAsync(
+        var response = await TabularImportEndpoints.ImportAsync(
             http, "acme", "analytics", _uploads, default);
 
         Assert.IsType<BadRequest<string>>(response);
@@ -333,16 +382,44 @@ public sealed class CsvImportEndpointsTests : IAsyncLifetime
     private static DefaultHttpContext Request(
         string contents,
         Dictionary<string, StringValues> fields)
+        => Request(
+            System.Text.Encoding.UTF8.GetBytes(contents),
+            "text/csv",
+            fields);
+
+    private static DefaultHttpContext Request(
+        byte[] contents,
+        string contentType,
+        Dictionary<string, StringValues> fields)
     {
-        var bytes = System.Text.Encoding.UTF8.GetBytes(contents);
         var http = new DefaultHttpContext();
-        http.Request.ContentType = "text/csv";
-        http.Request.ContentLength = bytes.Length;
-        http.Request.Body = new MemoryStream(bytes);
+        http.Request.ContentType = contentType;
+        http.Request.ContentLength = contents.Length;
+        http.Request.Body = new MemoryStream(contents);
         http.Request.QueryString = QueryString.Create(
             fields.SelectMany(field => field.Value.Select(value =>
                 new KeyValuePair<string, string?>(field.Key, value))));
         return http;
+    }
+
+    private async Task<byte[]> CreateWorkbookAsync()
+    {
+        var path = Path.Combine(_root, $"{Guid.NewGuid():N}.xlsx");
+        await using var connection = new DuckDBConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        await using var command = connection.CreateCommand();
+        command.CommandText =
+            $"""
+             INSTALL excel;
+             LOAD excel;
+             COPY (
+                 SELECT *
+                 FROM (VALUES (1, 'Alice'), (2, 'Bob')) AS customers(id, name)
+             ) TO {SqlIdentifier.Literal(path)}
+               WITH (FORMAT xlsx, HEADER true, SHEET 'Customers')
+             """;
+        await command.ExecuteNonQueryAsync();
+        return await File.ReadAllBytesAsync(path);
     }
 
     private sealed class TrackingStream(Stream inner) : Stream
@@ -382,7 +459,7 @@ public sealed class CsvImportEndpointsTests : IAsyncLifetime
 }
 
 /// <summary>Covers node-wide scratch reservations and crash-orphan scavenging.</summary>
-public sealed class CsvScratchSpaceTests : IDisposable
+public sealed class TabularScratchSpaceTests : IDisposable
 {
     private readonly string _root = Path.Combine(
         Path.GetTempPath(), "lakehold-csv-scratch-tests", Guid.NewGuid().ToString("N"));
@@ -393,7 +470,7 @@ public sealed class CsvScratchSpaceTests : IDisposable
         using var scratch = Create(maxAggregateBytes: 8);
         await using var first = await scratch.AcquireAsync(6, default);
 
-        var error = await Assert.ThrowsAsync<CsvScratchCapacityException>(
+        var error = await Assert.ThrowsAsync<TabularScratchCapacityException>(
             () => scratch.AcquireAsync(3, default));
         Assert.Contains("currently reserved", error.Message, StringComparison.Ordinal);
 
@@ -418,6 +495,27 @@ public sealed class CsvScratchSpaceTests : IDisposable
         Assert.True(File.Exists(recent));
     }
 
+    [Fact]
+    public async Task Scratch_directory_and_upload_file_are_owner_only_on_unix()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        using var scratch = Create(maxAggregateBytes: 8);
+        Assert.Equal(
+            UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute,
+            File.GetUnixFileMode(scratch.ScratchRoot));
+
+        await using var lease = await scratch.AcquireAsync(1, default);
+        await using var stream = lease.OpenWrite();
+
+        Assert.Equal(
+            UnixFileMode.UserRead | UnixFileMode.UserWrite,
+            File.GetUnixFileMode(lease.Path));
+    }
+
     public void Dispose()
     {
         try
@@ -430,7 +528,7 @@ public sealed class CsvScratchSpaceTests : IDisposable
         }
     }
 
-    private CsvScratchSpace Create(long maxAggregateBytes)
+    private TabularScratchSpace Create(long maxAggregateBytes)
         => new(
             Options.Create(new CsvUploadOptions
             {

@@ -8,7 +8,6 @@ import {
   ChangePage,
   ColumnDistribution,
   CreatedToken,
-  CsvImportResult,
   EjectBundle,
   EjectResult,
   MaintenanceResult,
@@ -26,6 +25,7 @@ import {
   TableProfile,
   TableRestore,
   TableStorage,
+  TabularImportResult,
   Tenant,
 } from './models';
 
@@ -105,14 +105,16 @@ export class FakeLakehouseService {
   backups: BackupGeneration[] = [];
   ejects: EjectBundle[] = [];
   scheduledRuns: ScheduledRun[] = [];
-  csvImport: CsvImportResult = {
+  tabularImport: TabularImportResult = {
     fileName: 'customers.csv',
+    format: 'csv',
     schema: 'main',
     table: 'customers',
     rowsImported: 2,
     rejectedRows: 0,
     recordedErrors: 0,
     rejectsTruncated: false,
+    usedAutomaticFallback: false,
     columns: [
       { name: 'id', dataType: 'BIGINT' },
       { name: 'name', dataType: 'VARCHAR' },
@@ -310,8 +312,8 @@ export class FakeLakehouseService {
     return this.answer('execute', args, () => this.queryResponse);
   }
 
-  importCsv(...args: unknown[]): Observable<CsvImportResult> {
-    return this.answer('importCsv', args, () => this.csvImport);
+  importFile(...args: unknown[]): Observable<TabularImportResult> {
+    return this.answer('importFile', args, () => this.tabularImport);
   }
 
   listSavedQueries(...args: unknown[]): Observable<SavedQuery[]> {

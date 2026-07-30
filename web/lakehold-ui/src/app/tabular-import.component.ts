@@ -7,8 +7,14 @@ import {
   output,
   signal,
 } from '@angular/core';
-import { ApiError, LakehouseService } from './lakehouse.service';
-import { CsvImportMode, CsvImportRequest, CsvImportResult, CsvNewLine, Schema } from './models';
+import { LakehouseService } from './lakehouse.service';
+import {
+  CsvNewLine,
+  Schema,
+  TabularImportMode,
+  TabularImportRequest,
+  TabularImportResult,
+} from './models';
 
 const TOLERANT_PROFILE = {
   delimiter: ';',
@@ -22,30 +28,31 @@ const TOLERANT_PROFILE = {
 };
 
 /**
- * Browser CSV-to-table workflow.
+ * Browser CSV/XLSX-to-table workflow.
  *
  * The component owns only transient upload state. The server performs parsing and table creation in
  * one request, so no staged upload id or node-local path has to survive between requests.
  */
 @Component({
-  selector: 'lh-csv-import',
+  selector: 'lh-tabular-import',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  templateUrl: './csv-import.component.html',
-  styleUrl: './csv-import.component.css',
+  templateUrl: './tabular-import.component.html',
+  styleUrl: './tabular-import.component.css',
 })
-export class CsvImportComponent {
+export class TabularImportComponent {
   private readonly api = inject(LakehouseService);
 
   readonly tenant = input.required<string | null>();
   readonly catalog = input.required<string | null>();
   readonly schemas = input.required<Schema[]>();
-  readonly imported = output<CsvImportResult>();
+  readonly imported = output<TabularImportResult>();
 
   protected readonly open = signal(false);
   protected readonly file = signal<File | null>(null);
   protected readonly schema = signal('main');
   protected readonly table = signal('');
-  protected readonly mode = signal<CsvImportMode>('automatic');
+  protected readonly mode = signal<TabularImportMode>('automatic');
+  protected readonly worksheet = signal('');
   protected readonly delimiter = signal<string>(TOLERANT_PROFILE.delimiter);
   protected readonly quote = signal<string>(TOLERANT_PROFILE.quote);
   protected readonly escape = signal<string>(TOLERANT_PROFILE.escape);
@@ -57,11 +64,25 @@ export class CsvImportComponent {
 
   protected readonly busy = signal(false);
   protected readonly error = signal<string | null>(null);
-  protected readonly canRetryWithTolerantProfile = signal(false);
-  protected readonly result = signal<CsvImportResult | null>(null);
+  protected readonly result = signal<TabularImportResult | null>(null);
+  protected readonly fileFormat = computed<'csv' | 'xlsx' | null>(() => {
+    const name = this.file()?.name.toLowerCase();
+    if (name?.endsWith('.csv')) {
+      return 'csv';
+    }
+
+    return name?.endsWith('.xlsx') ? 'xlsx' : null;
+  });
   protected readonly canImport = computed(
     () =>
-      Boolean(this.tenant() && this.catalog() && this.file() && this.schema() && this.table()) &&
+      Boolean(
+        this.tenant() &&
+          this.catalog() &&
+          this.file() &&
+          this.fileFormat() &&
+          this.schema() &&
+          this.table(),
+      ) &&
       !this.busy(),
   );
 
@@ -70,9 +91,10 @@ export class CsvImportComponent {
     this.schema.set(available.includes('main') ? 'main' : (available[0] ?? 'main'));
     this.file.set(null);
     this.table.set('');
+    this.worksheet.set('');
+    this.mode.set('automatic');
     this.open.set(true);
     this.error.set(null);
-    this.canRetryWithTolerantProfile.set(false);
     this.result.set(null);
   }
 
@@ -88,8 +110,10 @@ export class CsvImportComponent {
     const selected = (event.target as HTMLInputElement).files?.[0] ?? null;
     this.file.set(selected);
     this.error.set(null);
-    this.canRetryWithTolerantProfile.set(false);
     this.result.set(null);
+    if (selected?.name.toLowerCase().endsWith('.xlsx')) {
+      this.mode.set('automatic');
+    }
     if (selected && (!this.table().trim() || this.table() === previousSuggestion)) {
       this.table.set(suggestTableName(selected.name));
     }
@@ -98,7 +122,6 @@ export class CsvImportComponent {
   protected setMode(value: string): void {
     this.mode.set(value === 'custom' ? 'custom' : 'automatic');
     this.error.set(null);
-    this.canRetryWithTolerantProfile.set(false);
   }
 
   protected setIgnoreErrors(enabled: boolean): void {
@@ -115,21 +138,6 @@ export class CsvImportComponent {
     }
   }
 
-  protected retryWithTolerantProfile(): void {
-    this.mode.set('custom');
-    this.delimiter.set(TOLERANT_PROFILE.delimiter);
-    this.quote.set(TOLERANT_PROFILE.quote);
-    this.escape.set(TOLERANT_PROFILE.escape);
-    this.newLine.set(TOLERANT_PROFILE.newLine);
-    this.header.set(TOLERANT_PROFILE.header);
-    this.sampleSize.set(TOLERANT_PROFILE.sampleSize);
-    this.ignoreErrors.set(TOLERANT_PROFILE.ignoreErrors);
-    this.storeRejects.set(TOLERANT_PROFILE.storeRejects);
-    this.error.set(null);
-    this.canRetryWithTolerantProfile.set(false);
-    this.submit();
-  }
-
   protected submit(): void {
     const tenant = this.tenant();
     const catalog = this.catalog();
@@ -138,10 +146,11 @@ export class CsvImportComponent {
       return;
     }
 
-    const request: CsvImportRequest = {
+    const request: TabularImportRequest = {
       schema: this.schema().trim(),
       table: this.table().trim(),
       mode: this.mode(),
+      worksheet: this.worksheet().trim(),
       delimiter: this.delimiter(),
       quote: this.quote(),
       escape: this.escape(),
@@ -154,9 +163,8 @@ export class CsvImportComponent {
 
     this.busy.set(true);
     this.error.set(null);
-    this.canRetryWithTolerantProfile.set(false);
     this.result.set(null);
-    this.api.importCsv(tenant, catalog, file, request).subscribe({
+    this.api.importFile(tenant, catalog, file, request).subscribe({
       next: (result) => {
         this.result.set(result);
         this.busy.set(false);
@@ -164,12 +172,6 @@ export class CsvImportComponent {
       },
       error: (error: Error) => {
         this.error.set(error.message);
-        this.canRetryWithTolerantProfile.set(
-          this.mode() === 'automatic' &&
-            error instanceof ApiError &&
-            error.code === 'csv_parse_error' &&
-            error.canRetryWithTolerantProfile,
-        );
         this.busy.set(false);
       },
     });
@@ -185,6 +187,6 @@ export function suggestTableName(fileName: string): string {
     .replace(/[^A-Za-z0-9_]+/g, '_')
     .replace(/^_+|_+$/g, '')
     .toLowerCase();
-  const prefixed = /^[A-Za-z_]/.test(normalized) ? normalized : `csv_${normalized}`;
-  return (prefixed || 'imported_csv').slice(0, 63);
+  const prefixed = /^[A-Za-z_]/.test(normalized) ? normalized : `file_${normalized}`;
+  return (prefixed || 'imported_file').slice(0, 63);
 }

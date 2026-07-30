@@ -1,27 +1,29 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideZonelessChangeDetection } from '@angular/core';
-import { of, throwError } from 'rxjs';
-import { CsvImportComponent, suggestTableName } from './csv-import.component';
-import { ApiError, LakehouseService } from './lakehouse.service';
-import { CsvImportRequest } from './models';
+import { TabularImportComponent, suggestTableName } from './tabular-import.component';
+import { LakehouseService } from './lakehouse.service';
+import { TabularImportRequest } from './models';
 import { FakeLakehouseService } from './test-doubles';
 
-describe('CsvImportComponent', () => {
+describe('TabularImportComponent', () => {
   let api: FakeLakehouseService;
-  let fixture: ComponentFixture<CsvImportComponent>;
+  let fixture: ComponentFixture<TabularImportComponent>;
 
   async function mount(): Promise<void> {
-    fixture = TestBed.createComponent(CsvImportComponent);
+    fixture = TestBed.createComponent(TabularImportComponent);
     fixture.componentRef.setInput('tenant', 'demo');
     fixture.componentRef.setInput('catalog', 'analytics');
     fixture.componentRef.setInput('schemas', [{ name: 'main', tables: [] }]);
     await fixture.whenStable();
   }
 
-  async function openWithFile(name = 'predicted schedules.csv'): Promise<File> {
+  async function openWithFile(
+    name = 'predicted schedules.csv',
+    type = 'text/csv',
+  ): Promise<File> {
     (fixture.nativeElement.querySelector('button') as HTMLButtonElement).click();
     await fixture.whenStable();
-    const file = new File(['id,name\n1,Alice\n'], name, { type: 'text/csv' });
+    const file = new File(['id,name\n1,Alice\n'], name, { type });
     const input = fixture.nativeElement.querySelector('input[type="file"]') as HTMLInputElement;
     Object.defineProperty(input, 'files', { configurable: true, value: [file] });
     input.dispatchEvent(new Event('change'));
@@ -45,11 +47,11 @@ describe('CsvImportComponent', () => {
     );
     await fixture.whenStable();
 
-    const [tenant, catalog, uploaded, request] = api.lastArgs('importCsv') as [
+    const [tenant, catalog, uploaded, request] = api.lastArgs('importFile') as [
       string,
       string,
       File,
-      CsvImportRequest,
+      TabularImportRequest,
     ];
     expect([tenant, catalog, uploaded]).toEqual(['demo', 'analytics', file]);
     expect(request.schema).toBe('main');
@@ -58,66 +60,39 @@ describe('CsvImportComponent', () => {
     expect(fixture.nativeElement.textContent).toContain('main.customers is ready');
   });
 
-  it('offers an explicit tolerant retry and resubmits the retained file with the exact profile', async () => {
-    vi.spyOn(api, 'importCsv')
-      .mockReturnValueOnce(
-        throwError(
-          () =>
-            new ApiError(
-              'CSV line 904218 contains 135 columns; 157 were expected.',
-              400,
-              'csv_parse_error',
-              true,
-            ),
-        ),
-      )
-      .mockReturnValueOnce(of(api.csvImport));
+  it('reports automatic recovery without asking the user to select another profile', async () => {
+    api.tabularImport = {
+      ...api.tabularImport,
+      usedAutomaticFallback: true,
+      rejectedRows: 1,
+      recordedErrors: 1,
+      rejects: [
+        {
+          line: 904218,
+          columnName: null,
+          errorType: 'MISSING COLUMNS',
+          csvLine: '25000',
+          errorMessage: 'Expected 157 values but found 135.',
+        },
+      ],
+    };
     await mount();
-    const file = await openWithFile('sch_predicted_schedules.csv');
+    await openWithFile('sch_predicted_schedules.csv');
 
     (fixture.nativeElement.querySelector('form') as HTMLFormElement).dispatchEvent(
       new Event('submit'),
     );
     await fixture.whenStable();
 
-    expect(fixture.nativeElement.textContent).toContain(
-      'CSV line 904218 contains 135 columns; 157 were expected.',
-    );
-    const retry = Array.from<HTMLButtonElement>(
-      fixture.nativeElement.querySelectorAll('button'),
-    ).find((button) =>
-      button.textContent?.includes('Retry with semicolon / CRLF tolerant profile'),
-    );
-    expect(retry).toBeDefined();
-
-    retry!.click();
-    await fixture.whenStable();
-
-    expect(api.importCsv).toHaveBeenCalledTimes(2);
-    const [tenant, catalog, uploaded, request] = vi.mocked(api.importCsv).mock.calls[1] as [
-      string,
-      string,
-      File,
-      CsvImportRequest,
-    ];
-    expect([tenant, catalog, uploaded]).toEqual(['demo', 'analytics', file]);
-    expect(request).toMatchObject({
-      mode: 'custom',
-      delimiter: ';',
-      quote: '"',
-      escape: '',
-      newLine: 'crlf',
-      header: true,
-      sampleSize: -1,
-      ignoreErrors: true,
-      storeRejects: true,
-    });
-    expect(fixture.nativeElement.textContent).toContain('main.customers is ready');
+    expect(api.countOf('importFile')).toBe(1);
+    expect(fixture.nativeElement.textContent).toContain('Automatic recovery was applied');
+    expect(fixture.nativeElement.textContent).toContain('1 rejected row');
+    expect(fixture.nativeElement.textContent).not.toContain('Retry with');
   });
 
   it('replicates the semicolon CRLF full-file rejects profile in custom mode', async () => {
-    api.csvImport = {
-      ...api.csvImport,
+    api.tabularImport = {
+      ...api.tabularImport,
       table: 'predicted_schedules',
       rejectedRows: 1,
       recordedErrors: 1,
@@ -145,7 +120,7 @@ describe('CsvImportComponent', () => {
     );
     await fixture.whenStable();
 
-    const request = api.lastArgs('importCsv')?.[3] as CsvImportRequest;
+    const request = api.lastArgs('importFile')?.[3] as TabularImportRequest;
     expect(request).toMatchObject({
       mode: 'custom',
       delimiter: ';',
@@ -188,9 +163,44 @@ describe('CsvImportComponent', () => {
     );
     await fixture.whenStable();
 
-    const request = api.lastArgs('importCsv')?.[3] as CsvImportRequest;
+    const request = api.lastArgs('importFile')?.[3] as TabularImportRequest;
     expect(request.ignoreErrors).toBe(false);
     expect(request.storeRejects).toBe(false);
+  });
+
+  it('accepts XLSX and imports an optional worksheet without CSV settings', async () => {
+    api.tabularImport = {
+      ...api.tabularImport,
+      fileName: 'customers.xlsx',
+      format: 'xlsx',
+    };
+    await mount();
+    const file = await openWithFile(
+      'customers.xlsx',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
+
+    expect(fixture.nativeElement.textContent).toContain('Worksheet');
+    expect(fixture.nativeElement.textContent).not.toContain('CSV handling');
+    const worksheet = fixture.nativeElement.querySelector(
+      'input[type="text"][maxlength="255"]',
+    ) as HTMLInputElement;
+    worksheet.value = 'Customers';
+    worksheet.dispatchEvent(new Event('input'));
+    (fixture.nativeElement.querySelector('form') as HTMLFormElement).dispatchEvent(
+      new Event('submit'),
+    );
+    await fixture.whenStable();
+
+    const [tenant, catalog, uploaded, request] = api.lastArgs('importFile') as [
+      string,
+      string,
+      File,
+      TabularImportRequest,
+    ];
+    expect([tenant, catalog, uploaded]).toEqual(['demo', 'analytics', file]);
+    expect(request.mode).toBe('automatic');
+    expect(request.worksheet).toBe('Customers');
   });
 
   it('starts each reopened dialog without the previous file or table', async () => {
@@ -209,7 +219,7 @@ describe('CsvImportComponent', () => {
 
     const begin = Array.from<HTMLButtonElement>(
       fixture.nativeElement.querySelectorAll('button'),
-    ).find((button) => button.textContent?.trim() === 'Import CSV')!;
+    ).find((button) => button.textContent?.trim() === 'Import data')!;
     begin.click();
     await fixture.whenStable();
 
@@ -241,6 +251,6 @@ describe('CsvImportComponent', () => {
   });
 
   it('keeps invalid or unsafe file-name characters out of the proposed identifier', () => {
-    expect(suggestTableName('6402432349 — Sch Prédicted.csv')).toBe('csv_6402432349_sch_predicted');
+    expect(suggestTableName('6402432349 — Sch Prédicted.csv')).toBe('file_6402432349_sch_predicted');
   });
 });

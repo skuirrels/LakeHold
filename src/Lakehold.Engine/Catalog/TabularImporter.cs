@@ -5,6 +5,13 @@ using Lakehold.Engine.Execution;
 
 namespace Lakehold.Engine.Catalog;
 
+/// <summary>Browser-uploaded tabular formats supported by LakeHold.</summary>
+public enum TabularFileFormat
+{
+    Csv,
+    Xlsx,
+}
+
 /// <summary>The newline convention explicitly supplied to DuckDB's CSV reader.</summary>
 public enum CsvNewLine
 {
@@ -27,8 +34,8 @@ public sealed record CsvReadOptions(
     bool? IgnoreErrors = null,
     bool? StoreRejects = null);
 
-/// <summary>A column created from an uploaded CSV file.</summary>
-public sealed record CsvImportedColumn(string Name, string DataType);
+/// <summary>A column created from an uploaded tabular file.</summary>
+public sealed record TabularImportedColumn(string Name, string DataType);
 
 /// <summary>One faulty CSV line reported by DuckDB.</summary>
 public sealed record CsvReject(
@@ -38,33 +45,35 @@ public sealed record CsvReject(
     string CsvLine,
     string ErrorMessage);
 
-/// <summary>The durable table and bounded reject report produced by one CSV import.</summary>
-public sealed record CsvImportResult(
+/// <summary>The durable table and bounded reject report produced by one tabular-file import.</summary>
+public sealed record TabularImportResult(
     string FileName,
+    TabularFileFormat Format,
     string Schema,
     string Table,
     long RowsImported,
     long RejectedRows,
     long RecordedErrors,
     bool RejectsTruncated,
-    IReadOnlyList<CsvImportedColumn> Columns,
+    bool UsedAutomaticFallback,
+    IReadOnlyList<TabularImportedColumn> Columns,
     IReadOnlyList<CsvReject> Rejects,
     TimeSpan Elapsed);
 
-/// <summary>Creates one DuckLake table from an uploaded CSV file.</summary>
+/// <summary>Creates one DuckLake table from an uploaded CSV or XLSX file.</summary>
 /// <remarks>
 ///     The file path is node-local disposable scratch state, but the entire operation runs inside
 ///     one request and one Duckling gate. Durable rows are committed to DuckLake before the caller
 ///     removes that file, so no later request, process, or node needs the scratch path.
 /// </remarks>
-public static class CsvImporter
+public static class TabularImporter
 {
     private const int RejectPreviewLimit = 100;
     private const int RejectCaptureLimit = RejectPreviewLimit + 1;
     private const int RejectTextLimit = 4096;
 
-    /// <summary>Imports <paramref name="filePath"/> into a new table, refusing replacement.</summary>
-    public static Task<CsvImportResult> ImportAsync(
+    /// <summary>Imports a CSV file into a new table, refusing replacement.</summary>
+    public static Task<TabularImportResult> ImportCsvAsync(
         Duckling duckling,
         string filePath,
         string fileName,
@@ -82,26 +91,89 @@ public static class CsvImporter
         var validatedTable = SqlIdentifier.Quote(table);
         ValidateOptions(options);
 
-        return duckling.InvokeLabelledAsync(
+        return ImportAsync(
+            duckling,
+            filePath,
+            fileName,
+            validatedSchema,
+            validatedTable,
+            TabularFileFormat.Csv,
             $"lakehold csv import: {validatedSchema}.{validatedTable}",
-            ct => ImportUnguardedAsync(
-                duckling,
-                filePath,
-                Path.GetFileName(fileName),
-                validatedSchema,
-                validatedTable,
-                options,
-                ct),
+            options.StoreRejects is true,
+            (path, scans, errors) => BuildCsvReader(path, options, scans, errors),
             cancellationToken);
     }
 
-    private static async Task<CsvImportResult> ImportUnguardedAsync(
+    /// <summary>Imports one worksheet from an XLSX workbook into a new table.</summary>
+    /// <param name="sheet">Worksheet name, or null to use the first worksheet.</param>
+    public static Task<TabularImportResult> ImportXlsxAsync(
         Duckling duckling,
         string filePath,
         string fileName,
         string schema,
         string table,
-        CsvReadOptions options,
+        string? sheet,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(duckling);
+        ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
+        ArgumentException.ThrowIfNullOrWhiteSpace(fileName);
+
+        var validatedSchema = SqlIdentifier.Quote(schema);
+        var validatedTable = SqlIdentifier.Quote(table);
+        var normalizedSheet = string.IsNullOrWhiteSpace(sheet) ? null : sheet.Trim();
+        if (normalizedSheet?.Length > 255)
+        {
+            throw new ArgumentException("XLSX worksheet names cannot exceed 255 characters.", nameof(sheet));
+        }
+
+        return ImportAsync(
+            duckling,
+            filePath,
+            fileName,
+            validatedSchema,
+            validatedTable,
+            TabularFileFormat.Xlsx,
+            $"lakehold xlsx import: {validatedSchema}.{validatedTable}",
+            storeRejects: false,
+            (path, _, _) => BuildXlsxReader(path, normalizedSheet),
+            cancellationToken);
+    }
+
+    private static Task<TabularImportResult> ImportAsync(
+        Duckling duckling,
+        string filePath,
+        string fileName,
+        string schema,
+        string table,
+        TabularFileFormat format,
+        string commitMessage,
+        bool storeRejects,
+        Func<string, string, string, string> buildReader,
+        CancellationToken cancellationToken)
+        => duckling.InvokeLabelledAsync(
+            commitMessage,
+            ct => ImportUnguardedAsync(
+                duckling,
+                filePath,
+                Path.GetFileName(fileName),
+                format,
+                schema,
+                table,
+                storeRejects,
+                buildReader,
+                ct),
+            cancellationToken);
+
+    private static async Task<TabularImportResult> ImportUnguardedAsync(
+        Duckling duckling,
+        string filePath,
+        string fileName,
+        TabularFileFormat format,
+        string schema,
+        string table,
+        bool storeRejects,
+        Func<string, string, string, string> buildReader,
         CancellationToken cancellationToken)
     {
         var startedAt = Stopwatch.GetTimestamp();
@@ -119,18 +191,17 @@ public static class CsvImporter
         if (Count(exists.Rows.Single()[0]) > 0)
         {
             throw new ArgumentException(
-                $"Table '{schema}.{table}' already exists. Choose a new table name; CSV import never replaces existing data.");
+                $"Table '{schema}.{table}' already exists. Choose a new table name; file import never replaces existing data.");
         }
 
         var suffix = Guid.NewGuid().ToString("N", CultureInfo.InvariantCulture);
         var rejectScans = $"__lakehold_csv_scans_{suffix}";
         var rejectErrors = $"__lakehold_csv_errors_{suffix}";
-        var storeRejects = options.StoreRejects is true;
-
+        var importCompleted = false;
         try
         {
             var target = $"{SqlIdentifier.QuoteName(schema)}.{SqlIdentifier.QuoteName(table)}";
-            var reader = BuildReader(filePath, options, rejectScans, rejectErrors);
+            var reader = buildReader(filePath, rejectScans, rejectErrors);
             await duckling
                 .ExecuteUnguardedAsync($"CREATE TABLE {target} AS SELECT * FROM {reader}", cancellationToken)
                 .ConfigureAwait(false);
@@ -139,7 +210,7 @@ public static class CsvImporter
                 .ExecuteUnguardedAsync($"DESCRIBE {target}", cancellationToken)
                 .ConfigureAwait(false);
             var columns = description.Rows
-                .Select(row => new CsvImportedColumn(Text(row[0]), Text(row[1])))
+                .Select(row => new TabularImportedColumn(Text(row[0]), Text(row[1])))
                 .ToArray();
 
             var rowCount = await duckling
@@ -148,13 +219,16 @@ public static class CsvImporter
 
             if (!storeRejects)
             {
-                return new CsvImportResult(
+                importCompleted = true;
+                return new TabularImportResult(
                     fileName,
+                    format,
                     schema,
                     table,
                     Count(rowCount.Rows.Single()[0]),
                     0,
                     0,
+                    false,
                     false,
                     columns,
                     [],
@@ -200,14 +274,17 @@ public static class CsvImporter
                     Text(row[4])))
                 .ToArray();
 
-            return new CsvImportResult(
+            importCompleted = true;
+            return new TabularImportResult(
                 fileName,
+                format,
                 schema,
                 table,
                 Count(rowCount.Rows.Single()[0]),
                 rejectedRows,
                 recordedErrors,
                 recordedErrors > RejectPreviewLimit,
+                false,
                 columns,
                 rejects,
                 Stopwatch.GetElapsedTime(startedAt));
@@ -217,21 +294,30 @@ public static class CsvImporter
             // DuckDB includes uploaded row contents and the node-local file path in its parser
             // diagnostic. Translate at the engine boundary so neither durable query history,
             // telemetry, nor the HTTP response can retain that sensitive context.
-            throw CsvImportException.FromDuckDb(ex.Message);
+            if (format == TabularFileFormat.Csv)
+            {
+                throw CsvImportException.FromDuckDb(ex.Message);
+            }
+
+            throw XlsxImportException.FromDuckDb(ex.Message);
         }
         finally
         {
             if (storeRejects)
             {
                 // Reject tables are useful only long enough to build the response. Unique names
-                // prevent a warm session's previous import from contaminating this one.
-                await DropTemporaryAsync(duckling, rejectErrors).ConfigureAwait(false);
-                await DropTemporaryAsync(duckling, rejectScans).ConfigureAwait(false);
+                // prevent a warm session's previous import from contaminating this one. A parser
+                // failure has already invalidated the transaction and its eventual rollback removes
+                // the tables, so cleanup errors may be suppressed only on that failed path. Once the
+                // import itself succeeds, cleanup must succeed too or the transaction is rolled back
+                // rather than retaining uploaded rows in the warm session.
+                await DropTemporaryAsync(duckling, rejectErrors, importCompleted).ConfigureAwait(false);
+                await DropTemporaryAsync(duckling, rejectScans, importCompleted).ConfigureAwait(false);
             }
         }
     }
 
-    private static string BuildReader(
+    private static string BuildCsvReader(
         string filePath,
         CsvReadOptions options,
         string rejectScans,
@@ -288,6 +374,17 @@ public static class CsvImporter
         return sql.ToString();
     }
 
+    private static string BuildXlsxReader(string filePath, string? sheet)
+    {
+        var arguments = new List<string> { SqlIdentifier.Literal(filePath) };
+        AddString(arguments, "sheet", sheet);
+
+        var sql = new StringBuilder("read_xlsx(\n    ");
+        sql.AppendJoin(",\n    ", arguments);
+        sql.Append("\n)");
+        return sql.ToString();
+    }
+
     private static void ValidateOptions(CsvReadOptions options)
     {
         ValidateCsvToken(options.Delimiter, "delimiter", allowEmpty: false);
@@ -329,7 +426,10 @@ public static class CsvImporter
         }
     }
 
-    private static async Task DropTemporaryAsync(Duckling duckling, string name)
+    private static async Task DropTemporaryAsync(
+        Duckling duckling,
+        string name,
+        bool cleanupRequired)
     {
         try
         {
@@ -339,9 +439,17 @@ public static class CsvImporter
                     CancellationToken.None)
                 .ConfigureAwait(false);
         }
-        catch (DuckDB.NET.Data.DuckDBException)
+        catch (DuckDB.NET.Data.DuckDBException) when (!cleanupRequired)
         {
-            // A failed scan may roll the table creation back before cleanup reaches it.
+            // A failed scan may abort the transaction before cleanup reaches it. The enclosing
+            // transaction is disposed without commit, so its rollback owns removal on this path.
+        }
+        catch (DuckDB.NET.Data.DuckDBException ex)
+        {
+            // Do not allow a nominally successful import to commit while raw reject data remains in
+            // the session. Translate the diagnostic so the scratch path or row contents cannot reach
+            // durable audit history.
+            throw CsvImportException.FromDuckDb(ex.Message);
         }
     }
 

@@ -43,7 +43,7 @@ public static class LakehouseEndpoints
         tenants.MapPost("/{tenantSlug}/catalogs/{catalogName}/query", ExecuteAsync)
             .WithSummary("Executes a statement against a tenant's catalog.");
 
-        tenants.MapCsvImportEndpoints(
+        tenants.MapTabularImportEndpoints(
             app.ServiceProvider.GetRequiredService<IOptions<CsvUploadOptions>>().Value.MaxBytes);
 
         tenants.MapSavedQueryEndpoints();
