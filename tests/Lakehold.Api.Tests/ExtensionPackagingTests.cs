@@ -29,6 +29,14 @@ public sealed partial class ExtensionPackagingTests
             "/duckdb-extensions/ /root/.duckdb/extensions/",
             dockerfile,
             StringComparison.Ordinal);
+        Assert.Contains(
+            "mkdir -p /var/lib/lakehold /var/lib/lakehold-imports",
+            dockerfile,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "chown -R app:app /var/lib/lakehold /var/lib/lakehold-imports",
+            dockerfile,
+            StringComparison.Ordinal);
 
         await using var connection = new DuckDBConnection("Data Source=:memory:");
         await connection.OpenAsync();

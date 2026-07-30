@@ -94,11 +94,10 @@ COPY --from=build /app ./
 COPY --from=duckdb-extensions --chown=app:app \
     /duckdb-extensions/ /home/app/.duckdb/extensions/
 
-# The durable state root, owned by the non-root user the image runs as. A volume mounted here
-# inherits this ownership when Docker creates it; a pre-existing host directory does not, which is
-# the usual cause of a permission error on first start.
-RUN mkdir -p /var/lib/lakehold \
-    && chown -R app:app /var/lib/lakehold /app /home/app/.duckdb
+# The durable state and disposable import mountpoints are owned by the non-root runtime user.
+# Fresh named volumes inherit this ownership from the image; pre-existing host directories do not.
+RUN mkdir -p /var/lib/lakehold /var/lib/lakehold-imports \
+    && chown -R app:app /var/lib/lakehold /var/lib/lakehold-imports /app /home/app/.duckdb
 USER app
 
 ENV ASPNETCORE_URLS=http://0.0.0.0:5200 \
