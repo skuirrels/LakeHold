@@ -2,6 +2,8 @@
   <button
     type="button"
     class="nav-item"
+    aria-label="Workbench"
+    [title]="open() ? null : 'Workbench'"
     [class.active]="destination() === 'workbench'"
     [attr.aria-current]="destination() === 'workbench' ? 'page' : null"
     (click)="navigate.emit('workbench')"
@@ -14,6 +16,8 @@
   <button
     type="button"
     class="nav-item"
+    aria-label="Catalog"
+    [title]="open() ? null : 'Catalog'"
     [class.active]="destination() === 'catalog'"
     [attr.aria-current]="destination() === 'catalog' ? 'page' : null"
     (click)="navigate.emit('catalog')"
@@ -29,6 +33,8 @@
   <button
     type="button"
     class="nav-item"
+    aria-label="Saved queries"
+    [title]="open() ? null : 'Saved queries'"
     [class.active]="destination() === 'queries'"
     [attr.aria-current]="destination() === 'queries' ? 'page' : null"
     (click)="navigate.emit('queries')"
@@ -41,6 +47,8 @@
   <button
     type="button"
     class="nav-item"
+    aria-label="Query history"
+    [title]="open() ? null : 'Query history'"
     [class.active]="destination() === 'history'"
     [attr.aria-current]="destination() === 'history' ? 'page' : null"
     (click)="navigate.emit('history')"
@@ -57,6 +65,8 @@
   <button
     type="button"
     class="nav-item"
+    aria-label="Data history"
+    [title]="open() ? null : 'Data history'"
     [class.active]="destination() === 'snapshots'"
     [attr.aria-current]="destination() === 'snapshots' ? 'page' : null"
     (click)="navigate.emit('snapshots')"
@@ -70,6 +80,8 @@
   <button
     type="button"
     class="nav-item"
+    aria-label="Storage"
+    [title]="open() ? null : 'Storage'"
     [class.active]="destination() === 'storage'"
     [attr.aria-current]="destination() === 'storage' ? 'page' : null"
     (click)="navigate.emit('storage')"
@@ -85,6 +97,8 @@
   <button
     type="button"
     class="nav-item"
+    aria-label="Changes"
+    [title]="open() ? null : 'Changes'"
     [class.active]="destination() === 'changes'"
     [attr.aria-current]="destination() === 'changes' ? 'page' : null"
     (click)="navigate.emit('changes')"
@@ -105,6 +119,8 @@
     <button
       type="button"
       class="nav-item"
+      aria-label="System Settings"
+      [title]="open() ? null : 'System Settings'"
       [class.active]="destination() === 'settings'"
       [attr.aria-current]="destination() === 'settings' ? 'page' : null"
       (click)="navigate.emit('settings')"
@@ -125,6 +141,8 @@
   <button
     type="button"
     class="nav-item"
+    aria-label="Backups"
+    [title]="open() ? null : 'Backups'"
     [class.active]="destination() === 'backups'"
     [attr.aria-current]="destination() === 'backups' ? 'page' : null"
     (click)="navigate.emit('backups')"
@@ -137,6 +155,8 @@
   <button
     type="button"
     class="nav-item"
+    aria-label="Eject"
+    [title]="open() ? null : 'Eject'"
     [class.active]="destination() === 'ejects'"
     [attr.aria-current]="destination() === 'ejects' ? 'page' : null"
     (click)="navigate.emit('ejects')"
@@ -149,6 +169,8 @@
   <button
     type="button"
     class="nav-item"
+    aria-label="Schedule"
+    [title]="open() ? null : 'Schedule'"
     [class.active]="destination() === 'schedule'"
     [attr.aria-current]="destination() === 'schedule' ? 'page' : null"
     (click)="navigate.emit('schedule')"

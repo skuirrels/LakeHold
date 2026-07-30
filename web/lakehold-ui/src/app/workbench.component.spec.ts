@@ -199,7 +199,19 @@ describe('WorkbenchComponent', () => {
 
       expect(toggle.getAttribute('aria-expanded')).toBe('false');
       expect(toggle.getAttribute('aria-label')).toBe('Expand navigation');
-      expect(navigation.getAttribute('aria-hidden')).toBe('true');
+      expect(navigation.getAttribute('aria-hidden')).toBe('false');
+      expect(navigation.hasAttribute('inert')).toBe(false);
+      expect(navigation.classList.contains('closed')).toBe(true);
+
+      const queryHistory = navigation.querySelector(
+        '[aria-label="Query history"]',
+      ) as HTMLButtonElement;
+      queryHistory.click();
+      await fixture.whenStable();
+
+      expect(fixture.nativeElement.querySelector('.tabs .tab.active')?.textContent?.trim()).toBe(
+        'Query history',
+      );
 
       toggle.click();
       await fixture.whenStable();
