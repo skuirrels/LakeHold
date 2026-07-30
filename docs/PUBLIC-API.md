@@ -35,7 +35,7 @@ segment, but it is validated against the credential rather than trusted.
 | System settings | `GET`/`PUT /api/system-settings` | Instance credential only; optimistic version; MCP changes apply on the next request without restart. |
 | Browser authentication | `GET /auth/session`, `/auth/login`, `/auth/logout` | Optional OIDC authorization-code flow; returns an HttpOnly LakeHold session, not provider tokens. |
 | Query | `POST …/catalogs/{c}/query` | No time-travel option; result capped, no streaming variant. |
-| CSV import | `POST …/catalogs/{c}/imports/csv` | Streamed request body, synchronous, new tables only; per-file, aggregate scratch, concurrency, free-space, and bounded-reject limits apply. Imports above the configured ceiling still need a direct-to-object-storage path. |
+| CSV/XLSX import | `POST …/catalogs/{c}/imports/files` | Streamed request body, synchronous, new tables only; CSV automatic mode retries malformed rows with bounded reject capture, while XLSX reads the first or named worksheet. Per-file, aggregate scratch, concurrency, and free-space limits apply. The earlier `/imports/csv` CSV route remains as a compatibility alias. Imports above the configured ceiling still need a direct-to-object-storage path. |
 | Saved queries | `GET`/`POST`/`PUT`/`DELETE …/saved-queries`, `POST …/{id}/{execute\|publish\|unpublish}` | Catalog-scoped and revisioned; still unversioned and unpaginated. |
 | Schema | `GET …/catalogs/{c}/schemas` | — |
 | Storage | `GET …/catalogs/{c}/storage`, `GET …/storage/files` | Read-only footprint and snapshot-aware file inventory; unversioned and unpaginated. |

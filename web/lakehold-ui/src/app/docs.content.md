@@ -142,35 +142,37 @@ A plain, fast editor for arbitrary SQL. Press `⌘⏎` (`Ctrl+Enter`) or click *
 DuckDB/DuckLake statement is accepted — statements it does not specifically recognise fall back to
 the ordinary streaming path rather than being refused.
 
-### CSV import — _centre pane → Import CSV_
+### File import — _centre pane → Import data_
 
-Choose a browser-local CSV file and create a new table without copying the file onto the API host
-yourself. **Automatic** mode sends no parser overrides and lets DuckDB detect the delimiter, quoting,
-header, line endings, and types. **Semicolon / CRLF tolerant** mode exposes those choices and
-defaults to the production-export profile:
+Choose a browser-local CSV or XLSX file and create a new table without copying the file onto the API
+host yourself. For CSV, **Automatic** mode lets DuckDB detect the delimiter, quoting, header, line
+endings, and types. If a malformed row appears after detection, LakeHold rolls the strict attempt
+back and automatically retries the same request-scoped upload with a full-file scan, reject capture,
+and malformed-row skipping. The completed import clearly reports any rejected rows.
+
+**Advanced CSV settings** exposes the parser choices and starts with the production-export profile:
 
 ```sql
 delim = ';', quote = '"', escape = '', new_line = '\r\n',
 header = true, sample_size = -1, ignore_errors = true, store_rejects = true
 ```
 
-Automatic mode is intentionally strict. When it encounters a malformed row, the dialog reports only
-the line and column counts—not the uploaded row or the API host's scratch path—and offers an
-explicit retry with the tolerant profile. The retry reuses the selected browser file but never runs
-silently because malformed rows will be skipped.
+XLSX import uses DuckDB's native Excel reader. Leave **Worksheet** empty to import the first
+worksheet, or enter a worksheet name explicitly. LakeHold supports the modern `.xlsx` format; legacy
+`.xls` workbooks are not supported.
 
 The upload and import are one streamed request. LakeHold writes the request body directly into
-disposable node-local scratch
-space, creates the table through the selected catalog's DuckDB session, and removes the scratch file
-before returning. Durable rows go to the catalog's configured local or object storage; no later
+disposable node-local scratch space, creates the table through the selected catalog's DuckDB
+session, and removes the scratch file before returning. On Unix hosts the scratch directory and
+files are owner-only. Durable rows go to the catalog's configured local or object storage; no later
 request depends on the node that accepted the upload. Imports require editor or owner access and
 never replace an existing table.
 
-When rejects are enabled, DuckDB skips malformed rows and LakeHold returns up to the first 100
-parser errors to the dialog. Capture is deliberately capped at one sentinel beyond that preview, so
-a hostile or badly malformed file cannot create an unbounded reject table; the dialog marks the
-report as truncated when more errors exist. Temporary reject tables are uniquely named and removed
-after the response is assembled.
+When CSV rejects are enabled—explicitly or through automatic recovery—DuckDB skips malformed rows
+and LakeHold returns up to the first 100 parser errors to the dialog. Capture is deliberately capped
+at one sentinel beyond that preview, so a hostile or badly malformed file cannot create an unbounded
+reject table; the dialog marks the report as truncated when more errors exist. Temporary reject
+tables are uniquely named and removed after the response is assembled.
 
 The default per-file and aggregate node scratch ceilings are both 5 GiB, with two concurrent uploads
 and a 1 GiB free-space floor. Configure them with `Lakehold:CsvImport:MaxBytes`,

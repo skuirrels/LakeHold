@@ -258,7 +258,8 @@ npm start --prefix web/lakehold-ui         # website on :5399
 
 Same URLs either way. The dev server proxies `/api`, `/mcp`, and MCP authorization metadata to
 `NG_API_URL`, which compose sets to the API container and which falls back to `localhost:5200` when
-nothing sets it.
+nothing sets it. DuckDB caches the same extension set, including `excel`, under the host user's
+normal `~/.duckdb/extensions` directory.
 
 ---
 

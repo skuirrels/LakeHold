@@ -297,11 +297,11 @@
                 <span class="kbd">⌘⏎</span>
               </button>
               @if (!readOnlyAccess()) {
-                <lh-csv-import
+                <lh-tabular-import
                   [tenant]="tenantSlug()"
                   [catalog]="catalogName()"
                   [schemas]="schemas()"
-                  (imported)="onCsvImported($event)"
+                  (imported)="onFileImported($event)"
                 />
               }
               @if (summary(); as text) {

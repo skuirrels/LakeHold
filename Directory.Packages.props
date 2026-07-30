@@ -9,8 +9,9 @@
     <!-- Lakehouse engine + control plane persistence.
 
          The ADO.NET layer is the Skuirrels fork of DuckDB.NET, which is what DuckDB.EFCoreProvider
-         1.14.1 and later depend on. Package 1.5.5 carries DuckDB engine v1.5.4 — the two version
-         lines are separate, so read the engine version from `SELECT version()`, not from here.
+         1.14.1 and later depend on. Package 1.5.5.2 carries DuckDB engine v1.5.5 — the two version
+         lines are separate, so verify the engine version with `SELECT version()`, not by deriving
+         it from the package version.
 
          These are pinned explicitly even though no project references them directly. Transitive
          pinning is enabled, so this is what fixes the native engine version rather than leaving it

@@ -107,8 +107,8 @@ public sealed record UpdateSystemSettingsRequest(
     string? McpPublicBaseUrl,
     int Version);
 
-/// <summary>A column created by a CSV import.</summary>
-public sealed record CsvImportedColumnDto(string Name, string DataType);
+/// <summary>A column created by a tabular-file import.</summary>
+public sealed record TabularImportedColumnDto(string Name, string DataType);
 
 /// <summary>One rejected CSV line returned to the browser.</summary>
 public sealed record CsvRejectDto(
@@ -118,30 +118,34 @@ public sealed record CsvRejectDto(
     string CsvLine,
     string ErrorMessage);
 
-/// <summary>The created table and bounded reject report for one browser CSV import.</summary>
-public sealed record CsvImportDto(
+/// <summary>The created table and bounded reject report for one browser CSV or XLSX import.</summary>
+public sealed record TabularImportDto(
     string FileName,
+    string Format,
     string Schema,
     string Table,
     long RowsImported,
     long RejectedRows,
     long RecordedErrors,
     bool RejectsTruncated,
-    IReadOnlyList<CsvImportedColumnDto> Columns,
+    bool UsedAutomaticFallback,
+    IReadOnlyList<TabularImportedColumnDto> Columns,
     IReadOnlyList<CsvRejectDto> Rejects,
     double ElapsedMilliseconds)
 {
     /// <summary>Maps the engine result to the browser contract.</summary>
-    public static CsvImportDto From(CsvImportResult result)
+    public static TabularImportDto From(TabularImportResult result)
         => new(
             result.FileName,
+            result.Format.ToString().ToLowerInvariant(),
             result.Schema,
             result.Table,
             result.RowsImported,
             result.RejectedRows,
             result.RecordedErrors,
             result.RejectsTruncated,
-            [.. result.Columns.Select(column => new CsvImportedColumnDto(column.Name, column.DataType))],
+            result.UsedAutomaticFallback,
+            [.. result.Columns.Select(column => new TabularImportedColumnDto(column.Name, column.DataType))],
             [.. result.Rejects.Select(reject => new CsvRejectDto(
                 reject.Line,
                 reject.ColumnName,

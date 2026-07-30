@@ -83,7 +83,7 @@ public sealed class LakehouseOptions
     /// <summary>
     ///     DuckDB extensions loaded into every compute session, in order.
     /// </summary>
-    public IList<string> Extensions { get; } = ["ducklake", "httpfs", "json", "parquet"];
+    public IList<string> Extensions { get; } = ["ducklake", "httpfs", "json", "parquet", "excel"];
 
     /// <summary>
     ///     Memory ceiling applied per compute session. Bounds a single tenant's blast radius
@@ -134,6 +134,12 @@ public sealed class LakehouseOptions
     ///     beside a target written as "5MB" would read as a bug in the units.
     /// </remarks>
     public long CompactionAdvisoryBytes { get; set; } = 16_000_000;
+
+    /// <summary>
+    ///     Minimum time-travel history retained by the built-in snapshot-expiry operation. Active
+    ///     CDC watermarks may extend this window, but can never shorten it.
+    /// </summary>
+    public TimeSpan SnapshotRetention { get; set; } = TimeSpan.FromDays(7);
 }
 
 /// <summary>Credentials and endpoint settings used to create a temporary DuckDB storage secret.</summary>

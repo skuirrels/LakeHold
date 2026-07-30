@@ -192,25 +192,6 @@ form footer {
   font: 12px/1.45 var(--mono);
 }
 
-.retry-action {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 14px;
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px solid color-mix(in srgb, var(--danger, #ff7b72) 25%, var(--border));
-}
-
-.retry-action small {
-  max-width: 360px;
-  color: var(--text-muted);
-}
-
-.retry-action .btn {
-  flex-shrink: 0;
-}
-
 .import-result {
   display: flex;
   gap: 12px;
@@ -305,10 +286,6 @@ form footer {
   .dialog-backdrop {
     align-items: end;
     padding: 0;
-  }
-
-  .retry-action {
-    flex-direction: column;
   }
 
   .import-dialog {

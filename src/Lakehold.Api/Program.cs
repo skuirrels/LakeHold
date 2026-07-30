@@ -100,8 +100,8 @@ builder.Services.AddSingleton<DucklingPool>();
 builder.Services.AddSingleton<IDucklingSessionConfigurator, DucklingSessionConfigurator>();
 builder.Services.AddScoped<LakehouseService>();
 builder.Services.AddScoped<SavedQueryService>();
-builder.Services.AddSingleton<CsvScratchSpace>();
-builder.Services.AddScoped<CsvUploadService>();
+builder.Services.AddSingleton<TabularScratchSpace>();
+builder.Services.AddScoped<TabularUploadService>();
 
 // Authentication: resolve a bearer token or browser identity to a principal, then validate the
 // route against it in the endpoint filter. Development may allow credential-less requests; a
@@ -189,8 +189,8 @@ builder.Services.AddCors(options => options.AddPolicy(DevCors, policy => policy
 var app = builder.Build();
 
 // Fail fast on invalid scratch limits and scavenge files abandoned by an earlier process before
-// this node can accept a CSV upload.
-_ = app.Services.GetRequiredService<CsvScratchSpace>();
+// this node can accept a CSV or XLSX upload.
+_ = app.Services.GetRequiredService<TabularScratchSpace>();
 
 app.MapDefaultEndpoints();
 

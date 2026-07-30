@@ -7,8 +7,8 @@ using Xunit;
 
 namespace Lakehold.Engine.Tests;
 
-/// <summary>Covers automatic CSV ingestion and the production-export dialect used by the UI.</summary>
-public sealed class CsvImporterTests : IAsyncLifetime
+/// <summary>Covers automatic CSV/XLSX ingestion and the production-export dialect used by the UI.</summary>
+public sealed class TabularImporterTests : IAsyncLifetime
 {
     private readonly string _root = Path.Combine(
         Path.GetTempPath(), "lakehold-csv-tests", Guid.NewGuid().ToString("N"));
@@ -56,7 +56,7 @@ public sealed class CsvImporterTests : IAsyncLifetime
         var path = Path.Combine(_root, "customers.csv");
         await File.WriteAllTextAsync(path, "id,name,active\n1,Alice,true\n2,Bob,false\n");
 
-        var result = await CsvImporter.ImportAsync(
+        var result = await TabularImporter.ImportCsvAsync(
             _duckling,
             path,
             "customers.csv",
@@ -66,6 +66,8 @@ public sealed class CsvImporterTests : IAsyncLifetime
             default);
 
         Assert.Equal(2, result.RowsImported);
+        Assert.Equal(TabularFileFormat.Csv, result.Format);
+        Assert.False(result.UsedAutomaticFallback);
         Assert.Equal(0, result.RejectedRows);
         Assert.Collection(
             result.Columns,
@@ -98,7 +100,7 @@ public sealed class CsvImporterTests : IAsyncLifetime
             path,
             "id;name\r\n1;\"First\"\r\n2\r\n3;\"Third\"\r\n");
 
-        var result = await CsvImporter.ImportAsync(
+        var result = await TabularImporter.ImportCsvAsync(
             _duckling,
             path,
             "sch_predicted_schedules.csv",
@@ -155,6 +157,21 @@ public sealed class CsvImporterTests : IAsyncLifetime
     }
 
     [Fact]
+    public void Csv_sniffer_failure_is_safe_and_eligible_for_automatic_recovery()
+    {
+        var failure = CsvImportException.FromDuckDb(
+            "Error when sniffing file \"/tmp/private.csv\". Original Line: customer;secret");
+
+        Assert.True(failure.IsParserError);
+        Assert.Equal(CsvImportException.ParserErrorCode, failure.Code);
+        Assert.Equal(
+            "DuckDB could not parse the CSV with the selected settings.",
+            failure.Message);
+        Assert.DoesNotContain("secret", failure.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain("/tmp/", failure.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Generic_duckdb_failure_never_returns_the_uploaded_path()
     {
         var failure = CsvImportException.FromDuckDb(
@@ -169,6 +186,17 @@ public sealed class CsvImporterTests : IAsyncLifetime
     }
 
     [Fact]
+    public void Xlsx_failure_never_returns_workbook_cells_or_the_scratch_path()
+    {
+        var failure = XlsxImportException.FromDuckDb(
+            "Invalid Input Error: secret-cell-value in /tmp/lakehold-csv-imports/private.xlsx");
+
+        Assert.Equal(XlsxImportException.ImportErrorCode, failure.Code);
+        Assert.DoesNotContain("secret-cell-value", failure.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain("/tmp/", failure.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task Existing_table_is_refused_without_changing_it()
     {
         var path = Path.Combine(_root, "existing.csv");
@@ -177,7 +205,7 @@ public sealed class CsvImporterTests : IAsyncLifetime
         await Sql("INSERT INTO existing VALUES (1)");
 
         var error = await Assert.ThrowsAsync<ArgumentException>(
-            () => CsvImporter.ImportAsync(
+            () => TabularImporter.ImportCsvAsync(
                 _duckling,
                 path,
                 "existing.csv",
@@ -199,7 +227,7 @@ public sealed class CsvImporterTests : IAsyncLifetime
         await File.WriteAllTextAsync(path, "id\n1\n");
 
         await Assert.ThrowsAsync<ArgumentException>(
-            () => CsvImporter.ImportAsync(
+            () => TabularImporter.ImportCsvAsync(
                 _duckling,
                 path,
                 "safe.csv",
@@ -209,7 +237,7 @@ public sealed class CsvImporterTests : IAsyncLifetime
                 default));
 
         await Assert.ThrowsAsync<ArgumentException>(
-            () => CsvImporter.ImportAsync(
+            () => TabularImporter.ImportCsvAsync(
                 _duckling,
                 path,
                 "safe.csv",
@@ -219,7 +247,7 @@ public sealed class CsvImporterTests : IAsyncLifetime
                 default));
 
         var incompatible = await Assert.ThrowsAsync<ArgumentException>(
-            () => CsvImporter.ImportAsync(
+            () => TabularImporter.ImportCsvAsync(
                 _duckling,
                 path,
                 "safe.csv",
@@ -242,7 +270,7 @@ public sealed class CsvImporterTests : IAsyncLifetime
 
         await File.WriteAllTextAsync(path, csv.ToString());
 
-        var result = await CsvImporter.ImportAsync(
+        var result = await TabularImporter.ImportCsvAsync(
             _duckling,
             path,
             "many-rejects.csv",
@@ -261,6 +289,38 @@ public sealed class CsvImporterTests : IAsyncLifetime
         Assert.Equal(101, result.RecordedErrors);
         Assert.Equal(100, result.Rejects.Count);
         Assert.True(result.RejectsTruncated);
+    }
+
+    [Fact]
+    public async Task Xlsx_import_uses_the_first_worksheet_and_infers_columns()
+    {
+        var path = Path.Combine(_root, "customers.xlsx");
+        await Sql(
+            $"""
+             COPY (
+                 SELECT *
+                 FROM (VALUES (1, 'Alice'), (2, 'Bob')) AS customers(id, name)
+             ) TO {SqlIdentifier.Literal(path)} WITH (FORMAT xlsx, HEADER true)
+             """);
+
+        var result = await TabularImporter.ImportXlsxAsync(
+            _duckling,
+            path,
+            "customers.xlsx",
+            "main",
+            "xlsx_customers",
+            sheet: null,
+            default);
+
+        Assert.Equal(TabularFileFormat.Xlsx, result.Format);
+        Assert.Equal(2, result.RowsImported);
+        Assert.False(result.UsedAutomaticFallback);
+        Assert.Equal(["id", "name"], result.Columns.Select(column => column.Name));
+        Assert.Empty(result.Rejects);
+
+        var rows = await Sql("SELECT id, name FROM xlsx_customers ORDER BY id");
+        Assert.Equal(2, rows.Rows.Count);
+        Assert.Equal("Alice", rows.Rows[0][1]);
     }
 
     private Task<QueryResult> Sql(string sql)

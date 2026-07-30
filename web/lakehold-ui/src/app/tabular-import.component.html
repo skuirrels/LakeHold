@@ -1,5 +1,5 @@
 <button class="btn" type="button" [disabled]="!tenant() || !catalog()" (click)="begin()">
-  Import CSV
+  Import data
 </button>
 
 @if (open()) {
@@ -8,18 +8,18 @@
       class="import-dialog"
       role="dialog"
       aria-modal="true"
-      aria-labelledby="csv-import-title"
+      aria-labelledby="data-import-title"
       (click)="$event.stopPropagation()"
     >
       <header>
         <div>
           <span class="eyebrow">Add data</span>
-          <h2 id="csv-import-title">Import CSV as a table</h2>
+          <h2 id="data-import-title">Import a file as a table</h2>
         </div>
         <button
           class="close"
           type="button"
-          aria-label="Close CSV import"
+          aria-label="Close file import"
           [disabled]="busy()"
           (click)="close()"
         >
@@ -47,6 +47,16 @@
             >
           }
         </div>
+
+        @if (imported.usedAutomaticFallback) {
+          <div class="reject-summary">
+            <strong>Automatic recovery was applied</strong>
+            <span>
+              LakeHold detected malformed CSV rows, retried with tolerant parsing, and captured the
+              rejects shown below.
+            </span>
+          </div>
+        }
 
         @if (imported.recordedErrors > 0) {
           <div class="reject-summary">
@@ -87,8 +97,13 @@
       } @else {
         <form (submit)="$event.preventDefault(); submit()">
           <label class="file-field">
-            <span>CSV file</span>
-            <input type="file" accept=".csv,text/csv" required (change)="chooseFile($event)" />
+            <span>CSV or XLSX file</span>
+            <input
+              type="file"
+              accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+              required
+              (change)="chooseFile($event)"
+            />
             @if (file(); as selected) {
               <small>{{ selected.name }} · {{ selected.size.toLocaleString() }} bytes</small>
             }
@@ -119,42 +134,42 @@
             </label>
           </div>
 
-          <fieldset class="mode">
-            <legend>CSV format</legend>
-            <label>
-              <input
-                type="radio"
-                name="csv-mode"
-                value="automatic"
-                [checked]="mode() === 'automatic'"
-                (change)="setMode('automatic')"
-              />
-              <span>
-                <strong>Automatic</strong>
-                <small
-                  >Let DuckDB detect delimiter, quoting, headers, line endings, and types.</small
-                >
-              </span>
-            </label>
-            <label>
-              <input
-                type="radio"
-                name="csv-mode"
-                value="custom"
-                [checked]="mode() === 'custom'"
-                (change)="setMode('custom')"
-              />
-              <span>
-                <strong>Semicolon / CRLF tolerant</strong>
-                <small
-                  >Starts with the full-file, skip-errors profile; every setting remains
-                  editable.</small
-                >
-              </span>
-            </label>
-          </fieldset>
+          @if (fileFormat() === 'csv') {
+            <fieldset class="mode">
+              <legend>CSV handling</legend>
+              <label>
+                <input
+                  type="radio"
+                  name="csv-mode"
+                  value="automatic"
+                  [checked]="mode() === 'automatic'"
+                  (change)="setMode('automatic')"
+                />
+                <span>
+                  <strong>Automatic (recommended)</strong>
+                  <small>
+                    Detect the format and types. If malformed rows are found, retry automatically
+                    and report the rejected rows.
+                  </small>
+                </span>
+              </label>
+              <label>
+                <input
+                  type="radio"
+                  name="csv-mode"
+                  value="custom"
+                  [checked]="mode() === 'custom'"
+                  (change)="setMode('custom')"
+                />
+                <span>
+                  <strong>Advanced CSV settings</strong>
+                  <small>Set the delimiter, line endings, scan depth, and reject policy.</small>
+                </span>
+              </label>
+            </fieldset>
+          }
 
-          @if (mode() === 'custom') {
+          @if (fileFormat() === 'csv' && mode() === 'custom') {
             <div class="advanced-grid">
               <label>
                 <span>Delimiter</span>
@@ -235,26 +250,26 @@
             </div>
           }
 
+          @if (fileFormat() === 'xlsx') {
+            <div class="advanced-grid">
+              <label>
+                <span>Worksheet</span>
+                <input
+                  type="text"
+                  maxlength="255"
+                  placeholder="First worksheet"
+                  [value]="worksheet()"
+                  (input)="worksheet.set($any($event.target).value)"
+                />
+                <small>Leave empty to import the first worksheet.</small>
+              </label>
+            </div>
+          }
+
           @if (error(); as message) {
             <div class="import-error" role="alert">
               <strong>Import failed</strong>
               <p>{{ message }}</p>
-              @if (canRetryWithTolerantProfile()) {
-                <div class="retry-action">
-                  <small>
-                    Automatic import is strict. The tolerant profile skips malformed rows and
-                    returns a bounded reject report for review.
-                  </small>
-                  <button
-                    class="btn"
-                    type="button"
-                    [disabled]="busy()"
-                    (click)="retryWithTolerantProfile()"
-                  >
-                    Retry with semicolon / CRLF tolerant profile
-                  </button>
-                </div>
-              }
             </div>
           }
 

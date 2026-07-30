@@ -4,33 +4,36 @@ using Microsoft.Extensions.Options;
 
 namespace Lakehold.Api.Importing;
 
-/// <summary>Raised when a browser upload exceeds the configured CSV import ceiling.</summary>
-public sealed class CsvUploadTooLargeException(long maxBytes)
-    : Exception($"The CSV exceeds the configured upload limit of {maxBytes} bytes.");
+/// <summary>Raised when a browser upload exceeds the configured tabular-import ceiling.</summary>
+public sealed class TabularUploadTooLargeException(long maxBytes)
+    : Exception($"The file exceeds the configured upload limit of {maxBytes} bytes.");
 
 /// <summary>
 ///     Streams a browser upload into disposable node-local scratch space and runs the import before
 ///     removing it.
 /// </summary>
-public sealed class CsvUploadService(
+public sealed class TabularUploadService(
     LakehouseService lakehouse,
     IOptions<CsvUploadOptions> options,
-    CsvScratchSpace scratch)
+    TabularScratchSpace scratch)
 {
     private readonly LakehouseService _lakehouse = lakehouse;
     private readonly CsvUploadOptions _options = options.Value;
-    private readonly CsvScratchSpace _scratch = scratch;
+    private readonly TabularScratchSpace _scratch = scratch;
 
     /// <summary>Imports one uploaded file; the scratch copy never survives the request.</summary>
-    public async Task<CsvImportResult> ImportAsync(
+    public async Task<TabularImportResult> ImportAsync(
         string tenant,
         string catalog,
         Stream content,
         long? contentLength,
         string fileName,
+        TabularFileFormat format,
         string schema,
         string table,
+        bool automaticMode,
         CsvReadOptions readOptions,
+        string? worksheet,
         int? tokenId,
         CancellationToken cancellationToken)
     {
@@ -39,7 +42,7 @@ public sealed class CsvUploadService(
 
         if (contentLength > _options.MaxBytes)
         {
-            throw new CsvUploadTooLargeException(_options.MaxBytes);
+            throw new TabularUploadTooLargeException(_options.MaxBytes);
         }
 
         await using var lease = await _scratch
@@ -48,13 +51,7 @@ public sealed class CsvUploadService(
 
         try
         {
-            await using (var target = new FileStream(
-                             lease.Path,
-                             FileMode.CreateNew,
-                             FileAccess.Write,
-                             FileShare.None,
-                             bufferSize: 128 * 1024,
-                             FileOptions.Asynchronous | FileOptions.SequentialScan))
+            await using (var target = lease.OpenWrite())
             {
                 var buffer = new byte[128 * 1024];
                 long written = 0;
@@ -71,7 +68,7 @@ public sealed class CsvUploadService(
                     written += read;
                     if (written > _options.MaxBytes)
                     {
-                        throw new CsvUploadTooLargeException(_options.MaxBytes);
+                        throw new TabularUploadTooLargeException(_options.MaxBytes);
                     }
 
                     lease.EnsureReserved(written);
@@ -83,19 +80,22 @@ public sealed class CsvUploadService(
 
                 if (written == 0)
                 {
-                    throw new ArgumentException("Choose a non-empty CSV file.");
+                    throw new ArgumentException("Choose a non-empty CSV or XLSX file.");
                 }
             }
 
             return await _lakehouse
-                .ImportCsvAsync(
+                .ImportTabularAsync(
                     tenant,
                     catalog,
                     lease.Path,
                     Path.GetFileName(fileName.Replace('\\', '/')),
+                    format,
                     schema,
                     table,
+                    automaticMode,
                     readOptions,
+                    worksheet,
                     cancellationToken,
                     tokenId)
                 .ConfigureAwait(false);

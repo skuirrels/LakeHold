@@ -17,7 +17,7 @@ public sealed partial class CsvImportException : Exception
         IsParserError = isParserError;
     }
 
-    /// <summary>Whether tolerant parsing is a meaningful explicit retry for this failure.</summary>
+    /// <summary>Whether automatic tolerant recovery is meaningful for this failure.</summary>
     public bool IsParserError { get; }
 
     /// <summary>Stable API error code for this failure category.</summary>
@@ -27,7 +27,10 @@ public sealed partial class CsvImportException : Exception
     {
         ArgumentNullException.ThrowIfNull(message);
 
-        if (!message.Contains("CSV Error", StringComparison.OrdinalIgnoreCase))
+        var isParserError =
+            message.Contains("CSV Error", StringComparison.OrdinalIgnoreCase)
+            || message.Contains("Error when sniffing file", StringComparison.OrdinalIgnoreCase);
+        if (!isParserError)
         {
             return new CsvImportException(
                 "DuckDB could not import the CSV with the selected settings.",

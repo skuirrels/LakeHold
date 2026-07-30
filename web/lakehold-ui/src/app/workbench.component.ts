@@ -15,7 +15,7 @@ import { AuthService } from './auth.service';
 import { BackupsPanelComponent } from './backups-panel.component';
 import { BrandMarkComponent } from './brand-mark.component';
 import { CatalogExplorerComponent } from './catalog-explorer.component';
-import { CsvImportComponent } from './csv-import.component';
+import { TabularImportComponent } from './tabular-import.component';
 import { ChangesPanelComponent } from './changes-panel.component';
 import { DataHistoryPanelComponent } from './data-history-panel.component';
 import { EjectPanelComponent } from './eject-panel.component';
@@ -25,12 +25,12 @@ import { ApiError, LakehouseService } from './lakehouse.service';
 import {
   AccessContext,
   BrowserSession,
-  CsvImportResult,
   MaintenanceOperation,
   QueryResponse,
   QueryRun,
   Schema,
   TableReference,
+  TabularImportResult,
   Tenant,
 } from './models';
 import { ResultGridComponent } from './result-grid.component';
@@ -75,7 +75,7 @@ type BottomTab =
     BrandMarkComponent,
     CatalogExplorerComponent,
     ChangesPanelComponent,
-    CsvImportComponent,
+    TabularImportComponent,
     DataHistoryPanelComponent,
     EjectPanelComponent,
     FirstRunComponent,
@@ -500,8 +500,8 @@ export class WorkbenchComponent {
     );
   }
 
-  /** Refreshes every catalog surface invalidated by a newly created CSV-backed table. */
-  protected onCsvImported(result: CsvImportResult): void {
+  /** Refreshes every catalog surface invalidated by a newly imported table. */
+  protected onFileImported(result: TabularImportResult): void {
     this.notice.set(
       `Imported ${result.rowsImported.toLocaleString()} rows into ${result.schema}.${result.table}` +
         (result.rejectedRows > 0

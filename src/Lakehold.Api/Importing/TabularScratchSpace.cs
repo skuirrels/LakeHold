@@ -3,10 +3,10 @@ using Microsoft.Extensions.Options;
 namespace Lakehold.Api.Importing;
 
 /// <summary>Raised when this node cannot safely reserve scratch capacity for another upload.</summary>
-public sealed class CsvScratchCapacityException(string message) : Exception(message);
+public sealed class TabularScratchCapacityException(string message) : Exception(message);
 
 /// <summary>
-///     Coordinates disposable CSV scratch files across every request handled by one application
+///     Coordinates disposable tabular-upload scratch files across every request handled by one application
 ///     node.
 /// </summary>
 /// <remarks>
@@ -14,7 +14,7 @@ public sealed class CsvScratchCapacityException(string message) : Exception(mess
 ///     coordinator adds the missing node-wide invariants: bounded concurrency, bounded aggregate
 ///     reservations, a free-space floor, and cleanup of files abandoned by an earlier process.
 /// </remarks>
-public sealed class CsvScratchSpace : IDisposable
+public sealed class TabularScratchSpace : IDisposable
 {
     private readonly CsvUploadOptions _options;
     private readonly TimeProvider _clock;
@@ -24,7 +24,7 @@ public sealed class CsvScratchSpace : IDisposable
     private long _unwrittenReservedBytes;
     private bool _disposed;
 
-    public CsvScratchSpace(IOptions<CsvUploadOptions> options, TimeProvider clock)
+    public TabularScratchSpace(IOptions<CsvUploadOptions> options, TimeProvider clock)
     {
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(clock);
@@ -38,6 +38,15 @@ public sealed class CsvScratchSpace : IDisposable
                 ? Path.Combine(Path.GetTempPath(), "lakehold-csv-imports")
                 : _options.ScratchRoot);
         Directory.CreateDirectory(ScratchRoot);
+        if (!OperatingSystem.IsWindows())
+        {
+            // Uploads may contain tenant data. The directory is application-owned scratch state,
+            // so no other local account needs to traverse or read it.
+            File.SetUnixFileMode(
+                ScratchRoot,
+                UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        }
+
         RemoveStaleFiles();
 
         _concurrency = new SemaphoreSlim(
@@ -49,7 +58,7 @@ public sealed class CsvScratchSpace : IDisposable
     public string ScratchRoot { get; }
 
     /// <summary>Reserves one upload slot and its declared size, when known.</summary>
-    public async Task<CsvScratchLease> AcquireAsync(
+    public async Task<TabularScratchLease> AcquireAsync(
         long? contentLength,
         CancellationToken cancellationToken)
     {
@@ -60,9 +69,9 @@ public sealed class CsvScratchSpace : IDisposable
         try
         {
             Reserve(reserved);
-            return new CsvScratchLease(
+            return new TabularScratchLease(
                 this,
-                Path.Combine(ScratchRoot, $"{Guid.NewGuid():N}.csv"),
+                Path.Combine(ScratchRoot, $"{Guid.NewGuid():N}.upload"),
                 reserved);
         }
         catch
@@ -72,7 +81,7 @@ public sealed class CsvScratchSpace : IDisposable
         }
     }
 
-    internal void EnsureReserved(CsvScratchLease lease, long requiredBytes)
+    internal void EnsureReserved(TabularScratchLease lease, long requiredBytes)
     {
         ArgumentNullException.ThrowIfNull(lease);
         if (requiredBytes <= lease.ReservedBytes)
@@ -85,7 +94,7 @@ public sealed class CsvScratchSpace : IDisposable
         lease.ReservedBytes = requiredBytes;
     }
 
-    internal void Release(CsvScratchLease lease)
+    internal void Release(TabularScratchLease lease)
     {
         lock (_capacityLock)
         {
@@ -116,8 +125,8 @@ public sealed class CsvScratchSpace : IDisposable
         {
             if (additionalBytes > _options.MaxAggregateScratchBytes - _reservedBytes)
             {
-                throw new CsvScratchCapacityException(
-                    $"This node has {_options.MaxAggregateScratchBytes} bytes of CSV scratch "
+                throw new TabularScratchCapacityException(
+                    $"This node has {_options.MaxAggregateScratchBytes} bytes of import scratch "
                     + "capacity and it is currently reserved by other imports. Retry later.");
             }
 
@@ -139,13 +148,13 @@ public sealed class CsvScratchSpace : IDisposable
         var free = new DriveInfo(root).AvailableFreeSpace;
         if (_unwrittenReservedBytes + additionalBytes > free - _options.MinimumFreeBytes)
         {
-            throw new CsvScratchCapacityException(
-                $"This node does not have enough free scratch space for the CSV upload while "
+            throw new TabularScratchCapacityException(
+                $"This node does not have enough free scratch space for the upload while "
                 + $"preserving the configured {_options.MinimumFreeBytes}-byte safety floor.");
         }
     }
 
-    internal void RecordWritten(CsvScratchLease lease, int bytes)
+    internal void RecordWritten(TabularScratchLease lease, int bytes)
     {
         ArgumentNullException.ThrowIfNull(lease);
         ArgumentOutOfRangeException.ThrowIfNegative(bytes);
@@ -162,7 +171,10 @@ public sealed class CsvScratchSpace : IDisposable
     private void RemoveStaleFiles()
     {
         var cutoff = _clock.GetUtcNow() - _options.StaleFileAge;
-        foreach (var file in Directory.EnumerateFiles(ScratchRoot, "*.csv", SearchOption.TopDirectoryOnly))
+        var files = Directory
+            .EnumerateFiles(ScratchRoot, "*.upload", SearchOption.TopDirectoryOnly)
+            .Concat(Directory.EnumerateFiles(ScratchRoot, "*.csv", SearchOption.TopDirectoryOnly));
+        foreach (var file in files)
         {
             try
             {
@@ -218,12 +230,12 @@ public sealed class CsvScratchSpace : IDisposable
 }
 
 /// <summary>An active node-local scratch reservation.</summary>
-public sealed class CsvScratchLease : IAsyncDisposable
+public sealed class TabularScratchLease : IAsyncDisposable
 {
-    private readonly CsvScratchSpace _owner;
+    private readonly TabularScratchSpace _owner;
     private bool _disposed;
 
-    internal CsvScratchLease(CsvScratchSpace owner, string path, long reservedBytes)
+    internal TabularScratchLease(TabularScratchSpace owner, string path, long reservedBytes)
     {
         _owner = owner;
         Path = path;
@@ -237,6 +249,27 @@ public sealed class CsvScratchLease : IAsyncDisposable
     public long ReservedBytes { get; internal set; }
 
     internal long WrittenBytes { get; set; }
+
+    /// <summary>Creates the upload file with owner-only permissions on Unix hosts.</summary>
+    public FileStream OpenWrite()
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+
+        var options = new FileStreamOptions
+        {
+            Mode = FileMode.CreateNew,
+            Access = FileAccess.Write,
+            Share = FileShare.None,
+            BufferSize = 128 * 1024,
+            Options = FileOptions.Asynchronous | FileOptions.SequentialScan,
+        };
+        if (!OperatingSystem.IsWindows())
+        {
+            options.UnixCreateMode = UnixFileMode.UserRead | UnixFileMode.UserWrite;
+        }
+
+        return new FileStream(Path, options);
+    }
 
     /// <summary>Expands the aggregate reservation before more bytes are written.</summary>
     public void EnsureReserved(long requiredBytes)

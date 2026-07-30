@@ -31,6 +31,13 @@ profile. Remaining adversarial multi-tenant artifact/background-job gates are ow
 The public host port is `8080` by default. nginx proxies `/health` and `/api`; it does not expose
 `/alive`. Probe `/alive` only from the container or private service network.
 
+The published API image includes the signed DuckDB extension binaries required by LakeHold plus the
+Excel extension used for `.xlsx` imports. They are pinned to the exact DuckDB engine version and to
+the image architecture, and every compute session loads them from the non-root `app` user's local
+cache. A fresh production container therefore does not contact `extensions.duckdb.org` when its
+first catalog session starts. From-source host development uses DuckDB's normal user cache; the
+development Compose API image bakes in the same platform-specific cache before `dotnet watch` starts.
+
 The default state volume contains:
 
 | Path | Contents | Rebuilt from source? |

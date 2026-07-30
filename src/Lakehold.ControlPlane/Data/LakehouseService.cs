@@ -107,23 +107,27 @@ public sealed class LakehouseService(
         }
     }
 
-    /// <summary>Imports an uploaded CSV scratch file into a new table and records the operation.</summary>
-    public async Task<CsvImportResult> ImportCsvAsync(
+    /// <summary>Imports an uploaded CSV or XLSX scratch file into a new table and records the operation.</summary>
+    public async Task<TabularImportResult> ImportTabularAsync(
         string tenantSlug,
         string catalogName,
         string filePath,
         string fileName,
+        TabularFileFormat format,
         string schema,
         string table,
-        CsvReadOptions options,
+        bool automaticMode,
+        CsvReadOptions csvOptions,
+        string? worksheet,
         CancellationToken cancellationToken,
         int? tokenId = null)
     {
         var validatedSchema = SqlIdentifier.Quote(schema);
         var validatedTable = SqlIdentifier.Quote(table);
-        using var activity = LakeholdTelemetry.Source.StartActivity("lakehold.csv.import");
+        using var activity = LakeholdTelemetry.Source.StartActivity("lakehold.tabular.import");
         activity?.SetTag(LakeholdTelemetry.TenantKey, tenantSlug);
         activity?.SetTag(LakeholdTelemetry.CatalogKey, catalogName);
+        activity?.SetTag("lakehold.import.format", format.ToString().ToLowerInvariant());
         var startedAt = TimeProvider.System.GetTimestamp();
 
         var (duckling, tenantId) = await ResolveAsync(tenantSlug, catalogName, cancellationToken)
@@ -135,26 +139,68 @@ public sealed class LakehouseService(
             TenantId = tenantId,
             CatalogName = catalogName,
             // The real node-local path is deliberately absent from durable history.
-            Sql = $"-- Browser CSV import: {auditFileName}\n"
+            Sql = $"-- Browser {format.ToString().ToUpperInvariant()} import: {auditFileName}\n"
                   + $"CREATE TABLE {SqlIdentifier.QuoteName(validatedSchema)}."
                   + $"{SqlIdentifier.QuoteName(validatedTable)} "
-                  + "AS SELECT * FROM read_csv('<uploaded file>');",
+                  + $"AS SELECT * FROM read_{format.ToString().ToLowerInvariant()}('<uploaded file>');",
             StartedUtc = DateTimeOffset.UtcNow,
             TokenId = tokenId,
         };
 
         try
         {
-            var result = await CsvImporter
-                .ImportAsync(
-                    duckling,
-                    filePath,
-                    fileName,
-                    validatedSchema,
-                    validatedTable,
-                    options,
-                    cancellationToken)
-                .ConfigureAwait(false);
+            TabularImportResult result;
+            if (format == TabularFileFormat.Csv)
+            {
+                try
+                {
+                    result = await TabularImporter
+                        .ImportCsvAsync(
+                            duckling,
+                            filePath,
+                            fileName,
+                            validatedSchema,
+                            validatedTable,
+                            csvOptions,
+                            cancellationToken)
+                        .ConfigureAwait(false);
+                }
+                catch (CsvImportException ex) when (automaticMode && ex.IsParserError)
+                {
+                    // DuckDB aborts a transaction after a parser error. ImportCsvAsync has already
+                    // rolled that transaction back, so automatic recovery starts a fresh labelled
+                    // transaction against the same request-scoped scratch file.
+                    result = await TabularImporter
+                        .ImportCsvAsync(
+                            duckling,
+                            filePath,
+                            fileName,
+                            validatedSchema,
+                            validatedTable,
+                            new CsvReadOptions(
+                                SampleSize: -1,
+                                IgnoreErrors: true,
+                                StoreRejects: true),
+                            cancellationToken)
+                        .ConfigureAwait(false);
+                    result = result with { UsedAutomaticFallback = true };
+                    run.Sql += "\n-- Automatic recovery skipped malformed rows and captured rejects.";
+                    activity?.SetTag("lakehold.import.automatic_fallback", true);
+                }
+            }
+            else
+            {
+                result = await TabularImporter
+                    .ImportXlsxAsync(
+                        duckling,
+                        filePath,
+                        fileName,
+                        validatedSchema,
+                        validatedTable,
+                        worksheet,
+                        cancellationToken)
+                    .ConfigureAwait(false);
+            }
 
             run.Succeeded = true;
             run.RowCount = (int)Math.Min(result.RowsImported, int.MaxValue);
