@@ -18,11 +18,31 @@
 }
 
 :host(.closed) {
-  width: 0;
-  padding-inline: 0;
-  border-right-width: 0;
+  width: 56px;
+}
+
+:host(.closed) .nav-section {
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+:host(.closed) .nav-section-label {
+  height: 0;
+  padding: 0;
+  overflow: hidden;
   opacity: 0;
-  pointer-events: none;
+}
+
+:host(.closed) .nav-item {
+  justify-content: center;
+  gap: 0;
+  padding-inline: 9px;
+}
+
+:host(.closed) .nav-item span {
+  width: 0;
+  overflow: hidden;
+  opacity: 0;
 }
 
 .nav-primary,
@@ -103,5 +123,29 @@
     border-right: 1px solid var(--border);
     opacity: 1;
     transform: translateX(-101%);
+  }
+
+  :host(.closed) .nav-section {
+    padding-top: 0;
+    border-top: 0;
+  }
+
+  :host(.closed) .nav-section-label {
+    height: auto;
+    padding: 0 9px 5px;
+    overflow: visible;
+    opacity: 1;
+  }
+
+  :host(.closed) .nav-item {
+    justify-content: flex-start;
+    gap: 10px;
+    padding-inline: 9px;
+  }
+
+  :host(.closed) .nav-item span {
+    width: auto;
+    overflow: visible;
+    opacity: 1;
   }
 }

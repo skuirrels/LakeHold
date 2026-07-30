@@ -30,8 +30,8 @@ export type WorkbenchDestination =
     role: 'navigation',
     'aria-label': 'Workbench navigation',
     '[class.closed]': '!open()',
-    '[attr.aria-hidden]': '!open()',
-    '[attr.inert]': "open() ? null : ''",
+    '[attr.aria-hidden]': "!open() && compact() ? 'true' : 'false'",
+    '[attr.inert]': "open() || !compact() ? null : ''",
   },
 })
 export class WorkbenchNavigationComponent {
@@ -39,6 +39,7 @@ export class WorkbenchNavigationComponent {
 
   readonly destination = input.required<WorkbenchDestination>();
   readonly open = input(true);
+  readonly compact = input(false);
   readonly systemAdmin = input(false);
   readonly navigate = output<WorkbenchDestination>();
 

@@ -53,22 +53,35 @@ test.describe('workbench user journeys', () => {
     await expect(navigation).toHaveAttribute('aria-hidden', 'false');
     await expect(navigation).not.toHaveAttribute('inert', '');
     const expandedMain = await main.boundingBox();
+    const expandedNavigation = await navigation.boundingBox();
     expect(expandedMain).not.toBeNull();
+    expect(expandedNavigation).not.toBeNull();
 
     await toggle.click();
-    await expect(navigation).toBeHidden();
-    await expect(navigation).toHaveAttribute('aria-hidden', 'true');
-    await expect(navigation).toHaveAttribute('inert', '');
+    await expect(navigation).toBeVisible();
+    await expect(navigation).toHaveAttribute('aria-hidden', 'false');
+    await expect(navigation).not.toHaveAttribute('inert', '');
     await expect(page.getByRole('button', { name: 'Expand navigation' })).toHaveAttribute(
       'aria-expanded',
       'false',
     );
     await expect
+      .poll(async () => (await navigation.boundingBox())?.width)
+      .toBeLessThan(expandedNavigation!.width - 100);
+    await expect
       .poll(async () => (await main.boundingBox())?.x)
-      .toBeLessThan(expandedMain!.x - 200);
+      .toBeLessThan(expandedMain!.x - 100);
     await expect
       .poll(async () => (await main.boundingBox())?.width)
-      .toBeGreaterThan(expandedMain!.width + 200);
+      .toBeGreaterThan(expandedMain!.width + 100);
+
+    const queryHistory = navigation.getByRole('button', {
+      name: 'Query history',
+      exact: true,
+    });
+    await expect(queryHistory).toHaveAttribute('title', 'Query history');
+    await queryHistory.click();
+    await expect(queryHistory).toHaveClass(/active/);
 
     await page.getByRole('button', { name: 'Expand navigation' }).click();
     await expect(navigation).toBeVisible();
@@ -88,7 +101,8 @@ test.describe('workbench user journeys', () => {
     await page.getByRole('button', { name: 'Collapse navigation' }).click();
     await page.getByRole('button', { name: 'Collapse catalog panel' }).click();
 
-    await expect(navigation).toHaveAttribute('inert', '');
+    await expect(navigation).not.toHaveAttribute('inert', '');
+    await expect(navigation).toHaveAttribute('aria-hidden', 'false');
     await expect(contextPanel).toHaveAttribute('inert', '');
     await expect(page.getByRole('button', { name: 'Expand navigation' })).toBeFocused();
   });

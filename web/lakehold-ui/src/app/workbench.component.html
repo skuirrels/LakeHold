@@ -103,6 +103,7 @@
         id="workbench-navigation"
         [destination]="navigationDestination()"
         [open]="navigationOpen()"
+        [compact]="compactViewport()"
         [systemAdmin]="access()?.systemAdmin ?? false"
         (navigate)="openNavigation($event)"
       />
