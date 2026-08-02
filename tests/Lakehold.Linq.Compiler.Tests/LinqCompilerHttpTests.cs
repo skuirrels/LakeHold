@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using Lakehold.Querying;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Options;
 using Xunit;
 
@@ -13,7 +14,17 @@ public sealed class LinqCompilerHttpTests : IClassFixture<WebApplicationFactory<
     private readonly HttpClient _client;
 
     public LinqCompilerHttpTests(WebApplicationFactory<Program> factory)
-        => _client = factory.WithWebHostBuilder(builder => builder.UseEnvironment("Development")).CreateClient();
+        => _client = factory.WithWebHostBuilder(builder =>
+        {
+            builder.UseEnvironment("Development");
+            builder.ConfigureAppConfiguration((_, configuration) => configuration.AddInMemoryCollection(
+                new Dictionary<string, string?>
+                {
+                    // GitHub runs every test assembly concurrently. Give real HTTP cold starts
+                    // headroom without weakening the production default or the hard-deadline test.
+                    ["Lakehold:LinqCompiler:Timeout"] = "00:00:30",
+                }));
+        }).CreateClient();
 
     [Fact]
     public async Task Real_http_surface_describes_and_plans_linq()
