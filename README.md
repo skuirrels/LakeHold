@@ -129,9 +129,11 @@ Then read the bootstrap token out of the log and open the Workbench, which walks
 docker compose -f compose.production.yaml logs api | grep -i bootstrap
 ```
 
-SQL is always built in. To add the isolated C# LINQ planner, set
-`LAKEHOLD_LINQ_PLANNER_KEY` and add `--profile linq` to the Compose command. Removing that profile
-returns the same deployment to SQL-only operation. See [C# LINQ in the Workbench](docs/LINQ_WORKBENCH.md).
+SQL is always built in. In a standard private production deployment, add the isolated C# LINQ
+planner by setting `LAKEHOLD_LINQ_PLANNER_KEY` and adding `--profile linq` to the Compose command.
+Removing that profile returns the same deployment to SQL-only operation. The separate public
+evaluation target, `make demo`, enables the profile and generates its internal credential
+automatically. See [C# LINQ in the Workbench](docs/LINQ_WORKBENCH.md).
 
 Pin `LAKEHOLD_TAG` to a release rather than tracking `latest`, or a redeploy silently moves you to
 whatever was tagged since. From a checkout, `make deploy` pulls and restarts in one step, and
@@ -236,9 +238,11 @@ add its overlay:
 make demo
 ```
 
-This refuses tracked local changes, pulls the current branch with `--ff-only`, then builds the API
-and UI images before starting them in website mode. The site listens on port `8080` by default; use
-`LAKEHOLD_PORT=8081 make demo` when that port is already occupied.
+This refuses tracked local changes, pulls the current branch with `--ff-only`, then builds the API,
+UI, and isolated C# LINQ compiler images before starting them in website mode. C# LINQ is enabled in
+the Workbench by default. `make demo` generates and supplies the internal planner credential, so no
+feature key needs to be configured or retained by the operator. The site listens on port `8080` by
+default; use `LAKEHOLD_PORT=8081 make demo` when that port is already occupied.
 
 `compose.demo.yaml` owns the website mode, demo seeding, authentication, the read-only visitor
 scope, and a private PostgreSQL 17 service whose metadata survives restarts in the

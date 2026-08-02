@@ -4,11 +4,13 @@
 # to demo/analytics; this is intentionally different from setting LAKEHOLD_REQUIRE_AUTH=false,
 # which would trust every tenant and catalog named in a URL.
 #
-#   make demo
+#   make demo  # builds and starts the isolated C# LINQ planner automatically
 #
 # The customer-facing production file contains no demo settings or bundled database. This overlay
-# owns the complete evaluation deployment, including a private PostgreSQL service, so `make demo`
-# remains self-contained while the standard production topology keeps PostgreSQL operator-managed.
+# owns the complete evaluation deployment, including a private PostgreSQL service. The Make target
+# activates the production file's `linq` profile and generates the internal planner credential, so
+# the evaluation Workbench offers SQL and C# LINQ without operator setup. The standard production
+# topology keeps PostgreSQL and optional-planner enablement operator-managed.
 
 services:
   api:

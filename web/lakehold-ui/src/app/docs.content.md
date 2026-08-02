@@ -48,8 +48,10 @@ SQL is always available. Add the isolated C# LINQ planner with a Compose profile
 docker compose --profile linq up
 ```
 
-Removing the profile returns the same installation to SQL-only operation. Production deployments
-must supply `LAKEHOLD_LINQ_PLANNER_KEY`; see the
+Removing the profile returns the same installation to SQL-only operation. Standard private
+production deployments must supply `LAKEHOLD_LINQ_PLANNER_KEY`. The public evaluation target,
+`make demo`, activates the profile and generates its internal credential automatically, so its
+language selector includes SQL and C# LINQ without operator setup. See the
 [complete LINQ Workbench guide](https://lakehold.dev/docs/linq-workbench).
 
 **Or — app on the host.** Start only the backing services in Docker, then run the two app processes
@@ -701,7 +703,8 @@ curl -X POST $API/tenants/acme/tokens -H "Authorization: Bearer $ADMIN" \
 
 **Mind the port.** The production stack does not publish the API — nginx serves only the private
 Workbench at `:8080/workbench` and proxies `/api` on the same origin, so provisioning goes there.
-The public website routes are enabled only by `make demo`. On the development stack the API is
+The public website routes and isolated C# LINQ planner are enabled by default with `make demo`; its
+internal planner credential is generated automatically. On the development stack the API is
 published directly and the base URL is `http://localhost:5200/api` instead. Every `$API` in this
 section is one or the other.
 

@@ -10,15 +10,27 @@ compose_files=(
 )
 
 cleanup() {
-  docker compose -p "$compose_project" "${compose_files[@]}" down --volumes --remove-orphans
+  docker compose -p "$compose_project" "${compose_files[@]}" --profile linq \
+    down --volumes --remove-orphans
 }
-trap cleanup EXIT
+
+finish() {
+  status=$?
+  if ((status != 0)); then
+    docker compose -p "$compose_project" "${compose_files[@]}" --profile linq \
+      logs --no-color --tail 100 demo-postgres linq-compiler || true
+  fi
+  cleanup
+  exit "$status"
+}
+trap finish EXIT
 
 export LAKEHOLD_PORT="${LAKEHOLD_DEMO_UI_PORT:-6599}"
+export LAKEHOLD_LINQ_PLANNER_KEY="${LAKEHOLD_LINQ_PLANNER_KEY:-$(od -An -N32 -tx1 /dev/urandom | tr -d ' \n')}"
 
 cleanup
-docker compose -p "$compose_project" "${compose_files[@]}" \
-  up --detach --build --wait api workbench
+docker compose -p "$compose_project" "${compose_files[@]}" --profile linq \
+  up --detach --build --wait api workbench linq-compiler
 
 LAKEHOLD_DEMO=1 \
 LAKEHOLD_E2E_BASE_URL="${LAKEHOLD_E2E_BASE_URL:-http://127.0.0.1:6599}" \

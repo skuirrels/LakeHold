@@ -27,7 +27,7 @@ profile. Remaining adversarial multi-tenant artifact/background-job gates are ow
 |---|---|---|---|
 | `workbench` | nginx, private Angular workbench, same-origin `/api` proxy | None | `/workbench` inside the container |
 | `api` | PostgreSQL-backed control plane, DuckLake sessions, schedules, CDC, optional wire and MCP endpoints | PostgreSQL plus configured Parquet storage | `/health` readiness and `/alive` liveness |
-| `linq-compiler` (profile `linq`) | Isolated, credential-free C# LINQ-to-SQL planning | None | `/health` liveness and `/ready` provider translation |
+| `linq-compiler` (profile `linq`) | Isolated, catalog-credential-free C# LINQ-to-SQL planning | None | `/health` liveness and `/ready` provider translation |
 
 SQL does not depend on the compiler. Enable C# LINQ with a secret from the deployment's secret store:
 
@@ -43,6 +43,11 @@ has no state/catalog volume, and is bounded by the Compose CPU, memory, and proc
 
 The public host port is `8080` by default. nginx proxies `/health` and `/api`; it does not expose
 `/alive`. Probe `/alive` only from the container or private service network.
+
+The evaluation-only `make demo` path enables and builds the LINQ profile by default. It generates a
+high-entropy planner credential in memory and supplies the same value to the API and compiler, so
+the demo operator does not configure or retain a key. Standard and remote production deployments
+continue to take their planner credential from the deployment secret store.
 
 The published API image includes the signed DuckDB extension binaries required by LakeHold plus the
 Excel extension used for `.xlsx` imports. They are pinned to the exact DuckDB engine version and to

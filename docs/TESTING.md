@@ -21,8 +21,10 @@ It restores and builds both applications, runs every backend test with disposabl
 S3-compatible services, rejects skipped backend tests, runs the frontend unit suite and production
 build, runs the normal Chromium journeys against a fresh seeded production-shaped node, and then
 runs a separate authentication-required demo journey before the destructive Phase 2 operator
-journey. Its Compose projects, host ports, networks, and volumes are isolated from the development
-and production stacks and removed on exit.
+journey. The demo harness mirrors `make demo`: it activates and builds the `linq` profile, generates
+the shared internal planner credential, requires discovery to return both SQL and C# LINQ, and runs
+a provider-translated LINQ query as the read-only visitor. Its Compose projects, host ports,
+networks, and volumes are isolated from the development and production stacks and removed on exit.
 
 The individual commands remain useful for focused work. Run the isolated suites with:
 
@@ -73,7 +75,7 @@ cleanup, or restore.
 | Tenant, catalog, and token provisioning           |                 Yes |                            API test host |                       First-run component |
 | Authentication, role policy, and tenant isolation |                 Yes |   Read-only Duckling and PostgreSQL wire | Credential and anonymous request boundary |
 | SQL execution, result types, row limits, errors   |                 Yes |                     Live DuckDB/DuckLake |                Run, render, fail, recover |
-| Optional C# LINQ planning and replay              | Compiler policy/provider plans | Live DuckDB/DuckLake with isolated planner | Discover, complete, diagnose, run, save, unplug |
+| Optional C# LINQ planning and replay              | Compiler policy/provider plans | Live DuckDB/DuckLake with isolated planner | Private and default-demo discovery, complete, diagnose, run, save, unplug |
 | Catalog schemas and table discovery               |                 Yes |                             Live catalog |                   Filter, insert SQL, run |
 | Query history                                     |                 Yes |                            API test host |                       Replay a live query |
 | Data history, snapshot drill-down, and time travel |                 Yes |                            Live DuckLake | Browse, compare, plan/confirm restore |
