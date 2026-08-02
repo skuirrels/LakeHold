@@ -19,6 +19,7 @@
 
   <ItemGroup>
     <ProjectReference Include="../../src/Lakehold.Api/Lakehold.Api.csproj" />
+    <ProjectReference Include="../../src/Lakehold.Linq.Compiler/Lakehold.Linq.Compiler.csproj" />
   </ItemGroup>
 
   <ItemGroup>

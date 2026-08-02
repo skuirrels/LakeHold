@@ -18,6 +18,7 @@
 
   <ItemGroup>
     <ProjectReference Include="../Lakehold.Engine/Lakehold.Engine.csproj" />
+    <ProjectReference Include="../Lakehold.Querying/Lakehold.Querying.csproj" />
   </ItemGroup>
 
 </Project>

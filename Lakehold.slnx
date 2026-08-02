@@ -6,12 +6,15 @@
     <Project Path="src/Lakehold.ControlPlane/Lakehold.ControlPlane.csproj" />
     <Project Path="src/Lakehold.ControlPlane.Import/Lakehold.ControlPlane.Import.csproj" />
     <Project Path="src/Lakehold.Engine/Lakehold.Engine.csproj" />
+    <Project Path="src/Lakehold.Linq.Compiler/Lakehold.Linq.Compiler.csproj" />
+    <Project Path="src/Lakehold.Querying/Lakehold.Querying.csproj" />
     <Project Path="src/Lakehold.Replication/Lakehold.Replication.csproj" />
     <Project Path="src/Lakehold.Replicator/Lakehold.Replicator.csproj" />
     <Project Path="src/Lakehold.ServiceDefaults/Lakehold.ServiceDefaults.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Lakehold.Engine.Tests/Lakehold.Engine.Tests.csproj" />
+    <Project Path="tests/Lakehold.Linq.Compiler.Tests/Lakehold.Linq.Compiler.Tests.csproj" />
     <Project Path="tests/Lakehold.Api.Tests/Lakehold.Api.Tests.csproj" />
     <Project Path="tests/Lakehold.Replication.Tests/Lakehold.Replication.Tests.csproj" />
   </Folder>

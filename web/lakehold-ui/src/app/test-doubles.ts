@@ -12,6 +12,8 @@ import {
   EjectResult,
   MaintenanceResult,
   QueryResponse,
+  QueryLanguage,
+  QueryLanguageStarter,
   QueryRun,
   RestoreResult,
   SavedQuery,
@@ -240,6 +242,17 @@ export class FakeLakehouseService {
     elapsedMilliseconds: 1,
     rowsAffected: null,
   };
+  queryLanguages: QueryLanguage[] = [
+    {
+      id: 'sql',
+      displayName: 'SQL',
+      editorLanguage: 'sql',
+      starterSource: 'SELECT 1',
+      readOnly: false,
+      supportsSavedQueries: true,
+    },
+  ];
+  readonly queryStarters = new Map<string, QueryLanguageStarter>();
   savedQueries: SavedQuery[] = [];
   /** What the next maintenance call reports. `dryRun` drives the confirmation affordance. */
   maintenance: MaintenanceResult = {
@@ -306,6 +319,20 @@ export class FakeLakehouseService {
 
   getHistory(...args: unknown[]): Observable<QueryRun[]> {
     return this.answer('getHistory', args, () => this.history);
+  }
+
+  getQueryLanguages(...args: unknown[]): Observable<QueryLanguage[]> {
+    return this.answer('getQueryLanguages', args, () => this.queryLanguages);
+  }
+
+  getQueryStarter(...args: unknown[]): Observable<QueryLanguageStarter> {
+    return this.answer('getQueryStarter', args, () => {
+      const language = String(args[2]);
+      return this.queryStarters.get(language) ?? {
+        source: this.queryLanguages.find((candidate) => candidate.id === language)?.starterSource ?? '',
+        schemaFingerprint: 'schema-1',
+      };
+    });
   }
 
   execute(...args: unknown[]): Observable<QueryResponse> {

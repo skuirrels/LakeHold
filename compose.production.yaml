@@ -79,6 +79,9 @@ services:
       # Browser imports use this volume only within one request. The API additionally enforces
       # aggregate reservations and retains a free-space floor before accepting bytes.
       Lakehold__CsvImport__ScratchRoot: /var/lib/lakehold-imports
+      Lakehold__Querying__Planners__0__Id: csharp-linq
+      Lakehold__Querying__Planners__0__Endpoint: http://linq-compiler:5210/
+      Lakehold__Querying__Planners__0__SharedSecret: ${LAKEHOLD_LINQ_PLANNER_KEY:-}
 
     volumes:
       # Local Parquet (when selected), backups, and eject bundles. Control-plane and DuckLake
@@ -100,6 +103,39 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+    networks:
+      - default
+      - linq-internal
+
+  # Optional and independently deployable. Enable with `docker compose -f
+  # compose.production.yaml --profile linq up -d`; omit the profile to run the SQL-only product.
+  linq-compiler:
+    profiles: ["linq"]
+    image: ghcr.io/${LAKEHOLD_REGISTRY_NAMESPACE:-skuirrels}/lakehold-linq-compiler:${LAKEHOLD_TAG:-latest}
+    restart: unless-stopped
+    expose:
+      - "5210"
+    environment:
+      Lakehold__LinqCompiler__SharedSecret: ${LAKEHOLD_LINQ_PLANNER_KEY:-}
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,noexec,nosuid
+    cap_drop: ["ALL"]
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512m
+          pids: 128
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - linq-internal
 
   workbench:
     image: ghcr.io/${LAKEHOLD_REGISTRY_NAMESPACE:-skuirrels}/lakehold-web:${LAKEHOLD_TAG:-latest}
@@ -126,3 +162,7 @@ services:
 volumes:
   lakehold-state:
   lakehold-imports:
+
+networks:
+  linq-internal:
+    internal: true

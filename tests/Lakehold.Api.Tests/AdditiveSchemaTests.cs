@@ -229,7 +229,7 @@ public sealed class AdditiveSchemaTests : IAsyncLifetime
 
         await using (var context = NewContext())
         {
-            Assert.Equal(9, await AdditiveSchema.EnsureModelColumnsAsync(context, CancellationToken.None));
+            Assert.Equal(11, await AdditiveSchema.EnsureModelColumnsAsync(context, CancellationToken.None));
             Assert.Equal(1, await AdditiveSchema.RetireLegacySavedQueryIndexAsync(context, CancellationToken.None));
             Assert.Equal(1, await AdditiveSchema.EnsureModelIndexesAsync(context, CancellationToken.None));
 
@@ -237,6 +237,8 @@ public sealed class AdditiveSchemaTests : IAsyncLifetime
             Assert.Null(legacy.CatalogId);
             Assert.Equal(0, legacy.Revision);
             Assert.Equal(0, legacy.ConcurrencyVersion);
+            Assert.Equal("sql", legacy.Language);
+            Assert.Null(legacy.PublishedSchemaFingerprint);
 
             var indexes = await IndexNamesAsync(context, "SavedQueries");
             Assert.DoesNotContain("IX_SavedQueries_TenantId_Name", indexes);

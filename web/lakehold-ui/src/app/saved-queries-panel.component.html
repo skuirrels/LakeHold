@@ -1,7 +1,12 @@
 <div class="query-head">
   <span>Reusable queries</span>
   @if (!readOnly()) {
-    <button class="small-btn accent" type="button" (click)="beginCreate()">Save current</button>
+    <button
+      class="small-btn accent"
+      type="button"
+      [disabled]="!languageAvailable()"
+      (click)="beginCreate()"
+    >Save current</button>
   }
 </div>
 
@@ -14,7 +19,7 @@
 
 @if (formOpen()) {
   <form class="query-form" (submit)="$event.preventDefault(); save()">
-    <strong>{{ editing() ? 'Update saved query' : 'Save current SQL' }}</strong>
+    <strong>{{ editing() ? 'Update saved query' : 'Save current query' }}</strong>
     <label>
       <span>Name</span>
       <input
@@ -33,12 +38,12 @@
         (input)="descriptionDraft.set($any($event.target).value)"
       ></textarea>
     </label>
-    <p>The current editor SQL will be saved as one read-only query.</p>
+    <p>The current {{ language() }} source will be saved as one read-only query.</p>
     <div class="form-actions">
       <button
         class="small-btn accent"
         type="submit"
-        [disabled]="busy() || !nameDraft().trim() || !sql().trim()"
+        [disabled]="busy() || !nameDraft().trim() || !sql().trim() || !languageAvailable()"
       >
         {{ busy() ? 'Saving…' : editing() ? 'Save revision' : 'Save' }}
       </button>
@@ -63,6 +68,7 @@
         <div class="query-title">
           <button type="button" class="query-name" (click)="open(query)">{{ query.name }}</button>
           <span class="revision">r{{ query.revision }}</span>
+          <span class="revision">{{ query.language ?? 'sql' }}</span>
         </div>
 
         @if (query.description) {
@@ -76,20 +82,38 @@
             [title]="
               isPublishedCurrent(query)
                 ? 'The view contains the current query revision'
-                : 'The saved SQL changed after publication; republish to update the view'
+                : query.publishedSchemaDrifted
+                  ? 'The catalog schema changed after this LINQ view was compiled; review and republish it'
+                  : 'The saved source changed after publication; republish to update the view'
             "
           >
             {{ query.publishedSchema }}.{{ query.publishedViewName }}
-            · {{ isPublishedCurrent(query) ? 'published' : 'republish needed' }}
+            · {{ isPublishedCurrent(query) ? 'published' : query.publishedSchemaDrifted ? 'schema changed' : 'republish needed' }}
           </div>
         }
 
         <div class="query-actions">
-          <button class="small-btn accent" type="button" (click)="run(query)">Run</button>
+          <button
+            class="small-btn accent"
+            type="button"
+            [disabled]="!isLanguageAvailable(query)"
+            [title]="isLanguageAvailable(query) ? 'Run saved query' : 'Its query planner is unavailable'"
+            (click)="run(query)"
+          >Run</button>
           <button class="small-btn" type="button" (click)="open(query)">Open</button>
           @if (!readOnly()) {
-            <button class="small-btn" type="button" (click)="beginEdit(query)">Edit</button>
-            <button class="small-btn" type="button" (click)="beginPublish(query)">
+            <button
+              class="small-btn"
+              type="button"
+              [disabled]="!isLanguageAvailable(query)"
+              (click)="beginEdit(query)"
+            >Edit</button>
+            <button
+              class="small-btn"
+              type="button"
+              [disabled]="!isLanguageAvailable(query)"
+              (click)="beginPublish(query)"
+            >
               {{ query.publishedViewName ? 'Republish' : 'Publish' }}
             </button>
             @if (query.publishedViewName) {

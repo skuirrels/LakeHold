@@ -1,10 +1,12 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { provideZonelessChangeDetection } from '@angular/core';
 import { provideRouter } from '@angular/router';
 import { of, Subject } from 'rxjs';
 import { ApiError, LakehouseService } from './lakehouse.service';
 import { FakeLakehouseService, tableStorage } from './test-doubles';
 import { WorkbenchComponent } from './workbench.component';
+import { QueryEditorComponent } from './query-editor.component';
 
 describe('WorkbenchComponent', () => {
   let api: FakeLakehouseService;
@@ -19,6 +21,12 @@ describe('WorkbenchComponent', () => {
 
   function text(): string {
     return fixture.nativeElement.textContent ?? '';
+  }
+
+  function setEditorValue(value: string): void {
+    const editor = fixture.debugElement.query(By.directive(QueryEditorComponent))
+      .componentInstance as QueryEditorComponent;
+    editor.valueChange.emit(value);
   }
 
   function useCompactViewport(compact: boolean): void {
@@ -173,6 +181,77 @@ describe('WorkbenchComponent', () => {
     expect(fixture.nativeElement.querySelector('.connection-status')?.textContent?.trim()).toBe(
       'Connected',
     );
+  });
+
+  it('discovers LINQ, keeps a separate editor buffer, and submits authored source by language', async () => {
+    api.queryLanguages.push({
+      id: 'csharp-linq',
+      displayName: 'C# LINQ',
+      editorLanguage: 'csharp',
+      starterSource: 'from row in Main.Events select row',
+      readOnly: true,
+      supportsSavedQueries: true,
+    });
+    api.queryStarters.set('csharp-linq', {
+      source: 'from row in _123Data.OrderItems select row',
+      schemaFingerprint: 'schema-1',
+    });
+    await mount();
+
+    const language = fixture.nativeElement.querySelector('.language-picker select') as HTMLSelectElement;
+    language.value = 'csharp-linq';
+    language.dispatchEvent(new Event('change'));
+    await fixture.whenStable();
+
+    const editor = fixture.nativeElement.querySelector('[aria-label="C# LINQ editor"]') as HTMLElement;
+    expect(editor.textContent).toBe('from row in _123Data.OrderItems select row');
+    expect(api.lastArgs('getQueryStarter')).toEqual(['demo', 'analytics', 'csharp-linq']);
+    setEditorValue('Main.Events.Count()');
+    await fixture.whenStable();
+
+    (fixture.nativeElement.querySelector('.editor-toolbar .btn-primary') as HTMLButtonElement).click();
+    await fixture.whenStable();
+    expect(api.lastArgs('execute')).toEqual([
+      'demo',
+      'analytics',
+      'Main.Events.Count()',
+      'csharp-linq',
+    ]);
+
+    language.value = 'sql';
+    language.dispatchEvent(new Event('change'));
+    await fixture.whenStable();
+    expect((fixture.nativeElement.querySelector('[aria-label="SQL editor"]') as HTMLElement).textContent)
+      .toContain('SELECT');
+  });
+
+  it('preserves source for an unavailable language without executing or resaving it as SQL', async () => {
+    await mount();
+
+    (
+      fixture.componentInstance as unknown as {
+        openSource(query: { language: string; source: string }): void;
+      }
+    ).openSource({ language: 'legacy-linq', source: 'Legacy.Events.Where(e => e.Active)' });
+    await fixture.whenStable();
+
+    const editor = fixture.nativeElement.querySelector(
+      '[aria-label="legacy-linq (unavailable) editor"]',
+    ) as HTMLElement;
+    const run = fixture.nativeElement.querySelector('.editor-toolbar .btn-primary') as HTMLButtonElement;
+    expect(editor.textContent).toBe('Legacy.Events.Where(e => e.Active)');
+    expect(run.disabled).toBe(true);
+    run.click();
+    expect(api.countOf('execute')).toBe(0);
+
+    const savedQueries = [...fixture.nativeElement.querySelectorAll('.sidebar-tab')].find(
+      (button) => (button as HTMLElement).textContent?.trim() === 'Saved queries',
+    ) as HTMLButtonElement;
+    savedQueries.click();
+    await fixture.whenStable();
+    expect((fixture.nativeElement.querySelector('.query-head button') as HTMLButtonElement).disabled)
+      .toBe(true);
+    expect(text()).toContain('Planner unavailable');
   });
 
   describe('navigation shell', () => {
@@ -656,8 +735,8 @@ describe('WorkbenchComponent', () => {
       (fixture.nativeElement.querySelector('.restore-btn') as HTMLButtonElement).click();
       await fixture.whenStable();
 
-      const editor = fixture.nativeElement.querySelector('.editor') as HTMLTextAreaElement;
-      expect(editor.value).not.toContain('CREATE OR REPLACE TABLE');
+      const editor = fixture.nativeElement.querySelector('.cm-content') as HTMLElement;
+      expect(editor.textContent).not.toContain('CREATE OR REPLACE TABLE');
       expect(api.lastArgs('restoreTable')).toEqual([
         'demo',
         'analytics',

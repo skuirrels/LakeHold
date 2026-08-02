@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>Transport-neutral contracts for optional LakeHold Workbench query languages.</Description>
+  </PropertyGroup>
+
+</Project>

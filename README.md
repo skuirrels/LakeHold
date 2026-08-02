@@ -10,7 +10,7 @@ Angular frontend.**
 > natively.
 
 LakeHold is the self-hostable answer to MotherDuck. It provides a tenant-aware query service, a
-catalog, and a web SQL IDE over [DuckLake](https://ducklake.select) — an open table format that
+catalog, and a web query IDE over [DuckLake](https://ducklake.select) — an open table format that
 stores tables as ordinary Parquet files and metadata as ordinary SQL.
 
 The PostgreSQL control plane, credentials, and audit records are tenant-scoped. Compute remains
@@ -128,6 +128,10 @@ Then read the bootstrap token out of the log and open the Workbench, which walks
 ```bash
 docker compose -f compose.production.yaml logs api | grep -i bootstrap
 ```
+
+SQL is always built in. To add the isolated C# LINQ planner, set
+`LAKEHOLD_LINQ_PLANNER_KEY` and add `--profile linq` to the Compose command. Removing that profile
+returns the same deployment to SQL-only operation. See [C# LINQ in the Workbench](docs/LINQ_WORKBENCH.md).
 
 Pin `LAKEHOLD_TAG` to a release rather than tracking `latest`, or a redeploy silently moves you to
 whatever was tagged since. From a checkout, `make deploy` pulls and restarts in one step, and

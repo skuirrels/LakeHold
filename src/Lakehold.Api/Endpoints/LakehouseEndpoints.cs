@@ -5,6 +5,8 @@ using Lakehold.Api.Auth;
 using Lakehold.Api.Cdc;
 using Lakehold.Api.Importing;
 using Lakehold.Api.Scheduling;
+using Lakehold.Api.Querying;
+using Lakehold.Querying;
 using Lakehold.ControlPlane.Data;
 using Lakehold.ControlPlane.Model;
 using Lakehold.ControlPlane.Security;
@@ -27,6 +29,12 @@ public static class LakehouseEndpoints
             .RequireCapability(Capability.Listing)
             .WithSummary("Describes the caller's effective workbench access.");
 
+        app.MapGet("/api/query-languages", GetQueryLanguagesAsync)
+            .WithTags("Lakehouse")
+            .AddEndpointFilter<LakeholdAuthorizationFilter>()
+            .RequireCapability(Capability.Listing)
+            .WithSummary("Lists healthy query languages installed for the Workbench.");
+
         // Every tenant-scoped path shares one authentication check: the bearer token is resolved to a
         // principal and the route's tenant and catalog are validated against it. See
         // docs/AUTHENTICATION.md; today the filter is permissive for token-less requests.
@@ -43,6 +51,11 @@ public static class LakehouseEndpoints
 
         tenants.MapPost("/{tenantSlug}/catalogs/{catalogName}/query", ExecuteAsync)
             .WithSummary("Executes a statement against a tenant's catalog.");
+
+        tenants.MapGet(
+                "/{tenantSlug}/catalogs/{catalogName}/query-languages/{language}/starter",
+                GetQueryStarterAsync)
+            .WithSummary("Returns a catalog-aware starter expression owned by the selected language planner.");
 
         tenants.MapTabularImportEndpoints(
             app.ServiceProvider.GetRequiredService<IOptions<CsvUploadOptions>>().Value.MaxBytes);
@@ -220,17 +233,24 @@ public static class LakehouseEndpoints
         return TypedResults.Ok<IReadOnlyList<TenantDto>>(tenants);
     }
 
-    private static async Task<Results<Ok<QueryResponse>, NotFound<string>, BadRequest<string>>> ExecuteAsync(
+    private static async Task<Results<
+        Ok<QueryResponse>,
+        NotFound<string>,
+        BadRequest<string>,
+        BadRequest<QueryPlanningFailure>,
+        ProblemHttpResult>> ExecuteAsync(
         HttpContext http,
         string tenantSlug,
         string catalogName,
         ExecuteRequest request,
-        LakehouseService lakehouse,
+        QueryExecutionCoordinator coordinator,
         CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(request?.Sql))
+        var source = request?.EffectiveSource;
+        var language = request?.EffectiveLanguage ?? "sql";
+        if (string.IsNullOrWhiteSpace(source))
         {
-            return TypedResults.BadRequest("A SQL statement is required.");
+            return TypedResults.BadRequest("Query source is required.");
         }
 
         try
@@ -238,18 +258,23 @@ public static class LakehouseEndpoints
             // A read-only credential attaches the catalog read-only, so a write fails in the engine.
             // The token id is recorded on the run for the audit trail.
             var principal = http.GetLakeholdPrincipal();
-            var result = await lakehouse
+            var planned = await coordinator
                 .ExecuteAsync(
                     tenantSlug,
                     catalogName,
-                    request.Sql,
-                    cancellationToken,
+                    language,
+                    source,
                     principal.IsReadOnly,
                     principal.TokenId,
-                    recordHistory: !principal.IsDemo)
+                    recordHistory: !principal.IsDemo,
+                    cancellationToken)
                 .ConfigureAwait(false);
 
-            return TypedResults.Ok(QueryResponse.From(result));
+            return TypedResults.Ok(QueryResponse.From(
+                planned.Result,
+                language,
+                string.Equals(language, "sql", StringComparison.Ordinal) ? null : planned.Plan.Sql,
+                planned.Plan.Diagnostics));
         }
         catch (CatalogNotFoundException ex)
         {
@@ -260,6 +285,68 @@ public static class LakehouseEndpoints
             // A syntax or semantic error is the user's, not the server's. Return the engine's
             // message verbatim — it names the offending token, which is the whole point of an IDE.
             return TypedResults.BadRequest(ex.Message);
+        }
+        catch (QuerySourceInvalidException ex)
+        {
+            return TypedResults.BadRequest(new QueryPlanningFailure(ex.Diagnostics));
+        }
+        catch (QueryLanguageUnavailableException ex)
+        {
+            return TypedResults.Problem(ex.Message, statusCode: StatusCodes.Status503ServiceUnavailable);
+        }
+        catch (HttpRequestException ex)
+        {
+            return TypedResults.Problem(
+                $"The query planner is unavailable: {ex.Message}",
+                statusCode: StatusCodes.Status503ServiceUnavailable);
+        }
+        catch (QueryPlanRejectedException ex)
+        {
+            return TypedResults.Problem(
+                $"The query planner returned an unsafe plan: {ex.Message}",
+                statusCode: StatusCodes.Status502BadGateway);
+        }
+    }
+
+    private static async Task<Ok<IReadOnlyList<QueryLanguageDescriptor>>> GetQueryLanguagesAsync(
+        QueryExecutionCoordinator coordinator,
+        CancellationToken cancellationToken)
+        => TypedResults.Ok(await coordinator.GetLanguagesAsync(cancellationToken).ConfigureAwait(false));
+
+    private static async Task<Results<
+        Ok<QueryLanguageStarter>,
+        NotFound<string>,
+        BadRequest<QueryPlanningFailure>,
+        ProblemHttpResult>> GetQueryStarterAsync(
+        string tenantSlug,
+        string catalogName,
+        string language,
+        QueryExecutionCoordinator coordinator,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            return TypedResults.Ok(await coordinator
+                .CreateStarterAsync(tenantSlug, catalogName, language, cancellationToken)
+                .ConfigureAwait(false));
+        }
+        catch (CatalogNotFoundException ex)
+        {
+            return TypedResults.NotFound(ex.Message);
+        }
+        catch (QuerySourceInvalidException ex)
+        {
+            return TypedResults.BadRequest(new QueryPlanningFailure(ex.Diagnostics));
+        }
+        catch (QueryLanguageUnavailableException ex)
+        {
+            return TypedResults.Problem(ex.Message, statusCode: StatusCodes.Status503ServiceUnavailable);
+        }
+        catch (HttpRequestException ex)
+        {
+            return TypedResults.Problem(
+                $"The query planner is unavailable: {ex.Message}",
+                statusCode: StatusCodes.Status503ServiceUnavailable);
         }
     }
 
@@ -1320,6 +1407,7 @@ public static class LakehouseEndpoints
                 r.Id,
                 r.CatalogName,
                 r.Sql,
+                r.Language,
                 r.StartedUtc,
                 r.ElapsedMilliseconds,
                 r.RowCount,

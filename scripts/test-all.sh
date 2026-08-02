@@ -24,7 +24,7 @@ fi
 
 cleanup_stack() {
   docker compose -p "$compose_project" "${compose_files[@]}" \
-    down --volumes --remove-orphans
+    --profile linq down --volumes --remove-orphans
 }
 
 cleanup_on_exit() {
@@ -81,7 +81,7 @@ fi
 
 echo "==> starting a fresh seeded application for browser journeys"
 docker compose -p "$compose_project" "${compose_files[@]}" \
-  up --detach --build --wait api workbench
+  --profile linq up --detach --build --wait api workbench linq-compiler
 
 echo "==> running private-workbench browser journeys"
 LAKEHOLD_WORKBENCH_ONLY=1 \

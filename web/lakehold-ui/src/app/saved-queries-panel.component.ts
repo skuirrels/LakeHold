@@ -11,6 +11,7 @@ import {
 import { Subscription } from 'rxjs';
 import { LakehouseService } from './lakehouse.service';
 import { SavedQuery } from './models';
+import type { WorkbenchQuerySource } from './workbench.component';
 
 /**
  * Catalog-scoped reusable-query library.
@@ -32,10 +33,13 @@ export class SavedQueriesPanelComponent {
   readonly tenant = input.required<string | null>();
   readonly catalog = input.required<string | null>();
   readonly sql = input.required<string>();
+  readonly language = input('sql');
+  readonly availableLanguages = input<readonly string[]>(['sql']);
+  readonly languageAvailable = input(true);
   readonly readOnly = input(false);
 
   /** Loads a definition into the editor without executing it. */
-  readonly openSql = output<string>();
+  readonly openSource = output<WorkbenchQuerySource>();
   /** Requests server-resolved, structurally read-only execution of the saved definition. */
   readonly executeQuery = output<number>();
   /** A view was created, replaced, or dropped; the catalog explorer must refresh. */
@@ -100,6 +104,10 @@ export class SavedQueriesPanelComponent {
   }
 
   protected beginCreate(): void {
+    if (!this.languageAvailable()) {
+      return;
+    }
+
     this.editing.set(null);
     this.nameDraft.set('');
     this.descriptionDraft.set('');
@@ -109,13 +117,17 @@ export class SavedQueriesPanelComponent {
   }
 
   protected beginEdit(query: SavedQuery): void {
+    if (!this.isLanguageAvailable(query)) {
+      return;
+    }
+
     this.editing.set(query);
     this.nameDraft.set(query.name);
     this.descriptionDraft.set(query.description ?? '');
     this.formOpen.set(true);
     this.error.set(null);
     this.notice.set(null);
-    this.openSql.emit(query.sql);
+    this.openSource.emit({ language: query.language ?? 'sql', source: query.sql });
   }
 
   protected cancelForm(): void {
@@ -129,7 +141,8 @@ export class SavedQueriesPanelComponent {
     const name = this.nameDraft().trim();
     const description = this.descriptionDraft().trim() || null;
     const sql = this.sql().trim();
-    if (!tenant || !catalog || !name || !sql || this.busy()) {
+    const language = this.language();
+    if (!tenant || !catalog || !name || !sql || this.busy() || !this.languageAvailable()) {
       return;
     }
 
@@ -143,8 +156,9 @@ export class SavedQueriesPanelComponent {
           name,
           description,
           sql,
+          language,
         })
-      : this.api.createSavedQuery(tenant, catalog, { name, description, sql });
+      : this.api.createSavedQuery(tenant, catalog, { name, description, sql, language });
 
     this.contextRequests.add(
       request.subscribe({
@@ -164,18 +178,26 @@ export class SavedQueriesPanelComponent {
   }
 
   protected run(query: SavedQuery): void {
+    if (!this.isLanguageAvailable(query)) {
+      return;
+    }
+
     this.error.set(null);
     this.notice.set(null);
-    this.openSql.emit(query.sql);
+    this.openSource.emit({ language: query.language ?? 'sql', source: query.sql });
     this.executeQuery.emit(query.id);
   }
 
   protected open(query: SavedQuery): void {
-    this.openSql.emit(query.sql);
+    this.openSource.emit({ language: query.language ?? 'sql', source: query.sql });
     this.notice.set(`Loaded “${query.name}” into the editor.`);
   }
 
   protected beginPublish(query: SavedQuery): void {
+    if (!this.isLanguageAvailable(query)) {
+      return;
+    }
+
     this.publishing.set(query);
     this.schemaDraft.set(query.publishedSchema ?? 'main');
     this.viewDraft.set(query.publishedViewName ?? toIdentifier(query.name));
@@ -193,7 +215,15 @@ export class SavedQueriesPanelComponent {
     const query = this.publishing();
     const schema = this.schemaDraft().trim();
     const view = this.viewDraft().trim();
-    if (!tenant || !catalog || !query || !schema || !view || this.busy()) {
+    if (
+      !tenant
+      || !catalog
+      || !query
+      || !schema
+      || !view
+      || this.busy()
+      || !this.isLanguageAvailable(query)
+    ) {
       return;
     }
 
@@ -290,7 +320,13 @@ export class SavedQueriesPanelComponent {
   }
 
   protected isPublishedCurrent(query: SavedQuery): boolean {
-    return query.publishedRevision !== null && query.publishedRevision === query.revision;
+    return !query.publishedSchemaDrifted
+      && query.publishedRevision !== null
+      && query.publishedRevision === query.revision;
+  }
+
+  protected isLanguageAvailable(query: SavedQuery): boolean {
+    return this.availableLanguages().includes(query.language ?? 'sql');
   }
 
   private upsert(saved: SavedQuery): void {

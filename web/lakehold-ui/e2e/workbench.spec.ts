@@ -40,6 +40,19 @@ test.describe('workbench user journeys', () => {
     await expect(page.locator('.summary')).toContainText('1 row');
   });
 
+  test('runs provider-translated LINQ through the isolated planner @linq', async ({ page }) => {
+    await page.locator('.language-picker select').selectOption('csharp-linq');
+    const editor = page.getByLabel('C# LINQ editor');
+    await expect(editor).toBeVisible();
+    await editor.fill('Main.Events.Select(e => new { e.Country, e.Revenue }).Take(2)');
+    await page.getByRole('button', { name: /^Run/ }).click();
+
+    await expect(page.getByRole('columnheader', { name: /country/i })).toBeVisible();
+    await expect(page.getByRole('columnheader', { name: /revenue/i })).toBeVisible();
+    await expect(page.getByText('Generated SQL')).toBeVisible();
+    await expect(page.locator('.error-banner')).toBeHidden();
+  });
+
   test('collapses and restores navigation without resetting the catalog explorer', async ({
     page,
   }) => {
@@ -151,7 +164,7 @@ test.describe('workbench user journeys', () => {
     await page.getByLabel('Filter catalog objects').fill('events');
     await page.getByRole('button', { name: 'Insert a SELECT for events' }).click();
 
-    await expect(page.getByLabel('SQL editor')).toHaveValue(/FROM main\.events/);
+    await expect(page.getByLabel('SQL editor')).toContainText(/FROM main\.events/);
     await page.getByRole('button', { name: /^Run/ }).click();
     await expect(page.locator('.summary')).toContainText('rows');
 
@@ -160,7 +173,7 @@ test.describe('workbench user journeys', () => {
     await expect(historyRow).toBeVisible();
     await historyRow.click();
 
-    await expect(page.getByLabel('SQL editor')).toHaveValue(/FROM main\.events/);
+    await expect(page.getByLabel('SQL editor')).toContainText(/FROM main\.events/);
     await expect(page.getByRole('button', { name: 'Results' })).toHaveClass(/active/);
   });
 

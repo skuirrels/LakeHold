@@ -71,6 +71,7 @@ describe('SavedQueriesPanelComponent', () => {
         name: 'All events',
         description: 'Reusable event feed',
         sql: 'SELECT * FROM events',
+        language: 'sql',
       },
     ]);
   });
@@ -88,6 +89,23 @@ describe('SavedQueriesPanelComponent', () => {
 
     expect(text()).toContain('main.revenue_by_country');
     expect(text()).toContain('republish needed');
+  });
+
+  it('distinguishes catalog schema drift from an edited definition', async () => {
+    api.savedQueries = [
+      savedQuery({
+        language: 'csharp-linq',
+        publishedSchema: 'main',
+        publishedViewName: 'typed_revenue',
+        publishedRevision: 1,
+        publishedSchemaDrifted: true,
+      }),
+    ];
+    await mount();
+
+    expect(text()).toContain('schema changed');
+    expect(fixture.nativeElement.querySelector('.publication')?.getAttribute('title'))
+      .toContain('catalog schema changed');
   });
 
   it('publishes with an explicit schema and view and tells the workbench to refresh', async () => {
@@ -122,6 +140,21 @@ describe('SavedQueriesPanelComponent', () => {
     expect(buttons('Edit')).toHaveLength(0);
     expect(buttons('Publish')).toHaveLength(0);
     expect(buttons('Delete')).toHaveLength(0);
+  });
+
+  it('keeps definitions visible but disables planner-dependent actions when their language is unavailable', async () => {
+    api.savedQueries = [savedQuery({ language: 'csharp-linq' })];
+    await mount();
+
+    expect(buttons('Run')[0].disabled).toBe(true);
+    expect(buttons('Edit')[0].disabled).toBe(true);
+    expect(buttons('Publish')[0].disabled).toBe(true);
+    expect(buttons('Open')[0].disabled).toBe(false);
+
+    let opened: { language: string; source: string } | undefined;
+    fixture.componentInstance.openSource.subscribe((source) => (opened = source));
+    buttons('Open')[0].click();
+    expect(opened?.language).toBe('csharp-linq');
   });
 
   it('cancels requests owned by the previous catalog', async () => {

@@ -12,9 +12,14 @@ services:
       Lakehold__Auth__RequireAuthentication: "false"
       ConnectionStrings__ControlPlane: Host=postgres;Port=5432;Database=lakeholdmeta;Username=lakehold;Password=lakehold
       ConnectionStrings__DuckLakeMetadata: Host=postgres;Port=5432;Database=lakeholdmeta;Username=lakehold;Password=lakehold
+      Lakehold__Querying__Planners__0__SharedSecret: lakehold-test-linq-planner
     depends_on:
       postgres:
         condition: service_healthy
+
+  linq-compiler:
+    environment:
+      Lakehold__LinqCompiler__SharedSecret: lakehold-test-linq-planner
 
   postgres:
     image: postgres:17-alpine

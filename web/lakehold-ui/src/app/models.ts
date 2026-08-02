@@ -100,6 +100,35 @@ export interface QueryResponse {
    * matched nothing.
    */
   rowsAffected: number | null;
+  language?: string;
+  generatedSql?: string | null;
+  diagnostics?: QueryDiagnostic[];
+}
+
+export interface QueryDiagnostic {
+  severity: string;
+  code: string;
+  message: string;
+  startLine: number;
+  startColumn: number;
+  endLine: number;
+  endColumn: number;
+}
+
+export interface QueryLanguage {
+  id: string;
+  displayName: string;
+  editorLanguage: string;
+  starterSource: string;
+  readOnly: boolean;
+  supportsSavedQueries: boolean;
+  /** False only for a preserved source whose optional planner is currently unavailable. */
+  available?: boolean;
+}
+
+export interface QueryLanguageStarter {
+  source: string;
+  schemaFingerprint: string;
 }
 
 export type TabularImportMode = 'automatic' | 'custom';
@@ -156,6 +185,7 @@ export interface SavedQuery {
   name: string;
   description: string | null;
   sql: string;
+  language?: string;
   /** Optimistic authoring revision. */
   revision: number;
   createdUtc: string;
@@ -164,6 +194,9 @@ export interface SavedQuery {
   updatedByTokenId: number | null;
   publishedSchema: string | null;
   publishedViewName: string | null;
+  publishedSchemaFingerprint?: string | null;
+  /** True when the published LINQ view was compiled against an older catalog shape. */
+  publishedSchemaDrifted?: boolean;
   /** Revision currently exposed by the view; lower than `revision` means republish is needed. */
   publishedRevision: number | null;
   publishedUtc: string | null;
@@ -352,6 +385,7 @@ export interface QueryRun {
   id: number;
   catalogName: string;
   sql: string;
+  language?: string;
   startedUtc: string;
   elapsedMilliseconds: number;
   rowCount: number;

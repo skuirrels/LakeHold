@@ -215,9 +215,17 @@ public sealed class Duckling : IAsyncDisposable
     ///     <see cref="LakehouseOptions.MaxRowsPerResult"/> rows, or — for a statement whose outcome
     ///     is a count rather than rows — reports the number of rows it changed.
     /// </summary>
-    public async Task<QueryResult> ExecuteQueryAsync(string sql, CancellationToken cancellationToken)
+    public Task<QueryResult> ExecuteQueryAsync(string sql, CancellationToken cancellationToken)
+        => ExecuteQueryAsync(sql, [], cancellationToken);
+
+    /// <summary>Executes a parameterized statement and materialises its bounded result.</summary>
+    public async Task<QueryResult> ExecuteQueryAsync(
+        string sql,
+        IReadOnlyList<NamedQueryParameter> parameters,
+        CancellationToken cancellationToken)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(sql);
+        ArgumentNullException.ThrowIfNull(parameters);
         ObjectDisposedException.ThrowIf(_disposed, this);
 
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -229,7 +237,7 @@ public sealed class Duckling : IAsyncDisposable
         {
             return StatementVerb.ReportsAffectedRows(sql)
                 ? await ExecuteNonQueryUnguardedAsync(sql, token).ConfigureAwait(false)
-                : await ExecuteUnguardedAsync(sql, token).ConfigureAwait(false);
+                : await ExecuteUnguardedAsync(sql, parameters, token).ConfigureAwait(false);
         }
         finally
         {
@@ -400,7 +408,13 @@ public sealed class Duckling : IAsyncDisposable
     ///     deadlock against itself rather than fail — which is exactly what catalog backup did on
     ///     its first run.
     /// </remarks>
-    internal async Task<QueryResult> ExecuteUnguardedAsync(string sql, CancellationToken cancellationToken)
+    internal Task<QueryResult> ExecuteUnguardedAsync(string sql, CancellationToken cancellationToken)
+        => ExecuteUnguardedAsync(sql, [], cancellationToken);
+
+    internal async Task<QueryResult> ExecuteUnguardedAsync(
+        string sql,
+        IReadOnlyList<NamedQueryParameter> parameters,
+        CancellationToken cancellationToken)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(sql);
         ObjectDisposedException.ThrowIf(_disposed, this);
@@ -412,9 +426,23 @@ public sealed class Duckling : IAsyncDisposable
         LastUsedUtc = DateTimeOffset.UtcNow;
         var startedAt = TimeProvider.System.GetTimestamp();
 
-        await using var dynamic = await _context.Database
-            .SqlQueryDynamicRawAsync(sql, token)
-            .ConfigureAwait(false);
+        await using var parameterCommand = _context.Database.GetDbConnection().CreateCommand();
+        var providerParameters = parameters.Select(parameter =>
+        {
+            var providerParameter = parameterCommand.CreateParameter();
+            providerParameter.ParameterName = parameter.Name;
+            providerParameter.Value = parameter.Value ?? DBNull.Value;
+            providerParameter.DbType = parameter.DbType;
+            providerParameter.IsNullable = parameter.IsNullable;
+            providerParameter.Size = parameter.Size;
+            providerParameter.Precision = parameter.Precision;
+            providerParameter.Scale = parameter.Scale;
+            return providerParameter;
+        }).ToArray();
+
+        await using var dynamic = providerParameters.Length == 0
+            ? await _context.Database.SqlQueryDynamicRawAsync(sql, token).ConfigureAwait(false)
+            : await _context.Database.SqlQueryDynamicCommandAsync(sql, providerParameters, token).ConfigureAwait(false);
 
         var columns = dynamic.Columns
             .Select(c => new ResultColumn(c.Name, c.DuckDBTypeName, c.ClrType.Name))

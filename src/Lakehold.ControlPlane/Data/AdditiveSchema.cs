@@ -254,6 +254,11 @@ public static class AdditiveSchema
     /// <summary>The literal for a required column's default, or null when none can be derived safely.</summary>
     private static string? DefaultLiteralFor(IProperty property)
     {
+        if (property.GetDefaultValue() is string configuredString)
+        {
+            return $"'{configuredString.Replace("'", "''", StringComparison.Ordinal)}'";
+        }
+
         var clr = Nullable.GetUnderlyingType(property.ClrType) ?? property.ClrType;
 
         if (clr.IsEnum)

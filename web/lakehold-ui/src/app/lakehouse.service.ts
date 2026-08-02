@@ -16,6 +16,9 @@ import {
   EjectResult,
   MaintenanceOperation,
   MaintenanceResult,
+  QueryDiagnostic,
+  QueryLanguage,
+  QueryLanguageStarter,
   QueryResponse,
   QueryRun,
   RestoreResult,
@@ -50,6 +53,7 @@ export class ApiError extends Error {
     readonly status: number,
     readonly code: string | null = null,
     readonly canRetryWithTolerantProfile = false,
+    readonly diagnostics: QueryDiagnostic[] = [],
   ) {
     super(message);
     this.name = 'ApiError';
@@ -83,9 +87,34 @@ export class LakehouseService {
     return this.http.get<Tenant[]>(`${API_BASE}/tenants`).pipe(catchError(toMessage));
   }
 
-  execute(tenant: string, catalog: string, sql: string): Observable<QueryResponse> {
+  getQueryLanguages(): Observable<QueryLanguage[]> {
+    return this.http.get<QueryLanguage[]>(`${API_BASE}/query-languages`).pipe(catchError(toMessage));
+  }
+
+  getQueryStarter(
+    tenant: string,
+    catalog: string,
+    language: string,
+  ): Observable<QueryLanguageStarter> {
     return this.http
-      .post<QueryResponse>(this.catalogUrl(tenant, catalog, 'query'), { sql })
+      .get<QueryLanguageStarter>(
+        this.catalogUrl(
+          tenant,
+          catalog,
+          `query-languages/${encodeURIComponent(language)}/starter`,
+        ),
+      )
+      .pipe(catchError(toMessage));
+  }
+
+  execute(
+    tenant: string,
+    catalog: string,
+    source: string,
+    language = 'sql',
+  ): Observable<QueryResponse> {
+    return this.http
+      .post<QueryResponse>(this.catalogUrl(tenant, catalog, 'query'), { language, source })
       .pipe(catchError(toMessage));
   }
 
@@ -134,7 +163,7 @@ export class LakehouseService {
   createSavedQuery(
     tenant: string,
     catalog: string,
-    body: { name: string; description: string | null; sql: string },
+    body: { name: string; description: string | null; sql: string; language: string },
   ): Observable<SavedQuery> {
     return this.http
       .post<SavedQuery>(this.catalogUrl(tenant, catalog, 'saved-queries'), body)
@@ -144,7 +173,7 @@ export class LakehouseService {
   updateSavedQuery(
     tenant: string,
     catalog: string,
-    query: Pick<SavedQuery, 'id' | 'revision' | 'name' | 'description' | 'sql'>,
+    query: Pick<SavedQuery, 'id' | 'revision' | 'name' | 'description' | 'sql' | 'language'>,
   ): Observable<SavedQuery> {
     return this.http
       .put<SavedQuery>(this.catalogUrl(tenant, catalog, `saved-queries/${query.id}`), {
@@ -152,6 +181,7 @@ export class LakehouseService {
         name: query.name,
         description: query.description,
         sql: query.sql,
+        language: query.language ?? 'sql',
       })
       .pipe(catchError(toMessage));
   }
@@ -527,6 +557,43 @@ function toMessage(response: HttpErrorResponse): Observable<never> {
   const body: unknown = response.error;
   if (typeof body === 'string' && body.length > 0) {
     return throwError(() => new ApiError(body, response.status));
+  }
+
+  if (body && typeof body === 'object' && 'diagnostics' in body) {
+    const diagnostics = (body as { diagnostics?: unknown }).diagnostics;
+    if (Array.isArray(diagnostics)) {
+      const message = diagnostics
+        .map((diagnostic: unknown) => {
+          if (!diagnostic || typeof diagnostic !== 'object') {
+            return '';
+          }
+          const item = diagnostic as {
+            code?: unknown;
+            message?: unknown;
+            startLine?: unknown;
+            startColumn?: unknown;
+          };
+          const location =
+            typeof item.startLine === 'number' && typeof item.startColumn === 'number'
+              ? ` (${item.startLine}:${item.startColumn})`
+              : '';
+          return `${typeof item.code === 'string' ? `${item.code}: ` : ''}${String(item.message ?? '')}${location}`;
+        })
+        .filter(Boolean)
+        .join('\n');
+      if (message) {
+        return throwError(
+          () =>
+            new ApiError(
+              message,
+              response.status,
+              'query_source_invalid',
+              false,
+              diagnostics as QueryDiagnostic[],
+            ),
+        );
+      }
+    }
   }
 
   // ProblemDetails shape, emitted by AddProblemDetails for unhandled failures.

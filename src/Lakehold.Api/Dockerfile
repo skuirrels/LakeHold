@@ -55,6 +55,7 @@ COPY Directory.Packages.props Directory.Build.props ./
 COPY src/Lakehold.Api/Lakehold.Api.csproj src/Lakehold.Api/
 COPY src/Lakehold.ControlPlane/Lakehold.ControlPlane.csproj src/Lakehold.ControlPlane/
 COPY src/Lakehold.Engine/Lakehold.Engine.csproj src/Lakehold.Engine/
+COPY src/Lakehold.Querying/Lakehold.Querying.csproj src/Lakehold.Querying/
 COPY src/Lakehold.ServiceDefaults/Lakehold.ServiceDefaults.csproj src/Lakehold.ServiceDefaults/
 
 # Publishing for a specific runtime identifier prunes the native assets to the one platform this
