@@ -27,6 +27,21 @@ test.describe('demo workbench', () => {
     await page.getByRole('button', { name: /Run/ }).click();
     await expect(page.getByText(/rows · .* ms/)).toBeVisible();
 
+    const languages = await request.get(`${baseURL}/api/query-languages`);
+    expect(languages.status()).toBe(200);
+    expect((await languages.json()).map((language: { id: string }) => language.id)).toEqual([
+      'sql',
+      'csharp-linq',
+    ]);
+
+    await page.locator('.language-picker select').selectOption('csharp-linq');
+    const linqEditor = page.getByLabel('C# LINQ editor');
+    await expect(linqEditor).toBeVisible();
+    await linqEditor.fill('Main.Events.Select(e => new { e.Country, e.Revenue }).Take(2)');
+    await page.getByRole('button', { name: /Run/ }).click();
+    await expect(page.getByText('Generated SQL')).toBeVisible();
+    await expect(page.locator('.error-banner')).toBeHidden();
+
     for (const operation of ['Flush', 'Compact', 'Backup', 'Expire', 'Cleanup']) {
       await expect(page.getByRole('button', { name: operation, exact: true })).toHaveCount(0);
     }

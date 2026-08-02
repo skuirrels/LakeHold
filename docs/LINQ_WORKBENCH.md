@@ -32,6 +32,16 @@ export LAKEHOLD_LINQ_PLANNER_KEY='<a long random secret>'
 docker compose -f compose.production.yaml --profile linq up -d
 ```
 
+The public evaluation deployment enables LINQ without operator-managed feature configuration:
+
+```bash
+make demo
+```
+
+`make demo` builds and starts the `linq` profile automatically. It generates one high-entropy
+planner credential in memory, supplies it to the API and compiler for that deployment, and rotates
+both together on the next deployment. The value is not printed or persisted.
+
 Omit the `linq` profile to remove the compiler. The API health-checks configured planners during
 language discovery, so an absent or unhealthy compiler removes C# LINQ from the selector without
 degrading SQL. More languages can be added through `Lakehold:Querying:Planners`; the API depends
@@ -165,7 +175,7 @@ shaper. Remaining model-mapping opportunities are tracked in
 
 | Symptom | Check |
 |---|---|
-| C# LINQ is absent from the selector | Confirm the `linq` Compose profile is enabled, the API and compiler use the same `LAKEHOLD_LINQ_PLANNER_KEY`, and the compiler's `/ready` endpoint succeeds from the internal network. |
+| C# LINQ is absent from the selector | With `make demo`, confirm the compiler container is running and `/ready` succeeds from the internal network; its profile and credential are automatic. For other deployments, also confirm the `linq` profile is enabled and the API and compiler use the same `LAKEHOLD_LINQ_PLANNER_KEY`. |
 | `503` while planning | The configured planner is unavailable or exceeded its timeout. SQL remains usable; inspect compiler health and bounded-queue saturation. |
 | `LINQ001`–`LINQ003` | The expression crosses the read-only source allow-list. Remove side effects, arbitrary method calls, or disallowed static members. |
 | `LINQ004` | The catalog cannot produce a usable dynamic EF model, commonly because it has no supported columns. Use SQL for omitted native types. |

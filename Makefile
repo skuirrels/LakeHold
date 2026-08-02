@@ -8,7 +8,7 @@
 #   make backup-state Archive the state volume to a tarball in the working directory.
 #   make test         Run the complete backend, frontend, integration, and browser test suite.
 #   make dev          Start the local development stack with hot reload.
-#   make demo         Pull, build, and start the opt-in public website and demo workbench.
+#   make demo         Pull, build, and start the public demo with C# LINQ enabled.
 #
 # Deployment targets drive compose.production.yaml; only `make dev` drives compose.yaml. The
 # development stack bind-mounts source and runs a file watcher, so it has no build step to redo —
@@ -23,9 +23,21 @@
 
 COMPOSE        := docker compose -f compose.production.yaml
 COMPOSE_SOURCE := docker compose -f compose.production.yaml -f compose.build.yaml
-COMPOSE_DEMO   := $(COMPOSE_SOURCE) -f compose.demo.yaml
+COMPOSE_DEMO   := $(COMPOSE_SOURCE) -f compose.demo.yaml --profile linq
 COMPOSE_DEV    := docker compose
 BRANCH         := $(shell git rev-parse --abbrev-ref HEAD 2>/dev/null)
+
+# The demo compiler stays authenticated without making an operator provision a feature key. One
+# high-entropy value is generated in memory for the whole `make demo` invocation, exported to both
+# API and compiler through Compose, and rotated together on the next demo deployment. It is neither
+# printed nor persisted. Other production paths still require an operator-managed key when LINQ is
+# enabled because their compiler may be deployed outside this single-host topology.
+ifneq ($(filter demo build-demo,$(MAKECMDGOALS)),)
+ifeq ($(strip $(LAKEHOLD_LINQ_PLANNER_KEY)),)
+override LAKEHOLD_LINQ_PLANNER_KEY := $(shell od -An -N32 -tx1 /dev/urandom | tr -d ' \n')
+endif
+export LAKEHOLD_LINQ_PLANNER_KEY
+endif
 
 # Compose prefixes volumes with the project name, which compose.production.yaml pins to `lakehold`.
 STATE_VOLUME := lakehold_lakehold-state
@@ -42,7 +54,7 @@ WAIT_TIMEOUT ?= 180
 
 .DEFAULT_GOAL := help
 
-.PHONY: help test dev demo deploy production check-tree pull build up status logs stop backup-state
+.PHONY: help test dev demo deploy production check-tree pull build build-demo up status logs stop backup-state
 
 help:
 	@echo "Lakehold — make targets"
@@ -78,13 +90,14 @@ dev:
 	$(COMPOSE_DEV) up
 
 # Demo is deliberately a separate opt-in overlay; it is the only target that enables the public
-# website. The standard production configuration serves the authentication-protected workbench and
-# contains no demo settings. The build overlay is required here so this target runs the current
-# checkout rather than whichever published images happen to be cached.
+# website and starts the isolated C# LINQ compiler. The standard production configuration serves
+# the authentication-protected workbench and contains no demo settings. The build overlay is
+# required here so this target runs the current checkout rather than whichever published images
+# happen to be cached.
 # As with `production`, local tracked changes fail before pulling so an update can never overwrite
 # an uncommitted deployment-host edit.
-demo: check-tree pull build
-	@echo "==> restarting changed containers with the public website and demo access"
+demo: check-tree pull build-demo
+	@echo "==> restarting changed containers with the public website, demo access, and C# LINQ"
 	$(COMPOSE_DEMO) up -d --remove-orphans --wait --wait-timeout $(WAIT_TIMEOUT)
 	@$(COMPOSE_DEMO) ps
 	@echo ""
@@ -126,6 +139,12 @@ pull:
 build:
 	@echo "==> building images"
 	$(COMPOSE_SOURCE) build --pull
+
+# Profiled services are excluded from a plain Compose build. Build through the fully activated demo
+# topology so `up` never has to pull an old compiler image or fail because no compiler image exists.
+build-demo:
+	@echo "==> building demo images, including the C# LINQ compiler"
+	$(COMPOSE_DEMO) build --pull
 
 # `up -d` is the stop-and-start: compose recreates exactly the containers whose image changed and
 # leaves the rest alone, so downtime is a few seconds rather than the length of a full down/up. A
