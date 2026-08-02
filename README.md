@@ -274,16 +274,22 @@ normal `~/.duckdb/extensions` directory.
 Two planes, split by whether the workload has a model:
 
 ```
-Angular SQL IDE  ──REST──▶  Lakehold.Api
+Angular Workbench (SQL + optional C# LINQ) ──REST──▶ Lakehold.Api
                                  │
                  ┌───────────────┴───────────────┐
                  ▼                               ▼
          CONTROL PLANE                     DATA PLANE
     ControlPlaneContext                  LakeContext
     EF model · migrations                model-less · dynamic SQL
-    tenants · catalogs · saved SQL       Duckling sessions · user SQL · views
+    tenants · catalogs · saved source    Duckling sessions · planned SQL · views
                  └──── DuckDB.EFCoreProvider ────┘
 ```
+
+SQL is executed directly. Optional language planners receive only authored source and a catalog
+schema snapshot, return parameterized SQL, and never receive catalog credentials. The isolated C#
+LINQ planner uses the provider's non-executing command-plan and exact named-replay APIs; the API
+validates and executes the returned read plan. See
+[`docs/LINQ_WORKBENCH.md`](docs/LINQ_WORKBENCH.md).
 
 A **Duckling** is one tenant's compute session: an in-memory DuckDB instance with that tenant's
 DuckLake catalog attached, under a memory limit and thread budget. Isolation is structural — a
@@ -300,6 +306,8 @@ that changed between provider 1.12.0 and 1.13.0.
 | `Lakehold.Engine` | Duckling sessions, catalog introspection, maintenance |
 | `Lakehold.ControlPlane` | EF Core model: tenants, catalogs, saved queries, audit |
 | `Lakehold.Api` | Minimal-API HTTP surface |
+| `Lakehold.Querying` | Credential-free query-language and plan contracts |
+| `Lakehold.Linq.Compiler` | Optional isolated C# LINQ-to-DuckDB planner |
 | `Lakehold.ServiceDefaults` | Health, resilience, and OpenTelemetry defaults |
 | `web/lakehold-ui` | Angular 22 workbench and landing page |
 
@@ -755,7 +763,9 @@ Use the .NET double-underscore separator for nested keys in the environment —
 
 ## Status
 
-Working today: SQL IDE with catalog explorer and result grid, catalog-scoped reusable queries with
+Working today: a CodeMirror Workbench with built-in SQL and an optional isolated C# LINQ language,
+catalog completion, generated-SQL visibility, diagnostics, separate language buffers, a catalog
+explorer and result grid, catalog-scoped reusable queries with
 optimistic revisions and explicit publication as DuckLake views, query history and audit, unified
 data history with snapshot drill-down, historical row browsing, bounded change comparison and an
 atomic dry-run/confirm table-data restore that preserves the current table definition, maintenance

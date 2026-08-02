@@ -21,7 +21,7 @@ import { BrandMarkComponent } from './brand-mark.component';
 export class ProviderComponent {
   protected readonly stats = [
     { value: 'EF Core 10', label: 'Native provider, .NET 10' },
-    { value: 'v1.14', label: 'Current release on NuGet' },
+    { value: 'v1.17', label: 'Current release on NuGet' },
     { value: 'S3 · GCS · Azure', label: 'Verified archive paths' },
     { value: 'MIT', label: 'Licence, open source' },
   ];
@@ -46,6 +46,11 @@ export class ProviderComponent {
       label: '04 — Complete',
       title: 'Reads and writes, no asterisk',
       body: 'SaveChanges, transactions, migrations, optimistic concurrency, scaffolding, and store-generated keys, on the native DuckDB profile.',
+    },
+    {
+      label: '05 — Toolable',
+      title: 'Translate without executing',
+      body: 'Capture exact SQL and parameters for queries and terminal aggregates, replay named commands unchanged, and inspect store-type support through public APIs.',
     },
   ];
 
@@ -99,6 +104,7 @@ export class ProviderComponent {
     { id: 'install', label: 'Install' },
     { id: 'choose-a-backend', label: 'Choose a backend' },
     { id: 'model-and-query', label: 'Model and query' },
+    { id: 'query-command-plans', label: 'Query command plans' },
     { id: 'write-paths', label: 'Write paths' },
     { id: 'file-analytics', label: 'File analytics' },
     { id: 'ducklake', label: 'DuckLake' },

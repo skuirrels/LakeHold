@@ -100,7 +100,7 @@ engineering:
 | Elastic scale-out | Bounded by node size. Read replicas help reads; writes are single-writer. |
 | Dual execution (local ↔ cloud hybrid) | Genuinely novel and patent-adjacent. Not replicated. |
 | Managed ingestion connectors | We ship file/object ingestion. No hosted Fivetran-alikes. |
-| Mature web UI | Theirs is years ahead. Ours is a focused SQL IDE. |
+| Mature web UI | Theirs is years ahead. Ours is a focused SQL/LINQ Workbench. |
 
 The honest summary: **we trade elasticity and zero-ops for control, openness, and .NET integration.**
 
@@ -112,7 +112,7 @@ provider:
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│  Angular SQL IDE  (editor · catalog explorer · results) │
+│ Angular Workbench (SQL + optional C# LINQ · explorer)   │
 └───────────────────────────┬─────────────────────────────┘
                             │ REST
 ┌───────────────────────────▼─────────────────────────────┐
@@ -128,7 +128,7 @@ provider:
 │  (model + migrations)   │   │  (model-less, dynamic SQL)│
 │                         │   │                           │
 │  tenants, catalogs,     │   │  Duckling sessions,       │
-│  saved queries, history,│   │  arbitrary user SQL,      │
+│  saved source, history, │   │  validated planned SQL,   │
 │  tokens, audit          │   │  schema introspection,    │
 │                         │   │  maintenance jobs         │
 └─────────────────────────┘   └───────────────────────────┘
@@ -147,9 +147,25 @@ The split is explicit:
   The PostgreSQL credential and DuckLake profile are removed immediately after attach, before tenant
   SQL can inspect or reuse them. Trusted metadata export and lease operations recreate the
   PostgreSQL secret only while holding that Duckling's exclusive gate, then remove it again.
-- **Data plane** — a **model-less** `DbContext` (`LakeContext`) over `UseDuckLake`, serving
-  arbitrary SQL through the provider's streaming `SqlQueryDynamicRawAsync`. No `DbSet`, no change
-  tracker, no LINQ pipeline: those exist for known schemas, and this one is discovered at runtime.
+- **Data plane** — a **model-less** `DbContext` (`LakeContext`) over `UseDuckLake`, serving SQL
+  through the provider's streaming dynamic-query APIs. SQL source is direct. Optional query-language
+  planners compile against a credential-free schema snapshot and return parameterized SQL; the API
+  validates and replays the plan. The C# planner creates a temporary EF model for the discovered
+  schema, but the credential-owning data plane remains model-less and has no generated `DbSet`.
+
+The planner boundary is deliberately separate from both planes:
+
+```mermaid
+flowchart LR
+    UI["Workbench source"] --> API["Lakehold.Api"]
+    API -->|"source + schema only"| Planner["Optional language planner"]
+    Planner -->|"SQL + named parameters"| API
+    API -->|"validated, attached execution"| Data["Duckling data plane"]
+```
+
+`Lakehold.Querying` is the only shared contract. Removing every planner leaves the API and SQL
+Workbench intact. See [C# LINQ in the Workbench](LINQ_WORKBENCH.md) for sandboxing, discovery,
+caching, and provider ownership.
 
 Saved queries are the deliberate bridge between the two. Their catalog binding, description,
 optimistic revision, and publication state are modelled control-plane data. Running one resolves the
@@ -319,7 +335,7 @@ readable by Spark, Trino, or Snowflake.
 | Authentication / tenant identity | ✅ | ✅ | ✅ | ✅ | ⚠️ DIY | ⚠️ shipped, enforcement opt-in |
 | SSO / OIDC | ✅ | ✅ | ✅ | ✅ | ⚠️ | ✅ browser login + tenant/admin claims |
 | RBAC beyond tenancy | ✅ | ✅ | ✅ | ✅ | ⚠️ | ⚠️ owner/editor/reader per token |
-| Web SQL IDE | ✅ mature | ✅ | ✅ | ✅ | ❌ add Superset | ✅ Monaco, focused |
+| Web query IDE | ✅ mature | ✅ | ✅ | ✅ | ❌ add Superset | ✅ CodeMirror, SQL + optional LINQ |
 | Catalog explorer | ✅ | ✅ | ✅ | ✅ | ⚠️ | ✅ |
 | Storage / table detail UI | ⚠️ | ✅ file count, size, layout | ✅ | ✅ | ⚠️ Iceberg tooling | ✅ files, partitions, advisories |
 | Column profiling UI | ✅ Column Explorer | ✅ | ✅ | ⚠️ | ❌ | ✅ live profiles + bounded distributions |
@@ -582,7 +598,8 @@ should either require its own credential or ship alongside guidance to enable en
 
 ## Roadmap
 
-**Now** — SQL IDE, catalog explorer, query history, tenant/catalog CRUD, storage and file inspection,
+**Now** — a SQL Workbench with an optional isolated C# LINQ planner, catalog-aware completion and
+diagnostics, catalog explorer, query history, tenant/catalog CRUD, storage and file inspection,
 maintenance operations, backup/restore, verified eject bundles, CDC pull API and signed webhooks.
 
 **Now** also includes the PostgreSQL wire endpoint (`docs/POSTGRES-WIRE.md`) — parity rather than

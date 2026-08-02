@@ -21,12 +21,25 @@ deployments. Local Parquet is supported only as a single-node or externally shar
 profile. Remaining adversarial multi-tenant artifact/background-job gates are owned by the
 [production-readiness roadmap](PRODUCTION-READINESS-ROADMAP.md).
 
-`compose.production.yaml` runs two containers:
+`compose.production.yaml` runs two required containers and one optional query planner:
 
 | Component | Responsibility | Durable state | Health |
 |---|---|---|---|
 | `workbench` | nginx, private Angular workbench, same-origin `/api` proxy | None | `/workbench` inside the container |
 | `api` | PostgreSQL-backed control plane, DuckLake sessions, schedules, CDC, optional wire and MCP endpoints | PostgreSQL plus configured Parquet storage | `/health` readiness and `/alive` liveness |
+| `linq-compiler` (profile `linq`) | Isolated, credential-free C# LINQ-to-SQL planning | None | `/health` liveness and `/ready` provider translation |
+
+SQL does not depend on the compiler. Enable C# LINQ with a secret from the deployment's secret store:
+
+```bash
+export LAKEHOLD_LINQ_PLANNER_KEY='<long-random-secret>'
+docker compose -f compose.production.yaml --profile linq up -d
+```
+
+Omitting the profile removes the component and the API omits C# LINQ from language discovery. The
+API and compiler must receive the same secret. The compiler is internal-only, read-only, non-root,
+has no state/catalog volume, and is bounded by the Compose CPU, memory, and process limits. See
+[C# LINQ in the Workbench](LINQ_WORKBENCH.md) for its request and security contract.
 
 The public host port is `8080` by default. nginx proxies `/health` and `/api`; it does not expose
 `/alive`. Probe `/alive` only from the container or private service network.
@@ -91,6 +104,9 @@ traffic, verify all of the following:
 - A restore drill has met the deployment's approved recovery-point and recovery-time objectives.
 - Host capacity leaves headroom above the API container limit; disk or volume alerts fire before
   the state path is full.
+- If the optional C# LINQ surface is enabled, its shared secret is non-default, `/ready` proves a
+  provider translation, it is reachable only from the API network, and removing the profile has
+  been verified to leave SQL execution healthy.
 
 If any item is intentionally absent, record the owner, compensating control, expiry date, and risk
 acceptance. An undocumented exception is an operational gap.
@@ -146,6 +162,12 @@ curl --fail --silent --show-error \
 
 It is only an in-memory ring of the latest 100 runs and is empty after an API restart. Exported
 telemetry and off-host backup inventory are the durable evidence that maintenance actually ran.
+
+For a LINQ-enabled deployment, `GET /api/query-languages` is the user-facing readiness check. SQL
+must always be present; `csharp-linq` is present only while the optional planner's descriptor check
+succeeds. If it disappears, check the planner container, the shared-secret match, `/ready`, compiler
+timeout/queue saturation, and the internal network. Do not expose the planner port publicly or move
+catalog credentials into it. Planner failure is not a reason to restart or disable the SQL path.
 
 For catalogs with CDC consumers, also compare source snapshots, subscription cursors, and registered
 replica checkpoints:

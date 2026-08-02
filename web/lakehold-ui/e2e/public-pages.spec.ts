@@ -4,6 +4,11 @@ const pages = [
   { path: '/', heading: 'A feature-rich lakehouse. You host it yourself.', title: /LakeHold/ },
   { path: '/compare', heading: /Compare|LakeHold/, title: /LakeHold vs/ },
   { path: '/docs', heading: /LakeHold/, title: /Documentation/ },
+  {
+    path: '/docs/linq-workbench',
+    heading: 'C# LINQ in the Workbench',
+    title: /C# LINQ Workbench/,
+  },
   { path: '/docs/operations', heading: 'Operating LakeHold', title: /Operations/ },
   {
     path: '/docs/incident-response',

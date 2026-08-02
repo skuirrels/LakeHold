@@ -19,6 +19,7 @@ test.describe('private production surface', () => {
       '/compare',
       '/docs',
       '/docs/operations',
+      '/docs/linq-workbench',
       '/docs/incident-response',
       '/docs/disaster-recovery',
       '/docs/monitoring',

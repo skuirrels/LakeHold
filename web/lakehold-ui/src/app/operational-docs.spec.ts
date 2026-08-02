@@ -3,6 +3,7 @@ import operations from '../../../../docs/OPERATIONS.md';
 import disasterRecovery from '../../../../docs/runbooks/DISASTER-RECOVERY.md';
 import incidentResponse from '../../../../docs/runbooks/INCIDENT-RESPONSE.md';
 import monitoring from '../../../../docs/runbooks/MONITORING-AND-ALERTING.md';
+import linqWorkbench from '../../../../docs/LINQ_WORKBENCH.md';
 import { routes } from './app.routes';
 import { renderMarkdown, resolveMarkdownHref } from './markdown-page';
 
@@ -11,6 +12,11 @@ const operationalRoutes = [
   { path: 'docs/incident-response', title: 'Incident response — LakeHold operations' },
   { path: 'docs/disaster-recovery', title: 'Disaster recovery — LakeHold operations' },
   { path: 'docs/monitoring', title: 'Monitoring and alerting — LakeHold operations' },
+];
+
+const repositoryDocumentationRoutes = [
+  ...operationalRoutes,
+  { path: 'docs/linq-workbench', title: 'C# LINQ Workbench — LakeHold documentation' },
 ];
 
 describe('operational documentation', () => {
@@ -35,6 +41,11 @@ describe('operational documentation', () => {
       directory: 'docs/runbooks',
       heading: 'monitoring-and-alerting',
     },
+    {
+      content: linqWorkbench,
+      directory: 'docs',
+      heading: 'c-linq-in-the-workbench',
+    },
   ])('renders the repository source containing # $heading', ({ content, directory, heading }) => {
     const rendered = renderMarkdown(content, { repositoryDirectory: directory });
 
@@ -42,8 +53,8 @@ describe('operational documentation', () => {
     expect(rendered.sections.length).toBeGreaterThan(3);
   });
 
-  it('publishes all four documents as titled, indexable routes', () => {
-    for (const expected of operationalRoutes) {
+  it('publishes repository documents as titled, indexable routes', () => {
+    for (const expected of repositoryDocumentationRoutes) {
       const route = routes.find((candidate) => candidate.path === expected.path);
 
       expect(route, expected.path).toBeDefined();
@@ -89,6 +100,9 @@ describe('operational documentation', () => {
     expect(resolveMarkdownHref('https://lakehold.dev/docs/operations')).toBe('/docs/operations');
     expect(resolveMarkdownHref('https://lakehold.dev/docs/disaster-recovery#restore-drills')).toBe(
       '/docs/disaster-recovery#restore-drills',
+    );
+    expect(resolveMarkdownHref('LINQ_WORKBENCH.md#query-shape', 'docs')).toBe(
+      '/docs/linq-workbench#query-shape',
     );
   });
 });

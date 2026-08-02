@@ -29,12 +29,13 @@ segment, but it is validated against the credential rather than trusted.
 
 | Area | Route | Gap for a public API |
 |---|---|---|
+| Query languages | `GET /api/query-languages`, `GET …/query-languages/{language}/starter` | SQL is built in; healthy optional planners are discovered at runtime. Unversioned. |
 | Discovery | `GET /api/tenants` | Now scoped to the credential; still unversioned and unpaginated. |
 | Provisioning | `POST`/`DELETE /api/tenants`, `…/catalogs` | Synchronous; no async job model. |
 | Tokens | `POST`/`GET`/`DELETE …/{tenant}/tokens` | Creation is used by System Settings and returns the plaintext once; listing has no pagination and request-path last-used tracking remains absent. |
 | System settings | `GET`/`PUT /api/system-settings` | Instance credential only; optimistic version; MCP changes apply on the next request without restart. |
 | Browser authentication | `GET /auth/session`, `/auth/login`, `/auth/logout` | Optional OIDC authorization-code flow; returns an HttpOnly LakeHold session, not provider tokens. |
-| Query | `POST …/catalogs/{c}/query` | No time-travel option; result capped, no streaming variant. |
+| Query | `POST …/catalogs/{c}/query` | Accepts backward-compatible `sql` or explicit `language` + `source`; non-SQL responses include generated SQL and source diagnostics. No time-travel option; result capped, no streaming variant. |
 | CSV/XLSX import | `POST …/catalogs/{c}/imports/files` | Streamed request body, synchronous, new tables only; CSV automatic mode retries malformed rows with bounded reject capture, while XLSX reads the first or named worksheet. Per-file, aggregate scratch, concurrency, and free-space limits apply. The earlier `/imports/csv` CSV route remains as a compatibility alias. Imports above the configured ceiling still need a direct-to-object-storage path. |
 | Saved queries | `GET`/`POST`/`PUT`/`DELETE …/saved-queries`, `POST …/{id}/{execute\|publish\|unpublish}` | Catalog-scoped and revisioned; still unversioned and unpaginated. |
 | Schema | `GET …/catalogs/{c}/schemas` | — |
@@ -46,6 +47,39 @@ segment, but it is validated against the credential rather than trusted.
 | CDC | `GET …/cdc/snapshots/{id}/changes`, compatibility `GET …/changes`, `…/subscriptions`, `…/cdc/consumers` | Cursor-paged and retention-aware; still unversioned and uses bare-string errors. |
 | History | `GET …/{tenant}/history` | Principal now recorded; no cursor pagination. |
 | Scheduling | `GET /api/maintenance/schedule` | Node-global, read-only; schedule is config-only. |
+
+### Query-language contract
+
+`GET /api/query-languages` always returns SQL and adds only optional planners whose descriptor health
+check succeeds. A client should populate its language selector from this endpoint rather than assume
+that `csharp-linq` is installed. The catalog-aware starter endpoint is
+`GET /api/tenants/{tenant}/catalogs/{catalog}/query-languages/{language}/starter`; it returns source
+generated against the current catalog shape plus its schema fingerprint.
+
+The query request supports both forms:
+
+```json
+{ "sql": "select * from main.events limit 100" }
+```
+
+```json
+{
+  "language": "csharp-linq",
+  "source": "Main.Events.Where(e => e.Revenue > 100)"
+}
+```
+
+`language` defaults to `sql`; `source` takes precedence over the compatibility `sql` property. A
+successful response includes `language`, `generatedSql`, and `diagnostics` in addition to the normal
+tabular result. `generatedSql` is null for SQL. Invalid authored source returns structured planner
+diagnostics with severity, stable `LINQnnn` code, message, and start/end line and column. An installed
+but unavailable planner returns `503`; an unsafe planner response returns `502`. Neither failure
+degrades the built-in SQL path.
+
+Planner transport is not a public credential surface. The API sends source and a schema snapshot,
+never catalog credentials, validates the returned single read-only command, and alone owns
+attachment, authorization, execution, limits, telemetry, and history. See
+[C# LINQ in the Workbench](LINQ_WORKBENCH.md).
 
 ## Design rules
 

@@ -1,10 +1,13 @@
 # C# LINQ in the Workbench
 
-LakeHold can add C# LINQ to the Workbench without embedding a compiler in the API. SQL remains the
+LakeHold adds C# LINQ to the Workbench without embedding a compiler in the API. SQL remains the
 built-in language. The optional `Lakehold.Linq.Compiler` process receives only query source and a
 catalog schema snapshot, uses `DuckDB.EFCoreProvider` to translate the expression, and returns
 parameterized DuckDB SQL. The API alone owns catalog credentials and executes the generated plan
 through the same authorization, read-only attachment, row-limit, telemetry, and history path as SQL.
+
+**Shipped contract:** LakeHold v1.2.0 or newer with `DuckDB.EFCoreProvider` 1.17.0. No command
+interception, parameter-placeholder rewriting, or duplicate store-type map remains in LakeHold.
 
 ```mermaid
 flowchart LR
@@ -46,12 +49,55 @@ constant time. `/health` is liveness-only while `/ready` proves a real provider 
 Treat the process as an untrusted-code boundary even though the source policy accepts only a
 side-effect-free LINQ expression.
 
+The compiler limits can be overridden under `Lakehold:LinqCompiler`:
+
+| Setting | Default | Purpose |
+|---|---:|---|
+| `MaxSourceLength` | 100,000 | Maximum authored characters |
+| `MaxTables` | 1,000 | Maximum tables/views in one schema snapshot |
+| `MaxColumns` | 20,000 | Maximum total columns in one schema snapshot |
+| `MaxArrayElements` | 1,000 | Maximum elements in a literal array initializer |
+| `Timeout` | 10 seconds | Hard lifetime of the disposable compiler child process |
+| `MaxConcurrentCompilations` | 1 | Concurrent compiler workers per planner container |
+| `MaxQueuedCompilations` | 8 | Bounded oldest-first wait queue |
+
 The API does not trust a planner merely because it is configured. Before execution it requires the
 current schema fingerprint, bounded SQL and parameter payloads, unique portable named parameters
 whose placeholders match exactly, one `SELECT`/`WITH`/`VALUES` statement, and a DuckDB-confirmed
 read query. External-access and dynamic-query table functions are refused. Compilation latency and
 plan-cache hits/misses are emitted through LakeHold telemetry; source and generated SQL are never
 metric tags.
+
+## HTTP contract
+
+The Workbench discovers languages rather than assuming LINQ is installed:
+
+```http
+GET /api/query-languages
+```
+
+SQL is always returned. A healthy compiler adds a `csharp-linq` descriptor. The catalog-aware
+starter comes from:
+
+```http
+GET /api/tenants/{tenant}/catalogs/{catalog}/query-languages/csharp-linq/starter
+```
+
+Execute authored source with the existing query endpoint:
+
+```http
+POST /api/tenants/{tenant}/catalogs/{catalog}/query
+Content-Type: application/json
+
+{
+  "language": "csharp-linq",
+  "source": "Main.Events.Where(e => e.Revenue > 100).OrderBy(e => e.Country)"
+}
+```
+
+The response retains the ordinary columns, rows, truncation, elapsed time, and affected-row fields,
+and adds `language`, `generatedSql`, and source `diagnostics`. SQL callers can keep sending the
+backward-compatible `{ "sql": "..." }` request; its `generatedSql` is null.
 
 ## Query shape
 
@@ -114,3 +160,19 @@ removes the final command-interception workaround. Aggregate plans represent dat
 empty-sequence results follow DuckDB's database-value semantics rather than EF's client-side result
 shaper. Remaining model-mapping opportunities are tracked in
 [DuckDB.EFCoreProvider follow-ups](LINQ_PROVIDER_GAPS.md).
+
+## Troubleshooting
+
+| Symptom | Check |
+|---|---|
+| C# LINQ is absent from the selector | Confirm the `linq` Compose profile is enabled, the API and compiler use the same `LAKEHOLD_LINQ_PLANNER_KEY`, and the compiler's `/ready` endpoint succeeds from the internal network. |
+| `503` while planning | The configured planner is unavailable or exceeded its timeout. SQL remains usable; inspect compiler health and bounded-queue saturation. |
+| `LINQ001`–`LINQ003` | The expression crosses the read-only source allow-list. Remove side effects, arbitrary method calls, or disallowed static members. |
+| `LINQ004` | The catalog cannot produce a usable dynamic EF model, commonly because it has no supported columns. Use SQL for omitted native types. |
+| `LINQ005` | Enter exactly one C# expression, without statements or declarations. |
+| `LINQ006` | The expression did not compile against the generated catalog model; use the reported line/column and editor completions. |
+| `LINQ007` | The expression ends in an unsupported terminal operator. Return an `IQueryable` or use `Count`, `LongCount`, `Any`, `Min`, `Max`, `Sum`, or `Average`. |
+| Publish is disabled | Parameterized definitions cannot become DuckDB views; use a provider-translated literal or keep the query saved but unpublished. |
+
+Provider mechanics and their application-independent contract are documented in the
+[provider query command-plan guide](https://github.com/skuirrels/DuckDB.EFCoreProvider/blob/main/docs/QUERY-COMMAND-PLANS.md).
