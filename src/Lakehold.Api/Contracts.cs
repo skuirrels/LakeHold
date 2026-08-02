@@ -181,7 +181,7 @@ public sealed record TabularImportDto(
             result.Elapsed.TotalMilliseconds);
 }
 
-/// <summary>A managed full-snapshot source and its governed target data product.</summary>
+/// <summary>A managed source and its governed target data product.</summary>
 public sealed record DataConnectorDto(
     int Id,
     string Name,
@@ -189,9 +189,19 @@ public sealed record DataConnectorDto(
     string Owner,
     IReadOnlyList<string> Tags,
     string Kind,
+    string AdapterId,
+    int AdapterVersion,
+    string ReadMode,
     string EndpointUrl,
     string? CredentialEnvironmentVariable,
     string RestResponseFormat,
+    DataConnectorSourceSettingsDto SourceSettings,
+    DataConnectorAuthenticationDto Authentication,
+    IReadOnlyList<DataConnectorFieldMappingDto> FieldMappings,
+    string SchemaPolicy,
+    IReadOnlyList<string> KeyColumns,
+    string? Checkpoint,
+    long CheckpointVersion,
     string TargetSchema,
     string TargetTable,
     long MinimumRows,
@@ -202,6 +212,11 @@ public sealed record DataConnectorDto(
     DateTimeOffset? NextRunUtc,
     DateTimeOffset? LastCompletedUtc,
     string? LastError,
+    int ConsecutiveFailures,
+    int MaxAttempts,
+    int RetryBaseSeconds,
+    int RetryMaxSeconds,
+    DateTimeOffset? PausedUtc,
     bool TargetProvisioned,
     DateTimeOffset? ArchivedUtc,
     int Version,
@@ -215,11 +230,21 @@ public sealed record DataConnectorDto(
         connector.Owner,
         connector.Tags(),
         connector.Kind.ToString().ToLowerInvariant(),
+        connector.AdapterId,
+        connector.AdapterVersion,
+        connector.ReadMode == DataConnectorReadMode.Incremental ? "incremental" : "full-snapshot",
         connector.EndpointUrl,
         connector.CredentialEnvironmentVariable,
         connector.RestResponseFormat == Lakehold.ControlPlane.Model.RestResponseFormat.NewlineDelimitedJson
             ? "ndjson"
             : "json-array",
+        DataConnectorSourceSettingsDto.From(connector.SourceSettings()),
+        DataConnectorAuthenticationDto.From(connector.Authentication()),
+        connector.FieldMappings().Select(DataConnectorFieldMappingDto.From).ToArray(),
+        connector.SchemaPolicy.ToString().ToLowerInvariant(),
+        connector.KeyColumns(),
+        connector.Checkpoint,
+        connector.CheckpointVersion,
         connector.TargetSchema,
         connector.TargetTable,
         connector.MinimumRows,
@@ -230,11 +255,83 @@ public sealed record DataConnectorDto(
         connector.NextRunUtc,
         connector.LastCompletedUtc,
         connector.LastError,
+        connector.ConsecutiveFailures,
+        connector.MaxAttempts,
+        connector.RetryBaseSeconds,
+        connector.RetryMaxSeconds,
+        connector.PausedUtc,
         connector.TargetProvisioned,
         connector.ArchivedUtc,
         connector.ConcurrencyVersion,
         connector.CreatedUtc,
         connector.UpdatedUtc);
+}
+
+public sealed record DataConnectorSourceSettingsDto(
+    string? SourceTable,
+    string? CursorColumn,
+    string? CursorType,
+    int PageSize,
+    IReadOnlyList<string> Properties,
+    bool CursorIsCommitMonotonic)
+{
+    public static DataConnectorSourceSettingsDto From(DataConnectorSourceSettings settings) => new(
+        settings.SourceTable,
+        settings.CursorColumn,
+        settings.CursorType,
+        settings.PageSize,
+        settings.Properties ?? [],
+        settings.CursorIsCommitMonotonic);
+}
+
+public sealed record DataConnectorAuthenticationDto(
+    string Kind,
+    string? SecretReference,
+    string? UsernameSecretReference,
+    string? PasswordSecretReference,
+    string? ClientIdSecretReference,
+    string? ClientSecretReference,
+    string? RefreshTokenSecretReference,
+    string? ClientCertificateSecretReference,
+    string? CertificatePasswordSecretReference,
+    string? CustomHeaderName)
+{
+    public static DataConnectorAuthenticationDto From(DataConnectorAuthentication authentication) => new(
+        authentication.Kind switch
+        {
+            DataConnectorAuthenticationKind.None => "none",
+            DataConnectorAuthenticationKind.Bearer => "bearer",
+            DataConnectorAuthenticationKind.OAuthRefreshToken => "oauth-refresh-token",
+            DataConnectorAuthenticationKind.MutualTls => "mtls",
+            DataConnectorAuthenticationKind.CustomHeader => "custom-header",
+            DataConnectorAuthenticationKind.PostgreSqlPassword => "postgresql-password",
+            _ => throw new ArgumentOutOfRangeException(nameof(authentication)),
+        },
+        authentication.SecretReference,
+        authentication.UsernameSecretReference,
+        authentication.PasswordSecretReference,
+        authentication.ClientIdSecretReference,
+        authentication.ClientSecretReference,
+        authentication.RefreshTokenSecretReference,
+        authentication.ClientCertificateSecretReference,
+        authentication.CertificatePasswordSecretReference,
+        authentication.CustomHeaderName);
+}
+
+public sealed record DataConnectorFieldMappingDto(string Source, string Target, string Transform)
+{
+    public static DataConnectorFieldMappingDto From(DataConnectorFieldMapping mapping) => new(
+        mapping.Source,
+        mapping.Target,
+        mapping.Transform switch
+        {
+            DataConnectorTransformKind.None => "none",
+            DataConnectorTransformKind.Trim => "trim",
+            DataConnectorTransformKind.Lowercase => "lowercase",
+            DataConnectorTransformKind.Uppercase => "uppercase",
+            DataConnectorTransformKind.ToString => "to-string",
+            _ => throw new ArgumentOutOfRangeException(nameof(mapping)),
+        });
 }
 
 /// <summary>Create or replace the mutable definition of a managed connector.</summary>
@@ -253,7 +350,43 @@ public sealed record DataConnectorDefinitionRequest(
     IReadOnlyList<string>? RequiredColumns = null,
     IReadOnlyList<string>? NotNullColumns = null,
     bool Enabled = false,
-    int? RefreshIntervalSeconds = null);
+    int? RefreshIntervalSeconds = null,
+    string? AdapterId = null,
+    int AdapterVersion = 1,
+    string? ReadMode = null,
+    string? SchemaPolicy = null,
+    IReadOnlyList<string>? KeyColumns = null,
+    IReadOnlyList<DataConnectorFieldMappingRequest>? FieldMappings = null,
+    DataConnectorSourceSettingsRequest? SourceSettings = null,
+    DataConnectorAuthenticationRequest? Authentication = null,
+    int MaxAttempts = 5,
+    int RetryBaseSeconds = 30,
+    int RetryMaxSeconds = 3_600);
+
+/// <summary>Validated, non-secret source configuration accepted by connector adapters.</summary>
+public sealed record DataConnectorSourceSettingsRequest(
+    string? SourceTable = null,
+    string? CursorColumn = null,
+    string? CursorType = null,
+    int PageSize = 100,
+    IReadOnlyList<string>? Properties = null,
+    bool CursorIsCommitMonotonic = false);
+
+/// <summary>Approved authentication mode and secret references; secret values are never accepted.</summary>
+public sealed record DataConnectorAuthenticationRequest(
+    string Kind = "none",
+    string? SecretReference = null,
+    string? UsernameSecretReference = null,
+    string? PasswordSecretReference = null,
+    string? ClientIdSecretReference = null,
+    string? ClientSecretReference = null,
+    string? RefreshTokenSecretReference = null,
+    string? ClientCertificateSecretReference = null,
+    string? CertificatePasswordSecretReference = null,
+    string? CustomHeaderName = null);
+
+/// <summary>Declarative top-level field rename and bounded transformation.</summary>
+public sealed record DataConnectorFieldMappingRequest(string Source, string Target, string Transform = "none");
 
 /// <summary>Optimistic replacement of a connector definition.</summary>
 public sealed record UpdateDataConnectorRequest(int Version, DataConnectorDefinitionRequest Definition);
@@ -269,6 +402,9 @@ public sealed record DataConnectorRunDto(
     long RowsPublished,
     bool? QualityPassed,
     string? SourceVersion,
+    string? InputCheckpoint,
+    string? ProposedCheckpoint,
+    string? ReplayKey,
     string? Error)
 {
     public static DataConnectorRunDto From(DataConnectorRun run) => new(
@@ -281,8 +417,14 @@ public sealed record DataConnectorRunDto(
         run.RowsPublished,
         run.QualityPassed,
         run.SourceVersion,
+        run.InputCheckpoint,
+        run.ProposedCheckpoint,
+        run.ReplayKey,
         run.Error);
 }
+
+/// <summary>Optimistic connector lifecycle operation.</summary>
+public sealed record DataConnectorOperationRequest(int Version);
 
 /// <summary>Immediate result of a manually requested connector refresh.</summary>
 public sealed record DataConnectorExecutionDto(

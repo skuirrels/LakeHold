@@ -7,27 +7,27 @@ Platform (EDP), not merely a SQL endpoint over open storage.
 
 **Status vocabulary:**
 
-- **Implemented in source** — code and tests are committed in the repository, but no published
-  release is claimed.
+- **Implemented in source** — code and tests are present and verified in repository source, but no
+  published release is claimed.
 - **Shipped** — available on the main branch and in a released artifact.
 - **Partial** — useful capability exists, but the stated EDP acceptance boundary is not met.
 - **Not started** — no production implementation is claimed.
 
-> The managed connector foundation is implemented, committed, and verified in source for the next
-> release. It is not included in the current v1.2.0 artifact and must not be described as released
-> until a later LakeHold version is published and independently verified.
+> LakeHold v1.3.0 ships the managed connector foundation and connector platform. A real connector
+> migration and refresh in a deployed v1.3.0 environment remains an explicit post-release evidence
+> gate; the release alone does not claim that operational proof.
 
 ## Executive status
 
 | Workstream                          | Status                    | Completed boundary                                                                                                                                                                                    | Remaining boundary                                                                                                                                   |
 | ----------------------------------- | ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| P1.1 Managed ingestion foundation   | **Implemented in source** | REST JSON-array/NDJSON and gRPC full snapshots, durable definitions/runs, schedules, fencing, target ownership, quality, egress, scratch controls, telemetry, API outcomes, and production-path tests | Published release and post-release deployment evidence                                                                                               |
-| P1.2 Connector platform             | **Not started**           | —                                                                                                                                                                                                     | Versioned SDK/manifest, checkpoints, incremental reads, retry/backoff, transforms, schema policy, secret providers, and first database/SaaS adapters |
+| P1.1 Managed ingestion foundation   | **Shipped**               | v1.3.0 includes REST JSON-array/NDJSON and gRPC full snapshots, durable definitions/runs, schedules, fencing, target ownership, quality, egress, scratch controls, telemetry, API outcomes, and production-path tests | Post-release migration and real connector-refresh deployment evidence                                                                                 |
+| P1.2 Connector platform             | **Shipped**               | v1.3.0 includes the versioned adapter SDK/manifest, commit-fenced checkpoints, replay-safe keyed upsert, retry/dead-letter lifecycle, mappings, schema policy, external secrets, approved auth, PostgreSQL, and HubSpot | Deployment evidence and a broader production-certified adapter catalogue                                                                              |
 | P1.3 Catalog and governance         | **Partial**               | Owners, descriptions, tags, quality policy, audit, and connector run lineage exist on initial surfaces                                                                                                | Stable identity for every asset, search, classification, freshness, policy administration, and end-to-end lineage graph                              |
 | P1.4 Semantic and consumption layer | **Partial**               | HTTP, Workbench, MCP, EF Core, PostgreSQL wire for psql/DBeaver/Npgsql, and saved-query publication                                                                                                   | Governed metrics/semantic models, Power BI fix, supported JDBC/ODBC, and open multi-engine catalog access                                            |
-| P1.5 Enterprise operations          | **Partial**               | Maintenance, leases, telemetry, backup/restore, verified eject, bounded connector resources, and safe errors                                                                                          | Connector UI, retry operations, freshness/SLO dashboards, alerting, usage/cost reporting, and release runbooks                                       |
+| P1.5 Enterprise operations          | **Partial**               | Maintenance, leases, telemetry, backup/restore, verified eject, bounded connector resources, connector lifecycle operations, and safe errors                                                           | Connector UI, freshness/SLO dashboards, alerting, usage/cost reporting, and release runbooks                                                          |
 
-## Completed in source
+## Shipped scope
 
 ### Managed definitions and administration
 
@@ -45,7 +45,8 @@ Platform (EDP), not merely a SQL endpoint over open storage.
 - [x] Atomic PostgreSQL claims with opaque lease generations.
 - [x] Expired-run closure and stale-worker fencing.
 - [x] PostgreSQL publication row lock held through DuckLake publication and durable completion.
-- [x] Create-only first publication and exclusive connector target ownership.
+- [x] Create-only first publication and exclusive connector target ownership, with a transactional
+      table marker that makes an unconfirmed first publication safely recognizable on replay.
 - [x] Atomic replacement after successful validation; preceding target retained on failure.
 - [x] Scheduler claim losers re-query so another due connector is not starved.
 
@@ -75,25 +76,44 @@ Platform (EDP), not merely a SQL endpoint over open storage.
       integration, container startup, private website, public/demo website, and production-operator
       journey.
 
-## Not completed
+## Connector-platform delivery and remaining work
 
 ### P1.1 release completion
 
-- [ ] Publish a versioned LakeHold artifact containing the migration and connector runtime.
+- [x] Publish LakeHold v1.3.0 with the migration and connector runtime.
 - [ ] Prove migration and a real connector refresh in a release deployment.
 
-### P1.2 connector platform
+### P1.2 connector platform — shipped in v1.3.0
 
-- [ ] Versioned adapter manifest and SDK.
-- [ ] Durable incremental checkpoint contract that advances only after DuckLake commit.
-- [ ] At-least-once incremental replay and idempotent publication model.
-- [ ] Connector-specific retry, exponential backoff, pause, resume, and dead-letter operations.
-- [ ] Field mappings and bounded transformation steps.
-- [ ] Explicit schema behavior: reject, additive evolution, or mapped version.
-- [ ] External secret-provider abstraction.
-- [ ] OAuth token renewal, mTLS, and approved custom authentication mechanisms.
-- [ ] PostgreSQL incremental connector.
-- [ ] One OAuth-backed SaaS connector.
+- [x] Public, versioned adapter manifest, read context/result, and bounded record-writer SDK
+      contracts; built-in adapters use manifest version 1.
+- [x] Durable incremental checkpoint and checkpoint-version state. A proposed checkpoint is run
+      evidence but becomes current only inside the PostgreSQL publication fence after DuckLake
+      commits.
+- [x] At-least-once replay with atomic delete-and-insert keyed upsert. Replaying the same delta
+      replaces the same business keys rather than duplicating them.
+- [x] Per-connector exponential retry policy, pause, resume, immediate retry, terminal
+      dead-letter status, and filtered dead-letter API.
+- [x] Top-level field mappings with bounded `trim`, `lowercase`, `uppercase`, and `to-string`
+      transforms; arbitrary code is not accepted.
+- [x] Explicit `reject`, `additive`, and `mapped-version` schema policies. Mapped-version uses the
+      declared field mapping as its contract and otherwise enforces reject compatibility.
+- [x] Secret-provider abstraction with built-in `env://` compatibility and an HTTPS, DNS-pinned,
+      bounded `vault://` provider, plus exact operator bindings across tenant, catalog, secret
+      reference, and destination host.
+- [x] Renewable OAuth refresh tokens, PKCS#12 mTLS client identity, bearer auth, PostgreSQL password
+      auth, and allowlisted `X-Api-Key`/`Api-Key` custom headers.
+- [x] Typed-cursor PostgreSQL incremental adapter (`int64`, `timestamptz`, UUID, or text) with
+      parameterised predicates, bounded pages, unique cursors, explicit commit-monotonic source
+      contracts, and unambiguous UTC timestamp checkpoints.
+- [x] OAuth-backed HubSpot Contacts adapter with token renewal, adaptive time windows below the
+      10,000-result search ceiling, late-index overlap, shared node pacing, `Retry-After` handling,
+      and a durable fully-read window checkpoint.
+
+P1.2 is shipped in the v1.3.0 application and container artifacts. The adapter SDK remains a
+source/API contract inside `Lakehold.Api`, not a separately published NuGet package, and the built-in
+production catalogue is intentionally only REST, gRPC, PostgreSQL, and HubSpot Contacts. No broad
+partner ecosystem is claimed.
 
 ### P1.3 catalog and governance
 
@@ -118,7 +138,7 @@ Platform (EDP), not merely a SQL endpoint over open storage.
 ### P1.5 enterprise operations
 
 - [ ] Workbench connector administration and run-history experience.
-- [ ] Operator retry, pause, resume, and checkpoint inspection.
+- [x] Operator retry, pause, resume, dead-letter listing, and checkpoint inspection over the owner API.
 - [ ] Freshness and connector service-level objectives.
 - [ ] Alerts for repeated failures, stale data, lease contention, and capacity pressure.
 - [ ] Per-connector resource and cost/usage reporting.
@@ -143,6 +163,7 @@ Priority 1 is complete only when all of these are demonstrable:
 
 ## Next implementation
 
-Build P1.2 around an adapter manifest and checkpoint contract. Prove it with one PostgreSQL
-incremental connector and one OAuth-backed SaaS connector: together they exercise transactional
-cursors and renewable credentials without prematurely creating a broad adapter catalogue.
+Move to P1.3: give every governed asset a stable identity, searchable metadata, classifications,
+freshness objectives, contract versions, and navigable upstream/downstream lineage. In parallel,
+capture post-release migration and real connector-refresh evidence from a deployed v1.3.0
+environment; the shipped status does not imply that operational proof.

@@ -1,6 +1,8 @@
 using System.Text;
+using System.Buffers;
 using System.Text.Json;
 using Lakehold.Api.Importing;
+using Lakehold.ControlPlane.Model;
 using Microsoft.Extensions.Options;
 
 namespace Lakehold.Api.Connectors;
@@ -10,13 +12,14 @@ namespace Lakehold.Api.Connectors;
 ///     workflow checkpoint: the durable lease and run live in PostgreSQL and the published rows live
 ///     in DuckLake.
 /// </summary>
-internal sealed class ConnectorSnapshotFile : IAsyncDisposable
+internal sealed class ConnectorSnapshotFile : IDataConnectorRecordWriter, IAsyncDisposable
 {
     private readonly NodeScratchLease _lease;
     private readonly FileStream _stream;
     private readonly ConnectorOptions _options;
     private readonly Action<string>? _cleanupFailure;
     private bool _sealed;
+    private IReadOnlyList<DataConnectorFieldMapping> _mappings = [];
 
     private ConnectorSnapshotFile(
         NodeScratchLease lease,
@@ -38,6 +41,18 @@ internal sealed class ConnectorSnapshotFile : IAsyncDisposable
     public long Bytes { get; private set; }
 
     public string? SourceVersion { get; private set; }
+
+    public void ConfigureMappings(IReadOnlyList<DataConnectorFieldMapping> mappings)
+    {
+        ObjectDisposedException.ThrowIf(_sealed, this);
+        ArgumentNullException.ThrowIfNull(mappings);
+        if (Rows != 0)
+        {
+            throw new InvalidOperationException("Field mappings must be configured before records are written.");
+        }
+
+        _mappings = mappings;
+    }
 
     public static async Task<ConnectorSnapshotFile> CreateAsync(
         ConnectorScratchSpace scratch,
@@ -78,7 +93,7 @@ internal sealed class ConnectorSnapshotFile : IAsyncDisposable
             throw new InvalidDataException("Each connector record must be one JSON object.");
         }
 
-        var normalized = document.RootElement.GetRawText();
+        var normalized = Project(document.RootElement);
         var length = Encoding.UTF8.GetByteCount(normalized);
         if (length > _options.MaxRecordBytes)
         {
@@ -103,6 +118,79 @@ internal sealed class ConnectorSnapshotFile : IAsyncDisposable
         _lease.RecordWritten(buffer.Length);
         Rows++;
         Bytes += buffer.Length;
+    }
+
+    private string Project(JsonElement record)
+    {
+        if (_mappings.Count == 0)
+        {
+            return record.GetRawText();
+        }
+
+        var bySource = _mappings.ToDictionary(mapping => mapping.Source, StringComparer.OrdinalIgnoreCase);
+        var targets = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var seenSources = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var buffer = new ArrayBufferWriter<byte>();
+        using var writer = new Utf8JsonWriter(buffer);
+        writer.WriteStartObject();
+        foreach (var property in record.EnumerateObject())
+        {
+            if (!bySource.TryGetValue(property.Name, out var mapping))
+            {
+                if (!targets.Add(property.Name))
+                {
+                    throw new InvalidDataException("Field mappings produced duplicate target columns.");
+                }
+
+                property.WriteTo(writer);
+                continue;
+            }
+
+            seenSources.Add(mapping.Source);
+            if (!targets.Add(mapping.Target))
+            {
+                throw new InvalidDataException("Field mappings produced duplicate target columns.");
+            }
+
+            writer.WritePropertyName(mapping.Target);
+            WriteTransformed(writer, property.Value, mapping.Transform);
+        }
+
+        var missing = bySource.Keys.Where(source => !seenSources.Contains(source)).ToArray();
+        if (missing.Length > 0)
+        {
+            throw new InvalidDataException("A connector record is missing a declared mapped field.");
+        }
+
+        writer.WriteEndObject();
+        writer.Flush();
+        return Encoding.UTF8.GetString(buffer.WrittenSpan);
+    }
+
+    private static void WriteTransformed(
+        Utf8JsonWriter writer,
+        JsonElement value,
+        DataConnectorTransformKind transform)
+    {
+        if (transform == DataConnectorTransformKind.None)
+        {
+            value.WriteTo(writer);
+            return;
+        }
+
+        var text = transform == DataConnectorTransformKind.ToString
+            ? value.ValueKind == JsonValueKind.String ? value.GetString() : value.GetRawText()
+            : value.ValueKind == JsonValueKind.String
+                ? value.GetString()
+                : throw new InvalidDataException("String transformations require a JSON string value.");
+        writer.WriteStringValue(transform switch
+        {
+            DataConnectorTransformKind.Trim => text?.Trim(),
+            DataConnectorTransformKind.Lowercase => text?.ToLowerInvariant(),
+            DataConnectorTransformKind.Uppercase => text?.ToUpperInvariant(),
+            DataConnectorTransformKind.ToString => text,
+            _ => throw new InvalidDataException("The connector record requested an unsupported transformation."),
+        });
     }
 
     public void RecordSourceVersion(string? sourceVersion)

@@ -131,9 +131,17 @@ public sealed class ControlPlaneContext(DbContextOptions<ControlPlaneContext> op
             entity.Property(c => c.Owner).HasMaxLength(200);
             entity.Property(c => c.TagsJson).HasMaxLength(8_192);
             entity.Property(c => c.Kind).HasConversion<int>();
+            entity.Property(c => c.AdapterId).HasMaxLength(128);
+            entity.Property(c => c.ReadMode).HasConversion<int>();
             entity.Property(c => c.EndpointUrl).HasMaxLength(2_048);
             entity.Property(c => c.CredentialEnvironmentVariable).HasMaxLength(128);
             entity.Property(c => c.RestResponseFormat).HasConversion<int>();
+            entity.Property(c => c.SourceSettingsJson).HasMaxLength(32_768);
+            entity.Property(c => c.AuthenticationJson).HasMaxLength(16_384);
+            entity.Property(c => c.FieldMappingsJson).HasMaxLength(65_536);
+            entity.Property(c => c.SchemaPolicy).HasConversion<int>();
+            entity.Property(c => c.KeyColumnsJson).HasMaxLength(16_384);
+            entity.Property(c => c.Checkpoint).HasMaxLength(4_000);
             entity.Property(c => c.TargetSchema).HasMaxLength(63);
             entity.Property(c => c.TargetTable).HasMaxLength(63);
             entity.Property(c => c.RequiredColumnsJson).HasMaxLength(65_536);
@@ -175,6 +183,9 @@ public sealed class ControlPlaneContext(DbContextOptions<ControlPlaneContext> op
             entity.Property(r => r.LeaseToken).HasMaxLength(32);
             entity.Property(r => r.SourceVersion).HasMaxLength(512);
             entity.Property(r => r.Error).HasMaxLength(4_000);
+            entity.Property(r => r.InputCheckpoint).HasMaxLength(4_000);
+            entity.Property(r => r.ProposedCheckpoint).HasMaxLength(4_000);
+            entity.Property(r => r.ReplayKey).HasMaxLength(512);
             entity.HasIndex(r => new { r.DataConnectorId, r.StartedUtc });
 
             if (isDuckDb)

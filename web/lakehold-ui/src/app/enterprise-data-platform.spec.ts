@@ -14,7 +14,7 @@ const edpRoutes = [
   },
   {
     path: 'docs/connectors',
-    title: 'Managed REST and gRPC connectors — LakeHold documentation',
+    title: 'Managed data connectors — LakeHold documentation',
     content: connectors,
     heading: 'managed-data-connectors',
   },
@@ -39,12 +39,13 @@ describe('Enterprise Data Platform documentation', () => {
     expect(route?.loadComponent).toBeTypeOf('function');
   });
 
-  it('renders explicit implemented and outstanding plan sections', () => {
+  it('renders explicit shipped and outstanding plan sections', () => {
     const rendered = renderMarkdown(roadmap, { repositoryDirectory: 'docs' }).html;
 
-    expect(rendered).toContain('id="completed-in-source"');
-    expect(rendered).toContain('id="not-completed"');
-    expect(rendered).toContain('not included in the current v1.2.0 artifact');
+    expect(rendered).toContain('id="shipped-scope"');
+    expect(rendered).toContain('id="connector-platform-delivery-and-remaining-work"');
+    expect(rendered).toContain('id="p1-2-connector-platform-shipped-in-v1-3-0"');
+    expect(rendered).toContain('v1.3.0 ships the managed connector foundation');
   });
 
   it('turns EDP repository cross-links into native website routes', () => {

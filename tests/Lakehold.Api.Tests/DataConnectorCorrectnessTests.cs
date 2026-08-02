@@ -117,6 +117,7 @@ public sealed class DataConnectorCorrectnessTests : IDisposable
         builder.Services.AddRouting();
         builder.Services.AddScoped<DataConnectorService>();
         builder.Services.AddScoped<ConnectorRunner>();
+        builder.Services.AddScoped<DataConnectorSourceResolver>();
         builder.Services.AddOptions<ConnectorOptions>();
         await using var app = builder.Build();
 
@@ -126,7 +127,7 @@ public sealed class DataConnectorCorrectnessTests : IDisposable
             .SelectMany(source => source.Endpoints)
             .Where(endpoint => endpoint.DisplayName?.Contains("connectors", StringComparison.OrdinalIgnoreCase) == true)
             .ToArray();
-        Assert.Equal(7, connectorEndpoints.Length);
+        Assert.Equal(11, connectorEndpoints.Length);
         Assert.All(connectorEndpoints, endpoint => Assert.Equal(
             Capability.TenantOwner,
             endpoint.Metadata.GetMetadata<RouteCapabilityMetadata>()?.Capability));

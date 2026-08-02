@@ -222,7 +222,7 @@ export class LandingComponent {
       body: 'PostgreSQL control and metadata, DuckDB compute, open Parquet, tenant identity, audit, time travel, maintenance, backup, and verified eject.',
     },
     {
-      status: 'Implemented in source',
+      status: 'Shipped in v1.3.0',
       title: 'Managed ingestion foundation',
       body: 'Bounded REST and gRPC full snapshots with schedules, quality contracts, target ownership, fenced publication, telemetry, and retained run evidence.',
     },
@@ -270,10 +270,10 @@ export class LandingComponent {
     },
     {
       tag: 'Ingestion',
-      title: 'Managed REST and gRPC full-snapshot connectors',
-      body: 'Connector definitions, schedules, claims, run history, quality gates, bounded scratch space, safe egress, target ownership, and atomic DuckLake publication now form one governed source-to-table path. Real HTTP and gRPC transports, PostgreSQL fencing, API outcomes, and resource limits are covered by the full repository gate.',
+      title: 'Managed full-snapshot and incremental connectors',
+      body: 'REST/gRPC snapshots and PostgreSQL/HubSpot incremental adapters share durable schedules, checkpoints, retry/dead-letter lifecycle, mappings, schema policy, external secret references, quality gates, bounded scratch space, safe egress, target ownership, and atomic DuckLake publication.',
       caveat:
-        'Implemented and verified in source, but not included in the current v1.2.0 release. This is a full-snapshot foundation, not an incremental connector ecosystem.',
+        'Shipped in v1.3.0. Four built-in adapters are not a broad production-certified connector ecosystem, and post-release deployment evidence remains separate from source verification.',
     },
     {
       tag: 'Security',
@@ -348,10 +348,10 @@ export class LandingComponent {
   protected readonly roadmap = [
     {
       tag: 'EDP',
-      title: 'A versioned connector platform with durable incremental checkpoints',
-      body: 'A shared adapter manifest and SDK will add resumable reads, retry/backoff, mappings, explicit schema policy, external secret providers, and database/SaaS adapters without duplicating orchestration in each connector.',
+      title: 'A broad production-certified connector catalogue',
+      body: 'The versioned source SDK, resumable reads, retry/dead-letter lifecycle, mappings, schema policy, external secrets, PostgreSQL, and HubSpot Contacts are implemented. The next connector milestone is a separately distributed and production-certified catalogue driven by demand.',
       caveat:
-        'None of those platform capabilities is implemented by the current REST/gRPC full-snapshot foundation.',
+        'The current SDK lives in the API assembly and the built-in catalogue contains four adapters; no partner ecosystem or broad SaaS coverage is claimed.',
     },
     {
       tag: 'Interop',

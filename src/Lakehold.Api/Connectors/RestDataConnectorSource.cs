@@ -1,4 +1,5 @@
 using System.Net.Http.Headers;
+using System.Security.Cryptography.X509Certificates;
 using System.Text.Json;
 using Lakehold.Api.Security;
 using Lakehold.ControlPlane.Model;
@@ -9,17 +10,31 @@ namespace Lakehold.Api.Connectors;
 /// <summary>Reads JSON arrays or NDJSON from a bounded HTTPS GET endpoint.</summary>
 internal sealed class RestDataConnectorSource(
     IHttpClientFactory httpClientFactory,
-    IOptions<ConnectorOptions> options) : IDataConnectorSource
+    IOptions<ConnectorOptions> options,
+    ConnectorSecretResolver secrets) : IDataConnectorSource
 {
     public const string HttpClientName = "lakehold-connectors";
 
-    public DataConnectorKind Kind => DataConnectorKind.Rest;
+    public ConnectorAdapterManifest Manifest { get; } = new(
+        "lakehold.rest",
+        1,
+        DataConnectorKind.Rest,
+        new HashSet<DataConnectorReadMode> { DataConnectorReadMode.FullSnapshot },
+        new HashSet<DataConnectorAuthenticationKind>
+        {
+            DataConnectorAuthenticationKind.None,
+            DataConnectorAuthenticationKind.Bearer,
+            DataConnectorAuthenticationKind.MutualTls,
+            DataConnectorAuthenticationKind.CustomHeader,
+        },
+        SupportsSourceVersion: true);
 
     public async Task<ConnectorSourceResult> ReadAsync(
-        DataConnector connector,
-        ConnectorSnapshotFile destination,
+        ConnectorReadContext context,
+        IDataConnectorRecordWriter destination,
         CancellationToken cancellationToken)
     {
+        var connector = context.Connector;
         var endpoint = new Uri(connector.EndpointUrl, UriKind.Absolute);
         var resolution = await OutboundDestinationPolicy.ResolveAsync(
                 endpoint,
@@ -41,8 +56,17 @@ internal sealed class RestDataConnectorSource(
             request.Options.Set(OutboundConnection.ApprovedAddress, resolution.Address);
         }
 
-        ApplyBearer(connector, request.Headers);
-        var client = httpClientFactory.CreateClient(HttpClientName);
+        var authentication = connector.Authentication();
+        await ApplyAuthenticationAsync(context, authentication, endpoint.DnsSafeHost, request, cancellationToken)
+            .ConfigureAwait(false);
+        using var ownedClient = await CreateMtlsClientAsync(
+                context,
+                authentication,
+                endpoint.DnsSafeHost,
+                resolution.Address,
+                cancellationToken)
+            .ConfigureAwait(false);
+        var client = ownedClient ?? httpClientFactory.CreateClient(HttpClientName);
         using var response = await client.SendAsync(
                 request,
                 HttpCompletionOption.ResponseHeadersRead,
@@ -70,12 +94,12 @@ internal sealed class RestDataConnectorSource(
             await ReadLinesAsync(limited, destination, timeout.Token).ConfigureAwait(false);
         }
 
-        return new ConnectorSourceResult(destination.Rows, sourceVersion);
+        return new ConnectorSourceResult(sourceVersion);
     }
 
     private static async Task ReadArrayAsync(
         Stream source,
-        ConnectorSnapshotFile destination,
+        IDataConnectorRecordWriter destination,
         CancellationToken cancellationToken)
     {
         await foreach (var record in JsonSerializer.DeserializeAsyncEnumerable<JsonElement>(
@@ -88,7 +112,7 @@ internal sealed class RestDataConnectorSource(
 
     private static async Task ReadLinesAsync(
         Stream source,
-        ConnectorSnapshotFile destination,
+        IDataConnectorRecordWriter destination,
         CancellationToken cancellationToken)
     {
         using var reader = new StreamReader(source, detectEncodingFromByteOrderMarks: true, leaveOpen: true);
@@ -103,21 +127,91 @@ internal sealed class RestDataConnectorSource(
         }
     }
 
-    private static void ApplyBearer(DataConnector connector, HttpRequestHeaders headers)
+    private async Task ApplyAuthenticationAsync(
+        ConnectorReadContext context,
+        DataConnectorAuthentication authentication,
+        string destinationHost,
+        HttpRequestMessage request,
+        CancellationToken cancellationToken)
     {
-        if (connector.CredentialEnvironmentVariable is not { } variable)
+        switch (authentication.Kind)
         {
-            return;
+            case DataConnectorAuthenticationKind.None:
+            case DataConnectorAuthenticationKind.MutualTls:
+                return;
+            case DataConnectorAuthenticationKind.Bearer:
+                request.Headers.Authorization = new AuthenticationHeaderValue(
+                    "Bearer",
+                    await secrets.ResolveAsync(
+                            authentication.SecretReference
+                            ?? throw new InvalidOperationException("Bearer authentication requires a secret reference."),
+                            context.TenantSlug,
+                            context.CatalogName,
+                            destinationHost,
+                            cancellationToken)
+                        .ConfigureAwait(false));
+                return;
+            case DataConnectorAuthenticationKind.CustomHeader:
+                var header = authentication.CustomHeaderName;
+                if (string.IsNullOrWhiteSpace(header)
+                    || !header.All(character => char.IsAsciiLetterOrDigit(character) || character == '-'))
+                {
+                    throw new InvalidOperationException("Custom authentication requires a valid HTTP header name.");
+                }
+
+                request.Headers.TryAddWithoutValidation(
+                    header,
+                    await secrets.ResolveAsync(
+                            authentication.SecretReference
+                            ?? throw new InvalidOperationException("Custom authentication requires a secret reference."),
+                            context.TenantSlug,
+                            context.CatalogName,
+                            destinationHost,
+                            cancellationToken)
+                        .ConfigureAwait(false));
+                return;
+            default:
+                throw new InvalidOperationException("The REST adapter does not support this authentication mechanism.");
+        }
+    }
+
+    private async Task<HttpClient?> CreateMtlsClientAsync(
+        ConnectorReadContext context,
+        DataConnectorAuthentication authentication,
+        string destinationHost,
+        System.Net.IPAddress? approvedAddress,
+        CancellationToken cancellationToken)
+    {
+        if (authentication.Kind != DataConnectorAuthenticationKind.MutualTls)
+        {
+            return null;
         }
 
-        var token = Environment.GetEnvironmentVariable(variable);
-        if (string.IsNullOrWhiteSpace(token))
+        var certificateValue = await secrets.ResolveAsync(
+                authentication.ClientCertificateSecretReference
+                ?? throw new InvalidOperationException("mTLS authentication requires a certificate secret reference."),
+                context.TenantSlug,
+                context.CatalogName,
+                destinationHost,
+                cancellationToken)
+            .ConfigureAwait(false);
+        string? password = null;
+        if (authentication.CertificatePasswordSecretReference is { } passwordReference)
         {
-            throw new InvalidOperationException(
-                $"Connector credential environment variable '{variable}' is not available on this worker node.");
+            password = await secrets.ResolveAsync(
+                    passwordReference,
+                    context.TenantSlug,
+                    context.CatalogName,
+                    destinationHost,
+                    cancellationToken)
+                .ConfigureAwait(false);
         }
 
-        headers.Authorization = new AuthenticationHeaderValue("Bearer", token.Trim());
+        var certificateBytes = Convert.FromBase64String(certificateValue);
+        var certificate = X509CertificateLoader.LoadPkcs12(certificateBytes, password);
+        var handler = OutboundConnection.CreateHandler(approvedAddress);
+        handler.SslOptions.ClientCertificates = new X509CertificateCollection { certificate };
+        return new HttpClient(handler, disposeHandler: true) { Timeout = Timeout.InfiniteTimeSpan };
     }
 }
 

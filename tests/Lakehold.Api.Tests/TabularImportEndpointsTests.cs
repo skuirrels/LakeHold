@@ -23,6 +23,7 @@ public sealed class TabularImportEndpointsTests : IAsyncLifetime
         Path.GetTempPath(), "lakehold-csv-api-tests", Guid.NewGuid().ToString("N"));
     private ControlPlaneContext _context = null!;
     private DucklingPool _pool = null!;
+    private LakehouseService _lakehouse = null!;
     private TabularScratchSpace _scratch = null!;
     private TabularUploadService _uploads = null!;
 
@@ -43,7 +44,7 @@ public sealed class TabularImportEndpointsTests : IAsyncLifetime
         await _context.Database.EnsureCreatedAsync();
 
         _pool = new DucklingPool(lakehouseOptions, NullLoggerFactory.Instance);
-        var lakehouse = new LakehouseService(_context, _pool, lakehouseOptions);
+        _lakehouse = new LakehouseService(_context, _pool, lakehouseOptions);
         var uploadOptions = Options.Create(new CsvUploadOptions
         {
             MaxBytes = 1024 * 1024,
@@ -52,7 +53,7 @@ public sealed class TabularImportEndpointsTests : IAsyncLifetime
             ScratchRoot = Path.Combine(_root, "scratch"),
         });
         _scratch = new TabularScratchSpace(uploadOptions, TimeProvider.System);
-        _uploads = new TabularUploadService(lakehouse, uploadOptions, _scratch);
+        _uploads = new TabularUploadService(_lakehouse, uploadOptions, _scratch);
 
         await AdminEndpoints.CreateTenantAsync(
             new CreateTenantRequest("acme", "Acme"), _context, TimeProvider.System, default);
@@ -65,6 +66,34 @@ public sealed class TabularImportEndpointsTests : IAsyncLifetime
         catalog.MetadataSchema = null;
         catalog.MetadataSecretName = null;
         await _context.SaveChangesAsync();
+    }
+
+    [Fact]
+    public async Task Connector_upsert_audit_describes_the_executed_delete_and_insert()
+    {
+        var delta = Path.Combine(_root, "connector-delta.ndjson");
+        await File.WriteAllTextAsync(delta, "{\"id\":1,\"name\":\"one\"}\n");
+
+        await _lakehouse.UpsertJsonDeltaAsync(
+            "acme",
+            "analytics",
+            "orders",
+            73,
+            delta,
+            "main",
+            "connector_orders",
+            targetProvisioned: false,
+            ["id"],
+            new JsonSnapshotQualityPolicy(1, ["id", "name"], ["id"]),
+            DataConnectorSchemaBehavior.Reject,
+            default);
+
+        var audit = await _context.QueryRuns.SingleAsync();
+        Assert.True(audit.Succeeded);
+        Assert.Contains("DELETE FROM", audit.Sql, StringComparison.Ordinal);
+        Assert.Contains("INSERT INTO", audit.Sql, StringComparison.Ordinal);
+        Assert.DoesNotContain("MERGE", audit.Sql, StringComparison.Ordinal);
+        Assert.DoesNotContain(delta, audit.Sql, StringComparison.Ordinal);
     }
 
     public async Task DisposeAsync()

@@ -40,7 +40,7 @@ simpler story than the product site.
 | Time travel | Yes — query your data from an earlier point in time | Yes | No first-class equivalent | Yes, mature |
 | Verified, signed export | One call — row-count attested and signed | Manual export; nothing attests it | Manual export | Manual unload; nothing attests it |
 | Change data capture | Built in — typed feed + signed webhooks | Limited; not exposed directly | Kafka engine or external tooling | Yes — CDF / streams, mature |
-| Managed ingestion | REST/gRPC full snapshots implemented; incremental adapter library pending | Managed and partner connectors | Broad integrations and managed ClickPipes | Extensive first-party and partner connectors |
+| Managed ingestion | REST/gRPC plus PostgreSQL/HubSpot incremental adapters shipped in v1.3.0; broad catalogue pending | Managed and partner connectors | Broad integrations and managed ClickPipes | Extensive first-party and partner connectors |
 | AI / MCP | Authenticated MCP; read tools + operator-gated writes | Managed MCP with sandboxed compute | Open-source and managed remote MCP | Managed AI and agent platforms with MCP |
 | BI tools (Power BI, Tableau) | Postgres wire protocol; Power BI blocked on type loading | Postgres endpoint; connector for older tools | Native connectors and JDBC/ODBC | First-class connectors everywhere |
 | Maintenance control | Explicit, dry-run by default | Automatic, not exposed | Explicit merges and TTLs | Automatic, partly exposed |
@@ -777,13 +777,15 @@ atomic dry-run/confirm table-data restore that preserves the current table defin
 operations (flush, compact, expire, cleanup — destructive ones
 dry-run by default, with explicit confirmation), scheduled maintenance with multi-node leasing,
 catalog backup and restore for both local-file and PostgreSQL metadata, **verified and signed eject
-bundles**, **CDC via a typed pull API and signed outbound webhooks**, an initial managed REST and gRPC
-full-snapshot connector foundation with fenced publication, target ownership, quality gates, and
-retained run lineage, a PostgreSQL wire endpoint for
+bundles**, **CDC via a typed pull API and signed outbound webhooks**, a managed connector platform
+with REST/gRPC full snapshots, PostgreSQL/HubSpot incremental adapters, commit-fenced checkpoints,
+replay-safe upsert, retries/dead letters, schema contracts, external secret references, quality
+gates, and retained run lineage, a PostgreSQL wire endpoint for
 `psql`, DBeaver, and Npgsql (Power BI still needs the type-catalogue shim), read-only cross-catalog
 attach, tenant-scoped credentials and audit, and demo seeding.
 
-The connector API and its deliberately narrow first contract are documented in
+The connector API, versioned source SDK, security model, and deliberately narrow four-adapter
+catalogue are documented in
 [`docs/CONNECTORS.md`](docs/CONNECTORS.md). The remaining ingestion, governance, semantic, and BI
 work needed for the broader Enterprise Data Platform position is tracked in the
 [`Enterprise Data Platform roadmap`](docs/ENTERPRISE-DATA-PLATFORM-ROADMAP.md).

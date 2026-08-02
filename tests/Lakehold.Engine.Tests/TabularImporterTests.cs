@@ -415,6 +415,189 @@ public sealed class TabularImporterTests : IAsyncLifetime
         Assert.Equal("unmanaged", row[1]);
     }
 
+    [Fact]
+    public async Task First_full_snapshot_replay_still_enforces_schema_policy()
+    {
+        var initial = Path.Combine(_root, "full-replay-initial.ndjson");
+        await File.WriteAllTextAsync(initial, "{\"id\":1,\"name\":\"kept\"}\n");
+        const string marker = "lakehold.connector:72";
+        await JsonSnapshotImporter.ReplaceAsync(
+            _duckling,
+            initial,
+            "main",
+            "full_snapshot_replay",
+            replaceExistingTarget: false,
+            new JsonSnapshotQualityPolicy(1, ["id", "name"], ["id"]),
+            DataConnectorSchemaBehavior.Reject,
+            marker,
+            default);
+
+        var evolvedReplay = Path.Combine(_root, "full-replay-evolved.ndjson");
+        await File.WriteAllTextAsync(
+            evolvedReplay,
+            "{\"id\":2,\"name\":\"replacement\",\"unexpected\":true}\n");
+        var failure = await Assert.ThrowsAsync<JsonSnapshotQualityException>(() =>
+            JsonSnapshotImporter.ReplaceAsync(
+                _duckling,
+                evolvedReplay,
+                "main",
+                "full_snapshot_replay",
+                replaceExistingTarget: false,
+                new JsonSnapshotQualityPolicy(1, ["id", "name"], ["id"]),
+                DataConnectorSchemaBehavior.Reject,
+                marker,
+                default));
+
+        Assert.Contains("adds columns", failure.Message, StringComparison.Ordinal);
+        var row = Assert.Single((await Sql("SELECT id, name FROM full_snapshot_replay")).Rows);
+        Assert.Equal(1L, row[0]);
+        Assert.Equal("kept", row[1]);
+    }
+
+    [Fact]
+    public async Task Incremental_connector_replay_upserts_by_key_without_duplicates()
+    {
+        var firstDelta = Path.Combine(_root, "incremental-first.ndjson");
+        await File.WriteAllTextAsync(firstDelta, "{\"id\":1,\"name\":\"first\"}\n");
+        await JsonSnapshotImporter.UpsertAsync(
+            _duckling,
+            firstDelta,
+            "main",
+            "incremental_customers",
+            targetProvisioned: false,
+            ["id"],
+            new JsonSnapshotQualityPolicy(0, ["id", "name"], ["id"]),
+            DataConnectorSchemaBehavior.Reject,
+            default);
+
+        var duplicateDelta = Path.Combine(_root, "incremental-duplicate.ndjson");
+        await File.WriteAllTextAsync(
+            duplicateDelta,
+            "{\"id\":3,\"name\":\"duplicate-a\"}\n{\"id\":3,\"name\":\"duplicate-b\"}\n");
+        var duplicateFailure = await Assert.ThrowsAsync<JsonSnapshotQualityException>(() =>
+            JsonSnapshotImporter.UpsertAsync(
+                _duckling,
+                duplicateDelta,
+                "main",
+                "incremental_customers",
+                targetProvisioned: true,
+                ["id"],
+                new JsonSnapshotQualityPolicy(0, ["id", "name"], ["id"]),
+                DataConnectorSchemaBehavior.Reject,
+                default));
+        Assert.Contains("duplicate incremental keys", duplicateFailure.Message, StringComparison.Ordinal);
+
+        var replayedDelta = Path.Combine(_root, "incremental-replay.ndjson");
+        await File.WriteAllTextAsync(
+            replayedDelta,
+            "{\"id\":1,\"name\":\"updated\"}\n{\"id\":2,\"name\":\"second\"}\n");
+        await JsonSnapshotImporter.UpsertAsync(
+            _duckling,
+            replayedDelta,
+            "main",
+            "incremental_customers",
+            targetProvisioned: true,
+            ["id"],
+            new JsonSnapshotQualityPolicy(0, ["id", "name"], ["id"]),
+            DataConnectorSchemaBehavior.Reject,
+            default);
+        await JsonSnapshotImporter.UpsertAsync(
+            _duckling,
+            replayedDelta,
+            "main",
+            "incremental_customers",
+            targetProvisioned: true,
+            ["id"],
+            new JsonSnapshotQualityPolicy(0, ["id", "name"], ["id"]),
+            DataConnectorSchemaBehavior.Reject,
+            default);
+
+        var rows = await Sql("SELECT id, name FROM incremental_customers ORDER BY id");
+        Assert.Equal(2, rows.Rows.Count);
+        Assert.Equal("updated", rows.Rows[0][1]);
+        Assert.Equal("second", rows.Rows[1][1]);
+    }
+
+    [Fact]
+    public async Task First_incremental_publication_replay_recognizes_its_durable_ownership_marker()
+    {
+        var delta = Path.Combine(_root, "incremental-first-replay.ndjson");
+        await File.WriteAllTextAsync(delta, "{\"id\":1,\"name\":\"first\"}\n");
+        const string marker = "lakehold.connector:71";
+        await JsonSnapshotImporter.UpsertAsync(
+            _duckling,
+            delta,
+            "main",
+            "incremental_first_replay",
+            targetProvisioned: false,
+            ["id"],
+            new JsonSnapshotQualityPolicy(0, ["id", "name"], ["id"]),
+            DataConnectorSchemaBehavior.Reject,
+            marker,
+            default);
+
+        await JsonSnapshotImporter.UpsertAsync(
+            _duckling,
+            delta,
+            "main",
+            "incremental_first_replay",
+            targetProvisioned: false,
+            ["id"],
+            new JsonSnapshotQualityPolicy(0, ["id", "name"], ["id"]),
+            DataConnectorSchemaBehavior.Reject,
+            marker,
+            default);
+
+        Assert.Single((await Sql("SELECT id FROM incremental_first_replay")).Rows);
+    }
+
+    [Fact]
+    public async Task Incremental_schema_policy_rejects_or_applies_only_additive_columns()
+    {
+        var initial = Path.Combine(_root, "schema-initial.ndjson");
+        await File.WriteAllTextAsync(initial, "{\"id\":1,\"name\":\"first\"}\n");
+        await JsonSnapshotImporter.UpsertAsync(
+            _duckling,
+            initial,
+            "main",
+            "schema_customers",
+            targetProvisioned: false,
+            ["id"],
+            new JsonSnapshotQualityPolicy(0, ["id"], ["id"]),
+            DataConnectorSchemaBehavior.Reject,
+            default);
+
+        var evolved = Path.Combine(_root, "schema-evolved.ndjson");
+        await File.WriteAllTextAsync(evolved, "{\"id\":2,\"name\":\"second\",\"region\":\"eu\"}\n");
+        var rejected = await Assert.ThrowsAsync<JsonSnapshotQualityException>(() =>
+            JsonSnapshotImporter.UpsertAsync(
+                _duckling,
+                evolved,
+                "main",
+                "schema_customers",
+                targetProvisioned: true,
+                ["id"],
+                new JsonSnapshotQualityPolicy(0, ["id"], ["id"]),
+                DataConnectorSchemaBehavior.Reject,
+                default));
+        Assert.Contains("adds columns", rejected.Message, StringComparison.Ordinal);
+
+        await JsonSnapshotImporter.UpsertAsync(
+            _duckling,
+            evolved,
+            "main",
+            "schema_customers",
+            targetProvisioned: true,
+            ["id"],
+            new JsonSnapshotQualityPolicy(0, ["id"], ["id"]),
+            DataConnectorSchemaBehavior.Additive,
+            default);
+        var rows = await Sql("SELECT id, name, region FROM schema_customers ORDER BY id");
+        Assert.Equal(2, rows.Rows.Count);
+        Assert.Null(rows.Rows[0][2]);
+        Assert.Equal("eu", rows.Rows[1][2]);
+    }
+
     private Task<QueryResult> Sql(string sql)
         => _duckling.ExecuteQueryAsync(sql, CancellationToken.None);
 }

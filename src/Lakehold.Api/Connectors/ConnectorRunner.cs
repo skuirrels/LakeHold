@@ -67,6 +67,8 @@ internal sealed class ConnectorRunner(
         var startedAt = Stopwatch.GetTimestamp();
         var rowsRead = 0L;
         string? sourceVersion = null;
+        string? proposedCheckpoint = null;
+        string? replayKey = null;
         JsonSnapshotImportResult? published = null;
         ConnectorSnapshotFile? snapshot = null;
         bool? qualityPassed = null;
@@ -84,11 +86,22 @@ internal sealed class ConnectorRunner(
                     connector.Name,
                     failureType)).ConfigureAwait(false);
             snapshot = ownedSnapshot;
-            var source = sources.Resolve(connector.Kind);
-            var sourceResult = await source.ReadAsync(connector, snapshot, cancellationToken).ConfigureAwait(false);
-            rowsRead = sourceResult.RowsRead;
+            snapshot.ConfigureMappings(connector.FieldMappings());
+            var source = sources.Resolve(connector);
+            var sourceResult = await source.ReadAsync(
+                    new ConnectorReadContext(
+                        connector,
+                        connector.Checkpoint,
+                        connector.Tenant.Slug,
+                        connector.Catalog.Name),
+                    snapshot,
+                    cancellationToken)
+                .ConfigureAwait(false);
+            rowsRead = snapshot.Rows;
             sourceVersion = sourceResult.SourceVersion;
-            if (rowsRead == 0)
+            proposedCheckpoint = sourceResult.ProposedCheckpoint;
+            replayKey = sourceResult.ReplayKey;
+            if (rowsRead == 0 && connector.ReadMode == DataConnectorReadMode.FullSnapshot)
             {
                 throw new JsonSnapshotQualityException(
                     "The connector returned no records, so LakeHold could not infer a replacement schema.");
@@ -102,37 +115,62 @@ internal sealed class ConnectorRunner(
                 .ConfigureAwait(false)
                 ?? throw new DataConnectorLeaseLostException(
                     "The connector lease expired before publication could begin.");
-            published = await lakehouse.ReplaceJsonSnapshotAsync(
-                    connector.Tenant.Slug,
-                    connector.Catalog.Name,
-                    connector.Name,
-                    snapshot.Path,
-                    connector.TargetSchema,
-                    connector.TargetTable,
-                    connector.TargetProvisioned,
-                    new JsonSnapshotQualityPolicy(
-                        connector.MinimumRows,
-                        connector.RequiredColumns(),
-                        connector.NotNullColumns()),
-                    cancellationToken)
-                .ConfigureAwait(false);
+            if (rowsRead > 0)
+            {
+                var quality = new JsonSnapshotQualityPolicy(
+                    connector.MinimumRows,
+                    connector.RequiredColumns(),
+                    connector.NotNullColumns());
+                var schemaBehavior = (DataConnectorSchemaBehavior)(int)connector.SchemaPolicy;
+                published = connector.ReadMode == DataConnectorReadMode.Incremental
+                    ? await lakehouse.UpsertJsonDeltaAsync(
+                            connector.Tenant.Slug,
+                            connector.Catalog.Name,
+                            connector.Name,
+                            connector.Id,
+                            snapshot.Path,
+                            connector.TargetSchema,
+                            connector.TargetTable,
+                            connector.TargetProvisioned,
+                            connector.KeyColumns(),
+                            quality,
+                            schemaBehavior,
+                            cancellationToken)
+                        .ConfigureAwait(false)
+                    : await lakehouse.ReplaceJsonSnapshotAsync(
+                            connector.Tenant.Slug,
+                            connector.Catalog.Name,
+                            connector.Name,
+                            connector.Id,
+                            snapshot.Path,
+                            connector.TargetSchema,
+                            connector.TargetTable,
+                            connector.TargetProvisioned,
+                            quality,
+                            schemaBehavior,
+                            cancellationToken)
+                        .ConfigureAwait(false);
+            }
             qualityPassed = true;
 
             await publicationFence.CompleteAsync(
                     DateTimeOffset.UtcNow,
                     rowsRead,
-                    published.RowsPublished,
+                    published?.RowsPublished ?? 0,
                     sourceVersion,
+                    proposedCheckpoint,
+                    replayKey,
+                    targetPublished: published is not null,
                     CancellationToken.None)
                 .ConfigureAwait(false);
 
             RecordMetrics(connector, startedAt, LakeholdTelemetry.OutcomeSuccess, rowsRead);
-            activity?.SetTag(LakeholdTelemetry.RowsKey, published.RowsPublished);
+            activity?.SetTag(LakeholdTelemetry.RowsKey, published?.RowsPublished ?? 0);
             return new ConnectorExecutionResult(
                 claim.RunId,
                 "succeeded",
                 rowsRead,
-                published.RowsPublished,
+                published?.RowsPublished ?? 0,
                 sourceVersion,
                 null);
         }
@@ -170,7 +208,9 @@ internal sealed class ConnectorRunner(
                             sourceVersion,
                             qualityPassed,
                             error,
-                            CancellationToken.None)
+                            CancellationToken.None,
+                            proposedCheckpoint,
+                            replayKey)
                         .ConfigureAwait(false);
                 }
                 catch (DataConnectorLeaseLostException)
@@ -219,7 +259,9 @@ internal sealed class ConnectorRunner(
                             sourceVersion,
                             qualityPassed,
                             error,
-                            CancellationToken.None)
+                            CancellationToken.None,
+                            proposedCheckpoint,
+                            replayKey)
                         .ConfigureAwait(false);
                 }
                 catch (DataConnectorLeaseLostException)

@@ -205,20 +205,28 @@ export const compareCapabilities: readonly CompareCapability[] = [
   },
   {
     dimension: 'Managed ingestion',
-    claim: 'REST/gRPC full snapshots implemented; incremental adapter library pending',
+    claim:
+      'REST/gRPC plus PostgreSQL/HubSpot incremental adapters shipped in v1.3.0; broad catalogue pending',
     tone: 'neutral',
     evidence: [
       {
         lane: 'backend',
         path: 'tests/Lakehold.Api.Tests/DataConnectorTransportIntegrationTests.cs',
-        marker: 'Grpc_contract_streams_records_and_bearer_metadata_over_real_http2',
-        proves: 'Real REST and gRPC transports exercise the implemented full-snapshot contract.',
+        marker: 'PostgreSql_adapter_reads_only_rows_after_the_typed_checkpoint',
+        proves:
+          'A real PostgreSQL source verifies typed incremental cursor reads against the repository test database.',
+      },
+      {
+        lane: 'backend',
+        path: 'tests/Lakehold.Api.Tests/DataConnectorTransportIntegrationTests.cs',
+        marker: 'HubSpot_adapter_renews_oauth_and_returns_incremental_checkpoint',
+        proves: 'The HubSpot adapter renews OAuth credentials and proposes a durable checkpoint.',
       },
       {
         lane: 'declared-boundary',
-        path: 'docs/ENTERPRISE-DATA-PLATFORM-ROADMAP.md',
-        marker: 'Versioned adapter manifest and SDK',
-        proves: 'The incremental adapter platform remains explicitly uncompleted.',
+        path: 'docs/CONNECTORS.md',
+        marker: 'not a Fivetran-sized connector',
+        proves: 'The built-in catalogue remains explicitly limited to four adapters.',
       },
     ],
   },

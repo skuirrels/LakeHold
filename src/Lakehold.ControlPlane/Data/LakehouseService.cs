@@ -238,11 +238,13 @@ public sealed class LakehouseService(
         string tenantSlug,
         string catalogName,
         string connectorName,
+        int connectorId,
         string filePath,
         string schema,
         string table,
         bool replaceExistingTarget,
         JsonSnapshotQualityPolicy quality,
+        DataConnectorSchemaBehavior schemaBehavior,
         CancellationToken cancellationToken)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(connectorName);
@@ -275,6 +277,84 @@ public sealed class LakehouseService(
                     validatedTable,
                     replaceExistingTarget,
                     quality,
+                    schemaBehavior,
+                    $"lakehold.connector:{connectorId}",
+                    cancellationToken)
+                .ConfigureAwait(false);
+            run.Succeeded = true;
+            run.RowCount = (int)Math.Min(result.RowsPublished, int.MaxValue);
+            run.ElapsedMilliseconds = result.Elapsed.TotalMilliseconds;
+            RecordQuery(activity, startedAt, LakeholdTelemetry.OutcomeSuccess);
+            activity?.SetTag(LakeholdTelemetry.RowsKey, result.RowsPublished);
+            LakeholdTelemetry.QueryRows.Record(result.RowsPublished);
+            return result;
+        }
+        catch (Exception ex)
+        {
+            run.Succeeded = false;
+            run.Error = ex.Message;
+            RecordQuery(activity, startedAt, LakeholdTelemetry.OutcomeError);
+            activity?.AddException(ex);
+            activity?.SetStatus(ActivityStatusCode.Error);
+            throw;
+        }
+        finally
+        {
+            await SaveQueryRunAsync(run).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>Atomically applies a connector delta by key so a replay cannot duplicate rows.</summary>
+    public async Task<JsonSnapshotImportResult> UpsertJsonDeltaAsync(
+        string tenantSlug,
+        string catalogName,
+        string connectorName,
+        int connectorId,
+        string filePath,
+        string schema,
+        string table,
+        bool targetProvisioned,
+        IReadOnlyList<string> keyColumns,
+        JsonSnapshotQualityPolicy quality,
+        DataConnectorSchemaBehavior schemaBehavior,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(connectorName);
+        var validatedSchema = SqlIdentifier.Quote(schema);
+        var validatedTable = SqlIdentifier.Quote(table);
+        using var activity = LakeholdTelemetry.Source.StartActivity("lakehold.connector.publish");
+        activity?.SetTag(LakeholdTelemetry.TenantKey, tenantSlug);
+        activity?.SetTag(LakeholdTelemetry.CatalogKey, catalogName);
+        activity?.SetTag("lakehold.connector.name", connectorName);
+        activity?.SetTag("lakehold.connector.mode", "incremental");
+        var startedAt = TimeProvider.System.GetTimestamp();
+        var (duckling, tenantId) = await ResolveAsync(tenantSlug, catalogName, cancellationToken)
+            .ConfigureAwait(false);
+        var run = new QueryRun
+        {
+            TenantId = tenantId,
+            CatalogName = catalogName,
+            Sql = $"-- Managed connector keyed upsert: {connectorName}\n"
+                  + $"DELETE FROM {SqlIdentifier.QuoteName(validatedSchema)}."
+                  + $"{SqlIdentifier.QuoteName(validatedTable)} USING '<connector delta>' "
+                  + "WHERE <declared key match>;\n"
+                  + $"INSERT INTO {SqlIdentifier.QuoteName(validatedSchema)}."
+                  + $"{SqlIdentifier.QuoteName(validatedTable)} BY NAME SELECT * FROM '<connector delta>';",
+            StartedUtc = DateTimeOffset.UtcNow,
+        };
+
+        try
+        {
+            var result = await JsonSnapshotImporter.UpsertAsync(
+                    duckling,
+                    filePath,
+                    validatedSchema,
+                    validatedTable,
+                    targetProvisioned,
+                    keyColumns,
+                    quality,
+                    schemaBehavior,
+                    $"lakehold.connector:{connectorId}",
                     cancellationToken)
                 .ConfigureAwait(false);
             run.Succeeded = true;
