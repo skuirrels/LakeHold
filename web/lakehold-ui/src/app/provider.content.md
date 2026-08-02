@@ -3,6 +3,8 @@
 A practical guide to native DuckDB persistence, DuckLake catalogs, high-throughput writes,
 open-format analytics, and managed hot-to-cold data lifecycles — for EF Core 10 on .NET 10.
 
+This page documents provider **1.17.0**.
+
 This is the provider LakeHold's own data plane runs on. What LakeHold's engine exercises in
 production is documented here as the public contract.
 
@@ -19,6 +21,7 @@ embedded analytics, local persistence, open-format data access, or a shared Duck
 | High-speed ingestion | Appender-backed `BulkInsert`, primary-key `Upsert`, plus opt-in batching for tracked writes. |
 | Open-format analytics | Query Parquet, CSV, and JSON as mapped entities. Export translated, parameterised LINQ directly to Parquet. |
 | Ad-hoc analytics | Stream dynamic SQL results with runtime DuckDB/CLR column metadata and stable nested values. |
+| Query tooling | Capture non-executing LINQ command plans, replay exact named parameters, and inspect store-type support without private EF hooks. |
 | Lakehouse operations | Query DuckLake history, inspect snapshots, add commit metadata, run typed maintenance, attach local or named-secret reference catalogs, and scaffold local metadata. |
 | Managed data lifecycle | Archive relational aggregates to partitioned Parquet, reconcile changes, restore selections, and compact immutable generations. |
 | Observability | Use EF Core logging and diagnostics for bounded provider-owned bulk, export, tier, extension, and attachment operations. |
@@ -165,6 +168,43 @@ var revenue = await db.InvoiceLines
     .OrderByDescending(row => row.Revenue)
     .ToListAsync();
 ```
+
+---
+
+## Query command plans
+
+Provider 1.17.0 exposes an application-independent compiler/tooling boundary. It translates a
+single-command `IQueryable<T>` or supported terminal operator without opening the connection, and
+returns the exact DuckDB command text plus immutable parameter metadata and values.
+
+```csharp
+var query = db.Invoices
+    .Where(invoice => invoice.IssuedOn >= start)
+    .Select(invoice => new { invoice.Region, invoice.Total });
+
+var plan = db.Database.GetDuckDBCommandPlan(query);
+
+await using var result = await db.Database.SqlQueryDynamicCommandAsync(
+    plan,
+    cancellationToken);
+```
+
+Dedicated extractors cover `Count`, `LongCount`, `Any`, `Min`, `Max`, `Sum`, and `Average`.
+Predicates and selectors are composed before extraction; numeric `Sum` and `Average` use a supported
+numeric or nullable numeric projection. Split/multi-command queries fail explicitly. A replayed
+aggregate exposes DuckDB's database value without EF's client-side empty-sequence result shaping.
+
+`SqlQueryDynamicCommandAsync(sql, parameters, ...)` also executes existing named ADO.NET commands
+without rewriting SQL braces or mutating caller-owned parameters. Dynamic schema tools can call
+`GetDuckDBStoreTypeMapping(storeType)` to distinguish scalar EF properties, `STRUCT` complex
+properties, raw-reader-only types, and unsupported types instead of maintaining a duplicate map.
+
+These APIs translate and replay; they do not sandbox authored code or authorize a query. A hosting
+tool still owns its source policy, schema/model generation, tenant credentials, read-only SQL
+validation, execution limits, and audit. LakeHold's optional isolated C# LINQ Workbench planner is a
+real consumer of this contract. See the
+[full provider guide](https://github.com/skuirrels/DuckDB.EFCoreProvider/blob/main/docs/QUERY-COMMAND-PLANS.md)
+and the [LakeHold integration guide](/docs/linq-workbench).
 
 ---
 

@@ -73,6 +73,7 @@ cleanup, or restore.
 | Tenant, catalog, and token provisioning           |                 Yes |                            API test host |                       First-run component |
 | Authentication, role policy, and tenant isolation |                 Yes |   Read-only Duckling and PostgreSQL wire | Credential and anonymous request boundary |
 | SQL execution, result types, row limits, errors   |                 Yes |                     Live DuckDB/DuckLake |                Run, render, fail, recover |
+| Optional C# LINQ planning and replay              | Compiler policy/provider plans | Live DuckDB/DuckLake with isolated planner | Discover, complete, diagnose, run, save, unplug |
 | Catalog schemas and table discovery               |                 Yes |                             Live catalog |                   Filter, insert SQL, run |
 | Query history                                     |                 Yes |                            API test host |                       Replay a live query |
 | Data history, snapshot drill-down, and time travel |                 Yes |                            Live DuckLake | Browse, compare, plan/confirm restore |

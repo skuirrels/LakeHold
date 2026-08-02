@@ -76,8 +76,8 @@ import { BrandMarkComponent } from './brand-mark.component';
       <section class="whatsnew">
         <h2 class="section-title">Recently shipped</h2>
         <p class="section-sub">
-          July 2026 — proving it. Leaving is now a tested, attested operation, and the change feed
-          DuckLake keeps for free is something you can subscribe to.
+          August 2026 — the Workbench now speaks optional C# LINQ through an isolated provider-backed
+          planner, while SQL remains built in and independently deployable.
         </p>
 
         <ol class="changelog">
@@ -197,6 +197,13 @@ export class LandingComponent {
    * is an announcement; the limits are the part an operator actually needs before they rely on it.
    */
   protected readonly changelog = [
+    {
+      tag: 'Workbench',
+      title: 'C# LINQ, isolated and optional',
+      body: 'Choose SQL or C# LINQ in the same CodeMirror editor, with catalog-aware completion, line diagnostics, generated parameterized SQL, separate language buffers, history, and language-preserving saved queries. The compiler receives source and schema only; the credential-owning API validates and executes its plan through the same catalog, authorization, limit, telemetry, and audit path as SQL.',
+      caveat:
+        'The Compose linq profile is opt-in. It accepts one side-effect-free expression and supports queryables plus Count, LongCount, Any, Min, Max, Sum, and Average — not arbitrary LINQPad scripts. Native types without an EF property mapping remain available through SQL.',
+    },
     {
       tag: 'Security',
       title: 'Authentication and tenant identity',

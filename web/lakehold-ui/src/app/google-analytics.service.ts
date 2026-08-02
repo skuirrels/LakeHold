@@ -6,7 +6,14 @@ const ANALYTICS_CONFIG_URL = '/analytics-config.json';
 const ANALYTICS_SCRIPT_ID = 'lakehold-google-analytics';
 const MEASUREMENT_ID_PATTERN = /^G-[A-Z0-9]+$/;
 
-const WEBSITE_PATHS = new Set(['/', '/compare', '/docs', '/provider', '/provider/docs']);
+const WEBSITE_PATHS = new Set([
+  '/',
+  '/compare',
+  '/docs',
+  '/docs/linq-workbench',
+  '/provider',
+  '/provider/docs',
+]);
 
 interface AnalyticsConfig {
   readonly measurementId?: unknown;

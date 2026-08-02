@@ -42,6 +42,16 @@ The website is served at http://localhost:5399; the API is on `:5200`.
 docker compose up
 ```
 
+SQL is always available. Add the isolated C# LINQ planner with a Compose profile:
+
+```bash
+docker compose --profile linq up
+```
+
+Removing the profile returns the same installation to SQL-only operation. Production deployments
+must supply `LAKEHOLD_LINQ_PLANNER_KEY`; see the
+[complete LINQ Workbench guide](https://lakehold.dev/docs/linq-workbench).
+
 **Or — app on the host.** Start only the backing services in Docker, then run the two app processes
 yourself. This is the faster inner loop for development.
 
@@ -79,7 +89,7 @@ requires a credential.
 
 | Tool                  | What it is                                                                                                                                                                                                                                                                            | Best for                                                              |
 | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
-| **The workbench**     | A browser SQL IDE for exploring a catalog, running statements, browsing history and snapshots, and triggering maintenance. Ships seeded.                                                                                                                                              | Exploration and operations.                                           |
+| **The workbench**     | A browser query IDE with built-in SQL and an optional isolated C# LINQ planner, catalog-aware completion, generated SQL, diagnostics, history, snapshots, and maintenance. Ships seeded.                                                                                               | Exploration, authoring, and operations.                                |
 | **A Postgres client** | LakeHold speaks the PostgreSQL wire protocol, so `psql`, DBeaver, or Npgsql connect to a catalog with no driver or plugin. The user is the tenant and the database is the catalog.                                                                                                    | Existing SQL clients and streamed results.                            |
 | **.NET & EF Core**    | Through `DuckDB.EFCoreProvider` your application model and your lake tables are one model.                                                                                                                                                                                            | .NET applications on the same schema.                                 |
 | **The HTTP API**      | Minimal-API endpoints for queries, schemas, history, snapshots, maintenance, eject, backup/restore, and change-feed subscriptions.                                                                                                                                                    | Automation and integration.                                           |
@@ -90,7 +100,8 @@ requires a credential.
 ## The workbench, feature by feature
 
 The browser workbench is the fastest way to explore a catalog and run maintenance. It is laid out top
-to bottom: a workspace and catalog picker, a schema explorer on the left, a SQL editor, and a tabbed
+to bottom: a workspace and catalog picker, a schema explorer on the left, a language-aware editor,
+and a tabbed
 output pane below it with eight panels — **Results**, **Query history**, **Data history**, **Storage**,
 **Changes**, **Backups**, **Eject**, and **Schedule**.
 
@@ -107,9 +118,10 @@ the editor, so you can build a query without retyping identifiers.
 
 ### Saved queries and published views — _left sidebar → Saved queries_
 
-Save one `SELECT`, query-producing `WITH`, or `VALUES` statement with a name and description. DuckDB's
-own parser rejects `WITH`-prefixed inserts, updates, and deletes before they are saved. A saved query
-belongs to the selected catalog, so another catalog may reuse its name; it carries an optimistic
+Save authored SQL or C# LINQ with its language, name, and description. SQL definitions accept one
+`SELECT`, query-producing `WITH`, or `VALUES` statement; DuckDB's parser rejects `WITH`-prefixed
+inserts, updates, and deletes before they are saved. A saved query belongs to the selected catalog,
+so another catalog may reuse its name; it carries an optimistic
 revision and always runs through a read-only catalog attachment—even when its author is an owner.
 Readers can list, open, and run definitions; editors and owners can create, revise, publish,
 unpublish, and delete them.
@@ -120,7 +132,10 @@ silently change that external contract: the library marks the view **republish n
 editor explicitly republishes the new revision. A published definition must be unpublished before
 it can be deleted or moved to a different schema/name. Concurrent edits and publication operations
 are serialised before view DDL begins, and a failed metadata finalisation reconciles the live target
-so the next attempt remains recoverable.
+so the next attempt remains recoverable. A published LINQ definition records its translation schema
+fingerprint; a changed catalog is shown as schema drift and requires review and republish. A LINQ
+plan with bound parameters can be saved and run but cannot become a view, because DuckDB view DDL
+has no parameter-binding lifetime.
 
 ```http
 POST /api/tenants/{tenant}/catalogs/{catalog}/saved-queries
@@ -129,18 +144,28 @@ Content-Type: application/json
 {
   "name": "Revenue by country",
   "description": "Stable reporting grain",
-  "sql": "SELECT country, sum(revenue) AS revenue FROM events GROUP BY country"
+  "sql": "SELECT country, sum(revenue) AS revenue FROM events GROUP BY country",
+  "language": "sql"
 }
 ```
 
 The returned `revision` is required by update, publish, unpublish, and delete operations. A stale
 revision receives `409 Conflict` rather than overwriting another author's edit.
 
-### SQL editor — _centre pane_
+### SQL and C# LINQ editor — _centre pane_
 
-A plain, fast editor for arbitrary SQL. Press `⌘⏎` (`Ctrl+Enter`) or click **Run** to execute. Any
-DuckDB/DuckLake statement is accepted — statements it does not specifically recognise fall back to
-the ordinary streaming path rather than being refused.
+The CodeMirror editor provides syntax highlighting, indentation, search, catalog/table/column
+completion, and `⌘⏎` (`Ctrl+Enter`) execution. SQL accepts arbitrary DuckDB/DuckLake statements;
+statements LakeHold does not specifically recognise fall back to the ordinary streaming path.
+
+When the optional planner is healthy, choose **C# LINQ** from the language selector. The Workbench
+loads a catalog-aware starter and keeps a separate buffer for each language. It accepts one
+side-effect-free query expression and shows compiler diagnostics at their source positions. The
+result can be an `IQueryable` or `Count`, `LongCount`, `Any`, `Min`, `Max`, `Sum`, or `Average`.
+Generated parameterized DuckDB SQL is visible with the result. Removing or losing the planner keeps
+saved LINQ source readable but disables execution and authoring until the language returns; it is
+never relabelled as SQL. Read the [complete C# LINQ guide](https://lakehold.dev/docs/linq-workbench)
+for examples, supported types, deployment, security, API contracts, and troubleshooting.
 
 ### File import — _centre pane → Import data_
 
@@ -770,7 +795,8 @@ The design docs go deeper than this guide.
 | [`docs/EXIT-PATH.md`](https://github.com/skuirrels/LakeHold/blob/main/docs/EXIT-PATH.md)                 | The verified open-format exit procedure that eject automates.                                                  |
 | [`docs/POSTGRES-WIRE.md`](https://github.com/skuirrels/LakeHold/blob/main/docs/POSTGRES-WIRE.md)         | The wire protocol surface and what is deliberately unimplemented.                                              |
 | [`docs/AUTHENTICATION.md`](https://github.com/skuirrels/LakeHold/blob/main/docs/AUTHENTICATION.md)       | The phased plan for API authentication and tenant identity.                                                    |
-| [`docs/UI.md`](https://github.com/skuirrels/LakeHold/blob/main/docs/UI.md)                               | The web surfaces beyond the SQL IDE, and why a raw object browser is not one of them.                          |
+| [C# LINQ in the Workbench](https://lakehold.dev/docs/linq-workbench)                                    | Enablement, editor model, API contract, isolation, supported types, and troubleshooting.                       |
+| [`docs/UI.md`](https://github.com/skuirrels/LakeHold/blob/main/docs/UI.md)                               | The web surfaces around the query Workbench, and why a raw object browser is not one of them.                 |
 | [`docs/MCP.md`](https://github.com/skuirrels/LakeHold/blob/main/docs/MCP.md)                             | The MCP server, the tools an agent gets, and the ones deliberately withheld.                                   |
 | [`docs/PROVIDER-FEEDBACK.md`](https://github.com/skuirrels/LakeHold/blob/main/docs/PROVIDER-FEEDBACK.md) | Provider capabilities and why the data plane uses its dynamic API.                                             |
 | [`README.md`](https://github.com/skuirrels/LakeHold/blob/main/README.md)                                 | Build, run, and the full set of environment variables and test commands.                                       |

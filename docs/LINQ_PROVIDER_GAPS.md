@@ -5,6 +5,9 @@ command-plan, named-execution, type-inspection, and terminal-aggregate extractio
 compiler now consumes provider APIs directly instead of intercepting execution, reconstructing
 parameter placeholders, or maintaining a duplicate store-type table.
 
+The provider's public, application-independent contract is documented in its
+[query command-plan guide](https://github.com/skuirrels/DuckDB.EFCoreProvider/blob/main/docs/QUERY-COMMAND-PLANS.md).
+
 ## Adopted provider capabilities
 
 - `GetDuckDBCommandPlan(...)` extracts an exact, non-executing command for `IQueryable<T>`.

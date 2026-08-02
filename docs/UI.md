@@ -4,7 +4,7 @@ The Workbench supports SQL directly and optional, isolated query-language planne
 [C# LINQ in the Workbench](LINQ_WORKBENCH.md) for the planner contract, editor syntax, deployment,
 and security boundary.
 
-The plan for the web surfaces LakeHold needs beyond its SQL IDE — principally the **physical layer**:
+The plan for the web surfaces LakeHold needs beyond its query Workbench — principally the **physical layer**:
 how much a table weighs, how many Parquet files it is spread across, how much of it is delete-file
 overhead, and therefore whether the maintenance buttons already in the toolbar are worth pressing.
 
@@ -43,7 +43,7 @@ maintenance tooling grown up around Polaris and Nessie. The surfaces are strikin
 
 | Surface | The question it answers | Who ships it | LakeHold today |
 |---|---|---|---|
-| SQL IDE | "Run this" | Everyone | ✅ workbench |
+| SQL/LINQ Workbench | "Run this" | Everyone | ✅ SQL built in; C# LINQ optional |
 | Catalog tree | "What tables, what columns" | Everyone | ✅ `catalog-explorer` |
 | **Table detail** | "How big, how many files, partitioned how" | Databricks, Dremio, Snowflake | ✅ inspector |
 | Column profile | "What is *in* the column — nulls, distribution, min/max" | MotherDuck Column Explorer, DuckDB local UI | ✅ live profile |
@@ -384,12 +384,16 @@ The workbench keeps the chrome — selectors, maintenance buttons, credential po
 requests and panel-local failures like the other operational surfaces.
 
 Saved queries deliberately span the two architectural planes without merging them. Name,
-description, SQL, revision, and publication metadata live in `ControlPlaneContext`, bound to one
-catalog. Execution resolves the persisted definition by id and attaches that catalog read-only.
+description, language, authored source, revision, schema fingerprint, and publication metadata live
+in `ControlPlaneContext`, bound to one catalog. Execution resolves the persisted definition by id
+and attaches that catalog read-only.
 Publishing is an editor/owner operation that creates a DuckLake view with allow-listed identifiers;
 the first publish refuses an existing object, while republish can replace only the target already
-recorded for that definition. Updating SQL advances the authored revision but leaves the published
+recorded for that definition. Updating source advances the authored revision but leaves the published
 revision unchanged, making contract drift visible rather than silently changing downstream results.
+A published LINQ definition also records the schema fingerprint used for translation, so catalog
+drift is reported separately from an authored revision change. Parameterized LINQ plans cannot be
+published because a view has no parameter-binding lifetime.
 A record-wide concurrency stamp is claimed inside a control-plane transaction before view DDL, so
 publish, unpublish, edits, and deletes cannot race their durable effects. A failed metadata
 finalisation reconciles the live target before returning a conflict.

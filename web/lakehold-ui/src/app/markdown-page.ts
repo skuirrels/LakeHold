@@ -19,7 +19,7 @@ export interface MarkdownPageOptions {
   /**
    * Directory containing the source document, relative to the repository root.
    *
-   * When set, links to the four published operational documents become native site routes. Other
+   * When set, links to published repository documents become native site routes. Other
    * relative Markdown links keep working by resolving to their source on GitHub instead of becoming
    * broken paths relative to the deployed page.
    */
@@ -30,6 +30,7 @@ const repositoryDocumentUrl = 'https://github.com/skuirrels/LakeHold/blob/main';
 
 const nativeDocumentRoutes = new Map<string, string>([
   ['OPERATIONS.md', '/docs/operations'],
+  ['LINQ_WORKBENCH.md', '/docs/linq-workbench'],
   ['INCIDENT-RESPONSE.md', '/docs/incident-response'],
   ['DISASTER-RECOVERY.md', '/docs/disaster-recovery'],
   ['MONITORING-AND-ALERTING.md', '/docs/monitoring'],

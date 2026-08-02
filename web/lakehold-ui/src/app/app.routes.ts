@@ -44,6 +44,18 @@ export const routes: Routes = [
     loadComponent: () => import('./docs.component').then((m) => m.DocsComponent),
   },
   {
+    path: 'docs/linq-workbench',
+    title: 'C# LINQ Workbench — LakeHold documentation',
+    data: {
+      seo: {
+        description:
+          'Write C# LINQ in the LakeHold Workbench with an isolated DuckDB.EFCoreProvider planner, generated SQL, diagnostics, saved queries, and safe deployment.',
+      },
+    },
+    loadComponent: () =>
+      import('./linq-workbench-docs.component').then((m) => m.LinqWorkbenchDocsComponent),
+  },
+  {
     path: 'docs/operations',
     title: 'Operations — run LakeHold in production',
     data: {
@@ -95,7 +107,7 @@ export const routes: Routes = [
     data: {
       seo: {
         description:
-          'The EF Core 10 provider LakeHold runs on: native LINQ and writes on DuckDB, DuckLake catalogs with time travel, and hot-to-cold Parquet tiers on S3, GCS, or Azure.',
+          'The EF Core 10 provider LakeHold runs on: LINQ, writes, non-executing command plans, DuckLake time travel, and Parquet tiers on S3, GCS, or Azure.',
       },
     },
     loadComponent: () => import('./provider.component').then((m) => m.ProviderComponent),
@@ -106,7 +118,7 @@ export const routes: Routes = [
     data: {
       seo: {
         description:
-          'Reference documentation for DuckDB.EFCoreProvider: install and configure it, translate LINQ, pick a write path, query Parquet, and run DuckLake and tiered storage.',
+          'DuckDB.EFCoreProvider reference: configure EF Core, translate LINQ, capture command plans, query Parquet, and run DuckLake and tiered storage.',
       },
     },
     loadComponent: () => import('./provider-docs.component').then((m) => m.ProviderDocsComponent),

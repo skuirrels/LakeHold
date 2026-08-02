@@ -32,7 +32,14 @@ describe('GoogleAnalyticsService', () => {
   });
 
   it('recognises only the public website routes', () => {
-    for (const path of ['/', '/compare', '/docs', '/provider', '/provider/docs']) {
+    for (const path of [
+      '/',
+      '/compare',
+      '/docs',
+      '/docs/linq-workbench',
+      '/provider',
+      '/provider/docs',
+    ]) {
       expect(isWebsitePath(path), path).toBe(true);
     }
 
