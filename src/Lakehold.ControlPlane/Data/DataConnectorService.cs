@@ -50,14 +50,32 @@ public sealed class DataConnectorPublicationFence : IAsyncDisposable
         long rowsRead,
         long rowsPublished,
         string? sourceVersion,
+        string? proposedCheckpoint,
+        string? replayKey,
+        bool targetPublished,
         CancellationToken cancellationToken)
     {
-        _run.Succeed(now, rowsRead, rowsPublished, sourceVersion);
-        _connector.MarkCompleted(_leaseToken, now, error: null, targetPublished: true);
+        _run.Succeed(now, rowsRead, rowsPublished, sourceVersion, proposedCheckpoint, replayKey);
+        _connector.MarkSucceeded(_leaseToken, now, targetPublished, proposedCheckpoint);
         await _context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         await _transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
         _completed = true;
     }
+
+    public Task CompleteAsync(
+        DateTimeOffset now,
+        long rowsRead,
+        long rowsPublished,
+        string? sourceVersion,
+        CancellationToken cancellationToken) => CompleteAsync(
+        now,
+        rowsRead,
+        rowsPublished,
+        sourceVersion,
+        proposedCheckpoint: null,
+        replayKey: null,
+        targetPublished: true,
+        cancellationToken);
 
     public async ValueTask DisposeAsync()
     {
@@ -251,6 +269,37 @@ public sealed class DataConnectorService(ControlPlaneContext context)
         }
     }
 
+    public async Task<DataConnector> PauseAsync(
+        string tenantSlug,
+        string catalogName,
+        int id,
+        int expectedVersion,
+        DateTimeOffset now,
+        CancellationToken cancellationToken)
+    {
+        var connector = await MutableAsync(tenantSlug, catalogName, id, expectedVersion, now, cancellationToken)
+            .ConfigureAwait(false);
+        connector.Pause(now);
+        await SaveOperationalChangeAsync(connector, cancellationToken).ConfigureAwait(false);
+        return connector;
+    }
+
+    public async Task<DataConnector> ResumeAsync(
+        string tenantSlug,
+        string catalogName,
+        int id,
+        int expectedVersion,
+        bool resetFailures,
+        DateTimeOffset now,
+        CancellationToken cancellationToken)
+    {
+        var connector = await MutableAsync(tenantSlug, catalogName, id, expectedVersion, now, cancellationToken)
+            .ConfigureAwait(false);
+        connector.Resume(now, resetFailures);
+        await SaveOperationalChangeAsync(connector, cancellationToken).ConfigureAwait(false);
+        return connector;
+    }
+
     public async Task<IReadOnlyList<DataConnectorRun>> ListRunsAsync(
         string tenantSlug,
         string catalogName,
@@ -262,6 +311,24 @@ public sealed class DataConnectorService(ControlPlaneContext context)
         return await _context.DataConnectorRuns
             .AsNoTracking()
             .Where(run => run.DataConnectorId == id)
+            .OrderByDescending(run => run.StartedUtc)
+            .Take(Math.Clamp(limit, 1, 500))
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    public async Task<IReadOnlyList<DataConnectorRun>> ListRunsAsync(
+        string tenantSlug,
+        string catalogName,
+        int id,
+        DataConnectorRunStatus status,
+        int limit,
+        CancellationToken cancellationToken)
+    {
+        _ = await GetAsync(tenantSlug, catalogName, id, cancellationToken).ConfigureAwait(false);
+        return await _context.DataConnectorRuns
+            .AsNoTracking()
+            .Where(run => run.DataConnectorId == id && run.Status == status)
             .OrderByDescending(run => run.StartedUtc)
             .Take(Math.Clamp(limit, 1, 500))
             .ToListAsync(cancellationToken)
@@ -294,6 +361,7 @@ public sealed class DataConnectorService(ControlPlaneContext context)
             var candidates = _context.DataConnectors.Where(connector =>
                 connector.Id == id
                 && connector.ArchivedUtc == null
+                && connector.PausedUtc == null
                 && (connector.LeaseExpiresUtc == null || connector.LeaseExpiresUtc <= now));
             if (trigger == DataConnectorTrigger.Scheduled)
             {
@@ -327,7 +395,7 @@ public sealed class DataConnectorService(ControlPlaneContext context)
                 .ConfigureAwait(false);
 
             await CloseAbandonedRunsAsync(id, now, cancellationToken).ConfigureAwait(false);
-            var run = DataConnectorRun.Start(id, trigger, nodeId, leaseToken, now);
+            var run = DataConnectorRun.Start(id, trigger, nodeId, leaseToken, now, connector.Checkpoint);
             _context.DataConnectorRuns.Add(run);
             await _context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
             await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
@@ -347,6 +415,7 @@ public sealed class DataConnectorService(ControlPlaneContext context)
             .Where(connector =>
                 connector.Enabled
                 && connector.ArchivedUtc == null
+                && connector.PausedUtc == null
                 && connector.RefreshIntervalSeconds != null
                 && connector.NextRunUtc != null
                 && connector.NextRunUtc <= now
@@ -363,7 +432,9 @@ public sealed class DataConnectorService(ControlPlaneContext context)
         string? sourceVersion,
         bool? qualityPassed,
         string error,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        string? proposedCheckpoint = null,
+        string? replayKey = null)
     {
         ArgumentNullException.ThrowIfNull(claim);
         ArgumentException.ThrowIfNullOrWhiteSpace(error);
@@ -399,8 +470,16 @@ public sealed class DataConnectorService(ControlPlaneContext context)
                 $"Connector run '{claim.RunId}' is no longer the current execution.");
         }
 
-        run.Fail(now, rowsRead, sourceVersion, qualityPassed, error);
-        connector.MarkCompleted(claim.LeaseToken, now, error, targetPublished: false);
+        var deadLettered = connector.MarkFailed(claim.LeaseToken, now, error);
+        run.Fail(
+            now,
+            rowsRead,
+            sourceVersion,
+            qualityPassed,
+            error,
+            deadLettered,
+            proposedCheckpoint,
+            replayKey);
         await _context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
     }
@@ -465,6 +544,49 @@ public sealed class DataConnectorService(ControlPlaneContext context)
             && connector.LeaseOwner == claim.NodeId
             && connector.LeaseToken == claim.LeaseToken
             && connector.LeaseExpiresUtc > now);
+
+    private async Task<DataConnector> MutableAsync(
+        string tenantSlug,
+        string catalogName,
+        int id,
+        int expectedVersion,
+        DateTimeOffset now,
+        CancellationToken cancellationToken)
+    {
+        var connector = await Query(tenantSlug, catalogName)
+            .SingleOrDefaultAsync(item => item.Id == id, cancellationToken)
+            .ConfigureAwait(false)
+            ?? throw new CatalogNotFoundException(
+                $"Connector '{id}' was not found in catalog '{catalogName}' for tenant '{tenantSlug}'.");
+        if (connector.ConcurrencyVersion != expectedVersion)
+        {
+            throw new DataConnectorConflictException(
+                $"Connector '{connector.Name}' changed since version {expectedVersion}; reload it before updating.");
+        }
+
+        if (connector.LeaseExpiresUtc > now)
+        {
+            throw new DataConnectorConflictException(
+                $"Connector '{connector.Name}' is currently refreshing and cannot be changed.");
+        }
+
+        return connector;
+    }
+
+    private async Task SaveOperationalChangeAsync(
+        DataConnector connector,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            throw new DataConnectorConflictException(
+                $"Connector '{connector.Name}' changed while its operational state was being updated.");
+        }
+    }
 
     private static bool IsUniqueViolation(DbUpdateException exception, string constraintName) =>
         exception.InnerException is PostgresException

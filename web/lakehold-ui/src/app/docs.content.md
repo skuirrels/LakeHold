@@ -111,12 +111,12 @@ The boundaries matter:
 - **Available on main today:** open DuckLake/Parquet storage, PostgreSQL control and metadata,
   Workbench and HTTP queries, PostgreSQL wire SQL, EF Core, MCP, scoped identity, audit, time travel,
   CDC, maintenance, backup/restore, and verified eject.
-- **Implemented in source for the next release:** managed REST JSON-array/NDJSON and gRPC
-  full-snapshot connectors with schedules, quality gates, target ownership, safe egress, bounded
-  scratch space, fenced publication, telemetry, and retained run history.
-- **Not complete:** incremental checkpoints, a broad database/SaaS adapter platform, catalog search
-  and classification, end-to-end lineage, governed semantic metrics, Power BI compatibility, and
-  live open multi-engine access.
+- **Shipped in v1.3.0:** managed REST/gRPC full snapshots, PostgreSQL and
+  HubSpot incremental adapters, commit-fenced checkpoints, replay-safe upsert, retries/dead letters,
+  mappings, schema policy, external secret references, safe egress, telemetry, and retained lineage.
+- **Not complete:** a broad production-certified adapter ecosystem, catalog search and
+  classification, end-to-end lineage, governed semantic metrics, Power BI compatibility, and live
+  open multi-engine access.
 
 Read the [Enterprise Data Platform overview](https://lakehold.dev/enterprise-data-platform), the
 [managed connector guide](https://lakehold.dev/docs/connectors), and the

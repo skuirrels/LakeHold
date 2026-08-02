@@ -137,6 +137,44 @@ public enum DataConnectorKind
 {
     Rest = 0,
     Grpc = 1,
+    PostgreSql = 2,
+    HubSpot = 3,
+}
+
+/// <summary>Whether an adapter publishes a complete replacement or a checkpointed keyed delta.</summary>
+public enum DataConnectorReadMode
+{
+    FullSnapshot = 0,
+    Incremental = 1,
+}
+
+/// <summary>How publication handles a source schema that differs from the managed target.</summary>
+public enum DataConnectorSchemaPolicy
+{
+    Reject = 0,
+    Additive = 1,
+    MappedVersion = 2,
+}
+
+/// <summary>Approved authentication mechanisms understood by the connector runtime.</summary>
+public enum DataConnectorAuthenticationKind
+{
+    None = 0,
+    Bearer = 1,
+    OAuthRefreshToken = 2,
+    MutualTls = 3,
+    CustomHeader = 4,
+    PostgreSqlPassword = 5,
+}
+
+/// <summary>Bounded, declarative transformations; connector definitions never execute user code.</summary>
+public enum DataConnectorTransformKind
+{
+    None = 0,
+    Trim = 1,
+    Lowercase = 2,
+    Uppercase = 3,
+    ToString = 4,
 }
 
 /// <summary>The wire shape returned by a REST connector.</summary>
@@ -159,6 +197,7 @@ public enum DataConnectorRunStatus
     Running = 0,
     Succeeded = 1,
     Failed = 2,
+    DeadLettered = 3,
 }
 
 /// <summary>
@@ -189,6 +228,12 @@ public sealed class DataConnector
 
     public DataConnectorKind Kind { get; private set; }
 
+    public string AdapterId { get; private set; } = "lakehold.rest";
+
+    public int AdapterVersion { get; private set; } = 1;
+
+    public DataConnectorReadMode ReadMode { get; private set; }
+
     public string EndpointUrl { get; private set; } = string.Empty;
 
     /// <summary>
@@ -198,6 +243,25 @@ public sealed class DataConnector
     public string? CredentialEnvironmentVariable { get; private set; }
 
     public RestResponseFormat RestResponseFormat { get; private set; }
+
+    /// <summary>Validated non-secret adapter configuration.</summary>
+    public string SourceSettingsJson { get; private set; } = "{}";
+
+    /// <summary>Authentication mechanism and secret references only; never secret values.</summary>
+    public string AuthenticationJson { get; private set; } = "{}";
+
+    /// <summary>Validated field mappings and bounded transformation names.</summary>
+    public string FieldMappingsJson { get; private set; } = "[]";
+
+    public DataConnectorSchemaPolicy SchemaPolicy { get; private set; }
+
+    /// <summary>Columns that make incremental upsert replay idempotent.</summary>
+    public string KeyColumnsJson { get; private set; } = "[]";
+
+    /// <summary>Opaque adapter cursor committed only after DuckLake publication succeeds.</summary>
+    public string? Checkpoint { get; private set; }
+
+    public long CheckpointVersion { get; private set; }
 
     public string TargetSchema { get; private set; } = "main";
 
@@ -221,6 +285,16 @@ public sealed class DataConnector
     public DateTimeOffset? LastCompletedUtc { get; private set; }
 
     public string? LastError { get; private set; }
+
+    public int ConsecutiveFailures { get; private set; }
+
+    public int MaxAttempts { get; private set; } = 5;
+
+    public int RetryBaseSeconds { get; private set; } = 30;
+
+    public int RetryMaxSeconds { get; private set; } = 3_600;
+
+    public DateTimeOffset? PausedUtc { get; private set; }
 
     public string? LeaseOwner { get; private set; }
 
@@ -286,6 +360,23 @@ public sealed class DataConnector
                 "A connector target cannot change after its first successful publication; create a new connector instead.");
         }
 
+        if (TargetProvisioned && definition.Platform is { } platform
+            && (!string.Equals(AdapterId, platform.AdapterId, StringComparison.Ordinal)
+                || AdapterVersion != platform.AdapterVersion
+                || ReadMode != platform.ReadMode
+                || !KeyColumns().SequenceEqual(platform.KeyColumns, StringComparer.OrdinalIgnoreCase)))
+        {
+            throw new InvalidOperationException(
+                "A connector adapter, read mode, or incremental key cannot change after publication; create a new connector instead.");
+        }
+
+        if (Checkpoint is not null && definition.Platform is { } checkpointed
+            && !string.Equals(SourceSettingsJson, JsonSerializer.Serialize(checkpointed.SourceSettings), StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException(
+                "A checkpointed connector's source cursor configuration cannot change; create a new connector instead.");
+        }
+
         Apply(definition, now);
         ConcurrencyVersion++;
     }
@@ -296,7 +387,22 @@ public sealed class DataConnector
 
     public string[] NotNullColumns() => DeserializeArray(NotNullColumnsJson);
 
-    public void MarkCompleted(string leaseToken, DateTimeOffset now, string? error, bool targetPublished)
+    public string[] KeyColumns() => DeserializeArray(KeyColumnsJson);
+
+    public DataConnectorSourceSettings SourceSettings() =>
+        JsonSerializer.Deserialize<DataConnectorSourceSettings>(SourceSettingsJson) ?? new();
+
+    public DataConnectorAuthentication Authentication() =>
+        JsonSerializer.Deserialize<DataConnectorAuthentication>(AuthenticationJson) ?? new();
+
+    public DataConnectorFieldMapping[] FieldMappings() =>
+        JsonSerializer.Deserialize<DataConnectorFieldMapping[]>(FieldMappingsJson) ?? [];
+
+    public void MarkSucceeded(
+        string leaseToken,
+        DateTimeOffset now,
+        bool targetPublished,
+        string? proposedCheckpoint)
     {
         if (!string.Equals(LeaseToken, leaseToken, StringComparison.Ordinal))
         {
@@ -304,14 +410,85 @@ public sealed class DataConnector
         }
 
         LastCompletedUtc = now;
-        LastError = error;
+        LastError = null;
+        ConsecutiveFailures = 0;
         LeaseOwner = null;
         LeaseExpiresUtc = null;
         LeaseToken = null;
         TargetProvisioned |= targetPublished;
+        if (ReadMode == DataConnectorReadMode.Incremental
+            && proposedCheckpoint is not null
+            && !string.Equals(Checkpoint, proposedCheckpoint, StringComparison.Ordinal))
+        {
+            Checkpoint = NormalizeOptional(proposedCheckpoint, 4_000);
+            CheckpointVersion++;
+        }
         NextRunUtc = Enabled && RefreshIntervalSeconds is { } seconds
             ? now.AddSeconds(seconds)
             : null;
+        UpdatedUtc = now;
+        ConcurrencyVersion++;
+    }
+
+    public bool MarkFailed(string leaseToken, DateTimeOffset now, string error)
+    {
+        if (!string.Equals(LeaseToken, leaseToken, StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException("The connector claim is no longer current.");
+        }
+
+        LastCompletedUtc = now;
+        LastError = TruncateOptional(error, 4_000);
+        ConsecutiveFailures++;
+        LeaseOwner = null;
+        LeaseExpiresUtc = null;
+        LeaseToken = null;
+        var deadLettered = ConsecutiveFailures >= MaxAttempts;
+        if (deadLettered)
+        {
+            PausedUtc = now;
+            NextRunUtc = null;
+        }
+        else
+        {
+            var exponent = Math.Min(ConsecutiveFailures - 1, 30);
+            var delay = Math.Min(RetryMaxSeconds, RetryBaseSeconds * Math.Pow(2, exponent));
+            NextRunUtc = now.AddSeconds(delay);
+        }
+
+        UpdatedUtc = now;
+        ConcurrencyVersion++;
+        return deadLettered;
+    }
+
+    public void Pause(DateTimeOffset now)
+    {
+        if (ArchivedUtc is not null)
+        {
+            throw new InvalidOperationException("Archived connectors cannot be paused.");
+        }
+
+        PausedUtc ??= now;
+        NextRunUtc = null;
+        UpdatedUtc = now;
+        ConcurrencyVersion++;
+    }
+
+    public void Resume(DateTimeOffset now, bool resetFailures)
+    {
+        if (ArchivedUtc is not null)
+        {
+            throw new InvalidOperationException("Archived connectors cannot be resumed.");
+        }
+
+        PausedUtc = null;
+        if (resetFailures)
+        {
+            ConsecutiveFailures = 0;
+            LastError = null;
+        }
+
+        NextRunUtc = Enabled && RefreshIntervalSeconds is not null ? now : null;
         UpdatedUtc = now;
         ConcurrencyVersion++;
     }
@@ -325,6 +502,7 @@ public sealed class DataConnector
 
         ArchivedUtc = now;
         Enabled = false;
+        PausedUtc = now;
         NextRunUtc = null;
         UpdatedUtc = now;
         ConcurrencyVersion++;
@@ -339,9 +517,14 @@ public sealed class DataConnector
             throw new ArgumentException("Connector names must contain 1 to 200 characters.", nameof(definition));
         }
 
-        if (!Uri.TryCreate(definition.EndpointUrl, UriKind.Absolute, out _))
+        if (!Uri.TryCreate(definition.EndpointUrl, UriKind.Absolute, out var endpoint))
         {
             throw new ArgumentException("A connector endpoint must be an absolute URL.", nameof(definition));
+        }
+
+        if (!string.IsNullOrEmpty(endpoint.UserInfo))
+        {
+            throw new ArgumentException("Connector endpoints must not contain embedded credentials.", nameof(definition));
         }
 
         if (string.IsNullOrWhiteSpace(definition.Owner) || definition.Owner.Trim().Length > 200)
@@ -357,8 +540,53 @@ public sealed class DataConnector
 
         if (!Enum.IsDefined(definition.Kind))
         {
-            throw new ArgumentOutOfRangeException(nameof(definition), "Connector kind must be REST or gRPC.");
+            throw new ArgumentOutOfRangeException(nameof(definition), "Connector kind is not supported.");
         }
+
+        var platform = definition.Platform ?? DataConnectorPlatformDefinition.Legacy(definition);
+        if (platform.KeyColumns is null
+            || platform.FieldMappings is null
+            || platform.SourceSettings is null
+            || platform.Authentication is null)
+        {
+            throw new ArgumentException("Connector platform fields cannot be null.", nameof(definition));
+        }
+        if (!Enum.IsDefined(platform.ReadMode) || !Enum.IsDefined(platform.SchemaPolicy))
+        {
+            throw new ArgumentOutOfRangeException(nameof(definition), "Connector read mode or schema policy is invalid.");
+        }
+
+        if (platform.AdapterVersion < 1)
+        {
+            throw new ArgumentOutOfRangeException(nameof(definition), "Adapter version must be positive.");
+        }
+
+        if (platform.ReadMode == DataConnectorReadMode.Incremental && platform.KeyColumns.Count == 0)
+        {
+            throw new ArgumentException("Incremental connectors require at least one key column.", nameof(definition));
+        }
+
+        if (platform.SchemaPolicy == DataConnectorSchemaPolicy.MappedVersion
+            && platform.FieldMappings.Count == 0)
+        {
+            throw new ArgumentException("Mapped-version schema policy requires at least one field mapping.", nameof(definition));
+        }
+
+        if (platform.SchemaPolicy != DataConnectorSchemaPolicy.MappedVersion
+            && platform.FieldMappings.Count > 0)
+        {
+            throw new ArgumentException("Field mappings require mapped-version schema policy.", nameof(definition));
+        }
+
+        if (platform.MaxAttempts is < 1 or > 100
+            || platform.RetryBaseSeconds is < 1 or > 86_400
+            || platform.RetryMaxSeconds < platform.RetryBaseSeconds
+            || platform.RetryMaxSeconds > 604_800)
+        {
+            throw new ArgumentOutOfRangeException(nameof(definition), "Connector retry policy is invalid.");
+        }
+
+        ValidatePlatform(definition.Kind, endpoint, platform);
 
         if (definition.Enabled && definition.RefreshIntervalSeconds is null)
         {
@@ -386,15 +614,26 @@ public sealed class DataConnector
         Owner = definition.Owner.Trim();
         TagsJson = SerializeArray(definition.Tags, 64, 100);
         Kind = definition.Kind;
+        AdapterId = Required(platform.AdapterId, 128, "Adapter id");
+        AdapterVersion = platform.AdapterVersion;
+        ReadMode = platform.ReadMode;
         EndpointUrl = definition.EndpointUrl.Trim();
         CredentialEnvironmentVariable = credentialVariable;
         RestResponseFormat = definition.RestResponseFormat;
+        SourceSettingsJson = SerializeObject(platform.SourceSettings, 32_768);
+        AuthenticationJson = SerializeObject(platform.Authentication, 16_384);
+        FieldMappingsJson = SerializeMappings(platform.FieldMappings);
+        SchemaPolicy = platform.SchemaPolicy;
+        KeyColumnsJson = SerializeArray(platform.KeyColumns, 64, 255);
         TargetSchema = Required(definition.TargetSchema, 63, "Target schema");
         TargetTable = Required(definition.TargetTable, 63, "Target table");
         MinimumRows = definition.MinimumRows;
         RequiredColumnsJson = SerializeArray(definition.RequiredColumns, 256, 255);
         NotNullColumnsJson = SerializeArray(definition.NotNullColumns, 256, 255);
         Enabled = definition.Enabled;
+        MaxAttempts = platform.MaxAttempts;
+        RetryBaseSeconds = platform.RetryBaseSeconds;
+        RetryMaxSeconds = platform.RetryMaxSeconds;
         RefreshIntervalSeconds = definition.RefreshIntervalSeconds;
         NextRunUtc = definition.Enabled && definition.RefreshIntervalSeconds is not null
             ? scheduleChanged || NextRunUtc is null ? now : NextRunUtc
@@ -428,6 +667,17 @@ public sealed class DataConnector
         return normalized;
     }
 
+    private static string? TruncateOptional(string? value, int maxLength)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        var normalized = value.Trim();
+        return normalized[..Math.Min(normalized.Length, maxLength)];
+    }
+
     private static bool IsEnvironmentVariableName(string value)
     {
         if (!(char.IsAsciiLetter(value[0]) || value[0] == '_'))
@@ -457,6 +707,162 @@ public sealed class DataConnector
 
     private static string[] DeserializeArray(string json) =>
         JsonSerializer.Deserialize<string[]>(json) ?? [];
+
+    private static string SerializeObject<T>(T value, int maxLength)
+    {
+        ArgumentNullException.ThrowIfNull(value);
+        var json = JsonSerializer.Serialize(value);
+        if (json.Length > maxLength)
+        {
+            throw new ArgumentException($"Connector configuration cannot exceed {maxLength} characters.");
+        }
+
+        return json;
+    }
+
+    private static string SerializeMappings(IReadOnlyList<DataConnectorFieldMapping> mappings)
+    {
+        ArgumentNullException.ThrowIfNull(mappings);
+        if (mappings.Count > 256)
+        {
+            throw new ArgumentException("A connector may declare at most 256 field mappings.");
+        }
+
+        var normalized = mappings.Select(mapping => mapping is null
+                ? throw new ArgumentException("Field mappings cannot contain null entries.", nameof(mappings))
+                : new DataConnectorFieldMapping(
+                    Required(mapping.Source, 255, "Mapping source"),
+                    Required(mapping.Target, 255, "Mapping target"),
+                    mapping.Transform))
+            .ToArray();
+        foreach (var mapping in normalized)
+        {
+            if (!Enum.IsDefined(mapping.Transform))
+            {
+                throw new ArgumentOutOfRangeException(nameof(mappings), "A mapping transform is invalid.");
+            }
+        }
+
+        if (normalized.Select(mapping => mapping.Source).Distinct(StringComparer.OrdinalIgnoreCase).Count()
+            != normalized.Length
+            || normalized.Select(mapping => mapping.Target).Distinct(StringComparer.OrdinalIgnoreCase).Count()
+            != normalized.Length)
+        {
+            throw new ArgumentException("Field mapping source and target names must be unique.");
+        }
+
+        return SerializeObject(normalized, 65_536);
+    }
+
+    private static void ValidatePlatform(
+        DataConnectorKind kind,
+        Uri endpoint,
+        DataConnectorPlatformDefinition platform)
+    {
+        _ = Required(platform.AdapterId, 128, "Adapter id");
+
+        if (kind == DataConnectorKind.PostgreSql
+            && (!(endpoint.Scheme is "postgresql" or "postgres")
+                || string.IsNullOrWhiteSpace(endpoint.AbsolutePath.Trim('/'))))
+        {
+            throw new ArgumentException("PostgreSQL connector endpoints must use postgresql://host/database.");
+        }
+
+        if (kind is DataConnectorKind.Rest or DataConnectorKind.Grpc
+            && endpoint.Scheme is not ("https" or "http"))
+        {
+            throw new ArgumentException("REST and gRPC connector endpoints must use http or https.");
+        }
+
+        if (kind == DataConnectorKind.HubSpot
+            && (endpoint.Scheme != Uri.UriSchemeHttps
+                || !string.Equals(endpoint.DnsSafeHost, "api.hubapi.com", StringComparison.OrdinalIgnoreCase)))
+        {
+            throw new ArgumentException("HubSpot connector endpoints must use https://api.hubapi.com.");
+        }
+
+        if (!Enum.IsDefined(platform.Authentication.Kind))
+        {
+            throw new ArgumentException("The connector authentication kind is invalid.");
+        }
+
+        var authentication = platform.Authentication;
+        var references = new[]
+        {
+            authentication.SecretReference,
+            authentication.UsernameSecretReference,
+            authentication.PasswordSecretReference,
+            authentication.ClientIdSecretReference,
+            authentication.ClientSecretReference,
+            authentication.RefreshTokenSecretReference,
+            authentication.ClientCertificateSecretReference,
+            authentication.CertificatePasswordSecretReference,
+        };
+        if (references.Where(value => value is not null).Any(value =>
+                !(value!.StartsWith("env://", StringComparison.OrdinalIgnoreCase)
+                  || value.StartsWith("vault://", StringComparison.OrdinalIgnoreCase))))
+        {
+            throw new ArgumentException("Connector credentials must be external secret references.");
+        }
+
+        var missingAuthentication = authentication.Kind switch
+        {
+            DataConnectorAuthenticationKind.Bearer or DataConnectorAuthenticationKind.CustomHeader =>
+                authentication.SecretReference is null,
+            DataConnectorAuthenticationKind.MutualTls => authentication.ClientCertificateSecretReference is null,
+            DataConnectorAuthenticationKind.OAuthRefreshToken => authentication.ClientIdSecretReference is null
+                                                                 || authentication.ClientSecretReference is null
+                                                                 || authentication.RefreshTokenSecretReference is null,
+            DataConnectorAuthenticationKind.PostgreSqlPassword => authentication.UsernameSecretReference is null
+                                                                   || authentication.PasswordSecretReference is null,
+            _ => false,
+        };
+        if (missingAuthentication)
+        {
+            throw new ArgumentException("Connector authentication is missing required secret references.");
+        }
+
+        if (authentication.Kind == DataConnectorAuthenticationKind.CustomHeader
+            && authentication.CustomHeaderName is not ("X-Api-Key" or "Api-Key"))
+        {
+            throw new ArgumentException("Custom authentication header must be X-Api-Key or Api-Key.");
+        }
+
+        if (platform.SourceSettings.PageSize is < 1 or > 10_000)
+        {
+            throw new ArgumentOutOfRangeException(nameof(platform), "Connector page size must be between 1 and 10000.");
+        }
+
+        if (kind == DataConnectorKind.PostgreSql)
+        {
+            var table = platform.SourceSettings.SourceTable?.Split('.', StringSplitOptions.TrimEntries) ?? [];
+            if (table.Length != 2
+                || !IsBareIdentifier(table[0])
+                || !IsBareIdentifier(table[1])
+                || !IsBareIdentifier(platform.SourceSettings.CursorColumn)
+                || platform.SourceSettings.CursorType?.Trim().ToLowerInvariant() is not
+                    ("int64" or "timestamptz" or "uuid" or "text")
+                || !platform.SourceSettings.CursorIsCommitMonotonic)
+            {
+                throw new ArgumentException(
+                    "PostgreSQL connectors require bare schema.table and cursor identifiers, a supported cursor type, and an explicit commit-monotonic cursor contract.");
+            }
+        }
+
+        if (kind == DataConnectorKind.HubSpot
+            && (platform.SourceSettings.PageSize > 200
+                || (platform.SourceSettings.Properties?.Count ?? 0) > 100
+                || (platform.SourceSettings.Properties ?? []).Any(property => !IsBareIdentifier(property))))
+        {
+            throw new ArgumentException("HubSpot source properties or page size are invalid.");
+        }
+    }
+
+    private static bool IsBareIdentifier(string? value) =>
+        !string.IsNullOrWhiteSpace(value)
+        && value.Length <= 255
+        && (char.IsAsciiLetter(value[0]) || value[0] == '_')
+        && value.All(character => char.IsAsciiLetterOrDigit(character) || character == '_');
 }
 
 /// <summary>The validated mutable definition accepted by the connector aggregate.</summary>
@@ -475,7 +881,74 @@ public sealed record DataConnectorDefinition(
     IReadOnlyList<string> RequiredColumns,
     IReadOnlyList<string> NotNullColumns,
     bool Enabled,
-    int? RefreshIntervalSeconds);
+    int? RefreshIntervalSeconds,
+    DataConnectorPlatformDefinition? Platform = null);
+
+/// <summary>Non-secret, adapter-specific source configuration.</summary>
+public sealed record DataConnectorSourceSettings(
+    string? SourceTable = null,
+    string? CursorColumn = null,
+    string? CursorType = null,
+    int PageSize = 100,
+    IReadOnlyList<string>? Properties = null,
+    bool CursorIsCommitMonotonic = false);
+
+/// <summary>Approved authentication configuration containing secret references, never values.</summary>
+public sealed record DataConnectorAuthentication(
+    DataConnectorAuthenticationKind Kind = DataConnectorAuthenticationKind.None,
+    string? SecretReference = null,
+    string? UsernameSecretReference = null,
+    string? PasswordSecretReference = null,
+    string? ClientIdSecretReference = null,
+    string? ClientSecretReference = null,
+    string? RefreshTokenSecretReference = null,
+    string? ClientCertificateSecretReference = null,
+    string? CertificatePasswordSecretReference = null,
+    string? CustomHeaderName = null);
+
+/// <summary>One declarative source-to-target field operation.</summary>
+public sealed record DataConnectorFieldMapping(
+    string Source,
+    string Target,
+    DataConnectorTransformKind Transform = DataConnectorTransformKind.None);
+
+/// <summary>Versioned connector platform settings shared by every protocol adapter.</summary>
+public sealed record DataConnectorPlatformDefinition(
+    string AdapterId,
+    int AdapterVersion,
+    DataConnectorReadMode ReadMode,
+    DataConnectorSchemaPolicy SchemaPolicy,
+    IReadOnlyList<string> KeyColumns,
+    IReadOnlyList<DataConnectorFieldMapping> FieldMappings,
+    DataConnectorSourceSettings SourceSettings,
+    DataConnectorAuthentication Authentication,
+    int MaxAttempts = 5,
+    int RetryBaseSeconds = 30,
+    int RetryMaxSeconds = 3_600)
+{
+    public static DataConnectorPlatformDefinition Legacy(DataConnectorDefinition definition) => new(
+        definition.Kind switch
+        {
+            DataConnectorKind.Rest => "lakehold.rest",
+            DataConnectorKind.Grpc => "lakehold.grpc",
+            DataConnectorKind.PostgreSql => "lakehold.postgresql",
+            DataConnectorKind.HubSpot => "lakehold.hubspot-contacts",
+            _ => throw new ArgumentOutOfRangeException(nameof(definition)),
+        },
+        1,
+        definition.Kind is DataConnectorKind.PostgreSql or DataConnectorKind.HubSpot
+            ? DataConnectorReadMode.Incremental
+            : DataConnectorReadMode.FullSnapshot,
+        DataConnectorSchemaPolicy.Reject,
+        [],
+        [],
+        new DataConnectorSourceSettings(),
+        definition.CredentialEnvironmentVariable is null
+            ? new DataConnectorAuthentication()
+            : new DataConnectorAuthentication(
+                DataConnectorAuthenticationKind.Bearer,
+                $"env://{definition.CredentialEnvironmentVariable}"));
+}
 
 /// <summary>Durable lineage and quality evidence for one connector refresh.</summary>
 public sealed class DataConnectorRun
@@ -510,6 +983,12 @@ public sealed class DataConnectorRun
 
     public string? Error { get; private set; }
 
+    public string? InputCheckpoint { get; private set; }
+
+    public string? ProposedCheckpoint { get; private set; }
+
+    public string? ReplayKey { get; private set; }
+
     public DataConnector DataConnector { get; private set; } = null!;
 
     public static DataConnectorRun Start(
@@ -517,7 +996,8 @@ public sealed class DataConnectorRun
         DataConnectorTrigger trigger,
         string nodeId,
         string leaseToken,
-        DateTimeOffset now) => new()
+        DateTimeOffset now,
+        string? inputCheckpoint = null) => new()
         {
             DataConnectorId = connectorId,
             Trigger = trigger,
@@ -525,13 +1005,16 @@ public sealed class DataConnectorRun
             NodeId = nodeId,
             LeaseToken = leaseToken,
             StartedUtc = now,
+            InputCheckpoint = Normalize(inputCheckpoint, 4_000),
         };
 
     public void Succeed(
         DateTimeOffset now,
         long rowsRead,
         long rowsPublished,
-        string? sourceVersion)
+        string? sourceVersion,
+        string? proposedCheckpoint = null,
+        string? replayKey = null)
     {
         EnsureRunning();
         Status = DataConnectorRunStatus.Succeeded;
@@ -540,6 +1023,8 @@ public sealed class DataConnectorRun
         RowsPublished = rowsPublished;
         QualityPassed = true;
         SourceVersion = Normalize(sourceVersion, 512);
+        ProposedCheckpoint = Normalize(proposedCheckpoint, 4_000);
+        ReplayKey = Normalize(replayKey, 512);
         Error = null;
     }
 
@@ -548,15 +1033,20 @@ public sealed class DataConnectorRun
         long rowsRead,
         string? sourceVersion,
         bool? qualityPassed,
-        string error)
+        string error,
+        bool deadLettered = false,
+        string? proposedCheckpoint = null,
+        string? replayKey = null)
     {
         EnsureRunning();
-        Status = DataConnectorRunStatus.Failed;
+        Status = deadLettered ? DataConnectorRunStatus.DeadLettered : DataConnectorRunStatus.Failed;
         CompletedUtc = now;
         RowsRead = rowsRead;
         RowsPublished = 0;
         QualityPassed = qualityPassed;
         SourceVersion = Normalize(sourceVersion, 512);
+        ProposedCheckpoint = Normalize(proposedCheckpoint, 4_000);
+        ReplayKey = Normalize(replayKey, 512);
         Error = Normalize(error, 4_000) ?? "Connector refresh failed.";
     }
 

@@ -24,7 +24,7 @@ integration.
 - `src/Lakehold.ControlPlane`: modelled EF Core state for tenants, catalogs, saved queries, managed
   connector definitions/runs, and query/audit history.
 - `src/Lakehold.Api`: HTTP contracts, minimal-API endpoints, configuration, demo seeding, managed
-  REST/gRPC ingestion under `Connectors/`, the CDC webhook dispatcher under `Cdc/`, and the
+  REST/gRPC/PostgreSQL/HubSpot ingestion under `Connectors/`, the CDC webhook dispatcher under `Cdc/`, and the
   PostgreSQL wire endpoint under `PgWire/`.
 - `src/Lakehold.AppHost`: legacy Aspire composition. Retained but no longer the documented way to
   run the product — `compose.yaml` plus the two host processes is. Do not add to it.
@@ -57,8 +57,8 @@ integration.
 - `docs/PUBLIC-API.md`: the phased spec for the public HTTP control API — time travel and the whole
   lakehouse. Builds on `docs/AUTHENTICATION.md` (auth is its gate); the cross-cutting API conventions
   (versioning, `problem+json`, pagination, async jobs) live here.
-- `docs/CONNECTORS.md`: the initial managed REST/gRPC full-snapshot contract, administration API,
-  security boundaries, limits, and explicit limitations. Keep it aligned with `Connectors/`, the
+- `docs/CONNECTORS.md`: the managed full-snapshot and incremental connector contract, administration
+  API, adapter SDK, checkpoints, security boundaries, limits, and explicit limitations. Keep it aligned with `Connectors/`, the
   connector DTOs, and `Lakehold:Connectors` configuration.
 - `docs/ENTERPRISE-DATA-PLATFORM-ROADMAP.md`: the staged ingestion, governance, semantic, and
   enterprise-consumption plan. A partial connector must not be described there as completing P1.
@@ -194,16 +194,23 @@ Preserve these unless the task explicitly changes the architecture and updates i
     The API returns a dry-run plan before `apply: true`, and apply requires that plan's current
     snapshot id so an intervening commit forces a fresh review; read-only callers never receive the
     action.
-23. Managed connectors publish full snapshots atomically. Definitions, schedules, fenced claim
-    generations, source versions, outcomes, quality evidence, and lineage are durable PostgreSQL
-    state; response bytes
-    may use node-local disk only as bounded disposable scratch. A refresh replaces its DuckLake
-    target only after required-column, minimum-row, and not-null gates pass in the same labelled
-    transaction. First publication must refuse an existing unmanaged target, and archival must
-    retain the connector definition and run lineage. Adapters translate protocols only: they must
-    reuse the shared egress policy,
-    limits, orchestration, publication, and error sanitisation, and no credential or source record
-    may enter a definition, response, audit record, trace, or log.
+23. Managed connectors publish full snapshots or keyed incremental deltas atomically. Definitions,
+    schedules, fenced claim generations, source versions, committed/proposed checkpoints, replay
+    keys, outcomes, quality evidence, and lineage are durable PostgreSQL state; response bytes may
+    use node-local disk only as bounded disposable scratch. A full refresh replaces its DuckLake
+    target and an incremental refresh performs an idempotent keyed upsert only after required-column,
+    minimum-row, not-null, and explicit schema-policy gates pass in the same labelled transaction.
+    An adapter may propose a checkpoint, but only the PostgreSQL publication fence advances it after
+    DuckLake commits; a completion failure therefore replays rather than skips. First publication
+    must refuse an existing unmanaged target and atomically mark a created target so an unconfirmed
+    first commit is recognizable on replay. Archival must retain the connector definition and
+    run lineage. Adapters translate protocols only: they must reuse the shared egress policy, limits,
+    orchestration, publication, secret resolution, and error sanitisation, and no credential or
+    source record may enter a definition, response, audit record, trace, or log. Record counts come
+    from the shared writer, never an adapter assertion. A credential reference resolves only under
+    an exact operator-owned tenant/catalog/reference/destination binding. Ordered polling requires
+    an explicit commit-monotonic source contract, and provider result/rate ceilings must fail closed
+    or be handled by bounded windows and replay overlap rather than silently truncating data.
 
 ## Open-format guarantee
 

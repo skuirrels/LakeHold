@@ -116,7 +116,7 @@ export class ComparisonComponent {
     {
       dimension: 'Managed ingestion',
       lakehold: {
-        text: 'REST/gRPC full snapshots implemented; incremental adapter library pending',
+        text: 'REST/gRPC plus PostgreSQL/HubSpot incremental adapters shipped in v1.3.0; broad catalogue pending',
         tone: 'neutral',
       },
       motherduck: { text: 'Managed and partner connectors', tone: 'good' },

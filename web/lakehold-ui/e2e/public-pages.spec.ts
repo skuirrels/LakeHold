@@ -17,7 +17,7 @@ const pages = [
   {
     path: '/docs/connectors',
     heading: 'Managed data connectors',
-    title: /Managed REST and gRPC connectors/,
+    title: /Managed data connectors/,
   },
   {
     path: '/docs/enterprise-data-platform-roadmap',

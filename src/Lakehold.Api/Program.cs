@@ -176,9 +176,9 @@ if (builder.Configuration.GetSection(CdcOptions.SectionName).Get<CdcOptions>()?.
     builder.Services.AddHostedService<ChangeFeedDispatcher>();
 }
 
-// Managed full-snapshot ingestion. Definitions, schedules, leases, lineage, and outcomes are
-// durable in PostgreSQL; response bytes use disposable node-local scratch only until DuckLake has
-// committed the replacement table.
+// Managed full-snapshot and checkpointed incremental ingestion. Definitions, schedules, leases,
+// lineage, and outcomes are durable in PostgreSQL; response bytes use disposable node-local scratch
+// only until DuckLake has committed the replacement or keyed upsert.
 builder.Services
     .AddOptions<ConnectorOptions>()
     .Bind(builder.Configuration.GetSection(ConnectorOptions.SectionName))
@@ -189,22 +189,66 @@ builder.Services
                     && settings.MaxConcurrentRuns is > 0 and <= 32
                     && settings.MaxSnapshotBytes > 0
                     && settings.MaxRows > 0
+                    && settings.MaxPaginationPages is > 0 and <= 100_000
+                    && settings.MaxHubSpotResultsPerWindow is > 0 and <= 9_000
+                    && settings.HubSpotIndexingDelay >= TimeSpan.Zero
+                    && settings.HubSpotCheckpointOverlap >= settings.HubSpotIndexingDelay
+                    && settings.HubSpotMinimumRequestInterval >= TimeSpan.FromMilliseconds(200)
                     && settings.MaxRecordBytes > 0
                     && settings.MaxRecordBytes <= settings.MaxSnapshotBytes
                     && settings.MaxRecordBytes <= int.MaxValue - (64 * 1024)
                     && settings.MaxAggregateScratchBytes >= settings.MaxSnapshotBytes
                     && settings.MinimumFreeBytes >= 0
-                    && settings.StaleFileAge > TimeSpan.Zero,
+                    && settings.StaleFileAge > TimeSpan.Zero
+                    && (string.IsNullOrWhiteSpace(settings.SecretProviderEndpoint)
+                        || Uri.TryCreate(settings.SecretProviderEndpoint, UriKind.Absolute, out var secretEndpoint)
+                        && secretEndpoint.Scheme == Uri.UriSchemeHttps
+                        && string.IsNullOrEmpty(secretEndpoint.UserInfo))
+                    && (string.IsNullOrWhiteSpace(settings.SecretProviderTokenEnvironmentVariable)
+                        || settings.SecretProviderTokenEnvironmentVariable.All(character =>
+                            char.IsAsciiLetterOrDigit(character) || character == '_'))
+                    && settings.SecretBindings.All(binding =>
+                        !string.IsNullOrWhiteSpace(binding.TenantSlug)
+                        && !string.IsNullOrWhiteSpace(binding.CatalogName)
+                        && !string.IsNullOrWhiteSpace(binding.Reference)
+                        && !string.IsNullOrWhiteSpace(binding.DestinationHost)
+                        && (binding.Reference.StartsWith("env://", StringComparison.OrdinalIgnoreCase)
+                            || binding.Reference.StartsWith("vault://", StringComparison.OrdinalIgnoreCase))
+                        && !binding.Reference.EndsWith("://", StringComparison.Ordinal)
+                        && Uri.CheckHostName(binding.DestinationHost) != UriHostNameType.Unknown)
+                    && settings.SecretBindings
+                        .Select(binding => string.Join(
+                            '\n',
+                            binding.TenantSlug.ToUpperInvariant(),
+                            binding.CatalogName.ToUpperInvariant(),
+                            binding.Reference,
+                            binding.DestinationHost.ToUpperInvariant()))
+                        .Distinct(StringComparer.Ordinal)
+                        .Count() == settings.SecretBindings.Length,
         "Connector limits are invalid; LeaseDuration must exceed RequestTimeout.")
     .ValidateOnStart();
 builder.Services
     .AddHttpClient(RestDataConnectorSource.HttpClientName)
     .ConfigureHttpClient(client => client.Timeout = Timeout.InfiniteTimeSpan)
     .ConfigurePrimaryHttpMessageHandler(OutboundConnection.CreateHandler);
+builder.Services
+    .AddHttpClient(VaultConnectorSecretProvider.HttpClientName)
+    .ConfigureHttpClient(client => client.Timeout = Timeout.InfiniteTimeSpan)
+    .ConfigurePrimaryHttpMessageHandler(OutboundConnection.CreateHandler);
+builder.Services
+    .AddHttpClient(HubSpotContactsDataConnectorSource.HttpClientName)
+    .ConfigureHttpClient(client => client.Timeout = Timeout.InfiniteTimeSpan)
+    .ConfigurePrimaryHttpMessageHandler(OutboundConnection.CreateHandler);
 builder.Services.AddSingleton<ConnectorScratchSpace>();
+builder.Services.AddScoped<IConnectorSecretProvider, EnvironmentConnectorSecretProvider>();
+builder.Services.AddScoped<IConnectorSecretProvider, VaultConnectorSecretProvider>();
+builder.Services.AddScoped<ConnectorSecretResolver>();
 builder.Services.AddScoped<IDataConnectorSource, RestDataConnectorSource>();
 builder.Services.AddScoped<IGrpcConnectorTransport, GrpcConnectorTransport>();
 builder.Services.AddScoped<IDataConnectorSource, GrpcDataConnectorSource>();
+builder.Services.AddScoped<IDataConnectorSource, PostgreSqlDataConnectorSource>();
+builder.Services.AddSingleton<HubSpotRequestLimiter>();
+builder.Services.AddScoped<IDataConnectorSource, HubSpotContactsDataConnectorSource>();
 builder.Services.AddScoped<DataConnectorSourceResolver>();
 builder.Services.AddScoped<ConnectorRunner>();
 if (builder.Configuration.GetSection(ConnectorOptions.SectionName).Get<ConnectorOptions>()?.Enabled ?? true)

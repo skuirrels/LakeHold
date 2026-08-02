@@ -158,16 +158,18 @@ public sealed class DataConnectorTests
         using var scratch = new ConnectorScratchSpace(options, TimeProvider.System);
         var source = new RestDataConnectorSource(
             new StubHttpClientFactory(new HttpClient(new StubHandler(response))),
-            options);
+            options,
+            SecretResolver(options));
         await using var snapshot = await ConnectorSnapshotFile.CreateAsync(scratch, options, default);
 
+        var connector = DataConnector.Create(1, 1, Definition(DataConnectorKind.Rest), DateTimeOffset.UtcNow);
         var result = await source.ReadAsync(
-            DataConnector.Create(1, 1, Definition(DataConnectorKind.Rest), DateTimeOffset.UtcNow),
+            new ConnectorReadContext(connector, connector.Checkpoint, "test-tenant", "test-catalog"),
             snapshot,
             default);
         await snapshot.SealAsync(default);
 
-        Assert.Equal(2, result.RowsRead);
+        Assert.Equal(2, snapshot.Rows);
         Assert.Equal("\"v1\"", result.SourceVersion);
         Assert.Equal(
             ["""{"id":1,"name":"one"}""", """{"id":2,"name":"two"}"""],
@@ -184,12 +186,13 @@ public sealed class DataConnectorTests
             new GrpcConnectorRecord("""{"id":2}""", "snapshot-7")));
         await using var snapshot = await ConnectorSnapshotFile.CreateAsync(scratch, options, default);
 
+        var connector = DataConnector.Create(1, 1, Definition(DataConnectorKind.Grpc), DateTimeOffset.UtcNow);
         var result = await source.ReadAsync(
-            DataConnector.Create(1, 1, Definition(DataConnectorKind.Grpc), DateTimeOffset.UtcNow),
+            new ConnectorReadContext(connector, connector.Checkpoint, "test-tenant", "test-catalog"),
             snapshot,
             default);
 
-        Assert.Equal(2, result.RowsRead);
+        Assert.Equal(2, snapshot.Rows);
         Assert.Equal("snapshot-7", result.SourceVersion);
     }
 
@@ -246,6 +249,10 @@ public sealed class DataConnectorTests
         RequestTimeout = TimeSpan.FromSeconds(10),
     });
 
+    private static ConnectorSecretResolver SecretResolver(IOptions<ConnectorOptions> options) => new(
+        [new EnvironmentConnectorSecretProvider()],
+        options);
+
     private sealed class StubHttpClientFactory(HttpClient client) : IHttpClientFactory
     {
         public HttpClient CreateClient(string name) => client;
@@ -261,7 +268,7 @@ public sealed class DataConnectorTests
     private sealed class StubGrpcTransport(params GrpcConnectorRecord[] records) : IGrpcConnectorTransport
     {
         public async IAsyncEnumerable<GrpcConnectorRecord> ReadAsync(
-            DataConnector connector,
+            ConnectorReadContext context,
             [EnumeratorCancellation] CancellationToken cancellationToken)
         {
             foreach (var record in records)

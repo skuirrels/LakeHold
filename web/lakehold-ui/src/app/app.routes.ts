@@ -69,11 +69,11 @@ export const routes: Routes = [
   },
   {
     path: 'docs/connectors',
-    title: 'Managed REST and gRPC connectors — LakeHold documentation',
+    title: 'Managed data connectors — LakeHold documentation',
     data: {
       seo: {
         description:
-          'Configure and operate LakeHold managed REST JSON, NDJSON, and gRPC full-snapshot connectors with schedules, quality gates, lineage, and bounded egress.',
+          'Configure LakeHold REST/gRPC snapshots and PostgreSQL/HubSpot incremental connectors with checkpoints, retries, schema contracts, secrets, and lineage.',
       },
     },
     loadComponent: () =>

@@ -14,22 +14,32 @@ internal sealed record GrpcConnectorRecord(string Json, string? SourceVersion);
 internal interface IGrpcConnectorTransport
 {
     IAsyncEnumerable<GrpcConnectorRecord> ReadAsync(
-        DataConnector connector,
+        ConnectorReadContext context,
         CancellationToken cancellationToken);
 }
 
 /// <summary>Projects a server-streamed gRPC snapshot into the common bounded JSON staging format.</summary>
 internal sealed class GrpcDataConnectorSource(IGrpcConnectorTransport transport) : IDataConnectorSource
 {
-    public DataConnectorKind Kind => DataConnectorKind.Grpc;
+    public ConnectorAdapterManifest Manifest { get; } = new(
+        "lakehold.grpc",
+        1,
+        DataConnectorKind.Grpc,
+        new HashSet<DataConnectorReadMode> { DataConnectorReadMode.FullSnapshot },
+        new HashSet<DataConnectorAuthenticationKind>
+        {
+            DataConnectorAuthenticationKind.None,
+            DataConnectorAuthenticationKind.Bearer,
+        },
+        SupportsSourceVersion: true);
 
     public async Task<ConnectorSourceResult> ReadAsync(
-        DataConnector connector,
-        ConnectorSnapshotFile destination,
+        ConnectorReadContext context,
+        IDataConnectorRecordWriter destination,
         CancellationToken cancellationToken)
     {
         string? sourceVersion = null;
-        await foreach (var record in transport.ReadAsync(connector, cancellationToken).ConfigureAwait(false))
+        await foreach (var record in transport.ReadAsync(context, cancellationToken).ConfigureAwait(false))
         {
             if (!string.IsNullOrWhiteSpace(record.SourceVersion))
             {
@@ -47,17 +57,20 @@ internal sealed class GrpcDataConnectorSource(IGrpcConnectorTransport transport)
             await destination.WriteAsync(record.Json, cancellationToken).ConfigureAwait(false);
         }
 
-        return new ConnectorSourceResult(destination.Rows, sourceVersion);
+        return new ConnectorSourceResult(sourceVersion);
     }
 }
 
 /// <summary>Network implementation of LakeHold's small server-streaming protobuf contract.</summary>
-internal sealed class GrpcConnectorTransport(IOptions<ConnectorOptions> options) : IGrpcConnectorTransport
+internal sealed class GrpcConnectorTransport(
+    IOptions<ConnectorOptions> options,
+    ConnectorSecretResolver secrets) : IGrpcConnectorTransport
 {
     public async IAsyncEnumerable<GrpcConnectorRecord> ReadAsync(
-        DataConnector connector,
+        ConnectorReadContext context,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
+        var connector = context.Connector;
         var endpoint = new Uri(connector.EndpointUrl, UriKind.Absolute);
         var resolution = await OutboundDestinationPolicy.ResolveAsync(
                 endpoint,
@@ -87,7 +100,7 @@ internal sealed class GrpcConnectorTransport(IOptions<ConnectorOptions> options)
                 Tenant = connector.Tenant.Slug,
                 Catalog = connector.Catalog.Name,
             },
-            BearerHeaders(connector),
+            await BearerHeadersAsync(context, endpoint.DnsSafeHost, cancellationToken).ConfigureAwait(false),
             cancellationToken: timeout.Token);
 
         await foreach (var record in call.ResponseStream.ReadAllAsync(timeout.Token).ConfigureAwait(false))
@@ -96,20 +109,31 @@ internal sealed class GrpcConnectorTransport(IOptions<ConnectorOptions> options)
         }
     }
 
-    private static Metadata? BearerHeaders(DataConnector connector)
+    private async Task<Metadata?> BearerHeadersAsync(
+        ConnectorReadContext context,
+        string destinationHost,
+        CancellationToken cancellationToken)
     {
-        if (connector.CredentialEnvironmentVariable is not { } variable)
+        var connector = context.Connector;
+        var authentication = connector.Authentication();
+        if (authentication.Kind == DataConnectorAuthenticationKind.None)
         {
             return null;
         }
 
-        var token = Environment.GetEnvironmentVariable(variable);
-        if (string.IsNullOrWhiteSpace(token))
+        if (authentication.Kind != DataConnectorAuthenticationKind.Bearer)
         {
-            throw new InvalidOperationException(
-                $"Connector credential environment variable '{variable}' is not available on this worker node.");
+            throw new InvalidOperationException("The gRPC adapter supports only bearer authentication.");
         }
 
-        return new Metadata { { "authorization", $"Bearer {token.Trim()}" } };
+        var token = await secrets.ResolveAsync(
+                authentication.SecretReference
+                ?? throw new InvalidOperationException("Bearer authentication requires a secret reference."),
+                context.TenantSlug,
+                context.CatalogName,
+                destinationHost,
+                cancellationToken)
+            .ConfigureAwait(false);
+        return new Metadata { { "authorization", $"Bearer {token}" } };
     }
 }
