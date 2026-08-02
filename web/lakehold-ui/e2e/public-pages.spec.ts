@@ -2,12 +2,27 @@ import { expect, test } from '@playwright/test';
 
 const pages = [
   { path: '/', heading: 'A feature-rich lakehouse. You host it yourself.', title: /LakeHold/ },
+  {
+    path: '/enterprise-data-platform',
+    heading: 'LakeHold as an Enterprise Data Platform',
+    title: /Enterprise Data Platform/,
+  },
   { path: '/compare', heading: /Compare|LakeHold/, title: /LakeHold vs/ },
   { path: '/docs', heading: /LakeHold/, title: /Documentation/ },
   {
     path: '/docs/linq-workbench',
     heading: 'C# LINQ in the Workbench',
     title: /C# LINQ Workbench/,
+  },
+  {
+    path: '/docs/connectors',
+    heading: 'Managed data connectors',
+    title: /Managed REST and gRPC connectors/,
+  },
+  {
+    path: '/docs/enterprise-data-platform-roadmap',
+    heading: 'Enterprise Data Platform delivery plan',
+    title: /Enterprise Data Platform delivery plan/,
   },
   { path: '/docs/operations', heading: 'Operating LakeHold', title: /Operations/ },
   {

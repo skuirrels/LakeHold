@@ -21,10 +21,11 @@ integration.
 - `src/Lakehold.Engine`: data plane, Duckling sessions, dynamic SQL execution, catalog browsing,
   DuckLake maintenance, verified eject bundles (`CatalogEject`), and the change feed (`ChangeFeed`).
   `MetadataExporter` holds the metadata-table copy shared by backup and eject.
-- `src/Lakehold.ControlPlane`: modelled EF Core state for tenants, catalogs, saved queries, and
-  query/audit history.
-- `src/Lakehold.Api`: HTTP contracts, minimal-API endpoints, configuration, demo seeding, the
-  CDC webhook dispatcher under `Cdc/`, and the PostgreSQL wire endpoint under `PgWire/`.
+- `src/Lakehold.ControlPlane`: modelled EF Core state for tenants, catalogs, saved queries, managed
+  connector definitions/runs, and query/audit history.
+- `src/Lakehold.Api`: HTTP contracts, minimal-API endpoints, configuration, demo seeding, managed
+  REST/gRPC ingestion under `Connectors/`, the CDC webhook dispatcher under `Cdc/`, and the
+  PostgreSQL wire endpoint under `PgWire/`.
 - `src/Lakehold.AppHost`: legacy Aspire composition. Retained but no longer the documented way to
   run the product — `compose.yaml` plus the two host processes is. Do not add to it.
 - `src/Lakehold.ServiceDefaults`: health, resilience, service discovery, and telemetry defaults.
@@ -56,6 +57,11 @@ integration.
 - `docs/PUBLIC-API.md`: the phased spec for the public HTTP control API — time travel and the whole
   lakehouse. Builds on `docs/AUTHENTICATION.md` (auth is its gate); the cross-cutting API conventions
   (versioning, `problem+json`, pagination, async jobs) live here.
+- `docs/CONNECTORS.md`: the initial managed REST/gRPC full-snapshot contract, administration API,
+  security boundaries, limits, and explicit limitations. Keep it aligned with `Connectors/`, the
+  connector DTOs, and `Lakehold:Connectors` configuration.
+- `docs/ENTERPRISE-DATA-PLATFORM-ROADMAP.md`: the staged ingestion, governance, semantic, and
+  enterprise-consumption plan. A partial connector must not be described there as completing P1.
 - `docs/MCP.md`: the phased spec and running record for the MCP server under `src/Lakehold.Api/Mcp/`.
   Phases 1-5 have landed: five read-only tools, a schema resource, and optional writes. Development
   enables it by default; instance-level System Settings persist live controls in PostgreSQL and use
@@ -188,6 +194,16 @@ Preserve these unless the task explicitly changes the architecture and updates i
     The API returns a dry-run plan before `apply: true`, and apply requires that plan's current
     snapshot id so an intervening commit forces a fresh review; read-only callers never receive the
     action.
+23. Managed connectors publish full snapshots atomically. Definitions, schedules, fenced claim
+    generations, source versions, outcomes, quality evidence, and lineage are durable PostgreSQL
+    state; response bytes
+    may use node-local disk only as bounded disposable scratch. A refresh replaces its DuckLake
+    target only after required-column, minimum-row, and not-null gates pass in the same labelled
+    transaction. First publication must refuse an existing unmanaged target, and archival must
+    retain the connector definition and run lineage. Adapters translate protocols only: they must
+    reuse the shared egress policy,
+    limits, orchestration, publication, and error sanitisation, and no credential or source record
+    may enter a definition, response, audit record, trace, or log.
 
 ## Open-format guarantee
 

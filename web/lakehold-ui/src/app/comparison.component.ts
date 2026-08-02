@@ -114,6 +114,16 @@ export class ComparisonComponent {
       cloud: { text: 'Yes — CDF / streams, mature', tone: 'good' },
     },
     {
+      dimension: 'Managed ingestion',
+      lakehold: {
+        text: 'REST/gRPC full snapshots implemented; incremental adapter library pending',
+        tone: 'neutral',
+      },
+      motherduck: { text: 'Managed and partner connectors', tone: 'good' },
+      clickhouse: { text: 'Broad integrations and managed ClickPipes', tone: 'good' },
+      cloud: { text: 'Extensive first-party and partner connectors', tone: 'good' },
+    },
+    {
       dimension: 'AI / MCP',
       lakehold: { text: 'Authenticated MCP; read tools + operator-gated writes', tone: 'good' },
       motherduck: { text: 'Managed MCP with sandboxed compute', tone: 'good' },
@@ -150,7 +160,10 @@ export class ComparisonComponent {
     },
     {
       dimension: 'Concurrent writers',
-      lakehold: { text: 'PostgreSQL-backed DuckLake metadata; worker-local execution', tone: 'neutral' },
+      lakehold: {
+        text: 'PostgreSQL-backed DuckLake metadata; worker-local execution',
+        tone: 'neutral',
+      },
       motherduck: { text: 'Managed', tone: 'good' },
       clickhouse: { text: 'High concurrency', tone: 'good' },
       cloud: { text: 'High concurrency', tone: 'good' },
@@ -196,7 +209,7 @@ export class ComparisonComponent {
         'You want zero operations and nothing to run.',
         'You need to scale past a single node without re-architecting.',
         'Hybrid local-and-cloud dual execution is valuable to you — it is genuinely clever and we have not replicated it.',
-        'You want managed ingestion and a more mature web UI today.',
+        'You want a released broad library of incremental database and SaaS connectors, plus a more mature web UI today.',
         'Your team is Python-first.',
       ],
     },

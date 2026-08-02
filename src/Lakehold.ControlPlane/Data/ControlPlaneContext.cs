@@ -36,6 +36,10 @@ public sealed class ControlPlaneContext(DbContextOptions<ControlPlaneContext> op
 
     public DbSet<CdcConsumer> CdcConsumers => Set<CdcConsumer>();
 
+    public DbSet<DataConnector> DataConnectors => Set<DataConnector>();
+
+    public DbSet<DataConnectorRun> DataConnectorRuns => Set<DataConnectorRun>();
+
     public DbSet<ApiToken> ApiTokens => Set<ApiToken>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -116,6 +120,74 @@ public sealed class ControlPlaneContext(DbContextOptions<ControlPlaneContext> op
                 .WithMany(c => c.SavedQueries)
                 .HasForeignKey(q => q.CatalogId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<DataConnector>(entity =>
+        {
+            entity.HasKey(c => c.Id);
+            ConfigureGeneratedId(entity.Property(c => c.Id), isDuckDb);
+            entity.Property(c => c.Name).HasMaxLength(200);
+            entity.Property(c => c.Description).HasMaxLength(2_000);
+            entity.Property(c => c.Owner).HasMaxLength(200);
+            entity.Property(c => c.TagsJson).HasMaxLength(8_192);
+            entity.Property(c => c.Kind).HasConversion<int>();
+            entity.Property(c => c.EndpointUrl).HasMaxLength(2_048);
+            entity.Property(c => c.CredentialEnvironmentVariable).HasMaxLength(128);
+            entity.Property(c => c.RestResponseFormat).HasConversion<int>();
+            entity.Property(c => c.TargetSchema).HasMaxLength(63);
+            entity.Property(c => c.TargetTable).HasMaxLength(63);
+            entity.Property(c => c.RequiredColumnsJson).HasMaxLength(65_536);
+            entity.Property(c => c.NotNullColumnsJson).HasMaxLength(65_536);
+            entity.Property(c => c.LastError).HasMaxLength(4_000);
+            entity.Property(c => c.LeaseOwner).HasMaxLength(128);
+            entity.Property(c => c.LeaseToken).HasMaxLength(32);
+            entity.Property(c => c.ConcurrencyVersion).IsConcurrencyToken();
+
+            entity.HasIndex(c => new { c.CatalogId, c.Name }).IsUnique();
+            entity.HasIndex(c => new { c.CatalogId, c.TargetSchema, c.TargetTable }).IsUnique();
+            entity.HasIndex(c => new { c.Enabled, c.NextRunUtc, c.LeaseExpiresUtc });
+
+            entity.HasOne(c => c.Tenant)
+                .WithMany()
+                .HasForeignKey(c => c.TenantId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(c => c.Catalog)
+                .WithMany(catalog => catalog.DataConnectors)
+                .HasForeignKey(c => c.CatalogId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            if (isDuckDb)
+            {
+                // Production PostgreSQL retains the run FK. The native-DuckDB context is only a
+                // legacy/test adapter, and DuckDB refuses non-key updates to a referenced connector.
+                entity.Ignore(c => c.Runs);
+            }
+        });
+
+        modelBuilder.Entity<DataConnectorRun>(entity =>
+        {
+            entity.HasKey(r => r.Id);
+            ConfigureGeneratedId(entity.Property(r => r.Id), isDuckDb);
+            entity.Property(r => r.Trigger).HasConversion<int>();
+            entity.Property(r => r.Status).HasConversion<int>();
+            entity.Property(r => r.NodeId).HasMaxLength(128);
+            entity.Property(r => r.LeaseToken).HasMaxLength(32);
+            entity.Property(r => r.SourceVersion).HasMaxLength(512);
+            entity.Property(r => r.Error).HasMaxLength(4_000);
+            entity.HasIndex(r => new { r.DataConnectorId, r.StartedUtc });
+
+            if (isDuckDb)
+            {
+                entity.Ignore(r => r.DataConnector);
+            }
+            else
+            {
+                entity.HasOne(r => r.DataConnector)
+                    .WithMany(c => c.Runs)
+                    .HasForeignKey(r => r.DataConnectorId)
+                    .OnDelete(DeleteBehavior.Restrict);
+            }
         });
 
         modelBuilder.Entity<ChangeSubscription>(entity =>

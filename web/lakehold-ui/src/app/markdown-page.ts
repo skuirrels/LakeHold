@@ -29,6 +29,9 @@ export interface MarkdownPageOptions {
 const repositoryDocumentUrl = 'https://github.com/skuirrels/LakeHold/blob/main';
 
 const nativeDocumentRoutes = new Map<string, string>([
+  ['ENTERPRISE-DATA-PLATFORM.md', '/enterprise-data-platform'],
+  ['ENTERPRISE-DATA-PLATFORM-ROADMAP.md', '/docs/enterprise-data-platform-roadmap'],
+  ['CONNECTORS.md', '/docs/connectors'],
   ['OPERATIONS.md', '/docs/operations'],
   ['LINQ_WORKBENCH.md', '/docs/linq-workbench'],
   ['INCIDENT-RESPONSE.md', '/docs/incident-response'],

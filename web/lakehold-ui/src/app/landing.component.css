@@ -215,10 +215,76 @@ h1 {
 }
 
 .proof,
+.edp,
 .whatsnew,
 .roadmap,
 .compare {
   margin-top: 84px;
+}
+
+.edp {
+  text-align: center;
+  padding: 34px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: linear-gradient(145deg, rgba(255, 200, 87, 0.07), var(--surface-1) 48%);
+}
+
+.edp .section-title {
+  max-width: 760px;
+  margin: 20px auto 10px;
+}
+
+.edp .section-sub {
+  max-width: 720px;
+  margin: 0 auto 30px;
+  line-height: 1.65;
+}
+
+.edp-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+  text-align: left;
+}
+
+.edp-capability {
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: rgba(12, 17, 26, 0.56);
+}
+
+.edp-capability .status {
+  display: inline-block;
+  margin-bottom: 12px;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.edp-capability .status.partial {
+  color: var(--text-faint);
+}
+
+.edp-capability h3 {
+  margin: 0 0 8px;
+  font-size: 16px;
+}
+
+.edp-capability p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+@media (max-width: 640px) {
+  .edp {
+    padding: 24px 18px;
+  }
 }
 
 /* Changelog */

@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Lakehold.Api;
 using Lakehold.Api.Auth;
 using Lakehold.Api.Cdc;
+using Lakehold.Api.Connectors;
 using Lakehold.Api.Endpoints;
 using Lakehold.Api.Health;
 using Lakehold.Api.Importing;
@@ -11,6 +12,7 @@ using Lakehold.Api.Mcp;
 using Lakehold.Api.PgWire;
 using Lakehold.Api.Scheduling;
 using Lakehold.Api.Storage;
+using Lakehold.Api.Security;
 using Lakehold.ControlPlane.Data;
 using Lakehold.ControlPlane.Security;
 using Lakehold.Engine.Configuration;
@@ -101,6 +103,7 @@ builder.Services.AddSingleton<DucklingPool>();
 builder.Services.AddSingleton<IDucklingSessionConfigurator, DucklingSessionConfigurator>();
 builder.Services.AddScoped<LakehouseService>();
 builder.Services.AddScoped<SavedQueryService>();
+builder.Services.AddScoped<DataConnectorService>();
 builder.Services.AddSingleton<TabularScratchSpace>();
 builder.Services.AddScoped<TabularUploadService>();
 builder.Services.AddOptions<QueryPlannerOptions>()
@@ -173,6 +176,42 @@ if (builder.Configuration.GetSection(CdcOptions.SectionName).Get<CdcOptions>()?.
     builder.Services.AddHostedService<ChangeFeedDispatcher>();
 }
 
+// Managed full-snapshot ingestion. Definitions, schedules, leases, lineage, and outcomes are
+// durable in PostgreSQL; response bytes use disposable node-local scratch only until DuckLake has
+// committed the replacement table.
+builder.Services
+    .AddOptions<ConnectorOptions>()
+    .Bind(builder.Configuration.GetSection(ConnectorOptions.SectionName))
+    .Validate(
+        settings => settings.PollInterval > TimeSpan.Zero
+                    && settings.LeaseDuration > settings.RequestTimeout
+                    && settings.RequestTimeout > TimeSpan.Zero
+                    && settings.MaxConcurrentRuns is > 0 and <= 32
+                    && settings.MaxSnapshotBytes > 0
+                    && settings.MaxRows > 0
+                    && settings.MaxRecordBytes > 0
+                    && settings.MaxRecordBytes <= settings.MaxSnapshotBytes
+                    && settings.MaxRecordBytes <= int.MaxValue - (64 * 1024)
+                    && settings.MaxAggregateScratchBytes >= settings.MaxSnapshotBytes
+                    && settings.MinimumFreeBytes >= 0
+                    && settings.StaleFileAge > TimeSpan.Zero,
+        "Connector limits are invalid; LeaseDuration must exceed RequestTimeout.")
+    .ValidateOnStart();
+builder.Services
+    .AddHttpClient(RestDataConnectorSource.HttpClientName)
+    .ConfigureHttpClient(client => client.Timeout = Timeout.InfiniteTimeSpan)
+    .ConfigurePrimaryHttpMessageHandler(OutboundConnection.CreateHandler);
+builder.Services.AddSingleton<ConnectorScratchSpace>();
+builder.Services.AddScoped<IDataConnectorSource, RestDataConnectorSource>();
+builder.Services.AddScoped<IGrpcConnectorTransport, GrpcConnectorTransport>();
+builder.Services.AddScoped<IDataConnectorSource, GrpcDataConnectorSource>();
+builder.Services.AddScoped<DataConnectorSourceResolver>();
+builder.Services.AddScoped<ConnectorRunner>();
+if (builder.Configuration.GetSection(ConnectorOptions.SectionName).Get<ConnectorOptions>()?.Enabled ?? true)
+{
+    builder.Services.AddHostedService<ConnectorWorker>();
+}
+
 // PostgreSQL wire endpoint: lets Power BI, Tableau, Metabase, and psql connect to a tenant catalog
 // with no connector to install, because they already speak this protocol. See docs/POSTGRES-WIRE.md.
 builder.Services.Configure<PgWireOptions>(builder.Configuration.GetSection(PgWireOptions.SectionName));
@@ -232,6 +271,7 @@ var app = builder.Build();
 // Fail fast on invalid scratch limits and scavenge files abandoned by an earlier process before
 // this node can accept a CSV or XLSX upload.
 _ = app.Services.GetRequiredService<TabularScratchSpace>();
+_ = app.Services.GetRequiredService<ConnectorScratchSpace>();
 
 app.MapDefaultEndpoints();
 

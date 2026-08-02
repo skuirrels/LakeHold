@@ -323,6 +323,98 @@ public sealed class TabularImporterTests : IAsyncLifetime
         Assert.Equal("Alice", rows.Rows[0][1]);
     }
 
+    [Fact]
+    public async Task Connector_snapshot_replaces_the_target_only_after_quality_passes()
+    {
+        var initial = Path.Combine(_root, "connector-initial.ndjson");
+        await File.WriteAllTextAsync(initial, "{\"id\":1,\"name\":\"old\"}\n");
+        var first = await JsonSnapshotImporter.ReplaceAsync(
+            _duckling,
+            initial,
+            "main",
+            "connector_customers",
+            replaceExistingTarget: false,
+            new JsonSnapshotQualityPolicy(1, ["id", "name"], ["id"]),
+            default);
+        Assert.Equal(1, first.RowsPublished);
+
+        var replacement = Path.Combine(_root, "connector-replacement.ndjson");
+        await File.WriteAllTextAsync(
+            replacement,
+            "{\"id\":2,\"name\":\"Alice\"}\n{\"id\":3,\"name\":\"Bob\"}\n");
+        var second = await JsonSnapshotImporter.ReplaceAsync(
+            _duckling,
+            replacement,
+            "main",
+            "connector_customers",
+            replaceExistingTarget: true,
+            new JsonSnapshotQualityPolicy(2, ["id", "name"], ["id", "name"]),
+            default);
+
+        Assert.Equal(2, second.RowsPublished);
+        var rows = await Sql("SELECT id, name FROM connector_customers ORDER BY id");
+        Assert.Equal(2, rows.Rows.Count);
+        Assert.Equal("Alice", rows.Rows[0][1]);
+    }
+
+    [Fact]
+    public async Task Failed_connector_quality_gate_preserves_the_previous_snapshot()
+    {
+        var initial = Path.Combine(_root, "quality-initial.ndjson");
+        await File.WriteAllTextAsync(initial, "{\"id\":1,\"name\":\"kept\"}\n");
+        await JsonSnapshotImporter.ReplaceAsync(
+            _duckling,
+            initial,
+            "main",
+            "quality_target",
+            replaceExistingTarget: false,
+            new JsonSnapshotQualityPolicy(1, ["id", "name"], ["id"]),
+            default);
+
+        var invalid = Path.Combine(_root, "quality-invalid.ndjson");
+        await File.WriteAllTextAsync(invalid, "{\"id\":2}\n");
+        var failure = await Assert.ThrowsAsync<JsonSnapshotQualityException>(() =>
+            JsonSnapshotImporter.ReplaceAsync(
+                _duckling,
+                invalid,
+                "main",
+                "quality_target",
+                replaceExistingTarget: true,
+                new JsonSnapshotQualityPolicy(1, ["id", "name"], ["id"]),
+                default));
+        Assert.Contains("missing required columns", failure.Message, StringComparison.Ordinal);
+
+        var rows = await Sql("SELECT id, name FROM quality_target");
+        var row = Assert.Single(rows.Rows);
+        Assert.Equal(1L, row[0]);
+        Assert.Equal("kept", row[1]);
+    }
+
+    [Fact]
+    public async Task First_connector_publication_refuses_to_take_over_an_existing_table()
+    {
+        await Sql("CREATE TABLE existing_target (id BIGINT, source VARCHAR)");
+        await Sql("INSERT INTO existing_target VALUES (41, 'unmanaged')");
+        var snapshot = Path.Combine(_root, "ownership-conflict.ndjson");
+        await File.WriteAllTextAsync(snapshot, "{\"id\":42,\"source\":\"connector\"}\n");
+
+        var failure = await Assert.ThrowsAsync<JsonSnapshotTargetConflictException>(() =>
+            JsonSnapshotImporter.ReplaceAsync(
+                _duckling,
+                snapshot,
+                "main",
+                "existing_target",
+                replaceExistingTarget: false,
+                new JsonSnapshotQualityPolicy(1, ["id", "source"], ["id"]),
+                default));
+
+        Assert.Contains("not owned", failure.Message, StringComparison.Ordinal);
+        var rows = await Sql("SELECT id, source FROM existing_target");
+        var row = Assert.Single(rows.Rows);
+        Assert.Equal(41L, row[0]);
+        Assert.Equal("unmanaged", row[1]);
+    }
+
     private Task<QueryResult> Sql(string sql)
         => _duckling.ExecuteQueryAsync(sql, CancellationToken.None);
 }

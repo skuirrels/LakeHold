@@ -8,9 +8,16 @@ const MEASUREMENT_ID_PATTERN = /^G-[A-Z0-9]+$/;
 
 const WEBSITE_PATHS = new Set([
   '/',
+  '/enterprise-data-platform',
   '/compare',
   '/docs',
   '/docs/linq-workbench',
+  '/docs/connectors',
+  '/docs/enterprise-data-platform-roadmap',
+  '/docs/operations',
+  '/docs/incident-response',
+  '/docs/disaster-recovery',
+  '/docs/monitoring',
   '/provider',
   '/provider/docs',
 ]);

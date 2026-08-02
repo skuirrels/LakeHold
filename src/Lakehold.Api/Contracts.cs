@@ -1,5 +1,6 @@
 using Lakehold.Engine.Execution;
 using Lakehold.Engine.Catalog;
+using Lakehold.ControlPlane.Model;
 
 namespace Lakehold.Api;
 
@@ -179,6 +180,118 @@ public sealed record TabularImportDto(
                 reject.ErrorMessage))],
             result.Elapsed.TotalMilliseconds);
 }
+
+/// <summary>A managed full-snapshot source and its governed target data product.</summary>
+public sealed record DataConnectorDto(
+    int Id,
+    string Name,
+    string? Description,
+    string Owner,
+    IReadOnlyList<string> Tags,
+    string Kind,
+    string EndpointUrl,
+    string? CredentialEnvironmentVariable,
+    string RestResponseFormat,
+    string TargetSchema,
+    string TargetTable,
+    long MinimumRows,
+    IReadOnlyList<string> RequiredColumns,
+    IReadOnlyList<string> NotNullColumns,
+    bool Enabled,
+    int? RefreshIntervalSeconds,
+    DateTimeOffset? NextRunUtc,
+    DateTimeOffset? LastCompletedUtc,
+    string? LastError,
+    bool TargetProvisioned,
+    DateTimeOffset? ArchivedUtc,
+    int Version,
+    DateTimeOffset CreatedUtc,
+    DateTimeOffset UpdatedUtc)
+{
+    public static DataConnectorDto From(DataConnector connector) => new(
+        connector.Id,
+        connector.Name,
+        connector.Description,
+        connector.Owner,
+        connector.Tags(),
+        connector.Kind.ToString().ToLowerInvariant(),
+        connector.EndpointUrl,
+        connector.CredentialEnvironmentVariable,
+        connector.RestResponseFormat == Lakehold.ControlPlane.Model.RestResponseFormat.NewlineDelimitedJson
+            ? "ndjson"
+            : "json-array",
+        connector.TargetSchema,
+        connector.TargetTable,
+        connector.MinimumRows,
+        connector.RequiredColumns(),
+        connector.NotNullColumns(),
+        connector.Enabled,
+        connector.RefreshIntervalSeconds,
+        connector.NextRunUtc,
+        connector.LastCompletedUtc,
+        connector.LastError,
+        connector.TargetProvisioned,
+        connector.ArchivedUtc,
+        connector.ConcurrencyVersion,
+        connector.CreatedUtc,
+        connector.UpdatedUtc);
+}
+
+/// <summary>Create or replace the mutable definition of a managed connector.</summary>
+public sealed record DataConnectorDefinitionRequest(
+    string Name,
+    string? Description,
+    string Owner,
+    IReadOnlyList<string>? Tags,
+    string Kind,
+    string EndpointUrl,
+    string? CredentialEnvironmentVariable,
+    string? RestResponseFormat,
+    string TargetSchema,
+    string TargetTable,
+    long MinimumRows = 1,
+    IReadOnlyList<string>? RequiredColumns = null,
+    IReadOnlyList<string>? NotNullColumns = null,
+    bool Enabled = false,
+    int? RefreshIntervalSeconds = null);
+
+/// <summary>Optimistic replacement of a connector definition.</summary>
+public sealed record UpdateDataConnectorRequest(int Version, DataConnectorDefinitionRequest Definition);
+
+/// <summary>Durable lineage and quality evidence for one connector refresh.</summary>
+public sealed record DataConnectorRunDto(
+    int Id,
+    string Trigger,
+    string Status,
+    DateTimeOffset StartedUtc,
+    DateTimeOffset? CompletedUtc,
+    long RowsRead,
+    long RowsPublished,
+    bool? QualityPassed,
+    string? SourceVersion,
+    string? Error)
+{
+    public static DataConnectorRunDto From(DataConnectorRun run) => new(
+        run.Id,
+        run.Trigger.ToString().ToLowerInvariant(),
+        run.Status.ToString().ToLowerInvariant(),
+        run.StartedUtc,
+        run.CompletedUtc,
+        run.RowsRead,
+        run.RowsPublished,
+        run.QualityPassed,
+        run.SourceVersion,
+        run.Error);
+}
+
+/// <summary>Immediate result of a manually requested connector refresh.</summary>
+public sealed record DataConnectorExecutionDto(
+    int RunId,
+    string Status,
+    long RowsRead,
+    long RowsPublished,
+    string? SourceVersion,
+    string? Error);
 
 /// <summary>Request to provision a tenant. Instance scope.</summary>
 /// <param name="Slug">URL-safe key. Reserved value <c>admin</c> is refused — it collides with the instance-token prefix.</param>

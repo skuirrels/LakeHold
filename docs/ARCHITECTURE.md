@@ -99,7 +99,7 @@ engineering:
 | Zero operations | You run it. We ship containers and compose, but you own uptime. |
 | Elastic scale-out | Bounded by node size. Read replicas help reads; writes are single-writer. |
 | Dual execution (local ↔ cloud hybrid) | Genuinely novel and patent-adjacent. Not replicated. |
-| Managed ingestion connectors | We ship file/object ingestion. No hosted Fivetran-alikes. |
+| Managed ingestion connectors | REST and gRPC full snapshots are implemented in source; there is no broad hosted adapter library or incremental ingestion yet. |
 | Mature web UI | Theirs is years ahead. Ours is a focused SQL/LINQ Workbench. |
 
 The honest summary: **we trade elasticity and zero-ops for control, openness, and .NET integration.**
@@ -348,7 +348,7 @@ readable by Spark, Trino, or Snowflake.
 | Data sharing | ✅ | ✅ Delta Sharing | ✅ mature | ✅ | ⚠️ | ⚠️ read-only attach, no UI |
 | Postgres / BI wire protocol | ✅ | ✅ JDBC | ✅ | ✅ Flight/JDBC | ✅ Trino JDBC | ✅ built-in endpoint |
 | Native DuckDB remote protocol (Quack) | ⚠️ own hybrid client | — | — | — | — | ❌ decision open |
-| Managed ingestion connectors | ✅ Flights | ✅ | ✅ | ⚠️ | ❌ | 🛠️ roadmap |
+| Managed ingestion connectors | ✅ Flights | ✅ | ✅ | ⚠️ | ❌ | ⚠️ REST/gRPC snapshots |
 | AI / MCP / assistant | ✅ | ✅ Genie | ✅ Cortex | ✅ MCP server | ❌ | ✅ MCP server, read-only |
 | Semantic layer / governed metrics for agents | ❌ | ✅ Metric Views | ✅ Semantic Views | ✅ | ⚠️ dbt/Cube | 🛠️ from EF model |
 | Row / column-level security | ❌ by design | ✅ | ✅ | ✅ | ⚠️ | 🛠️ later |
@@ -600,7 +600,9 @@ should either require its own credential or ship alongside guidance to enable en
 
 **Now** — a SQL Workbench with an optional isolated C# LINQ planner, catalog-aware completion and
 diagnostics, catalog explorer, query history, tenant/catalog CRUD, storage and file inspection,
-maintenance operations, backup/restore, verified eject bundles, CDC pull API and signed webhooks.
+maintenance operations, backup/restore, verified eject bundles, CDC pull API and signed webhooks,
+and managed REST/gRPC full-snapshot ingestion with durable schedules, quality gates, and run lineage
+(`CONNECTORS.md`).
 
 **Now** also includes the PostgreSQL wire endpoint (`docs/POSTGRES-WIRE.md`) — parity rather than
 differentiation, as the matrix says; `psql`, DBeaver, and Npgsql work, while Power BI still awaits the
@@ -614,5 +616,6 @@ operator-gated writes. HTTP API enforcement is opt-in per deployment
 (USP 6), and read-only share links.
 
 **Later** — continuous exit attestation (USP 4), embedded Duckling, read replicas for concurrent
-readers, managed ingestion connectors, semantic layer generated from the EF Core model,
-row/column-level security.
+readers, a versioned connector SDK with incremental/database/SaaS adapters, semantic layer generated
+from the EF Core model, and row/column-level security. The staged EDP delivery gates live in
+`ENTERPRISE-DATA-PLATFORM-ROADMAP.md`.

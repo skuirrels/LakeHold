@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+option csharp_namespace = "Lakehold.Api.Connectors.Grpc";
+
+package lakehold.connector.v1;
+
+// The intentionally small interoperability contract a source implements to stream a full dataset
+// snapshot into LakeHold. Each response carries exactly one JSON object.
+service DataSource {
+  rpc Read(ReadRequest) returns (stream DataRecord);
+}
+
+message ReadRequest {
+  string connector_name = 1;
+  string tenant = 2;
+  string catalog = 3;
+}
+
+message DataRecord {
+  string json = 1;
+  // Optional source version, ETag, sequence or snapshot marker recorded as lineage evidence.
+  string source_version = 2;
+}

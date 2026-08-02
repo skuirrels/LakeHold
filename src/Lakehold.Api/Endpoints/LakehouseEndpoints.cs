@@ -61,6 +61,7 @@ public static class LakehouseEndpoints
             app.ServiceProvider.GetRequiredService<IOptions<CsvUploadOptions>>().Value.MaxBytes);
 
         tenants.MapSavedQueryEndpoints();
+        tenants.MapDataConnectorEndpoints();
 
         tenants.MapGet("/{tenantSlug}/catalogs/{catalogName}/schemas", GetSchemasAsync)
             .WithSummary("Returns the catalog's schema tree.");

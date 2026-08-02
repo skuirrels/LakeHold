@@ -190,6 +190,28 @@ public static class LakeholdTelemetry
     public static readonly Counter<long> CdcPayloadsTruncated = Meter.CreateCounter<long>(
         "lakehold.cdc.payload.truncated", "{payload}", "CDC webhook payloads with truncated inline changes.");
 
+    // ---- managed connectors ----
+
+    /// <summary>Connector refresh attempts, tagged by protocol and outcome.</summary>
+    public static readonly Counter<long> ConnectorRuns = Meter.CreateCounter<long>(
+        "lakehold.connector.runs", "{run}", "Managed connector refreshes by protocol and outcome.");
+
+    /// <summary>End-to-end source read, quality validation, and publication duration.</summary>
+    public static readonly Histogram<double> ConnectorDuration = Meter.CreateHistogram<double>(
+        "lakehold.connector.duration", "s", "Duration of a managed connector refresh.");
+
+    /// <summary>Rows accepted from a connector snapshot.</summary>
+    public static readonly Histogram<long> ConnectorRows = Meter.CreateHistogram<long>(
+        "lakehold.connector.rows", "{row}", "Rows accepted from a managed connector snapshot.");
+
+    /// <summary>Connector execution claims held by another API node.</summary>
+    public static readonly Counter<long> ConnectorLeaseConflicts = Meter.CreateCounter<long>(
+        "lakehold.connector.lease.conflicts", "{conflict}", "Connector refresh claims won by another node.");
+
+    /// <summary>Connector workers currently active on this API node.</summary>
+    public static readonly UpDownCounter<long> ConnectorWorkersActive = Meter.CreateUpDownCounter<long>(
+        "lakehold.connector.workers.active", "{worker}", "Connector workers currently active on this node.");
+
     // ---- tag keys ----
 
     /// <summary>Tenant slug. Spans only — see the cardinality note on this class.</summary>

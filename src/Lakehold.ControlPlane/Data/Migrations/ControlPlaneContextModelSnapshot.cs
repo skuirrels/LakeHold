@@ -271,6 +271,192 @@ namespace Lakehold.ControlPlane.Data.Migrations
                     b.ToTable("ChangeSubscriptions");
                 });
 
+            modelBuilder.Entity("Lakehold.ControlPlane.Model.DataConnector", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTimeOffset?>("ArchivedUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("CatalogId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("ConcurrencyVersion")
+                        .IsConcurrencyToken()
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("CreatedUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CredentialEnvironmentVariable")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<bool>("Enabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("EndpointUrl")
+                        .IsRequired()
+                        .HasMaxLength(2048)
+                        .HasColumnType("character varying(2048)");
+
+                    b.Property<int>("Kind")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset?>("LastCompletedUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastError")
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)");
+
+                    b.Property<DateTimeOffset?>("LeaseExpiresUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LeaseOwner")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<string>("LeaseToken")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<long>("MinimumRows")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTimeOffset?>("NextRunUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("NotNullColumnsJson")
+                        .IsRequired()
+                        .HasMaxLength(65536)
+                        .HasColumnType("character varying(65536)");
+
+                    b.Property<string>("Owner")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<int?>("RefreshIntervalSeconds")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("RequiredColumnsJson")
+                        .IsRequired()
+                        .HasMaxLength(65536)
+                        .HasColumnType("character varying(65536)");
+
+                    b.Property<int>("RestResponseFormat")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("TagsJson")
+                        .IsRequired()
+                        .HasMaxLength(8192)
+                        .HasColumnType("character varying(8192)");
+
+                    b.Property<bool>("TargetProvisioned")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("TargetSchema")
+                        .IsRequired()
+                        .HasMaxLength(63)
+                        .HasColumnType("character varying(63)");
+
+                    b.Property<string>("TargetTable")
+                        .IsRequired()
+                        .HasMaxLength(63)
+                        .HasColumnType("character varying(63)");
+
+                    b.Property<int>("TenantId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("UpdatedUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId");
+
+                    b.HasIndex("CatalogId", "Name")
+                        .IsUnique();
+
+                    b.HasIndex("CatalogId", "TargetSchema", "TargetTable")
+                        .IsUnique();
+
+                    b.HasIndex("Enabled", "NextRunUtc", "LeaseExpiresUtc");
+
+                    b.ToTable("DataConnectors");
+                });
+
+            modelBuilder.Entity("Lakehold.ControlPlane.Model.DataConnectorRun", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTimeOffset?>("CompletedUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("DataConnectorId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Error")
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)");
+
+                    b.Property<string>("LeaseToken")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<string>("NodeId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<bool?>("QualityPassed")
+                        .HasColumnType("boolean");
+
+                    b.Property<long>("RowsPublished")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("RowsRead")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("SourceVersion")
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.Property<DateTimeOffset>("StartedUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Trigger")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DataConnectorId", "StartedUtc");
+
+                    b.ToTable("DataConnectorRuns");
+                });
+
             modelBuilder.Entity("Lakehold.ControlPlane.Model.LakeCatalog", b =>
                 {
                     b.Property<int>("Id")
@@ -574,6 +760,36 @@ namespace Lakehold.ControlPlane.Data.Migrations
                     b.Navigation("Tenant");
                 });
 
+            modelBuilder.Entity("Lakehold.ControlPlane.Model.DataConnector", b =>
+                {
+                    b.HasOne("Lakehold.ControlPlane.Model.LakeCatalog", "Catalog")
+                        .WithMany("DataConnectors")
+                        .HasForeignKey("CatalogId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Lakehold.ControlPlane.Model.Tenant", "Tenant")
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Catalog");
+
+                    b.Navigation("Tenant");
+                });
+
+            modelBuilder.Entity("Lakehold.ControlPlane.Model.DataConnectorRun", b =>
+                {
+                    b.HasOne("Lakehold.ControlPlane.Model.DataConnector", "DataConnector")
+                        .WithMany("Runs")
+                        .HasForeignKey("DataConnectorId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("DataConnector");
+                });
+
             modelBuilder.Entity("Lakehold.ControlPlane.Model.LakeCatalog", b =>
                 {
                     b.HasOne("Lakehold.ControlPlane.Model.Tenant", "Tenant")
@@ -619,8 +835,15 @@ namespace Lakehold.ControlPlane.Data.Migrations
                     b.Navigation("Deliveries");
                 });
 
+            modelBuilder.Entity("Lakehold.ControlPlane.Model.DataConnector", b =>
+                {
+                    b.Navigation("Runs");
+                });
+
             modelBuilder.Entity("Lakehold.ControlPlane.Model.LakeCatalog", b =>
                 {
+                    b.Navigation("DataConnectors");
+
                     b.Navigation("SavedQueries");
                 });
 

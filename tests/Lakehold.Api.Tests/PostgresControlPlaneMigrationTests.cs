@@ -143,9 +143,127 @@ public sealed class PostgresControlPlaneMigrationTests
                     "20260730163059_AddDurableCdcDeliveries",
                     "20260730164352_AddCdcConsumerWatermarks",
                     "20260802111047_AddQueryLanguages",
+                    "20260802180526_AddManagedDataConnectors",
                 ],
                 await context.Database.GetAppliedMigrationsAsync());
             Assert.Equal(0, await context.DataProtectionKeys.CountAsync());
+        }
+        finally
+        {
+            await using var drop = administrative.CreateCommand();
+            drop.CommandText = $"DROP SCHEMA {schema} CASCADE";
+            await drop.ExecuteNonQueryAsync();
+        }
+    }
+
+    [SkippableFact]
+    public async Task Connector_publication_fence_blocks_reclaim_and_rejects_an_expired_worker()
+    {
+        var configured = Environment.GetEnvironmentVariable("LAKEHOLD_TEST_POSTGRES");
+        Skip.If(
+            string.IsNullOrWhiteSpace(configured),
+            "Set LAKEHOLD_TEST_POSTGRES to run PostgreSQL connector-fencing tests.");
+
+        var schema = "lh_connector_" + Guid.NewGuid().ToString("N");
+        var connectionString = new NpgsqlConnectionStringBuilder(configured!)
+        {
+            SearchPath = schema,
+        }.ConnectionString;
+        await using var administrative = new NpgsqlConnection(configured);
+        await administrative.OpenAsync();
+        await using (var create = administrative.CreateCommand())
+        {
+            create.CommandText = $"CREATE SCHEMA {schema}";
+            await create.ExecuteNonQueryAsync();
+        }
+
+        try
+        {
+            var options = new DbContextOptionsBuilder<ControlPlaneContext>()
+                .UseNpgsql(connectionString)
+                .Options;
+            await using (var migrationContext = new ControlPlaneContext(options))
+            {
+                await migrationContext.Database.MigrateAsync();
+            }
+
+            await using var firstContext = new ControlPlaneContext(options);
+            var tenant = new Tenant
+            {
+                Slug = "fencing",
+                DisplayName = "Fencing",
+                CreatedUtc = DateTimeOffset.UtcNow,
+            };
+            var catalog = new LakeCatalog
+            {
+                Tenant = tenant,
+                Name = "analytics",
+                MetadataSource = "fencing.ducklake",
+                DataPath = "fencing-data",
+                CreatedUtc = DateTimeOffset.UtcNow,
+            };
+            firstContext.Catalogs.Add(catalog);
+            await firstContext.SaveChangesAsync();
+            var firstService = new DataConnectorService(firstContext);
+            var now = new DateTimeOffset(2026, 8, 2, 12, 0, 0, TimeSpan.Zero);
+            var connector = await firstService.CreateAsync(
+                "fencing",
+                "analytics",
+                ConnectorDefinition(),
+                now,
+                default);
+            var expired = await firstService.TryClaimAsync(
+                connector.Id,
+                DataConnectorTrigger.Manual,
+                "node-one",
+                now,
+                TimeSpan.FromMinutes(1),
+                default);
+            Assert.NotNull(expired);
+
+            await using var secondContext = new ControlPlaneContext(options);
+            var secondService = new DataConnectorService(secondContext);
+            var current = await secondService.TryClaimAsync(
+                connector.Id,
+                DataConnectorTrigger.Manual,
+                "node-two",
+                now.AddMinutes(2),
+                TimeSpan.FromMinutes(1),
+                default);
+            Assert.NotNull(current);
+            Assert.Null(await firstService.TryBeginPublicationAsync(expired!, now.AddMinutes(2), default));
+            await Assert.ThrowsAsync<DataConnectorLeaseLostException>(() =>
+                firstService.CompleteFailureAsync(
+                    expired!,
+                    now.AddMinutes(2),
+                    10,
+                    sourceVersion: null,
+                    qualityPassed: null,
+                    "stale worker",
+                    default));
+
+            await using var publication = await secondService.TryBeginPublicationAsync(
+                current!,
+                now.AddMinutes(2),
+                default);
+            Assert.NotNull(publication);
+
+            await using var thirdContext = new ControlPlaneContext(options);
+            var thirdService = new DataConnectorService(thirdContext);
+            var reclaim = thirdService.TryClaimAsync(
+                connector.Id,
+                DataConnectorTrigger.Manual,
+                "node-three",
+                now.AddMinutes(4),
+                TimeSpan.FromMinutes(1),
+                default);
+            var early = await Task.WhenAny(reclaim, Task.Delay(TimeSpan.FromMilliseconds(250)));
+            Assert.NotSame(reclaim, early);
+
+            await publication!.CompleteAsync(now.AddMinutes(4), 2, 2, "v2", default);
+            var next = await reclaim.WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.NotNull(next);
+            Assert.NotEqual(current!.LeaseToken, next!.LeaseToken);
         }
         finally
         {
@@ -258,4 +376,21 @@ public sealed class PostgresControlPlaneMigrationTests
             }
         }
     }
+
+    private static DataConnectorDefinition ConnectorDefinition() => new(
+        "orders",
+        "Order snapshot",
+        "data-platform@example.test",
+        ["orders", "managed"],
+        DataConnectorKind.Rest,
+        "https://example.test/orders",
+        CredentialEnvironmentVariable: null,
+        RestResponseFormat.JsonArray,
+        "main",
+        "orders",
+        MinimumRows: 1,
+        RequiredColumns: ["id"],
+        NotNullColumns: ["id"],
+        Enabled: false,
+        RefreshIntervalSeconds: null);
 }

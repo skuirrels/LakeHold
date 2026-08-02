@@ -1,4 +1,5 @@
 using Lakehold.Engine.Catalog;
+using System.Text.Json;
 
 namespace Lakehold.ControlPlane.Model;
 
@@ -112,6 +113,8 @@ public sealed class LakeCatalog
 
     public ICollection<SavedQuery> SavedQueries { get; } = [];
 
+    public ICollection<DataConnector> DataConnectors { get; } = [];
+
     /// <summary>Projects this record into the descriptor the engine attaches.</summary>
     public CatalogDescriptor ToDescriptor() => new(
         Name,
@@ -127,6 +130,446 @@ public sealed class LakeCatalog
         ConfigurationVersion: ConfigurationVersion,
         StorageKind: StorageKind,
         StorageProfile: StorageProfile);
+}
+
+/// <summary>The transport used to read a full dataset snapshot from an external source.</summary>
+public enum DataConnectorKind
+{
+    Rest = 0,
+    Grpc = 1,
+}
+
+/// <summary>The wire shape returned by a REST connector.</summary>
+public enum RestResponseFormat
+{
+    JsonArray = 0,
+    NewlineDelimitedJson = 1,
+}
+
+/// <summary>Why a connector refresh was started.</summary>
+public enum DataConnectorTrigger
+{
+    Manual = 0,
+    Scheduled = 1,
+}
+
+/// <summary>The durable outcome of one connector refresh.</summary>
+public enum DataConnectorRunStatus
+{
+    Running = 0,
+    Succeeded = 1,
+    Failed = 2,
+}
+
+/// <summary>
+///     A managed full-snapshot ingestion definition. It is both the source-to-table lineage edge and
+///     the first data-product metadata record: the target has an owner, description, tags, and
+///     explicit quality gates rather than being an anonymous table produced by a background task.
+/// </summary>
+public sealed class DataConnector
+{
+    private DataConnector()
+    {
+    }
+
+    public int Id { get; private set; }
+
+    public int TenantId { get; private set; }
+
+    public int CatalogId { get; private set; }
+
+    public string Name { get; private set; } = string.Empty;
+
+    public string? Description { get; private set; }
+
+    public string Owner { get; private set; } = string.Empty;
+
+    /// <summary>JSON array of discovery tags. Stored as text for the legacy DuckDB test adapter.</summary>
+    public string TagsJson { get; private set; } = "[]";
+
+    public DataConnectorKind Kind { get; private set; }
+
+    public string EndpointUrl { get; private set; } = string.Empty;
+
+    /// <summary>
+    ///     Name of an environment variable containing a bearer token. The secret itself is never
+    ///     persisted and must be supplied consistently to every worker node.
+    /// </summary>
+    public string? CredentialEnvironmentVariable { get; private set; }
+
+    public RestResponseFormat RestResponseFormat { get; private set; }
+
+    public string TargetSchema { get; private set; } = "main";
+
+    public string TargetTable { get; private set; } = string.Empty;
+
+    public long MinimumRows { get; private set; } = 1;
+
+    /// <summary>JSON array of columns that must exist before a refresh may replace the target.</summary>
+    public string RequiredColumnsJson { get; private set; } = "[]";
+
+    /// <summary>JSON array of columns that must contain no nulls.</summary>
+    public string NotNullColumnsJson { get; private set; } = "[]";
+
+    public bool Enabled { get; private set; }
+
+    /// <summary>Null means manual-only; otherwise the interval between successful or failed attempts.</summary>
+    public int? RefreshIntervalSeconds { get; private set; }
+
+    public DateTimeOffset? NextRunUtc { get; private set; }
+
+    public DateTimeOffset? LastCompletedUtc { get; private set; }
+
+    public string? LastError { get; private set; }
+
+    public string? LeaseOwner { get; private set; }
+
+    public DateTimeOffset? LeaseExpiresUtc { get; private set; }
+
+    /// <summary>Opaque generation that fences an expired worker from a later claim.</summary>
+    public string? LeaseToken { get; private set; }
+
+    /// <summary>True after this connector has safely created its target and may replace it.</summary>
+    public bool TargetProvisioned { get; private set; }
+
+    /// <summary>Archived definitions and their run lineage remain durable and cannot execute.</summary>
+    public DateTimeOffset? ArchivedUtc { get; private set; }
+
+    public int ConcurrencyVersion { get; private set; }
+
+    public DateTimeOffset CreatedUtc { get; private set; }
+
+    public DateTimeOffset UpdatedUtc { get; private set; }
+
+    public Tenant Tenant { get; private set; } = null!;
+
+    public LakeCatalog Catalog { get; private set; } = null!;
+
+    public ICollection<DataConnectorRun> Runs { get; } = [];
+
+    public static DataConnector Create(
+        int tenantId,
+        int catalogId,
+        DataConnectorDefinition definition,
+        DateTimeOffset now)
+    {
+        ArgumentNullException.ThrowIfNull(definition);
+        var connector = new DataConnector
+        {
+            TenantId = tenantId,
+            CatalogId = catalogId,
+            CreatedUtc = now,
+            ConcurrencyVersion = 1,
+        };
+        connector.Apply(definition, now);
+        return connector;
+    }
+
+    public void Reconfigure(DataConnectorDefinition definition, DateTimeOffset now)
+    {
+        ArgumentNullException.ThrowIfNull(definition);
+        if (ArchivedUtc is not null)
+        {
+            throw new InvalidOperationException("Archived connectors cannot be reconfigured.");
+        }
+
+        if (LeaseExpiresUtc > now)
+        {
+            throw new InvalidOperationException("A connector cannot be reconfigured while a refresh is active.");
+        }
+
+        if (TargetProvisioned
+            && (!string.Equals(TargetSchema, definition.TargetSchema.Trim(), StringComparison.Ordinal)
+                || !string.Equals(TargetTable, definition.TargetTable.Trim(), StringComparison.Ordinal)))
+        {
+            throw new InvalidOperationException(
+                "A connector target cannot change after its first successful publication; create a new connector instead.");
+        }
+
+        Apply(definition, now);
+        ConcurrencyVersion++;
+    }
+
+    public string[] Tags() => DeserializeArray(TagsJson);
+
+    public string[] RequiredColumns() => DeserializeArray(RequiredColumnsJson);
+
+    public string[] NotNullColumns() => DeserializeArray(NotNullColumnsJson);
+
+    public void MarkCompleted(string leaseToken, DateTimeOffset now, string? error, bool targetPublished)
+    {
+        if (!string.Equals(LeaseToken, leaseToken, StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException("The connector claim is no longer current.");
+        }
+
+        LastCompletedUtc = now;
+        LastError = error;
+        LeaseOwner = null;
+        LeaseExpiresUtc = null;
+        LeaseToken = null;
+        TargetProvisioned |= targetPublished;
+        NextRunUtc = Enabled && RefreshIntervalSeconds is { } seconds
+            ? now.AddSeconds(seconds)
+            : null;
+        UpdatedUtc = now;
+        ConcurrencyVersion++;
+    }
+
+    public void Archive(DateTimeOffset now)
+    {
+        if (ArchivedUtc is not null)
+        {
+            return;
+        }
+
+        ArchivedUtc = now;
+        Enabled = false;
+        NextRunUtc = null;
+        UpdatedUtc = now;
+        ConcurrencyVersion++;
+    }
+
+    private void Apply(DataConnectorDefinition definition, DateTimeOffset now)
+    {
+        var scheduleChanged = Enabled != definition.Enabled
+                              || RefreshIntervalSeconds != definition.RefreshIntervalSeconds;
+        if (string.IsNullOrWhiteSpace(definition.Name) || definition.Name.Trim().Length > 200)
+        {
+            throw new ArgumentException("Connector names must contain 1 to 200 characters.", nameof(definition));
+        }
+
+        if (!Uri.TryCreate(definition.EndpointUrl, UriKind.Absolute, out _))
+        {
+            throw new ArgumentException("A connector endpoint must be an absolute URL.", nameof(definition));
+        }
+
+        if (string.IsNullOrWhiteSpace(definition.Owner) || definition.Owner.Trim().Length > 200)
+        {
+            throw new ArgumentException("A data-product owner of 1 to 200 characters is required.", nameof(definition));
+        }
+
+        if (definition.MinimumRows < 1)
+        {
+            throw new ArgumentOutOfRangeException(nameof(definition), "Minimum rows must be at least one.");
+        }
+
+
+        if (!Enum.IsDefined(definition.Kind))
+        {
+            throw new ArgumentOutOfRangeException(nameof(definition), "Connector kind must be REST or gRPC.");
+        }
+
+        if (definition.Enabled && definition.RefreshIntervalSeconds is null)
+        {
+            throw new ArgumentException(
+                "Enabled connectors require a refresh interval.",
+                nameof(definition));
+        }
+
+        if (definition.RefreshIntervalSeconds is < 60 or > 31_536_000)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(definition), "Refresh intervals must be between 60 seconds and 365 days.");
+        }
+
+        var credentialVariable = NormalizeOptional(definition.CredentialEnvironmentVariable, 128);
+        if (credentialVariable is not null && !IsEnvironmentVariableName(credentialVariable))
+        {
+            throw new ArgumentException(
+                "Credential environment-variable names must start with a letter or underscore and contain only letters, digits, and underscores.",
+                nameof(definition));
+        }
+
+        Name = definition.Name.Trim();
+        Description = NormalizeOptional(definition.Description, 2_000);
+        Owner = definition.Owner.Trim();
+        TagsJson = SerializeArray(definition.Tags, 64, 100);
+        Kind = definition.Kind;
+        EndpointUrl = definition.EndpointUrl.Trim();
+        CredentialEnvironmentVariable = credentialVariable;
+        RestResponseFormat = definition.RestResponseFormat;
+        TargetSchema = Required(definition.TargetSchema, 63, "Target schema");
+        TargetTable = Required(definition.TargetTable, 63, "Target table");
+        MinimumRows = definition.MinimumRows;
+        RequiredColumnsJson = SerializeArray(definition.RequiredColumns, 256, 255);
+        NotNullColumnsJson = SerializeArray(definition.NotNullColumns, 256, 255);
+        Enabled = definition.Enabled;
+        RefreshIntervalSeconds = definition.RefreshIntervalSeconds;
+        NextRunUtc = definition.Enabled && definition.RefreshIntervalSeconds is not null
+            ? scheduleChanged || NextRunUtc is null ? now : NextRunUtc
+            : null;
+        UpdatedUtc = now;
+    }
+
+    private static string Required(string value, int maxLength, string field)
+    {
+        if (string.IsNullOrWhiteSpace(value) || value.Trim().Length > maxLength)
+        {
+            throw new ArgumentException($"{field} must contain 1 to {maxLength} characters.");
+        }
+
+        return value.Trim();
+    }
+
+    private static string? NormalizeOptional(string? value, int maxLength)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        var normalized = value.Trim();
+        if (normalized.Length > maxLength)
+        {
+            throw new ArgumentException($"Values cannot exceed {maxLength} characters.");
+        }
+
+        return normalized;
+    }
+
+    private static bool IsEnvironmentVariableName(string value)
+    {
+        if (!(char.IsAsciiLetter(value[0]) || value[0] == '_'))
+        {
+            return false;
+        }
+
+        return value.All(character => char.IsAsciiLetterOrDigit(character) || character == '_');
+    }
+
+    private static string SerializeArray(IEnumerable<string> values, int maxCount, int maxLength)
+    {
+        ArgumentNullException.ThrowIfNull(values);
+        var normalized = values
+            .Select(value => value?.Trim() ?? string.Empty)
+            .Where(value => value.Length > 0)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        if (normalized.Length > maxCount || normalized.Any(value => value.Length > maxLength))
+        {
+            throw new ArgumentException(
+                $"Lists may contain at most {maxCount} values of at most {maxLength} characters each.");
+        }
+
+        return JsonSerializer.Serialize(normalized);
+    }
+
+    private static string[] DeserializeArray(string json) =>
+        JsonSerializer.Deserialize<string[]>(json) ?? [];
+}
+
+/// <summary>The validated mutable definition accepted by the connector aggregate.</summary>
+public sealed record DataConnectorDefinition(
+    string Name,
+    string? Description,
+    string Owner,
+    IReadOnlyList<string> Tags,
+    DataConnectorKind Kind,
+    string EndpointUrl,
+    string? CredentialEnvironmentVariable,
+    RestResponseFormat RestResponseFormat,
+    string TargetSchema,
+    string TargetTable,
+    long MinimumRows,
+    IReadOnlyList<string> RequiredColumns,
+    IReadOnlyList<string> NotNullColumns,
+    bool Enabled,
+    int? RefreshIntervalSeconds);
+
+/// <summary>Durable lineage and quality evidence for one connector refresh.</summary>
+public sealed class DataConnectorRun
+{
+    private DataConnectorRun()
+    {
+    }
+
+    public int Id { get; private set; }
+
+    public int DataConnectorId { get; private set; }
+
+    public DataConnectorTrigger Trigger { get; private set; }
+
+    public DataConnectorRunStatus Status { get; private set; }
+
+    public string NodeId { get; private set; } = string.Empty;
+
+    public string LeaseToken { get; private set; } = string.Empty;
+
+    public DateTimeOffset StartedUtc { get; private set; }
+
+    public DateTimeOffset? CompletedUtc { get; private set; }
+
+    public long RowsRead { get; private set; }
+
+    public long RowsPublished { get; private set; }
+
+    public bool? QualityPassed { get; private set; }
+
+    public string? SourceVersion { get; private set; }
+
+    public string? Error { get; private set; }
+
+    public DataConnector DataConnector { get; private set; } = null!;
+
+    public static DataConnectorRun Start(
+        int connectorId,
+        DataConnectorTrigger trigger,
+        string nodeId,
+        string leaseToken,
+        DateTimeOffset now) => new()
+        {
+            DataConnectorId = connectorId,
+            Trigger = trigger,
+            Status = DataConnectorRunStatus.Running,
+            NodeId = nodeId,
+            LeaseToken = leaseToken,
+            StartedUtc = now,
+        };
+
+    public void Succeed(
+        DateTimeOffset now,
+        long rowsRead,
+        long rowsPublished,
+        string? sourceVersion)
+    {
+        EnsureRunning();
+        Status = DataConnectorRunStatus.Succeeded;
+        CompletedUtc = now;
+        RowsRead = rowsRead;
+        RowsPublished = rowsPublished;
+        QualityPassed = true;
+        SourceVersion = Normalize(sourceVersion, 512);
+        Error = null;
+    }
+
+    public void Fail(
+        DateTimeOffset now,
+        long rowsRead,
+        string? sourceVersion,
+        bool? qualityPassed,
+        string error)
+    {
+        EnsureRunning();
+        Status = DataConnectorRunStatus.Failed;
+        CompletedUtc = now;
+        RowsRead = rowsRead;
+        RowsPublished = 0;
+        QualityPassed = qualityPassed;
+        SourceVersion = Normalize(sourceVersion, 512);
+        Error = Normalize(error, 4_000) ?? "Connector refresh failed.";
+    }
+
+    private void EnsureRunning()
+    {
+        if (Status != DataConnectorRunStatus.Running)
+        {
+            throw new InvalidOperationException("Only a running connector execution can reach a terminal state.");
+        }
+    }
+
+    private static string? Normalize(string? value, int maxLength) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim()[..Math.Min(value.Trim().Length, maxLength)];
 }
 
 /// <summary>A named, reusable query.</summary>
