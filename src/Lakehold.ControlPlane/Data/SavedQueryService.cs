@@ -1,6 +1,7 @@
 using Lakehold.ControlPlane.Model;
 using Lakehold.Engine.Catalog;
 using Lakehold.Engine.Execution;
+using Lakehold.Querying;
 using Microsoft.EntityFrameworkCore;
 
 namespace Lakehold.ControlPlane.Data;
@@ -44,9 +45,28 @@ public sealed class SavedQueryConflictException : Exception
 public sealed class SavedQueryService(
     ControlPlaneContext context,
     LakehouseService lakehouse,
-    TimeProvider clock)
+    TimeProvider clock,
+    QuerySourcePlanningService planning)
 {
-    private const int MaxSqlLength = 100_000;
+    private const int MaxSourceLength = 100_000;
+
+    public Task<SavedQuery> CreateAsync(
+        string tenantSlug,
+        string catalogName,
+        string name,
+        string? description,
+        string sql,
+        int? tokenId,
+        CancellationToken cancellationToken)
+        => CreateAsync(
+            tenantSlug,
+            catalogName,
+            name,
+            description,
+            sql,
+            "sql",
+            tokenId,
+            cancellationToken);
 
     /// <summary>Lists saved queries bound to one reachable catalog.</summary>
     public async Task<IReadOnlyList<SavedQuery>> ListAsync(
@@ -83,6 +103,7 @@ public sealed class SavedQueryService(
         string name,
         string? description,
         string sql,
+        string language,
         int? tokenId,
         CancellationToken cancellationToken)
     {
@@ -93,6 +114,7 @@ public sealed class SavedQueryService(
                 name,
                 description,
                 sql,
+                language,
                 cancellationToken)
             .ConfigureAwait(false);
         var now = clock.GetUtcNow();
@@ -104,6 +126,7 @@ public sealed class SavedQueryService(
             Name = definition.Name,
             Description = definition.Description,
             Sql = definition.Sql,
+            Language = definition.Language,
             Revision = 1,
             ConcurrencyVersion = 1,
             CreatedByTokenId = tokenId,
@@ -124,6 +147,28 @@ public sealed class SavedQueryService(
     ///     is deliberately not rewritten here; its lower published revision makes the drift visible
     ///     until an editor explicitly republishes.
     /// </summary>
+    public Task<SavedQuery> UpdateAsync(
+        string tenantSlug,
+        string catalogName,
+        int id,
+        int expectedRevision,
+        string name,
+        string? description,
+        string sql,
+        int? tokenId,
+        CancellationToken cancellationToken)
+        => UpdateAsync(
+            tenantSlug,
+            catalogName,
+            id,
+            expectedRevision,
+            name,
+            description,
+            sql,
+            "sql",
+            tokenId,
+            cancellationToken);
+
     public async Task<SavedQuery> UpdateAsync(
         string tenantSlug,
         string catalogName,
@@ -132,6 +177,7 @@ public sealed class SavedQueryService(
         string name,
         string? description,
         string sql,
+        string language,
         int? tokenId,
         CancellationToken cancellationToken)
     {
@@ -146,12 +192,14 @@ public sealed class SavedQueryService(
                 name,
                 description,
                 sql,
+                language,
                 cancellationToken)
             .ConfigureAwait(false);
 
         query.Name = definition.Name;
         query.Description = definition.Description;
         query.Sql = definition.Sql;
+        query.Language = definition.Language;
         query.Revision++;
         query.ConcurrencyVersion++;
         query.UpdatedByTokenId = tokenId;
@@ -197,18 +245,40 @@ public sealed class SavedQueryService(
         bool recordHistory,
         CancellationToken cancellationToken)
     {
-        var query = await GetAsync(tenantSlug, catalogName, id, cancellationToken).ConfigureAwait(false);
+        var execution = await ExecutePlannedAsync(
+            tenantSlug,
+            catalogName,
+            id,
+            tokenId,
+            recordHistory,
+            cancellationToken).ConfigureAwait(false);
+        return execution.Result;
+    }
 
-        return await lakehouse
-            .ExecuteAsync(
-                tenantSlug,
-                catalogName,
-                query.Sql,
-                cancellationToken,
-                readOnly: true,
-                tokenId,
-                recordHistory)
+    /// <summary>Plans and executes the persisted definition, retaining generated SQL for the UI.</summary>
+    public async Task<SavedQueryExecutionResult> ExecutePlannedAsync(
+        string tenantSlug,
+        string catalogName,
+        int id,
+        int? tokenId,
+        bool recordHistory,
+        CancellationToken cancellationToken)
+    {
+        var query = await GetAsync(tenantSlug, catalogName, id, cancellationToken).ConfigureAwait(false);
+        var plan = await PlanAsync(tenantSlug, catalogName, query.Language, query.Sql, cancellationToken)
             .ConfigureAwait(false);
+        var result = await lakehouse.ExecuteAsync(
+            tenantSlug,
+            catalogName,
+            plan.Sql,
+            cancellationToken,
+            readOnly: true,
+            tokenId,
+            recordHistory,
+            QueryPlanParameterMapper.Decode(plan),
+            query.Language,
+            query.Sql).ConfigureAwait(false);
+        return new SavedQueryExecutionResult(result, plan, query.Language);
     }
 
     /// <summary>
@@ -235,6 +305,13 @@ public sealed class SavedQueryService(
             .ConfigureAwait(false)
             ?? throw NotFound(tenantSlug, catalogName, id);
         EnsureRevision(query, expectedRevision);
+        var plan = await PlanAsync(tenantSlug, catalogName, query.Language, query.Sql, cancellationToken)
+            .ConfigureAwait(false);
+        if (plan.Parameters.Count > 0)
+        {
+            throw new SavedQueryValidationException(
+                "A parameterized query cannot be published as a view. Use literals in the saved definition.");
+        }
 
         var alreadyPublished = query.PublishedViewName is not null;
         if (alreadyPublished
@@ -252,7 +329,7 @@ public sealed class SavedQueryService(
         var target =
             $"{SqlIdentifier.QuoteName(SqlIdentifier.Quote(schema))}." +
             $"{SqlIdentifier.QuoteName(SqlIdentifier.Quote(viewName))}";
-        var statement = $"{verb} {target} AS\n{query.Sql}";
+        var statement = $"{verb} {target} AS\n{plan.Sql}";
         var viewChanged = false;
 
         await using var transaction = await context.Database
@@ -279,6 +356,7 @@ public sealed class SavedQueryService(
 
             query.PublishedSchema = schema;
             query.PublishedViewName = viewName;
+            query.PublishedSchemaFingerprint = plan.SchemaFingerprint;
             query.PublishedRevision = query.Revision;
             query.PublishedUtc = clock.GetUtcNow();
             query.UpdatedByTokenId = tokenId;
@@ -370,6 +448,7 @@ public sealed class SavedQueryService(
 
             query.PublishedSchema = null;
             query.PublishedViewName = null;
+            query.PublishedSchemaFingerprint = null;
             query.PublishedRevision = null;
             query.PublishedUtc = null;
             query.UpdatedByTokenId = tokenId;
@@ -513,6 +592,7 @@ public sealed class SavedQueryService(
         string name,
         string? description,
         string sql,
+        string language,
         CancellationToken cancellationToken)
     {
         name = name?.Trim() ?? string.Empty;
@@ -528,13 +608,22 @@ public sealed class SavedQueryService(
             throw new SavedQueryValidationException("A saved-query description may contain at most 1000 characters.");
         }
 
-        if (string.IsNullOrWhiteSpace(sql) || sql.Length > MaxSqlLength)
+        language = string.IsNullOrWhiteSpace(language) ? "sql" : language.Trim();
+        if (language.Length > 32)
         {
-            throw new SavedQueryValidationException(
-                $"A SQL query of 1-{MaxSqlLength:N0} characters is required.");
+            throw new SavedQueryValidationException("A query language id may contain at most 32 characters.");
         }
 
-        var statements = SqlStatementSplitter.Split(sql);
+        if (string.IsNullOrWhiteSpace(sql) || sql.Length > MaxSourceLength)
+        {
+            throw new SavedQueryValidationException(
+                $"Query source of 1-{MaxSourceLength:N0} characters is required.");
+        }
+
+        var plan = await PlanAsync(tenantSlug, catalogName, language, sql, cancellationToken)
+            .ConfigureAwait(false);
+
+        var statements = SqlStatementSplitter.Split(plan.Sql);
         if (statements.Count != 1)
         {
             throw new SavedQueryValidationException("A saved query must contain exactly one SQL statement.");
@@ -555,11 +644,54 @@ public sealed class SavedQueryService(
                 "A saved query must produce rows. WITH-prefixed data changes cannot be saved.");
         }
 
-        return new SavedQueryDefinition(name, description, normalized);
+        return new SavedQueryDefinition(
+            name,
+            description,
+            string.Equals(language, "sql", StringComparison.Ordinal) ? normalized : sql.Trim(),
+            language);
+    }
+
+    private async Task<QueryPlan> PlanAsync(
+        string tenantSlug,
+        string catalogName,
+        string language,
+        string source,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await planning.PlanAsync(tenantSlug, catalogName, language, source, cancellationToken)
+                .ConfigureAwait(false);
+        }
+        catch (ArgumentException ex)
+        {
+            throw new SavedQueryValidationException(ex.Message);
+        }
+        catch (QueryLanguageUnavailableException ex)
+        {
+            throw new SavedQueryValidationException(ex.Message);
+        }
+        catch (QuerySourceInvalidException ex)
+        {
+            var message = ex.Diagnostics.Count == 0
+                ? ex.Message
+                : string.Join(Environment.NewLine, ex.Diagnostics.Select(diagnostic => diagnostic.Message));
+            throw new SavedQueryValidationException(message);
+        }
+        catch (QueryPlanRejectedException ex)
+        {
+            throw new SavedQueryValidationException(ex.Message);
+        }
     }
 
     private static SavedQueryNotFoundException NotFound(string tenant, string catalog, int id)
         => new($"Saved query {id} was not found for '{tenant}/{catalog}'.");
 
-    private sealed record SavedQueryDefinition(string Name, string? Description, string Sql);
+    private sealed record SavedQueryDefinition(
+        string Name,
+        string? Description,
+        string Sql,
+        string Language);
 }
+
+public sealed record SavedQueryExecutionResult(QueryResult Result, QueryPlan Plan, string Language);

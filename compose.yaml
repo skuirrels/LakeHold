@@ -65,6 +65,9 @@ services:
       Lakehold__Oidc__SystemAdminValue: ${LAKEHOLD_OIDC_SYSTEM_ADMIN_VALUE:-true}
       ConnectionStrings__ControlPlane: Host=postgres;Port=5432;Database=${POSTGRES_DB:-lakeholdmeta};Username=${POSTGRES_USER:-lakehold};Password=${POSTGRES_PASSWORD:-lakehold}
       ConnectionStrings__DuckLakeMetadata: Host=postgres;Port=5432;Database=${POSTGRES_DB:-lakeholdmeta};Username=${POSTGRES_USER:-lakehold};Password=${POSTGRES_PASSWORD:-lakehold}
+      Lakehold__Querying__Planners__0__Id: csharp-linq
+      Lakehold__Querying__Planners__0__Endpoint: http://linq-compiler:5210/
+      Lakehold__Querying__Planners__0__SharedSecret: ${LAKEHOLD_LINQ_PLANNER_KEY:-local-linq-planner}
     ports:
       - "${API_PORT:-5200}:5200"
     volumes:
@@ -77,12 +80,40 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    networks:
+      - default
+      - linq-internal
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://localhost:5200/api/tenants || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 30
       start_period: 60s
+
+  # Opt-in planner: `docker compose --profile linq up`. With the profile absent the API simply
+  # omits C# LINQ from discovery, while SQL and every other Workbench surface remain available.
+  linq-compiler:
+    profiles: ["linq"]
+    build:
+      context: .
+      dockerfile: src/Lakehold.Linq.Compiler/Dockerfile
+    container_name: lakehold-linq-compiler
+    environment:
+      Lakehold__LinqCompiler__SharedSecret: ${LAKEHOLD_LINQ_PLANNER_KEY:-local-linq-planner}
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,noexec,nosuid
+    cap_drop: ["ALL"]
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512m
+          pids: 128
+    networks:
+      - linq-internal
 
   # The Angular dev server — this is the website.
   ui:
@@ -198,3 +229,7 @@ volumes:
   nuget-cache:
   api-state:
   ui-node-modules:
+
+networks:
+  linq-internal:
+    internal: true

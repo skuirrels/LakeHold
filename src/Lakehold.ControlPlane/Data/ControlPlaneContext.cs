@@ -96,8 +96,10 @@ public sealed class ControlPlaneContext(DbContextOptions<ControlPlaneContext> op
             ConfigureGeneratedId(entity.Property(q => q.Id), isDuckDb);
             entity.Property(q => q.Name).HasMaxLength(200);
             entity.Property(q => q.Description).HasMaxLength(1000);
+            entity.Property(q => q.Language).HasMaxLength(32).HasDefaultValue("sql");
             entity.Property(q => q.PublishedSchema).HasMaxLength(63);
             entity.Property(q => q.PublishedViewName).HasMaxLength(63);
+            entity.Property(q => q.PublishedSchemaFingerprint).HasMaxLength(64);
             entity.Property(q => q.ConcurrencyVersion).IsConcurrencyToken();
 
             // A name is scoped to the catalog that owns the definition. The pre-feature
@@ -192,6 +194,7 @@ public sealed class ControlPlaneContext(DbContextOptions<ControlPlaneContext> op
             entity.HasKey(r => r.Id);
             ConfigureGeneratedId(entity.Property(r => r.Id), isDuckDb);
             entity.Property(r => r.CatalogName).HasMaxLength(63);
+            entity.Property(r => r.Language).HasMaxLength(32).HasDefaultValue("sql");
             entity.Property(r => r.Error).HasMaxLength(4000);
 
             // The history panel always reads newest-first within a tenant.

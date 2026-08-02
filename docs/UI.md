@@ -1,5 +1,9 @@
 # The workbench and what sits beside it
 
+The Workbench supports SQL directly and optional, isolated query-language planners. See
+[C# LINQ in the Workbench](LINQ_WORKBENCH.md) for the planner contract, editor syntax, deployment,
+and security boundary.
+
 The plan for the web surfaces LakeHold needs beyond its SQL IDE — principally the **physical layer**:
 how much a table weighs, how many Parquet files it is spread across, how much of it is delete-file
 overhead, and therefore whether the maintenance buttons already in the toolbar are worth pressing.

@@ -56,6 +56,14 @@ public static class LakeholdTelemetry
     public static readonly Counter<long> QueriesTruncated = Meter.CreateCounter<long>(
         "lakehold.query.truncated", "{query}", "Statements truncated at the result-row ceiling.");
 
+    /// <summary>External query-planner latency, tagged only by the bounded language id.</summary>
+    public static readonly Histogram<double> QueryPlanningDuration = Meter.CreateHistogram<double>(
+        "lakehold.query.planning.duration", "s", "Duration of an external query-planning request.");
+
+    /// <summary>Node-local compiled-plan cache requests, tagged hit or miss.</summary>
+    public static readonly Counter<long> QueryPlanCacheRequests = Meter.CreateCounter<long>(
+        "lakehold.query.plan.cache.requests", "{request}", "Compiled query-plan cache lookups.");
+
     // ---- sessions ----
 
     /// <summary>

@@ -4,8 +4,15 @@ using Lakehold.Engine.Catalog;
 namespace Lakehold.Api;
 
 /// <summary>Request to execute a statement.</summary>
-/// <param name="Sql">The statement to run.</param>
-public sealed record ExecuteRequest(string Sql);
+/// <param name="Sql">Backward-compatible SQL source.</param>
+/// <param name="Language">Planner id. Defaults to <c>sql</c>.</param>
+/// <param name="Source">Source for <paramref name="Language"/>.</param>
+public sealed record ExecuteRequest(string? Sql = null, string? Language = null, string? Source = null)
+{
+    public string EffectiveLanguage => string.IsNullOrWhiteSpace(Language) ? "sql" : Language.Trim();
+
+    public string? EffectiveSource => Source ?? Sql;
+}
 
 /// <summary>A column in a query response.</summary>
 public sealed record ColumnDto(string Name, string DataType, string ClrType);
@@ -25,10 +32,17 @@ public sealed record QueryResponse(
     IReadOnlyList<object?[]> Rows,
     bool Truncated,
     double ElapsedMilliseconds,
-    long? RowsAffected)
+    long? RowsAffected,
+    string Language,
+    string? GeneratedSql,
+    IReadOnlyList<Lakehold.Querying.QueryDiagnostic> Diagnostics)
 {
     /// <summary>Maps the engine result onto the transport contract.</summary>
-    public static QueryResponse From(QueryResult result)
+    public static QueryResponse From(
+        QueryResult result,
+        string language = "sql",
+        string? generatedSql = null,
+        IReadOnlyList<Lakehold.Querying.QueryDiagnostic>? diagnostics = null)
     {
         ArgumentNullException.ThrowIfNull(result);
 
@@ -37,7 +51,10 @@ public sealed record QueryResponse(
             result.Rows,
             result.Truncated,
             result.Elapsed.TotalMilliseconds,
-            result.RowsAffected);
+            result.RowsAffected,
+            language,
+            generatedSql,
+            diagnostics ?? []);
     }
 }
 
@@ -49,6 +66,7 @@ public sealed record SavedQueryDto(
     string Name,
     string? Description,
     string Sql,
+    string Language,
     int Revision,
     DateTimeOffset CreatedUtc,
     DateTimeOffset UpdatedUtc,
@@ -56,18 +74,25 @@ public sealed record SavedQueryDto(
     int? UpdatedByTokenId,
     string? PublishedSchema,
     string? PublishedViewName,
+    string? PublishedSchemaFingerprint,
+    bool PublishedSchemaDrifted,
     int? PublishedRevision,
     DateTimeOffset? PublishedUtc);
 
-/// <summary>Request to save the current SQL as a reusable query.</summary>
-public sealed record CreateSavedQueryRequest(string Name, string? Description, string Sql);
+/// <summary>Request to save the current source as a reusable query.</summary>
+public sealed record CreateSavedQueryRequest(
+    string Name,
+    string? Description,
+    string Sql,
+    string Language = "sql");
 
 /// <summary>Request to replace a saved-query definition at an expected revision.</summary>
 public sealed record UpdateSavedQueryRequest(
     int Revision,
     string Name,
     string? Description,
-    string Sql);
+    string Sql,
+    string Language = "sql");
 
 /// <summary>Request to publish one saved-query revision as a catalog view.</summary>
 public sealed record PublishSavedQueryRequest(int Revision, string Schema, string ViewName);
@@ -407,6 +432,7 @@ public sealed record QueryRunDto(
     int Id,
     string CatalogName,
     string Sql,
+    string Language,
     DateTimeOffset StartedUtc,
     double ElapsedMilliseconds,
     int RowCount,

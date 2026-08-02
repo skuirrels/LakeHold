@@ -6,6 +6,7 @@ using Lakehold.Api.Cdc;
 using Lakehold.Api.Endpoints;
 using Lakehold.Api.Health;
 using Lakehold.Api.Importing;
+using Lakehold.Api.Querying;
 using Lakehold.Api.Mcp;
 using Lakehold.Api.PgWire;
 using Lakehold.Api.Scheduling;
@@ -102,6 +103,32 @@ builder.Services.AddScoped<LakehouseService>();
 builder.Services.AddScoped<SavedQueryService>();
 builder.Services.AddSingleton<TabularScratchSpace>();
 builder.Services.AddScoped<TabularUploadService>();
+builder.Services.AddOptions<QueryPlannerOptions>()
+    .Bind(builder.Configuration.GetSection(QueryPlannerOptions.Section))
+    .Validate(
+        options => options.Planners.All(planner =>
+            !string.IsNullOrWhiteSpace(planner.Id)
+            && planner.Endpoint.IsAbsoluteUri
+            && planner.Endpoint.Scheme is "http" or "https"
+            && planner.Endpoint.AbsolutePath.EndsWith('/')),
+        "Every query planner needs a non-empty id and an absolute HTTP(S) base endpoint ending in '/'.")
+    .Validate(
+        options => options.Planners.Select(planner => planner.Id).Distinct(StringComparer.Ordinal).Count()
+            == options.Planners.Count,
+        "Query planner ids must be unique.")
+    .Validate(
+        options => options.MaxResponseBytes is >= 1_024 and <= 16 * 1024 * 1024,
+        "Query planner responses must be capped between 1 KiB and 16 MiB.")
+    .ValidateOnStart();
+builder.Services.AddHttpClient(nameof(QueryPlannerRegistry), client =>
+    client.Timeout = TimeSpan.FromSeconds(15));
+builder.Services.AddScoped<QueryPlannerRegistry>();
+builder.Services.AddScoped<Lakehold.Querying.IQuerySourcePlanner>(
+    services => services.GetRequiredService<QueryPlannerRegistry>());
+builder.Services.AddScoped<QuerySourcePlanningService>();
+builder.Services.AddScoped<QueryPlanValidator>();
+builder.Services.AddSingleton<QueryPlanCache>();
+builder.Services.AddScoped<QueryExecutionCoordinator>();
 
 // Authentication: resolve a bearer token or browser identity to a principal, then validate the
 // route against it in the endpoint filter. Development may allow credential-less requests; a

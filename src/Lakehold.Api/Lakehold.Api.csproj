@@ -17,6 +17,7 @@
 
   <ItemGroup>
     <ProjectReference Include="../Lakehold.ControlPlane/Lakehold.ControlPlane.csproj" />
+    <ProjectReference Include="../Lakehold.Querying/Lakehold.Querying.csproj" />
     <ProjectReference Include="../Lakehold.ServiceDefaults/Lakehold.ServiceDefaults.csproj" />
   </ItemGroup>
 

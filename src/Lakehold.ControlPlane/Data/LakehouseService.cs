@@ -41,7 +41,10 @@ public sealed class LakehouseService(
         CancellationToken cancellationToken,
         bool readOnly = false,
         int? tokenId = null,
-        bool recordHistory = true)
+        bool recordHistory = true,
+        IReadOnlyList<NamedQueryParameter>? parameters = null,
+        string language = "sql",
+        string? source = null)
     {
         // The span carries tenant and catalog; the metrics deliberately do not. Per-tenant time
         // series would blow a metrics backend's cardinality budget on a multi-tenant node, and a slow
@@ -57,14 +60,15 @@ public sealed class LakehouseService(
         {
             TenantId = tenantId,
             CatalogName = catalogName,
-            Sql = sql,
+            Sql = source ?? sql,
+            Language = language,
             StartedUtc = DateTimeOffset.UtcNow,
             TokenId = tokenId,
         };
 
         try
         {
-            var result = await duckling.ExecuteQueryAsync(sql, cancellationToken).ConfigureAwait(false);
+            var result = await duckling.ExecuteQueryAsync(sql, parameters ?? [], cancellationToken).ConfigureAwait(false);
 
             run.Succeeded = true;
             run.RowCount = result.Rows.Count;

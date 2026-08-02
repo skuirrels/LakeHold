@@ -479,6 +479,7 @@
   border-bottom: 1px solid var(--border);
 }
 
+
 .summary {
   font-size: 12px;
   color: var(--text-muted);
@@ -490,24 +491,6 @@
   border-color: var(--warn);
 }
 
-.editor {
-  flex: 1;
-  width: 100%;
-  resize: none;
-  border: none;
-  padding: 14px 16px;
-  background: var(--surface-0);
-  color: var(--text);
-  font-family: var(--mono);
-  font-size: 13px;
-  line-height: 1.65;
-  tab-size: 4;
-}
-
-.editor:focus {
-  outline: none;
-}
-
 /* Output */
 
 .output-pane {
@@ -517,6 +500,7 @@
   min-height: 0;
   background: var(--surface-0);
 }
+
 
 .tabs {
   display: flex;

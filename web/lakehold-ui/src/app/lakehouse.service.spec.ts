@@ -104,13 +104,28 @@ describe('LakehouseService', () => {
 
     const request = http.expectOne('/api/tenants/north%20wind/catalogs/sales%2Feu/query');
     expect(request.request.method).toBe('POST');
-    expect(request.request.body).toEqual({ sql: 'SELECT 1' });
+    expect(request.request.body).toEqual({ language: 'sql', source: 'SELECT 1' });
     request.flush({
       columns: [],
       rows: [],
       truncated: false,
       elapsedMilliseconds: 1,
       rowsAffected: null,
+    });
+  });
+
+  it('asks the selected planner for its catalog-aware starter', () => {
+    service.getQueryStarter('north wind', 'sales/eu', 'csharp/linq').subscribe((starter) => {
+      expect(starter.source).toContain('_123Data.OrderItems');
+    });
+
+    const request = http.expectOne(
+      '/api/tenants/north%20wind/catalogs/sales%2Feu/query-languages/csharp%2Flinq/starter',
+    );
+    expect(request.request.method).toBe('GET');
+    request.flush({
+      source: 'from row in _123Data.OrderItems select row',
+      schemaFingerprint: 'schema-1',
     });
   });
 

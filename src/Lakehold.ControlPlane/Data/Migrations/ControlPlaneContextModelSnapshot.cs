@@ -358,6 +358,13 @@ namespace Lakehold.ControlPlane.Data.Migrations
                         .HasMaxLength(4000)
                         .HasColumnType("character varying(4000)");
 
+                    b.Property<string>("Language")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasDefaultValue("sql");
+
                     b.Property<int>("RowCount")
                         .HasColumnType("integer");
 
@@ -409,6 +416,13 @@ namespace Lakehold.ControlPlane.Data.Migrations
                         .HasMaxLength(1000)
                         .HasColumnType("character varying(1000)");
 
+                    b.Property<string>("Language")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasDefaultValue("sql");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(200)
@@ -420,6 +434,10 @@ namespace Lakehold.ControlPlane.Data.Migrations
                     b.Property<string>("PublishedSchema")
                         .HasMaxLength(63)
                         .HasColumnType("character varying(63)");
+
+                    b.Property<string>("PublishedSchemaFingerprint")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
 
                     b.Property<DateTimeOffset?>("PublishedUtc")
                         .HasColumnType("timestamp with time zone");

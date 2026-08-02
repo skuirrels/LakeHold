@@ -26,6 +26,8 @@ import {
   AccessContext,
   BrowserSession,
   MaintenanceOperation,
+  QueryDiagnostic,
+  QueryLanguage,
   QueryResponse,
   QueryRun,
   Schema,
@@ -34,6 +36,7 @@ import {
   Tenant,
 } from './models';
 import { ResultGridComponent } from './result-grid.component';
+import { QueryEditorComponent } from './query-editor.component';
 import { SavedQueriesPanelComponent } from './saved-queries-panel.component';
 import { SchedulePanelComponent } from './schedule-panel.component';
 import { StoragePanelComponent } from './storage-panel.component';
@@ -52,6 +55,11 @@ FROM events
 WHERE event_type = 'purchase'
 GROUP BY country
 ORDER BY revenue DESC;`;
+
+export interface WorkbenchQuerySource {
+  language: string;
+  source: string;
+}
 
 type BottomTab =
   'results' | 'history' | 'snapshots' | 'storage' | 'backups' | 'ejects' | 'changes' | 'schedule';
@@ -79,6 +87,7 @@ type BottomTab =
     DataHistoryPanelComponent,
     EjectPanelComponent,
     FirstRunComponent,
+    QueryEditorComponent,
     ResultGridComponent,
     RouterLink,
     SavedQueriesPanelComponent,
@@ -95,6 +104,7 @@ export class WorkbenchComponent {
   private readonly destroyRef = inject(DestroyRef);
   private tenantRequestGeneration = 0;
   private catalogRequestGeneration = 0;
+  private readonly sourceBuffers = new Map<string, string>([['sql', STARTER_SQL]]);
   protected readonly auth = inject(AuthService);
   protected readonly browserSession = signal<BrowserSession | null>(null);
 
@@ -125,10 +135,36 @@ export class WorkbenchComponent {
   protected readonly catalogConnected = signal(false);
 
   protected readonly sql = signal(STARTER_SQL);
+  protected readonly language = signal('sql');
+  protected readonly queryLanguages = signal<QueryLanguage[]>([
+    {
+      id: 'sql',
+      displayName: 'SQL',
+      editorLanguage: 'sql',
+      starterSource: STARTER_SQL,
+      readOnly: false,
+      supportsSavedQueries: true,
+    },
+  ]);
+  protected readonly activeLanguage = computed(
+    () => this.queryLanguages().find((candidate) => candidate.id === this.language()) ?? this.queryLanguages()[0],
+  );
+  protected readonly activeLanguageAvailable = computed(
+    () => this.activeLanguage()?.available !== false,
+  );
+  protected readonly activeLanguageCanSave = computed(
+    () => this.activeLanguageAvailable() && (this.activeLanguage()?.supportsSavedQueries ?? false),
+  );
+  protected readonly availableSavedQueryLanguages = computed(() =>
+    this.queryLanguages()
+      .filter((candidate) => candidate.available !== false && candidate.supportsSavedQueries)
+      .map((candidate) => candidate.id),
+  );
   protected readonly running = signal(false);
   protected readonly result = signal<QueryResponse | null>(null);
   protected readonly error = signal<string | null>(null);
   protected readonly errorTitle = signal('Query failed');
+  protected readonly diagnostics = signal<QueryDiagnostic[]>([]);
   protected readonly catalogError = signal<string | null>(null);
   protected readonly notice = signal<string | null>(null);
 
@@ -240,6 +276,25 @@ export class WorkbenchComponent {
     });
   }
 
+  private loadQueryLanguages(): void {
+    this.api.getQueryLanguages().subscribe({
+      next: (languages) => {
+        if (languages.length > 0) {
+          const available = languages.map((language) => ({ ...language, available: true }));
+          const current = this.language();
+          if (available.some((language) => language.id === current)) {
+            this.queryLanguages.set(available);
+            return;
+          }
+
+          const previous = this.queryLanguages().find((language) => language.id === current);
+          this.queryLanguages.set([...available, unavailableLanguage(current, previous)]);
+        }
+      },
+      error: () => undefined,
+    });
+  }
+
   /**
    * Keeps the desktop rail open by default and the compact drawer closed by default.
    *
@@ -296,6 +351,7 @@ export class WorkbenchComponent {
           }
 
           this.access.set(access);
+          this.loadQueryLanguages();
           return this.api.listTenants();
         }),
       )
@@ -489,14 +545,15 @@ export class WorkbenchComponent {
     const tenant = this.tenantSlug();
     const catalog = this.catalogName();
     const sql = this.sql().trim();
+    const language = this.language();
 
-    if (!tenant || !catalog || !sql || this.running()) {
+    if (!tenant || !catalog || !sql || this.running() || !this.activeLanguageAvailable()) {
       return;
     }
 
     this.executeRequest(
-      this.api.execute(tenant, catalog, sql),
-      /^\s*(create|drop|alter)\b/i.test(sql),
+      this.api.execute(tenant, catalog, sql, language),
+      language === 'sql' && /^\s*(create|drop|alter)\b/i.test(sql),
     );
   }
 
@@ -523,26 +580,68 @@ export class WorkbenchComponent {
     this.executeRequest(this.api.executeSavedQuery(tenant, catalog, id), false);
   }
 
-  /** Cmd/Ctrl+Enter runs; Tab inserts an indent instead of leaving the editor. */
-  protected onEditorKeydown(event: KeyboardEvent): void {
-    if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
-      event.preventDefault();
-      this.run();
+  protected insertSql(snippet: string): void {
+    this.switchLanguage('sql');
+    this.sql.set(snippet);
+  }
+
+  protected openSource(query: WorkbenchQuerySource): void {
+    if (!this.queryLanguages().some((candidate) => candidate.id === query.language)) {
+      this.queryLanguages.update((languages) => [
+        ...languages,
+        unavailableLanguage(query.language),
+      ]);
+    }
+
+    this.switchLanguage(query.language);
+    this.sql.set(query.source);
+    this.sourceBuffers.set(query.language, query.source);
+  }
+
+  protected switchLanguage(language: string): void {
+    if (language === this.language()) {
       return;
     }
 
-    if (event.key === 'Tab') {
-      event.preventDefault();
-      const target = event.target as HTMLTextAreaElement;
-      const { selectionStart, selectionEnd, value } = target;
-      target.value = `${value.slice(0, selectionStart)}    ${value.slice(selectionEnd)}`;
-      target.selectionStart = target.selectionEnd = selectionStart + 4;
-      this.sql.set(target.value);
+    this.sourceBuffers.set(this.language(), this.sql());
+    const descriptor = this.queryLanguages().find((candidate) => candidate.id === language)
+      ?? unavailableLanguage(language);
+    if (!this.queryLanguages().some((candidate) => candidate.id === language)) {
+      this.queryLanguages.update((languages) => [...languages, descriptor]);
     }
+
+    this.language.set(language);
+    const buffered = this.sourceBuffers.get(language);
+    const starter = buffered ?? descriptor.starterSource;
+    this.sql.set(starter);
+    if (buffered === undefined && descriptor.available !== false) {
+      this.loadStarter(language, starter);
+    }
+    this.result.set(null);
+    this.error.set(null);
+    this.diagnostics.set([]);
   }
 
-  protected insertSql(snippet: string): void {
-    this.sql.set(snippet);
+  private loadStarter(language: string, fallback: string): void {
+    const tenant = this.tenantSlug();
+    const catalog = this.catalogName();
+    if (!tenant || !catalog) {
+      return;
+    }
+
+    this.api.getQueryStarter(tenant, catalog, language).subscribe({
+      next: (starter) => {
+        if (
+          this.language() === language
+          && this.sql() === fallback
+          && !this.sourceBuffers.has(language)
+        ) {
+          this.sql.set(starter.source);
+          this.sourceBuffers.set(language, starter.source);
+        }
+      },
+      error: () => undefined,
+    });
   }
 
   protected toggleNavigation(): void {
@@ -725,7 +824,7 @@ export class WorkbenchComponent {
   }
 
   protected replay(run: QueryRun): void {
-    this.sql.set(run.sql);
+    this.openSource({ language: run.language ?? 'sql', source: run.sql });
     this.tab.set('results');
     this.navigationDestination.set('workbench');
   }
@@ -783,6 +882,7 @@ export class WorkbenchComponent {
     request.subscribe({
       next: (response) => {
         this.result.set(response);
+        this.diagnostics.set(response.diagnostics ?? []);
         this.running.set(false);
         this.refreshHistory();
         if (refreshSchema) {
@@ -790,6 +890,7 @@ export class WorkbenchComponent {
         }
       },
       error: (err: Error) => {
+        this.diagnostics.set(err instanceof ApiError ? err.diagnostics : []);
         this.fail('Query failed', err.message);
         this.result.set(null);
         this.running.set(false);
@@ -809,6 +910,19 @@ export class WorkbenchComponent {
       .getHistory(tenant)
       .subscribe({ next: (runs) => this.history.set(runs), error: () => undefined });
   }
+}
+
+function unavailableLanguage(language: string, previous?: QueryLanguage): QueryLanguage {
+  const displayName = previous?.displayName ?? language;
+  return {
+    id: language,
+    displayName: displayName.endsWith(' (unavailable)') ? displayName : `${displayName} (unavailable)`,
+    editorLanguage: previous?.editorLanguage ?? 'text',
+    starterSource: previous?.starterSource ?? '',
+    readOnly: true,
+    supportsSavedQueries: false,
+    available: false,
+  };
 }
 
 /**

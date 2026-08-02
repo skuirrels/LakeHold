@@ -50,13 +50,16 @@ public static class SavedQueryEndpoints
         string tenantSlug,
         string catalogName,
         SavedQueryService savedQueries,
+        QuerySourcePlanningService planning,
         CancellationToken cancellationToken)
     {
         try
         {
             var queries = await savedQueries.ListAsync(tenantSlug, catalogName, cancellationToken)
                 .ConfigureAwait(false);
-            return TypedResults.Ok<IReadOnlyList<SavedQueryDto>>([.. queries.Select(ToDto)]);
+            var fingerprint = await CurrentFingerprintAsync(
+                tenantSlug, catalogName, queries, planning, cancellationToken).ConfigureAwait(false);
+            return TypedResults.Ok<IReadOnlyList<SavedQueryDto>>([.. queries.Select(query => ToDto(query, fingerprint))]);
         }
         catch (CatalogNotFoundException ex)
         {
@@ -69,13 +72,16 @@ public static class SavedQueryEndpoints
         string catalogName,
         int id,
         SavedQueryService savedQueries,
+        QuerySourcePlanningService planning,
         CancellationToken cancellationToken)
     {
         try
         {
             var query = await savedQueries.GetAsync(tenantSlug, catalogName, id, cancellationToken)
                 .ConfigureAwait(false);
-            return TypedResults.Ok(ToDto(query));
+            var fingerprint = await CurrentFingerprintAsync(
+                tenantSlug, catalogName, [query], planning, cancellationToken).ConfigureAwait(false);
+            return TypedResults.Ok(ToDto(query, fingerprint));
         }
         catch (SavedQueryNotFoundException ex)
         {
@@ -83,7 +89,7 @@ public static class SavedQueryEndpoints
         }
     }
 
-    internal static async Task<Results<Created<SavedQueryDto>, NotFound<string>, BadRequest<string>, Conflict<string>>> CreateAsync(
+    internal static async Task<Results<Created<SavedQueryDto>, NotFound<string>, BadRequest<string>, Conflict<string>, ProblemHttpResult>> CreateAsync(
         HttpContext http,
         string tenantSlug,
         string catalogName,
@@ -100,6 +106,7 @@ public static class SavedQueryEndpoints
                     request?.Name ?? string.Empty,
                     request?.Description,
                     request?.Sql ?? string.Empty,
+                    request?.Language ?? "sql",
                     http.GetLakeholdPrincipal().TokenId,
                     cancellationToken)
                 .ConfigureAwait(false);
@@ -120,9 +127,13 @@ public static class SavedQueryEndpoints
         {
             return TypedResults.Conflict(ex.Message);
         }
+        catch (HttpRequestException ex)
+        {
+            return PlannerUnavailable(ex);
+        }
     }
 
-    internal static async Task<Results<Ok<SavedQueryDto>, NotFound<string>, BadRequest<string>, Conflict<string>>> UpdateAsync(
+    internal static async Task<Results<Ok<SavedQueryDto>, NotFound<string>, BadRequest<string>, Conflict<string>, ProblemHttpResult>> UpdateAsync(
         HttpContext http,
         string tenantSlug,
         string catalogName,
@@ -142,6 +153,7 @@ public static class SavedQueryEndpoints
                     request?.Name ?? string.Empty,
                     request?.Description,
                     request?.Sql ?? string.Empty,
+                    request?.Language ?? "sql",
                     http.GetLakeholdPrincipal().TokenId,
                     cancellationToken)
                 .ConfigureAwait(false);
@@ -158,6 +170,10 @@ public static class SavedQueryEndpoints
         catch (SavedQueryConflictException ex)
         {
             return TypedResults.Conflict(ex.Message);
+        }
+        catch (HttpRequestException ex)
+        {
+            return PlannerUnavailable(ex);
         }
     }
 
@@ -185,7 +201,7 @@ public static class SavedQueryEndpoints
         }
     }
 
-    internal static async Task<Results<Ok<QueryResponse>, NotFound<string>, BadRequest<string>>> ExecuteAsync(
+    internal static async Task<Results<Ok<QueryResponse>, NotFound<string>, BadRequest<string>, ProblemHttpResult>> ExecuteAsync(
         HttpContext http,
         string tenantSlug,
         string catalogName,
@@ -197,7 +213,7 @@ public static class SavedQueryEndpoints
         {
             var principal = http.GetLakeholdPrincipal();
             var result = await savedQueries
-                .ExecuteAsync(
+                .ExecutePlannedAsync(
                     tenantSlug,
                     catalogName,
                     id,
@@ -205,19 +221,31 @@ public static class SavedQueryEndpoints
                     recordHistory: !principal.IsDemo,
                     cancellationToken)
                 .ConfigureAwait(false);
-            return TypedResults.Ok(QueryResponse.From(result));
+            return TypedResults.Ok(QueryResponse.From(
+                result.Result,
+                result.Language,
+                string.Equals(result.Language, "sql", StringComparison.Ordinal) ? null : result.Plan.Sql,
+                result.Plan.Diagnostics));
         }
         catch (SavedQueryNotFoundException ex)
         {
             return TypedResults.NotFound(ex.Message);
         }
+        catch (SavedQueryValidationException ex)
+        {
+            return TypedResults.BadRequest(ex.Message);
+        }
         catch (DuckDB.NET.Data.DuckDBException ex)
         {
             return TypedResults.BadRequest(ex.Message);
         }
+        catch (HttpRequestException ex)
+        {
+            return PlannerUnavailable(ex);
+        }
     }
 
-    internal static async Task<Results<Ok<SavedQueryDto>, NotFound<string>, BadRequest<string>, Conflict<string>>> PublishAsync(
+    internal static async Task<Results<Ok<SavedQueryDto>, NotFound<string>, BadRequest<string>, Conflict<string>, ProblemHttpResult>> PublishAsync(
         HttpContext http,
         string tenantSlug,
         string catalogName,
@@ -257,6 +285,10 @@ public static class SavedQueryEndpoints
         {
             return TypedResults.BadRequest(ex.Message);
         }
+        catch (HttpRequestException ex)
+        {
+            return PlannerUnavailable(ex);
+        }
     }
 
     internal static async Task<Results<Ok<SavedQueryDto>, NotFound<string>, BadRequest<string>, Conflict<string>>> UnpublishAsync(
@@ -295,11 +327,12 @@ public static class SavedQueryEndpoints
         }
     }
 
-    private static SavedQueryDto ToDto(SavedQuery query) => new(
+    private static SavedQueryDto ToDto(SavedQuery query, string? currentSchemaFingerprint = null) => new(
         query.Id,
         query.Name,
         query.Description,
         query.Sql,
+        query.Language,
         query.Revision,
         query.CreatedUtc,
         query.UpdatedUtc,
@@ -307,6 +340,32 @@ public static class SavedQueryEndpoints
         query.UpdatedByTokenId,
         query.PublishedSchema,
         query.PublishedViewName,
+        query.PublishedSchemaFingerprint,
+        currentSchemaFingerprint is not null
+            && query.PublishedSchemaFingerprint is not null
+            && !string.Equals(query.PublishedSchemaFingerprint, currentSchemaFingerprint, StringComparison.Ordinal),
         query.PublishedRevision,
         query.PublishedUtc);
+
+    private static async Task<string?> CurrentFingerprintAsync(
+        string tenant,
+        string catalog,
+        IReadOnlyList<SavedQuery> queries,
+        QuerySourcePlanningService planning,
+        CancellationToken cancellationToken)
+    {
+        if (!queries.Any(query => query.PublishedSchemaFingerprint is not null
+                                  && !string.Equals(query.PublishedSchemaFingerprint, "sql", StringComparison.Ordinal)))
+        {
+            return null;
+        }
+
+        return await planning.GetCatalogSchemaFingerprintAsync(tenant, catalog, cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    private static ProblemHttpResult PlannerUnavailable(HttpRequestException exception)
+        => TypedResults.Problem(
+            $"The query planner is unavailable: {exception.Message}",
+            statusCode: StatusCodes.Status503ServiceUnavailable);
 }

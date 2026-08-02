@@ -125,7 +125,7 @@ jobs:
 
       - name: Start Lakehold
         run: |
-          docker compose up -d
+          docker compose --profile linq up -d
           timeout 240 bash -c 'until curl -fsS http://localhost:5399/workbench >/dev/null; do sleep 3; done'
 
       - name: Run browser journeys
@@ -142,7 +142,7 @@ jobs:
 
       - name: Show stack logs after a failure
         if: failure()
-        run: docker compose logs --no-color api ui
+        run: docker compose logs --no-color api ui linq-compiler
 
       - name: Stop Lakehold
         if: always()

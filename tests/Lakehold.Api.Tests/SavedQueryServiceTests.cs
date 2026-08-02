@@ -5,6 +5,8 @@ using Lakehold.ControlPlane.Model;
 using Lakehold.Engine.Catalog;
 using Lakehold.Engine.Configuration;
 using Lakehold.Engine.Execution;
+using Lakehold.Linq.Compiler;
+using Lakehold.Querying;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
@@ -25,6 +27,7 @@ public sealed class SavedQueryServiceTests : IAsyncLifetime
     private DucklingPool _pool = null!;
     private LakehouseService _lakehouse = null!;
     private SavedQueryService _savedQueries = null!;
+    private QuerySourcePlanningService _planning = null!;
     private IOptions<LakehouseOptions> _options = null!;
 
     public async Task InitializeAsync()
@@ -43,7 +46,10 @@ public sealed class SavedQueryServiceTests : IAsyncLifetime
 
         _pool = new DucklingPool(_options, NullLoggerFactory.Instance);
         _lakehouse = new LakehouseService(_context, _pool, _options);
-        _savedQueries = new SavedQueryService(_context, _lakehouse, TimeProvider.System);
+        var compiler = new LinqQueryCompiler(
+            Options.Create(new LinqCompilerOptions()));
+        _planning = new QuerySourcePlanningService(_lakehouse, new InProcessPlanner(compiler));
+        _savedQueries = new SavedQueryService(_context, _lakehouse, TimeProvider.System, _planning);
 
         await AdminEndpoints.CreateTenantAsync(
             new CreateTenantRequest("acme", "Acme"), _context, TimeProvider.System, default);
@@ -115,6 +121,38 @@ public sealed class SavedQueryServiceTests : IAsyncLifetime
             "SELECT 1",
             tokenId: null,
             default));
+    }
+
+    [Fact]
+    public async Task Linq_definition_is_translated_executed_and_recorded_as_authored_source()
+    {
+        const string source = """
+            (from e in Main.Events
+             where e.Country == "GB"
+             orderby e.Revenue descending
+             select new { e.Country, e.Revenue }).Take(2)
+            """;
+        var query = await _savedQueries.CreateAsync(
+            "acme",
+            "analytics",
+            "UK revenue in LINQ",
+            null,
+            source,
+            "csharp-linq",
+            tokenId: 44,
+            default);
+
+        var execution = await _savedQueries.ExecutePlannedAsync(
+            "acme", "analytics", query.Id, tokenId: 44, recordHistory: true, default);
+
+        Assert.Equal("csharp-linq", query.Language);
+        Assert.Contains("SELECT", execution.Plan.Sql, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("LIMIT $", execution.Plan.Sql, StringComparison.Ordinal);
+        Assert.Single(execution.Plan.Parameters);
+        Assert.Equal(2, execution.Result.Rows.Count);
+        var run = await _context.QueryRuns.OrderByDescending(candidate => candidate.Id).FirstAsync();
+        Assert.Equal("csharp-linq", run.Language);
+        Assert.Equal(source, run.Sql);
     }
 
     [Fact]
@@ -194,6 +232,53 @@ public sealed class SavedQueryServiceTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task External_plan_contract_rejects_schema_mismatch_and_external_access()
+    {
+        var schema = await _planning.GetCatalogSchemaAsync("acme", "analytics", default);
+        var mismatched = new QuerySourcePlanningService(
+            _lakehouse,
+            new FixedPlanner(new QueryPlan("SELECT 1", [], [], "different-schema")));
+        await Assert.ThrowsAsync<QueryPlanRejectedException>(() => mismatched.PlanAsync(
+            "acme", "analytics", "csharp-linq", "Main.Events", default));
+
+        var external = new QuerySourcePlanningService(
+            _lakehouse,
+            new FixedPlanner(new QueryPlan(
+                "SELECT * FROM read_parquet('s3://outside/secret.parquet')",
+                [],
+                [],
+                schema.SchemaFingerprint)));
+        await Assert.ThrowsAsync<QueryPlanRejectedException>(() => external.PlanAsync(
+            "acme", "analytics", "csharp-linq", "Main.Events", default));
+
+        var mismatchedParameters = new QuerySourcePlanningService(
+            _lakehouse,
+            new FixedPlanner(new QueryPlan("SELECT $missing", [], [], schema.SchemaFingerprint)));
+        await Assert.ThrowsAsync<QueryPlanRejectedException>(() => mismatchedParameters.PlanAsync(
+            "acme", "analytics", "csharp-linq", "Main.Events", default));
+    }
+
+    [Fact]
+    public async Task Plan_cache_is_reused_but_schema_drift_forces_recompilation()
+    {
+        var compiler = new LinqQueryCompiler(Options.Create(new LinqCompilerOptions()));
+        var planner = new CountingPlanner(compiler);
+        var planning = new QuerySourcePlanningService(
+            _lakehouse,
+            planner,
+            cache: new QueryPlanCache());
+        const string source = "Main.Events.Where(e => e.Country == \"GB\")";
+
+        _ = await planning.PlanAsync("acme", "analytics", "csharp-linq", source, default);
+        _ = await planning.PlanAsync("acme", "analytics", "csharp-linq", source, default);
+        Assert.Equal(1, planner.PlanCalls);
+
+        await Sql("ALTER TABLE events ADD COLUMN cache_buster INTEGER");
+        _ = await planning.PlanAsync("acme", "analytics", "csharp-linq", source, default);
+        Assert.Equal(2, planner.PlanCalls);
+    }
+
+    [Fact]
     public async Task Query_names_are_unique_within_a_catalog_not_across_the_tenant()
     {
         var analytics = await _savedQueries.CreateAsync(
@@ -225,7 +310,7 @@ public sealed class SavedQueryServiceTests : IAsyncLifetime
 
             return DateTimeOffset.UtcNow;
         });
-        var service = new SavedQueryService(_context, _lakehouse, clock);
+        var service = new SavedQueryService(_context, _lakehouse, clock, _planning);
 
         await Assert.ThrowsAsync<SavedQueryConflictException>(() => service.PublishAsync(
             "acme", "analytics", query.Id, query.Revision, "main", "recoverable_publish", null, default));
@@ -279,5 +364,72 @@ public sealed class SavedQueryServiceTests : IAsyncLifetime
     private sealed class CallbackTimeProvider(Func<DateTimeOffset> utcNow) : TimeProvider
     {
         public override DateTimeOffset GetUtcNow() => utcNow();
+    }
+
+    private sealed class InProcessPlanner(LinqQueryCompiler compiler) : IQuerySourcePlanner
+    {
+        public Task<IReadOnlyList<QueryLanguageDescriptor>> GetLanguagesAsync(CancellationToken cancellationToken)
+            => Task.FromResult<IReadOnlyList<QueryLanguageDescriptor>>([]);
+
+        public Task<QueryLanguageStarter> CreateStarterAsync(
+            string language,
+            QueryCatalogSchema catalogSchema,
+            CancellationToken cancellationToken)
+            => Task.FromResult(string.Equals(language, "sql", StringComparison.Ordinal)
+                ? new QueryLanguageStarter("SELECT 1", catalogSchema.SchemaFingerprint)
+                : compiler.CreateStarter(catalogSchema));
+
+        public Task<QueryPlan> PlanAsync(
+            string language,
+            QueryPlanningRequest planningRequest,
+            CancellationToken cancellationToken)
+            => string.Equals(language, "sql", StringComparison.Ordinal)
+                ? Task.FromResult(new QueryPlan(
+                    planningRequest.Source,
+                    [],
+                    [],
+                    planningRequest.SchemaFingerprint))
+                : compiler.CompileAsync(planningRequest, cancellationToken);
+    }
+
+    private sealed class FixedPlanner(QueryPlan plan) : IQuerySourcePlanner
+    {
+        public Task<IReadOnlyList<QueryLanguageDescriptor>> GetLanguagesAsync(CancellationToken cancellationToken)
+            => Task.FromResult<IReadOnlyList<QueryLanguageDescriptor>>([]);
+
+        public Task<QueryLanguageStarter> CreateStarterAsync(
+            string language,
+            QueryCatalogSchema catalogSchema,
+            CancellationToken cancellationToken)
+            => Task.FromResult(new QueryLanguageStarter("Main.Events", catalogSchema.SchemaFingerprint));
+
+        public Task<QueryPlan> PlanAsync(
+            string language,
+            QueryPlanningRequest planningRequest,
+            CancellationToken cancellationToken)
+            => Task.FromResult(plan);
+    }
+
+    private sealed class CountingPlanner(LinqQueryCompiler compiler) : IQuerySourcePlanner
+    {
+        public int PlanCalls { get; private set; }
+
+        public Task<IReadOnlyList<QueryLanguageDescriptor>> GetLanguagesAsync(CancellationToken cancellationToken)
+            => Task.FromResult<IReadOnlyList<QueryLanguageDescriptor>>([]);
+
+        public Task<QueryLanguageStarter> CreateStarterAsync(
+            string language,
+            QueryCatalogSchema catalogSchema,
+            CancellationToken cancellationToken)
+            => Task.FromResult(compiler.CreateStarter(catalogSchema));
+
+        public Task<QueryPlan> PlanAsync(
+            string language,
+            QueryPlanningRequest planningRequest,
+            CancellationToken cancellationToken)
+        {
+            PlanCalls++;
+            return compiler.CompileAsync(planningRequest, cancellationToken);
+        }
     }
 }

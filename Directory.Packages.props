@@ -9,7 +9,7 @@
     <!-- Lakehouse engine + control plane persistence.
 
          The ADO.NET layer is the Skuirrels fork of DuckDB.NET, which is what DuckDB.EFCoreProvider
-         1.14.1 and later depend on. Package 1.5.5.2 carries DuckDB engine v1.5.5 — the two version
+         1.14.1 and later depend on. Package 1.5.5.3 carries DuckDB engine v1.5.5 — the two version
          lines are separate, so verify the engine version with `SELECT version()`, not by deriving
          it from the package version.
 
@@ -18,9 +18,9 @@
          to whatever the provider happens to resolve. The upstream `DuckDB.NET.*` packages are
          deliberately absent: the provider no longer uses them, and a pin on an unreferenced package
          id silently constrains nothing while still reading like a guarantee. -->
-    <PackageVersion Include="Skuirrels.DuckDB.NET.Data.Full" Version="1.5.5.2" />
-    <PackageVersion Include="Skuirrels.DuckDB.NET.Bindings.Full" Version="1.5.5.2" />
-    <PackageVersion Include="DuckDB.EFCoreProvider" Version="1.14.2" />
+    <PackageVersion Include="Skuirrels.DuckDB.NET.Data.Full" Version="1.5.5.3" />
+    <PackageVersion Include="Skuirrels.DuckDB.NET.Bindings.Full" Version="1.5.5.3" />
+    <PackageVersion Include="DuckDB.EFCoreProvider" Version="1.17.0" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="10.0.10" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.10" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.10" />
@@ -77,6 +77,8 @@
 
   <ItemGroup>
     <!-- Shared extensions -->
+    <!-- Keep Roslyn aligned with EF Core Design's exact Workspaces dependency. -->
+    <PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="5.0.0" />
     <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.10" />
     <PackageVersion Include="Microsoft.Extensions.Options" Version="10.0.10" />
     <PackageVersion Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.10" />
@@ -85,6 +87,7 @@
   <ItemGroup>
     <!-- Test-only -->
     <PackageVersion Include="Microsoft.AspNetCore.TestHost" Version="10.0.10" />
+    <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.10" />
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.8.1" />
     <PackageVersion Include="xunit" Version="2.9.3" />
     <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.5" />

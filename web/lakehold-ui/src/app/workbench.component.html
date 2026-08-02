@@ -176,8 +176,11 @@
               [tenant]="tenantSlug()"
               [catalog]="catalogName()"
               [sql]="sql()"
+              [language]="language()"
+              [availableLanguages]="availableSavedQueryLanguages()"
+              [languageAvailable]="activeLanguageCanSave()"
               [readOnly]="readOnlyAccess()"
-              (openSql)="insertSql($event)"
+              (openSource)="openSource($event)"
               (executeQuery)="runSavedQuery($event)"
               (schemaChanged)="refreshCatalog()"
             />
@@ -192,7 +195,7 @@
           <header class="workspace-header">
             <div class="workspace-heading">
               <span class="breadcrumb"
-                ><strong>SQL</strong><span aria-hidden="true">›</span>Workbench</span
+                ><strong>{{ activeLanguage()?.displayName }}</strong><span aria-hidden="true">›</span>Workbench</span
               >
               <div class="title-line">
                 <h1>Query editor</h1>
@@ -287,15 +290,26 @@
           }
           <section class="editor-pane">
             <div class="editor-toolbar">
+              <label class="language-picker">
+                <span>Language</span>
+                <select [value]="language()" (change)="switchLanguage($any($event.target).value)">
+                  @for (option of queryLanguages(); track option.id) {
+                    <option [value]="option.id">{{ option.displayName }}</option>
+                  }
+                </select>
+              </label>
               <button
                 class="btn btn-primary"
                 type="button"
-                [disabled]="running() || !ready()"
+                [disabled]="running() || !ready() || !activeLanguageAvailable()"
                 (click)="run()"
               >
                 {{ running() ? 'Running…' : 'Run' }}
                 <span class="kbd">⌘⏎</span>
               </button>
+              @if (!activeLanguageAvailable()) {
+                <span class="tag warn-tag">Planner unavailable — source is view-only</span>
+              }
               @if (!readOnlyAccess()) {
                 <lh-tabular-import
                   [tenant]="tenantSlug()"
@@ -312,16 +326,15 @@
               }
             </div>
 
-            <textarea
-              class="editor"
-              spellcheck="false"
-              autocomplete="off"
-              autocapitalize="off"
-              aria-label="SQL editor"
+            <lh-query-editor
               [value]="sql()"
-              (input)="sql.set($any($event.target).value)"
-              (keydown)="onEditorKeydown($event)"
-            ></textarea>
+              [language]="language()"
+              [schemas]="schemas()"
+              [diagnostics]="diagnostics()"
+              [label]="(activeLanguage()?.displayName ?? 'Query') + ' editor'"
+              (valueChange)="sql.set($event)"
+              (runQuery)="run()"
+            />
           </section>
 
           <section class="output-pane">
@@ -427,7 +440,13 @@
               }
 
               @switch (tab()) {
-                @case ('results') {
+              @case ('results') {
+                  @if (result()?.generatedSql; as generatedSql) {
+                    <details class="generated-sql">
+                      <summary>Generated SQL</summary>
+                      <pre>{{ generatedSql }}</pre>
+                    </details>
+                  }
                   @if (result()) {
                     <lh-result-grid [result]="result()" />
                   } @else if (!error()) {
@@ -448,7 +467,7 @@
                             }}</span>
                             <span class="history-sql">{{ run.sql }}</span>
                             <span class="history-meta">
-                              {{ run.rowCount }} rows · {{ run.elapsedMilliseconds.toFixed(0) }} ms
+                              {{ run.language ?? 'sql' }} · {{ run.rowCount }} rows · {{ run.elapsedMilliseconds.toFixed(0) }} ms
                               ·
                               {{ formatTime(run.startedUtc) }}
                               @if (run.tokenName) {

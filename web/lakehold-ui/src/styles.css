@@ -135,3 +135,26 @@ button:disabled {
   color: var(--text-muted);
   border: 1px solid var(--border);
 }
+
+/* Optional query-language controls live globally to keep the already-large Workbench component
+   stylesheet within Angular's per-component budget. */
+.language-picker {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-faint);
+  font-size: 11px;
+}
+
+.language-picker select {
+  padding: 5px 24px 5px 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--text);
+  font: 12px var(--mono);
+}
+
+.generated-sql { margin: 10px 12px 0; color: var(--text-muted); }
+.generated-sql summary { cursor: pointer; font-size: 11px; }
+.generated-sql pre { max-height: 180px; overflow: auto; color: var(--text); font: 11px/1.5 var(--mono); }

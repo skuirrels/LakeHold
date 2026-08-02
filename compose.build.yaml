@@ -23,3 +23,8 @@ services:
     build:
       context: .
       dockerfile: web/lakehold-ui/Dockerfile
+
+  linq-compiler:
+    build:
+      context: .
+      dockerfile: src/Lakehold.Linq.Compiler/Dockerfile

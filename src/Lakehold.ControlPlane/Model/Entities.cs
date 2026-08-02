@@ -149,6 +149,9 @@ public sealed class SavedQuery
 
     public required string Sql { get; set; }
 
+    /// <summary>Workbench language of <see cref="Sql"/>; defaults to SQL for pre-LINQ history.</summary>
+    public string Language { get; set; } = "sql";
+
     /// <summary>Optimistic revision of the saved definition, starting at one.</summary>
     public int Revision { get; set; }
 
@@ -169,6 +172,9 @@ public sealed class SavedQuery
 
     /// <summary>Name of the published DuckLake view, when this query has one.</summary>
     public string? PublishedViewName { get; set; }
+
+    /// <summary>Catalog schema fingerprint used to compile the published definition.</summary>
+    public string? PublishedSchemaFingerprint { get; set; }
 
     /// <summary>Revision whose SQL the published view currently contains.</summary>
     public int? PublishedRevision { get; set; }
@@ -335,6 +341,9 @@ public sealed class QueryRun
     public required string CatalogName { get; set; }
 
     public required string Sql { get; set; }
+
+    /// <summary>Workbench language of <see cref="Sql"/>; defaults to SQL for pre-LINQ history.</summary>
+    public string Language { get; set; } = "sql";
 
     public DateTimeOffset StartedUtc { get; set; }
 
