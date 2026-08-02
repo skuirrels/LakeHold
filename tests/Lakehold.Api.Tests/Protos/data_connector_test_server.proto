@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package lakehold.connector.v1;
+option csharp_namespace = "Lakehold.Api.Tests.GrpcServer";
+
+service DataSource {
+  rpc Read(ReadRequest) returns (stream DataRecord);
+}
+
+message ReadRequest {
+  string connector_name = 1;
+  string tenant = 2;
+  string catalog = 3;
+}
+
+message DataRecord {
+  string json = 1;
+  string source_version = 2;
+}

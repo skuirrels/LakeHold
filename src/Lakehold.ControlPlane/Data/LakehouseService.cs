@@ -231,6 +231,76 @@ public sealed class LakehouseService(
     }
 
     /// <summary>
+    ///     Publishes a managed connector's full JSON snapshot after validating its declared data
+    ///     contract. The disposable source path is deliberately excluded from durable history.
+    /// </summary>
+    public async Task<JsonSnapshotImportResult> ReplaceJsonSnapshotAsync(
+        string tenantSlug,
+        string catalogName,
+        string connectorName,
+        string filePath,
+        string schema,
+        string table,
+        bool replaceExistingTarget,
+        JsonSnapshotQualityPolicy quality,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(connectorName);
+        var validatedSchema = SqlIdentifier.Quote(schema);
+        var validatedTable = SqlIdentifier.Quote(table);
+        using var activity = LakeholdTelemetry.Source.StartActivity("lakehold.connector.publish");
+        activity?.SetTag(LakeholdTelemetry.TenantKey, tenantSlug);
+        activity?.SetTag(LakeholdTelemetry.CatalogKey, catalogName);
+        activity?.SetTag("lakehold.connector.name", connectorName);
+        var startedAt = TimeProvider.System.GetTimestamp();
+
+        var (duckling, tenantId) = await ResolveAsync(tenantSlug, catalogName, cancellationToken)
+            .ConfigureAwait(false);
+        var run = new QueryRun
+        {
+            TenantId = tenantId,
+            CatalogName = catalogName,
+            Sql = $"-- Managed connector refresh: {connectorName}\n"
+                  + $"CREATE OR REPLACE TABLE {SqlIdentifier.QuoteName(validatedSchema)}."
+                  + $"{SqlIdentifier.QuoteName(validatedTable)} AS SELECT * FROM '<connector snapshot>';",
+            StartedUtc = DateTimeOffset.UtcNow,
+        };
+
+        try
+        {
+            var result = await JsonSnapshotImporter.ReplaceAsync(
+                    duckling,
+                    filePath,
+                    validatedSchema,
+                    validatedTable,
+                    replaceExistingTarget,
+                    quality,
+                    cancellationToken)
+                .ConfigureAwait(false);
+            run.Succeeded = true;
+            run.RowCount = (int)Math.Min(result.RowsPublished, int.MaxValue);
+            run.ElapsedMilliseconds = result.Elapsed.TotalMilliseconds;
+            RecordQuery(activity, startedAt, LakeholdTelemetry.OutcomeSuccess);
+            activity?.SetTag(LakeholdTelemetry.RowsKey, result.RowsPublished);
+            LakeholdTelemetry.QueryRows.Record(result.RowsPublished);
+            return result;
+        }
+        catch (Exception ex)
+        {
+            run.Succeeded = false;
+            run.Error = ex.Message;
+            RecordQuery(activity, startedAt, LakeholdTelemetry.OutcomeError);
+            activity?.AddException(ex);
+            activity?.SetStatus(ActivityStatusCode.Error);
+            throw;
+        }
+        finally
+        {
+            await SaveQueryRunAsync(run).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>
     ///     Validates a reusable definition with DuckDB's parser without executing submitted SQL or
     ///     recording an audit run. The normal catalog session is used because a newly provisioned
     ///     local catalog does not have a metadata file that can be its first read-only attachment.

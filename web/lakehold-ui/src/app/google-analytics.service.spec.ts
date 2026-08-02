@@ -34,9 +34,16 @@ describe('GoogleAnalyticsService', () => {
   it('recognises only the public website routes', () => {
     for (const path of [
       '/',
+      '/enterprise-data-platform',
       '/compare',
       '/docs',
       '/docs/linq-workbench',
+      '/docs/connectors',
+      '/docs/enterprise-data-platform-roadmap',
+      '/docs/operations',
+      '/docs/incident-response',
+      '/docs/disaster-recovery',
+      '/docs/monitoring',
       '/provider',
       '/provider/docs',
     ]) {

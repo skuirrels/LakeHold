@@ -22,6 +22,18 @@ export const routes: Routes = [
     loadComponent: () => import('./landing.component').then((m) => m.LandingComponent),
   },
   {
+    path: 'enterprise-data-platform',
+    title: 'Enterprise Data Platform — LakeHold',
+    data: {
+      seo: {
+        description:
+          'How LakeHold is becoming a private Enterprise Data Platform: governed ingestion, open lakehouse storage, consumption, operations, and an honest capability roadmap.',
+      },
+    },
+    loadComponent: () =>
+      import('./enterprise-data-platform.component').then((m) => m.EnterpriseDataPlatformComponent),
+  },
+  {
     path: 'compare',
     title: 'LakeHold vs MotherDuck, ClickHouse, and the cloud warehouses',
     data: {
@@ -54,6 +66,32 @@ export const routes: Routes = [
     },
     loadComponent: () =>
       import('./linq-workbench-docs.component').then((m) => m.LinqWorkbenchDocsComponent),
+  },
+  {
+    path: 'docs/connectors',
+    title: 'Managed REST and gRPC connectors — LakeHold documentation',
+    data: {
+      seo: {
+        description:
+          'Configure and operate LakeHold managed REST JSON, NDJSON, and gRPC full-snapshot connectors with schedules, quality gates, lineage, and bounded egress.',
+      },
+    },
+    loadComponent: () =>
+      import('./managed-connectors-docs.component').then((m) => m.ManagedConnectorsDocsComponent),
+  },
+  {
+    path: 'docs/enterprise-data-platform-roadmap',
+    title: 'Enterprise Data Platform delivery plan — LakeHold',
+    data: {
+      seo: {
+        description:
+          'LakeHold Enterprise Data Platform delivery status: what is implemented, partial, unreleased, not started, and required for Priority 1 completion.',
+      },
+    },
+    loadComponent: () =>
+      import('./enterprise-data-platform-roadmap.component').then(
+        (m) => m.EnterpriseDataPlatformRoadmapComponent,
+      ),
   },
   {
     path: 'docs/operations',

@@ -15,6 +15,7 @@ import { BrandMarkComponent } from './brand-mark.component';
           LakeHold
         </div>
         <nav class="nav-links">
+          <a routerLink="/enterprise-data-platform">Enterprise platform</a>
           <a routerLink="/docs">Docs</a>
           <a class="provider" routerLink="/provider">Provider</a>
           <a routerLink="/compare">Compare</a>
@@ -26,8 +27,17 @@ import { BrandMarkComponent } from './brand-mark.component';
             aria-label="LakeHold on GitHub"
             title="LakeHold on GitHub"
           >
-            <svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
-              <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.42 7.42 0 0 1 2-.27c.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z" />
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 16 16"
+              fill="currentColor"
+              aria-hidden="true"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.42 7.42 0 0 1 2-.27c.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"
+              />
             </svg>
           </a>
           <a class="btn btn-primary nav-workbench" routerLink="/workbench">Open workbench →</a>
@@ -58,6 +68,37 @@ import { BrandMarkComponent } from './brand-mark.component';
         }
       </section>
 
+      <section class="edp">
+        <span class="eyebrow">Enterprise Data Platform</span>
+        <h2 class="section-title">
+          Acquire, govern, serve, and operate data in one private platform
+        </h2>
+        <p class="section-sub">
+          LakeHold now has its first governed source-to-table path. It is a focused EDP direction,
+          not a claim that the full enterprise platform is finished.
+        </p>
+        <div class="edp-grid">
+          @for (capability of edpCapabilities; track capability.title) {
+            <article class="edp-capability">
+              <span class="status" [class.partial]="capability.status !== 'Available'">{{
+                capability.status
+              }}</span>
+              <h3>{{ capability.title }}</h3>
+              <p>{{ capability.body }}</p>
+            </article>
+          }
+        </div>
+        <div class="cta">
+          <a class="btn btn-primary lg" routerLink="/enterprise-data-platform"
+            >Explore the EDP capability map</a
+          >
+          <a class="btn lg" routerLink="/docs/connectors">Managed connector documentation</a>
+          <a class="btn lg" routerLink="/docs/enterprise-data-platform-roadmap"
+            >Completed and outstanding work</a
+          >
+        </div>
+      </section>
+
       <section class="proof">
         <h2 class="section-title">Verified, not asserted</h2>
         <p class="section-sub">
@@ -74,10 +115,10 @@ import { BrandMarkComponent } from './brand-mark.component';
       </section>
 
       <section class="whatsnew">
-        <h2 class="section-title">Recently shipped</h2>
+        <h2 class="section-title">Delivered capabilities and verified release candidates</h2>
         <p class="section-sub">
-          August 2026 — the Workbench now speaks optional C# LINQ through an isolated provider-backed
-          planner, while SQL remains built in and independently deployable.
+          August 2026 — optional isolated C# LINQ and a governed source-to-table path, with SQL
+          remaining built in and every product boundary explicit and testable.
         </p>
 
         <ol class="changelog">
@@ -98,9 +139,7 @@ import { BrandMarkComponent } from './brand-mark.component';
 
       <section class="roadmap">
         <h2 class="section-title">What's next</h2>
-        <p class="section-sub">
-          Stated as plainly as the shipped list, caveats and all.
-        </p>
+        <p class="section-sub">Stated as plainly as the shipped list, caveats and all.</p>
 
         <ol class="changelog">
           @for (entry of roadmap; track entry.title) {
@@ -133,7 +172,9 @@ import { BrandMarkComponent } from './brand-mark.component';
               <li>Procurement wants a provable exit, not a clause promising one.</li>
               <li>Your stack is .NET and you want EF Core and analytics on one model.</li>
               <li>You want change data capture without running Debezium and Kafka.</li>
-              <li>You want SQL clients on the Postgres wire protocol, not a connector to install.</li>
+              <li>
+                You want SQL clients on the Postgres wire protocol, not a connector to install.
+              </li>
               <li>You would rather pay for a VM than per-second compute.</li>
               <li>You need explicit control over compaction, retention, and snapshots.</li>
             </ul>
@@ -141,18 +182,23 @@ import { BrandMarkComponent } from './brand-mark.component';
           <div class="col lose">
             <h3>Choose MotherDuck when</h3>
             <ul>
-              <li>You need per-user accounts and row- or column-level permissions, administered from a console.</li>
+              <li>
+                You need per-user accounts and row- or column-level permissions, administered from a
+                console.
+              </li>
               <li>You want zero operations and no infrastructure to own.</li>
               <li>You need elastic scale-out beyond a single node.</li>
               <li>Hybrid local-and-cloud dual execution matters to you.</li>
-              <li>You want managed ingestion connectors out of the box.</li>
+              <li>You want a broad library of incremental database and SaaS connectors today.</li>
               <li>Your team is Python-first and wants the most mature UI today.</li>
             </ul>
           </div>
         </div>
 
         <p class="compare-more">
-          <a routerLink="/compare">Full comparison — MotherDuck, ClickHouse, and the cloud warehouses →</a>
+          <a routerLink="/compare"
+            >Full comparison — MotherDuck, ClickHouse, and the cloud warehouses →</a
+          >
         </p>
       </section>
 
@@ -160,8 +206,8 @@ import { BrandMarkComponent } from './brand-mark.component';
         <p class="domain"><a href="https://lakehold.dev">lakehold.dev</a></p>
         <p>
           Built on <a href="https://duckdb.org" target="_blank" rel="noopener">DuckDB</a>,
-          <a href="https://ducklake.select" target="_blank" rel="noopener">DuckLake</a>, .NET 10, and Angular.
-          Apache-2.0.
+          <a href="https://ducklake.select" target="_blank" rel="noopener">DuckLake</a>, .NET 10,
+          and Angular. Apache-2.0.
         </p>
       </footer>
     </div>
@@ -169,6 +215,24 @@ import { BrandMarkComponent } from './brand-mark.component';
   styleUrl: './landing.component.css',
 })
 export class LandingComponent {
+  protected readonly edpCapabilities = [
+    {
+      status: 'Available',
+      title: 'Governed lakehouse',
+      body: 'PostgreSQL control and metadata, DuckDB compute, open Parquet, tenant identity, audit, time travel, maintenance, backup, and verified eject.',
+    },
+    {
+      status: 'Implemented in source',
+      title: 'Managed ingestion foundation',
+      body: 'Bounded REST and gRPC full snapshots with schedules, quality contracts, target ownership, fenced publication, telemetry, and retained run evidence.',
+    },
+    {
+      status: 'Partial',
+      title: 'Enterprise governance and consumption',
+      body: 'HTTP, SQL, EF Core, MCP, owner metadata, and audit exist. Search, classification, lineage graphs, semantic metrics, Power BI, and open multi-engine access remain planned.',
+    },
+  ];
+
   protected readonly pillars = [
     {
       icon: '🔒',
@@ -203,6 +267,13 @@ export class LandingComponent {
       body: 'Choose SQL or C# LINQ in the same CodeMirror editor, with catalog-aware completion, line diagnostics, generated parameterized SQL, separate language buffers, history, and language-preserving saved queries. The compiler receives source and schema only; the credential-owning API validates and executes its plan through the same catalog, authorization, limit, telemetry, and audit path as SQL.',
       caveat:
         'The Compose linq profile is opt-in. It accepts one side-effect-free expression and supports queryables plus Count, LongCount, Any, Min, Max, Sum, and Average — not arbitrary LINQPad scripts. Native types without an EF property mapping remain available through SQL.',
+    },
+    {
+      tag: 'Ingestion',
+      title: 'Managed REST and gRPC full-snapshot connectors',
+      body: 'Connector definitions, schedules, claims, run history, quality gates, bounded scratch space, safe egress, target ownership, and atomic DuckLake publication now form one governed source-to-table path. Real HTTP and gRPC transports, PostgreSQL fencing, API outcomes, and resource limits are covered by the full repository gate.',
+      caveat:
+        'Implemented and verified in source, but not included in the current v1.2.0 release. This is a full-snapshot foundation, not an incremental connector ecosystem.',
     },
     {
       tag: 'Security',
@@ -276,6 +347,13 @@ export class LandingComponent {
    */
   protected readonly roadmap = [
     {
+      tag: 'EDP',
+      title: 'A versioned connector platform with durable incremental checkpoints',
+      body: 'A shared adapter manifest and SDK will add resumable reads, retry/backoff, mappings, explicit schema policy, external secret providers, and database/SaaS adapters without duplicating orchestration in each connector.',
+      caveat:
+        'None of those platform capabilities is implemented by the current REST/gRPC full-snapshot foundation.',
+    },
+    {
       tag: 'Interop',
       title: 'An Iceberg REST endpoint, so other engines read you live',
       body: 'Eject proves the data is portable, but it is a batch artifact. Serving the Iceberg REST Catalog protocol would let Spark, Trino, Snowflake, or DuckDB attach to a LakeHold catalog directly and read it live, with no export step and the same per-tenant boundary the query path already enforces.',
@@ -302,7 +380,7 @@ export class LandingComponent {
     { value: '23 ms', label: 'Aggregate over 250k rows' },
     { value: '250k', label: 'Rows read back from bare Parquet' },
     { value: '30', label: 'Metadata tables backed up and restored' },
-    { value: '35', label: 'Automated tests, 5 against live services' },
+    { value: '706', label: 'Backend and frontend checks in the full gate' },
     { value: '0', label: 'Vendor services in the query path' },
     { value: 'Apache-2.0', label: 'Permissive open-source licence' },
   ];

@@ -204,6 +204,25 @@ export const compareCapabilities: readonly CompareCapability[] = [
     ],
   },
   {
+    dimension: 'Managed ingestion',
+    claim: 'REST/gRPC full snapshots implemented; incremental adapter library pending',
+    tone: 'neutral',
+    evidence: [
+      {
+        lane: 'backend',
+        path: 'tests/Lakehold.Api.Tests/DataConnectorTransportIntegrationTests.cs',
+        marker: 'Grpc_contract_streams_records_and_bearer_metadata_over_real_http2',
+        proves: 'Real REST and gRPC transports exercise the implemented full-snapshot contract.',
+      },
+      {
+        lane: 'declared-boundary',
+        path: 'docs/ENTERPRISE-DATA-PLATFORM-ROADMAP.md',
+        marker: 'Versioned adapter manifest and SDK',
+        proves: 'The incremental adapter platform remains explicitly uncompleted.',
+      },
+    ],
+  },
+  {
     dimension: 'AI / MCP',
     claim: 'Authenticated MCP; read tools + operator-gated writes',
     tone: 'good',

@@ -1,7 +1,9 @@
+using Lakehold.Api.Security;
+
 namespace Lakehold.Api.Cdc;
 
 /// <summary>Configuration for outbound change-data-capture deliveries.</summary>
-public sealed class CdcOptions
+public sealed class CdcOptions : IOutboundDestinationOptions
 {
     public const string SectionName = "Lakehold:Cdc";
 

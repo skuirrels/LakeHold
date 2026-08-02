@@ -91,11 +91,36 @@ requires a credential.
 
 | Tool                  | What it is                                                                                                                                                                                                                                                                            | Best for                                                              |
 | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
-| **The workbench**     | A browser query IDE with built-in SQL and an optional isolated C# LINQ planner, catalog-aware completion, generated SQL, diagnostics, history, snapshots, and maintenance. Ships seeded.                                                                                               | Exploration, authoring, and operations.                                |
+| **The workbench**     | A browser query IDE with built-in SQL and an optional isolated C# LINQ planner, catalog-aware completion, generated SQL, diagnostics, history, snapshots, and maintenance. Ships seeded.                                                                                              | Exploration, authoring, and operations.                               |
 | **A Postgres client** | LakeHold speaks the PostgreSQL wire protocol, so `psql`, DBeaver, or Npgsql connect to a catalog with no driver or plugin. The user is the tenant and the database is the catalog.                                                                                                    | Existing SQL clients and streamed results.                            |
 | **.NET & EF Core**    | Through `DuckDB.EFCoreProvider` your application model and your lake tables are one model.                                                                                                                                                                                            | .NET applications on the same schema.                                 |
 | **The HTTP API**      | Minimal-API endpoints for queries, schemas, history, snapshots, maintenance, eject, backup/restore, and change-feed subscriptions.                                                                                                                                                    | Automation and integration.                                           |
 | **MCP**               | An authenticated Model Context Protocol server with tenant discovery, schema, snapshots, changes, query resources/tools, and optional operator-gated writes. Development enables it by default; an instance operator changes the live controls under System Settings with no restart. | AI agents that need discoverable, capability-scoped lakehouse access. |
+
+---
+
+## Enterprise Data Platform capabilities
+
+LakeHold is building toward a focused Enterprise Data Platform: one private surface to acquire,
+store, govern, serve, secure, and operate organisational data. The current product already supplies
+the governed lakehouse, identity, audit, consumption, recovery, and exit foundations. The managed
+connector work adds the first governed source-to-table path.
+
+The boundaries matter:
+
+- **Available on main today:** open DuckLake/Parquet storage, PostgreSQL control and metadata,
+  Workbench and HTTP queries, PostgreSQL wire SQL, EF Core, MCP, scoped identity, audit, time travel,
+  CDC, maintenance, backup/restore, and verified eject.
+- **Implemented in source for the next release:** managed REST JSON-array/NDJSON and gRPC
+  full-snapshot connectors with schedules, quality gates, target ownership, safe egress, bounded
+  scratch space, fenced publication, telemetry, and retained run history.
+- **Not complete:** incremental checkpoints, a broad database/SaaS adapter platform, catalog search
+  and classification, end-to-end lineage, governed semantic metrics, Power BI compatibility, and
+  live open multi-engine access.
+
+Read the [Enterprise Data Platform overview](https://lakehold.dev/enterprise-data-platform), the
+[managed connector guide](https://lakehold.dev/docs/connectors), and the
+[status-controlled EDP delivery plan](https://lakehold.dev/docs/enterprise-data-platform-roadmap).
 
 ---
 
@@ -798,8 +823,8 @@ The design docs go deeper than this guide.
 | [`docs/EXIT-PATH.md`](https://github.com/skuirrels/LakeHold/blob/main/docs/EXIT-PATH.md)                 | The verified open-format exit procedure that eject automates.                                                  |
 | [`docs/POSTGRES-WIRE.md`](https://github.com/skuirrels/LakeHold/blob/main/docs/POSTGRES-WIRE.md)         | The wire protocol surface and what is deliberately unimplemented.                                              |
 | [`docs/AUTHENTICATION.md`](https://github.com/skuirrels/LakeHold/blob/main/docs/AUTHENTICATION.md)       | The phased plan for API authentication and tenant identity.                                                    |
-| [C# LINQ in the Workbench](https://lakehold.dev/docs/linq-workbench)                                    | Enablement, editor model, API contract, isolation, supported types, and troubleshooting.                       |
-| [`docs/UI.md`](https://github.com/skuirrels/LakeHold/blob/main/docs/UI.md)                               | The web surfaces around the query Workbench, and why a raw object browser is not one of them.                 |
+| [C# LINQ in the Workbench](https://lakehold.dev/docs/linq-workbench)                                     | Enablement, editor model, API contract, isolation, supported types, and troubleshooting.                       |
+| [`docs/UI.md`](https://github.com/skuirrels/LakeHold/blob/main/docs/UI.md)                               | The web surfaces around the query Workbench, and why a raw object browser is not one of them.                  |
 | [`docs/MCP.md`](https://github.com/skuirrels/LakeHold/blob/main/docs/MCP.md)                             | The MCP server, the tools an agent gets, and the ones deliberately withheld.                                   |
 | [`docs/PROVIDER-FEEDBACK.md`](https://github.com/skuirrels/LakeHold/blob/main/docs/PROVIDER-FEEDBACK.md) | Provider capabilities and why the data plane uses its dynamic API.                                             |
 | [`README.md`](https://github.com/skuirrels/LakeHold/blob/main/README.md)                                 | Build, run, and the full set of environment variables and test commands.                                       |
