@@ -17,11 +17,11 @@ public sealed class CapabilityPolicyTests
         string? catalog = null,
         bool readOnly = false,
         TokenRole role = TokenRole.Owner) =>
-        new(IsAuthenticated: true, TokenScope.Tenant, TenantId: 1, TenantSlug: slug,
+        new(TokenScope.Tenant, TenantId: 1, TenantSlug: slug,
             CatalogName: catalog, IsReadOnly: readOnly, TokenId: 1, Role: role);
 
     private static LakeholdPrincipal Instance() =>
-        new(IsAuthenticated: true, TokenScope.Instance, TenantId: null, TenantSlug: null,
+        new(TokenScope.Instance, TenantId: null, TenantSlug: null,
             CatalogName: null, IsReadOnly: false, TokenId: 2);
 
     private static CapabilityOutcome Outcome(
@@ -60,12 +60,13 @@ public sealed class CapabilityPolicyTests
     [InlineData(Capability.TenantOwner)]
     [InlineData(Capability.TenantAdmin)]
     [InlineData(Capability.Instance)]
-    [InlineData(Capability.Listing)]
-    public void An_unauthenticated_caller_trusts_the_route_for_every_capability(Capability capability)
+    public void Every_subject_scoped_capability_refuses_a_principal_from_another_tenant(Capability capability)
     {
-        // The transitional open path. A transport that must not offer it — an agent-reachable one —
-        // refuses the credential-less caller before reaching here rather than changing this answer.
-        Assert.Equal(CapabilityOutcome.Allowed, Outcome(LakeholdPrincipal.Legacy, capability));
+        // Replaces a test asserting that an unauthenticated caller was allowed every capability --
+        // the bypass that made the whole policy inert. Listing is deliberately excluded: it admits
+        // any principal and scopes the result in the handler, so refusal is not its contract.
+        var outsider = Tenant("other-tenant");
+        Assert.NotEqual(CapabilityOutcome.Allowed, Outcome(outsider, capability));
     }
 
     [Fact]

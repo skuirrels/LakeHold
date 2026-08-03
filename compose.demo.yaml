@@ -18,7 +18,6 @@ services:
       ConnectionStrings__ControlPlane: Host=demo-postgres;Port=5432;Database=lakeholdmeta;Username=lakehold;Password=${LAKEHOLD_DEMO_POSTGRES_PASSWORD:-lakehold}
       ConnectionStrings__DuckLakeMetadata: Host=demo-postgres;Port=5432;Database=lakeholdmeta;Username=lakehold;Password=${LAKEHOLD_DEMO_POSTGRES_PASSWORD:-lakehold}
       Lakehold__SeedDemoData: "true"
-      Lakehold__Auth__RequireAuthentication: "true"
       Lakehold__Auth__DemoTenant: ${LAKEHOLD_DEMO_TENANT:-demo}
       Lakehold__Auth__DemoCatalog: ${LAKEHOLD_DEMO_CATALOG:-analytics}
     depends_on:

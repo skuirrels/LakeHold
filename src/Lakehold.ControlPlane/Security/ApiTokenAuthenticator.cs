@@ -76,7 +76,6 @@ public sealed class ApiTokenAuthenticator(ControlPlaneContext context, TimeProvi
         }
 
         return TokenAuthResult.Authenticated(new LakeholdPrincipal(
-            IsAuthenticated: true,
             Scope: match.Scope,
             TenantId: match.TenantId,
             TenantSlug: match.Tenant?.Slug,

@@ -40,7 +40,6 @@ public sealed class ScheduledRunVisibilityTests
     }
 
     private static LakeholdPrincipal Tenant(string slug, string? catalog = null) => new(
-        IsAuthenticated: true,
         Scope: TokenScope.Tenant,
         TenantId: 1,
         TenantSlug: slug,
@@ -71,7 +70,6 @@ public sealed class ScheduledRunVisibilityTests
     public void An_instance_credential_sees_every_tenants_runs()
     {
         var runs = Runs(new LakeholdPrincipal(
-            IsAuthenticated: true,
             Scope: TokenScope.Instance,
             TenantId: null,
             TenantSlug: null,
@@ -83,12 +81,4 @@ public sealed class ScheduledRunVisibilityTests
         Assert.Contains(runs, r => r.Tenant == "other");
     }
 
-    [Fact]
-    public void A_token_less_caller_still_sees_everything()
-    {
-        // The transitional open path: while Lakehold:Auth:RequireAuthentication is false a token-less
-        // request trusts the route, and this read-out must not become the one surface that breaks it.
-        Assert.Equal(3, Runs(principal: null).Count);
-        Assert.Equal(3, Runs(LakeholdPrincipal.Legacy).Count);
-    }
 }

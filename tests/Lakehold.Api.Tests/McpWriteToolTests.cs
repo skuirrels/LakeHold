@@ -256,7 +256,6 @@ public sealed class McpWriteToolTests : IAsyncLifetime
             o => o.UseDuckDB($"Data Source={Path.Combine(root, "cp.duckdb")}"));
         builder.Services.AddScoped<ApiTokenAuthenticator>();
         builder.Services.AddSingleton(TimeProvider.System);
-        builder.Services.Configure<LakeholdAuthOptions>(o => o.RequireAuthentication = false);
         builder.Services.Configure<LakeholdOidcOptions>(_ => { });
         builder.Services.Configure<LakehouseOptions>(o =>
         {

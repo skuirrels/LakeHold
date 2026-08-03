@@ -33,7 +33,6 @@ public static class OidcPrincipal
             .Any(claim => string.Equals(claim.Value, options.SystemAdminValue, StringComparison.Ordinal)))
         {
             return new LakeholdPrincipal(
-                IsAuthenticated: true,
                 Scope: TokenScope.Instance,
                 TenantId: null,
                 TenantSlug: null,
@@ -57,7 +56,6 @@ public static class OidcPrincipal
         // the role. TenantId is not known from the token alone and is left null — enforcement keys on
         // the slug, and the audit trail records the token id only for API tokens.
         return new LakeholdPrincipal(
-            IsAuthenticated: true,
             Scope: TokenScope.Tenant,
             TenantId: null,
             TenantSlug: tenantSlug,

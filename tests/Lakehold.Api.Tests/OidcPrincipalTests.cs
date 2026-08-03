@@ -24,7 +24,6 @@ public sealed class OidcPrincipalTests
         var principal = OidcPrincipal.TryResolve(User(("tenant", "demo"), ("role", "owner")), Options);
 
         Assert.NotNull(principal);
-        Assert.True(principal.IsAuthenticated);
         Assert.Equal(TokenScope.Tenant, principal.Scope);
         Assert.Equal("demo", principal.TenantSlug);
         Assert.Equal(TokenRole.Owner, principal.Role);

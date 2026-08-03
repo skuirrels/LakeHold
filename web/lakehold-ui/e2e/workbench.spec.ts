@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
+import { signIn } from './credential';
 
 async function openWorkbench(page: Page): Promise<void> {
   const tenants = page.waitForResponse(
@@ -20,7 +21,8 @@ async function expectOffCanvas(locator: Locator): Promise<void> {
 }
 
 test.describe('workbench user journeys', () => {
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async ({ page, request }) => {
+    await signIn(page, request);
     await openWorkbench(page);
     await expect(page.getByLabel('SQL editor')).toBeVisible();
     await expect(page.locator('.selectors select').nth(0)).toHaveValue('demo');
@@ -228,6 +230,10 @@ test.describe('workbench user journeys', () => {
 });
 
 test.describe('responsive workbench navigation', () => {
+  test.beforeEach(async ({ page, request }) => {
+    await signIn(page, request);
+  });
+
   test('opens as a compact drawer and closes with Escape', async ({ page }) => {
     await page.setViewportSize({ width: 760, height: 900 });
     await openWorkbench(page);

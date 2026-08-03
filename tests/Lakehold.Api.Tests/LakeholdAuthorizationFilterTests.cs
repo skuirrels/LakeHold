@@ -134,12 +134,15 @@ public sealed class LakeholdAuthorizationFilterTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task No_token_is_allowed_while_authentication_is_not_required()
+    public async Task No_token_is_refused()
     {
+        // This asserted the opposite while a route-trusting principal existed. It was the single
+        // test standing guard over the bypass, and inverting it is the behaviour change: a request
+        // with no credential now gets nothing, on a deployment with no demo catalog published.
         var (status, passed) = await RunAsync(_services, bearer: null, "demo", "analytics");
 
-        Assert.True(passed);
-        Assert.Equal(StatusCodes.Status200OK, status);
+        Assert.False(passed);
+        Assert.Equal(StatusCodes.Status401Unauthorized, status);
     }
 
     [Fact]
@@ -274,7 +277,6 @@ public sealed class LakeholdAuthorizationFilterTests : IAsyncLifetime
         services.AddSingleton(TimeProvider.System);
         services.Configure<LakeholdAuthOptions>(o =>
         {
-            o.RequireAuthentication = requireAuthentication;
             o.DemoTenant = demoTenant;
             o.DemoCatalog = demoCatalog;
         });

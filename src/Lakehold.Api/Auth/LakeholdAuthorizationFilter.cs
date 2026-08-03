@@ -55,21 +55,17 @@ public sealed class LakeholdAuthorizationFilter : IEndpointFilter
             // A JWT bearer (or any scheme that populated http.User) the middleware already validated.
             principal = oidc;
         }
-        else if (http.User.Identity?.IsAuthenticated == true)
+        else if (http.User.Identity?.IsAuthenticated == true || bearer is not null)
         {
-            // A validated identity that Lakehold cannot map is still a presented credential. Never
-            // let it fall through to demo or legacy anonymous access merely because that deployment
-            // also permits requests without credentials.
+            // Either a validated identity Lakehold cannot map to a tenant, or a bearer that is
+            // neither a valid token nor a valid JWT. A presented credential that does not resolve is
+            // refused; it is never downgraded to a lesser identity.
             return Unauthorized(http);
         }
-        else if (bearer is not null)
+        else
         {
-            // A bearer was presented but is neither a valid token nor a valid JWT. A presented
-            // credential that does not resolve is refused, not treated as anonymous.
-            return Unauthorized(http);
-        }
-        else if (options.RequireAuthentication)
-        {
+            // No credential at all. The only thing an anonymous caller may ever be is the demo
+            // reader, and only where an operator deliberately published one. Absent that, refused.
             var demoTenant = options.DemoTenant.Trim();
             var demoCatalog = options.DemoCatalog.Trim();
             if (demoTenant.Length == 0 || demoCatalog.Length == 0)
@@ -77,14 +73,7 @@ public sealed class LakeholdAuthorizationFilter : IEndpointFilter
                 return Unauthorized(http);
             }
 
-            // A demo deployment may expose one seeded catalog for evaluation without publishing an
-            // operator credential. This principal is still subject-scoped and read-only; unlike the
-            // legacy token-less principal it never trusts tenant or catalog route segments.
             principal = LakeholdPrincipal.Demo(demoTenant, demoCatalog);
-        }
-        else
-        {
-            principal = LakeholdPrincipal.Legacy;
         }
 
         var routeTenant = http.Request.RouteValues.TryGetValue("tenantSlug", out var t) ? t as string : null;

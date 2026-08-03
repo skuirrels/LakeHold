@@ -1,6 +1,8 @@
 import { expect, test } from '@playwright/test';
+import { signIn } from './credential';
 
-test('operator simulation exercises the lakehouse control surfaces', async ({ page }) => {
+test('operator simulation exercises the lakehouse control surfaces', async ({ page, request }) => {
+  await signIn(page, request);
   const tenants = page.waitForResponse(
     (response) => response.url().endsWith('/api/tenants') && response.request().method() === 'GET',
   );

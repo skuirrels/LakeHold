@@ -11,11 +11,11 @@ namespace Lakehold.Api.Tests;
 public sealed class TenantAccessPolicyTests
 {
     private static LakeholdPrincipal Tenant(string slug, string? catalog = null) =>
-        new(IsAuthenticated: true, TokenScope.Tenant, TenantId: 1, TenantSlug: slug,
+        new(TokenScope.Tenant, TenantId: 1, TenantSlug: slug,
             CatalogName: catalog, IsReadOnly: false, TokenId: 1);
 
     private static LakeholdPrincipal Instance() =>
-        new(IsAuthenticated: true, TokenScope.Instance, TenantId: null, TenantSlug: null,
+        new(TokenScope.Instance, TenantId: null, TenantSlug: null,
             CatalogName: null, IsReadOnly: false, TokenId: 2);
 
     [Fact]
@@ -49,9 +49,15 @@ public sealed class TenantAccessPolicyTests
     }
 
     [Fact]
-    public void An_unauthenticated_caller_trusts_the_route()
+    public void A_demo_visitor_reaches_only_its_published_catalog()
     {
-        Assert.Equal(AccessDecision.Allow, TenantAccessPolicy.Evaluate(LakeholdPrincipal.Legacy, "demo", "analytics"));
-        Assert.Equal(AccessDecision.Allow, TenantAccessPolicy.Evaluate(LakeholdPrincipal.Legacy, "other", "secret"));
+        // Replaces a test asserting that an unauthenticated caller was allowed any route. That
+        // principal no longer exists; the demo visitor is the only credential-less identity left,
+        // and unlike the old one it is bound to exactly one tenant and catalog.
+        var demo = LakeholdPrincipal.Demo("demo", "analytics");
+
+        Assert.Equal(AccessDecision.Allow, TenantAccessPolicy.Evaluate(demo, "demo", "analytics"));
+        Assert.Equal(AccessDecision.NotFound, TenantAccessPolicy.Evaluate(demo, "demo", "private"));
+        Assert.Equal(AccessDecision.NotFound, TenantAccessPolicy.Evaluate(demo, "other", "analytics"));
     }
 }

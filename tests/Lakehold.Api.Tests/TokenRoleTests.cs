@@ -33,7 +33,6 @@ public sealed class TokenRoleTests : IAsyncLifetime
         collection.AddDbContext<ControlPlaneContext>(o => o.UseDuckDB($"Data Source={Path.Combine(_root, "cp.duckdb")}"));
         collection.AddScoped<ApiTokenAuthenticator>();
         collection.AddSingleton(TimeProvider.System);
-        collection.Configure<LakeholdAuthOptions>(o => o.RequireAuthentication = false);
         collection.Configure<LakeholdOidcOptions>(_ => { });
         _services = collection.BuildServiceProvider();
 

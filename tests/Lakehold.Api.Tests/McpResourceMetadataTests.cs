@@ -167,7 +167,6 @@ public sealed class McpResourceMetadataTests
         // credential is resolved, so no control plane is needed to exercise either.
         builder.Services.Configure<McpOptions>(builder.Configuration.GetSection(McpOptions.SectionName));
         builder.Services.Configure<LakeholdOidcOptions>(o => o.Authority = authority);
-        builder.Services.Configure<LakeholdAuthOptions>(o => o.RequireAuthentication = false);
         builder.Services.AddSingleton(TimeProvider.System);
         builder.Services.AddDbContext<ControlPlaneContext>(options =>
             options.UseDuckDB($"Data Source={controlPlanePath}"));

@@ -98,7 +98,6 @@ describe('WorkbenchComponent', () => {
       authenticated: true,
       displayName: 'Ada Administrator',
       systemAdmin: true,
-      requiresAuthentication: true,
     };
     api.access = {
       mode: 'authenticated',
@@ -786,13 +785,12 @@ describe('WorkbenchComponent', () => {
   });
 
   describe('credential affordance', () => {
-    it('never calls the token box a sign-in, and says so when the node is open', async () => {
+    it('never calls the token box a sign-in', async () => {
       api.browserSession = {
         oidcEnabled: false,
         authenticated: false,
         displayName: null,
         systemAdmin: false,
-        requiresAuthentication: false,
       };
 
       await mount();
@@ -806,9 +804,9 @@ describe('WorkbenchComponent', () => {
       control.click();
       await fixture.whenStable();
 
-      // The node is answering every request without a check. Saying nothing would leave an operator
-      // believing the gate in front of them is closed.
-      expect(fixture.nativeElement.textContent).toContain('does not require a credential');
+      // Every node requires a credential now, so the panel always says where the first one comes
+      // from rather than sometimes announcing that none is needed.
+      expect(fixture.nativeElement.textContent).toContain('lkh_admin_');
     });
 
     it('offers a real sign-in only when an identity provider is configured', async () => {
@@ -817,7 +815,6 @@ describe('WorkbenchComponent', () => {
         authenticated: false,
         displayName: null,
         systemAdmin: false,
-        requiresAuthentication: true,
       };
 
       await mount();
@@ -837,7 +834,6 @@ describe('WorkbenchComponent', () => {
         authenticated: false,
         displayName: null,
         systemAdmin: false,
-        requiresAuthentication: true,
       };
 
       await mount();

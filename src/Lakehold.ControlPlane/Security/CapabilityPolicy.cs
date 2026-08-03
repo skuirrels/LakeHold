@@ -84,11 +84,6 @@ public static class CapabilityPolicy
     {
         ArgumentNullException.ThrowIfNull(principal);
 
-        if (!principal.IsAuthenticated)
-        {
-            return CapabilityDecision.Allow;
-        }
-
         switch (capability)
         {
             case Capability.Listing:
