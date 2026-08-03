@@ -228,6 +228,31 @@ export class WorkbenchComponent {
   protected readonly readOnlyAccess = computed(() => this.access()?.readOnly ?? false);
   protected readonly demoMode = computed(() => this.access()?.mode === 'demo');
 
+  /** Whether an identity provider is configured, so "Sign in" can mean an actual login. */
+  protected readonly ssoAvailable = computed(() => this.browserSession()?.oidcEnabled ?? false);
+
+  /**
+   * Whether the node refuses credential-less requests.
+   *
+   * Defaults to true while the session is still loading. Describing an unknown node as open would
+   * be the one wrong guess here: a reader who is told no credential is needed stops looking for one.
+   */
+  protected readonly credentialRequired = computed(
+    () => this.browserSession()?.requiresAuthentication ?? true,
+  );
+
+  /**
+   * What the credential control says it is. Never "Sign in" — this control takes a machine token,
+   * and the identity-provider login beside it is the thing that signs a person in.
+   */
+  protected readonly credentialLabel = computed(() => {
+    if (this.auth.hasToken()) {
+      return 'Token set';
+    }
+
+    return this.demoMode() ? 'Operator token' : 'API token';
+  });
+
   /** Base tables for history and change-feed pickers; views own no rows or snapshots of their own. */
   protected readonly baseTableReferences = computed<TableReference[]>(() =>
     this.schemas().flatMap((schema) =>

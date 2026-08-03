@@ -40,15 +40,25 @@
         <a class="btn" href="/auth/logout?returnUrl=/workbench">Sign out</a>
       </div>
     } @else {
+      <!--
+        Two different things used to share one "Sign in" button: an identity-provider login, and a
+        box for pasting a machine credential. Only the first is signing in. Labelling the second that
+        way promises an account you do not have, and on a node that does not require authentication
+        it advertises a gate that is not closed.
+      -->
+      @if (ssoAvailable()) {
+        <a class="btn btn-primary" href="/auth/login?returnUrl=/workbench">Sign in</a>
+      }
+
       <div class="credential">
         <button
           class="btn"
           type="button"
           [class.btn-active]="auth.hasToken()"
           (click)="toggleCredential()"
-          [title]="auth.hasToken() ? 'An API token is set for this session' : 'No API token set'"
+          [title]="credentialLabel()"
         >
-          {{ auth.hasToken() ? 'Token set' : demoMode() ? 'Operator sign in' : 'Sign in' }}
+          {{ credentialLabel() }}
         </button>
 
         @if (credentialOpen()) {
@@ -73,9 +83,18 @@
             <p class="credential-hint">
               @if (demoMode()) {
                 Operators can paste a LakeHold API token to leave the public read-only demo.
-              } @else {
+              } @else if (auth.hasToken()) {
                 Sent as a bearer token on API calls this tab makes. Kept for this browser session
-                only.
+                only, so a closed tab needs it again.
+              } @else if (credentialRequired()) {
+                This node requires a credential. Tokens are issued by whoever operates it; a node
+                with none yet writes a one-time <code>lkh_admin_…</code> bootstrap token to its API
+                startup log, which creates the first workspace and its owner token.
+              } @else {
+                <strong>This node does not require a credential</strong> — it is serving every
+                request, including this one, without checking for one. A token is only needed to act
+                as a specific tenant or role. Set
+                <code>Lakehold__Auth__RequireAuthentication=true</code> to close it.
               }
             </p>
           </div>
