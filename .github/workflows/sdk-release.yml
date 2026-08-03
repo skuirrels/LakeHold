@@ -27,7 +27,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: sdk-release
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -41,18 +41,19 @@ jobs:
           grep -Fq 'version = "${{ inputs.version }}"' sdk/python/pyproject.toml
           grep -Fq 'SDKVersion      = "${{ inputs.version }}"' sdk/go/runtime.go
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "21"
           cache: maven
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v7
         with:
           go-version-file: sdk/go/go.mod
-      - uses: actions/setup-dotnet@v4
+          cache-dependency-path: sdk/go/go.sum
+      - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: "8.0.x"
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.13"
 
@@ -80,13 +81,13 @@ jobs:
 
       - name: Generate dry-run build provenance
         if: ${{ !inputs.publish }}
-        uses: actions/attest-build-provenance@v2
+        uses: actions/attest-build-provenance@v4
         with:
           subject-path: artifacts/**/*
 
       - name: Upload release evidence
         if: ${{ !inputs.publish }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: lakehold-sdks-${{ inputs.version }}
           path: artifacts/
@@ -139,13 +140,13 @@ jobs:
 
       - name: Generate signed-artifact provenance
         if: inputs.publish
-        uses: actions/attest-build-provenance@v2
+        uses: actions/attest-build-provenance@v4
         with:
           subject-path: artifacts/**/*
 
       - name: Upload signed release evidence
         if: inputs.publish
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: lakehold-sdks-${{ inputs.version }}-signed
           path: artifacts/
