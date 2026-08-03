@@ -51,7 +51,7 @@ jobs:
             image: lakehold-linq-compiler
             dockerfile: src/Lakehold.Linq.Compiler/Dockerfile
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: docker/setup-buildx-action@v3
 
