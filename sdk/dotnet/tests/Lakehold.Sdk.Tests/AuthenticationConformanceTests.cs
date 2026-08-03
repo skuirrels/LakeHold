@@ -183,6 +183,32 @@ public sealed class AuthenticationConformanceTests
     }
 
     [Fact]
+    public async Task StreamingCancellationIsObservedBetweenBufferedRecords()
+    {
+        var handler = new StreamingHandler("query-stream.ndjson");
+        using var client = new HttpClient(handler);
+        using var cancellation = new CancellationTokenSource();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
+        {
+            await foreach (var item in LakeholdRuntime.StreamQueryAsync(
+                               client,
+                               new Uri("https://lakehold.test/"),
+                               "test-token",
+                               "tenant",
+                               "catalog",
+                               "SELECT 1",
+                               cancellation.Token))
+            {
+                if (item.Type == "schema")
+                {
+                    cancellation.Cancel();
+                }
+            }
+        });
+    }
+
+    [Fact]
     public async Task ChangeStreamingFixtureIsConsumedIncrementally()
     {
         var handler = new StreamingHandler("change-stream.ndjson");
@@ -263,6 +289,64 @@ public sealed class AuthenticationConformanceTests
         }
 
         Assert.Equal(["schema", "row", "complete"], types);
+    }
+
+    [Fact]
+    public async Task ReleasedServerEnforcesTenantIsolation()
+    {
+        var endpoint = Environment.GetEnvironmentVariable("LAKEHOLD_CONFORMANCE_URL");
+        if (string.IsNullOrWhiteSpace(endpoint))
+        {
+            return;
+        }
+
+        using var client = LakeholdRuntime.Configure(new HttpClient(), TimeSpan.FromSeconds(30));
+        var exception = await Assert.ThrowsAsync<LakeholdStreamException>(async () =>
+        {
+            await foreach (var _ in LakeholdRuntime.StreamQueryAsync(
+                               client,
+                               new Uri(endpoint.EndsWith('/') ? endpoint : endpoint + "/"),
+                               RequiredEnvironment("LAKEHOLD_CONFORMANCE_TOKEN"),
+                               RequiredEnvironment("LAKEHOLD_CONFORMANCE_TENANT") + "-other",
+                               RequiredEnvironment("LAKEHOLD_CONFORMANCE_CATALOG"),
+                               "SELECT 1 AS conformance"))
+            {
+            }
+        });
+
+        Assert.Equal((int)HttpStatusCode.NotFound, exception.Status);
+        Assert.Equal("not_found", exception.Code);
+        Assert.False(string.IsNullOrWhiteSpace(exception.RequestId));
+    }
+
+    [Fact]
+    public async Task ReleasedServerStreamingCanBeCancelled()
+    {
+        var endpoint = Environment.GetEnvironmentVariable("LAKEHOLD_CONFORMANCE_URL");
+        if (string.IsNullOrWhiteSpace(endpoint))
+        {
+            return;
+        }
+
+        using var client = LakeholdRuntime.Configure(new HttpClient(), TimeSpan.FromSeconds(30));
+        using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
+        {
+            await foreach (var item in LakeholdRuntime.StreamQueryAsync(
+                               client,
+                               new Uri(endpoint.EndsWith('/') ? endpoint : endpoint + "/"),
+                               RequiredEnvironment("LAKEHOLD_CONFORMANCE_TOKEN"),
+                               RequiredEnvironment("LAKEHOLD_CONFORMANCE_TENANT"),
+                               RequiredEnvironment("LAKEHOLD_CONFORMANCE_CATALOG"),
+                               "SELECT * FROM range(1000000)",
+                               cancellation.Token))
+            {
+                if (item.Type == "schema")
+                {
+                    cancellation.Cancel();
+                }
+            }
+        });
     }
 
     private static string RequiredEnvironment(string name)

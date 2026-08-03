@@ -50,13 +50,16 @@ bounded retry and `Retry-After`, cursor traversal, idempotency validation, opera
 transport-appropriate cancellation, correlation identifiers, user agents, timeouts, and
 additive-field compatibility, plus incremental query/CDC stream framing.
 
-The dedicated `sdk-conformance.yml` workflow runs each language against an authenticated released
-server. Its source and secret gates are implemented, but no successful released-server execution is
-claimed here; tenant-isolation, every-error-code, and cross-transport cancellation coverage remain.
+The dedicated `sdk-conformance.yml` workflow pulls an immutable released LakeHold API image and
+provisions an isolated catalog-scoped reader independently for each language. It verifies
+authenticated query streaming, tenant isolation, and transport-appropriate cancellation. Exhaustive
+coverage of every stable public error code remains open.
 See [`REFERENCE.md`](REFERENCE.md), [`COMPATIBILITY.md`](COMPATIBILITY.md), and
 [`examples`](examples/) for the supported runtime surface.
 
 These packages are source-complete but are **not published** to Maven Central, a Go module proxy,
 NuGet, or PyPI by this change. `sdk-release.yml` implements fail-closed signing, provenance,
 publication, registry-indexing, and clean-install gates; it still requires repository/namespace
-ownership, protected credentials, an approved version, and an explicit publication run.
+ownership, protected credentials, an approved version, and an explicit publication run. The 0.1.0
+non-publishing dry run has verified builds, package assembly, build provenance, and uploaded evidence;
+it did not sign or publish artifacts.

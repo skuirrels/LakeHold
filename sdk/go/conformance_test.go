@@ -310,6 +310,59 @@ func TestReleasedServerStreamingConformance(t *testing.T) {
 	}
 }
 
+func TestReleasedServerTenantIsolationConformance(t *testing.T) {
+	endpoint := os.Getenv("LAKEHOLD_CONFORMANCE_URL")
+	if endpoint == "" {
+		t.Skip("LAKEHOLD_CONFORMANCE_URL is not configured")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	err := StreamQuery(
+		ctx,
+		http.DefaultClient,
+		endpoint,
+		requiredEnvironment(t, "LAKEHOLD_CONFORMANCE_TOKEN"),
+		requiredEnvironment(t, "LAKEHOLD_CONFORMANCE_TENANT")+"-other",
+		requiredEnvironment(t, "LAKEHOLD_CONFORMANCE_CATALOG"),
+		"SELECT 1 AS conformance",
+		func(StreamEvent) error { return nil },
+	)
+	var problem *ProblemError
+	if !errors.As(err, &problem) {
+		t.Fatalf("expected a public problem, got %v", err)
+	}
+	if problem.Status != http.StatusNotFound || problem.Code != "not_found" || problem.RequestID == "" {
+		t.Fatalf("unexpected isolation problem: %#v", problem)
+	}
+}
+
+func TestReleasedServerStreamingCancellationConformance(t *testing.T) {
+	endpoint := os.Getenv("LAKEHOLD_CONFORMANCE_URL")
+	if endpoint == "" {
+		t.Skip("LAKEHOLD_CONFORMANCE_URL is not configured")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	err := StreamQuery(
+		ctx,
+		http.DefaultClient,
+		endpoint,
+		requiredEnvironment(t, "LAKEHOLD_CONFORMANCE_TOKEN"),
+		requiredEnvironment(t, "LAKEHOLD_CONFORMANCE_TENANT"),
+		requiredEnvironment(t, "LAKEHOLD_CONFORMANCE_CATALOG"),
+		"SELECT * FROM range(1000000)",
+		func(event StreamEvent) error {
+			if event.Type == "schema" {
+				cancel()
+			}
+			return nil
+		},
+	)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("expected cancellation, got %v", err)
+	}
+}
+
 func requiredEnvironment(t *testing.T, name string) string {
 	t.Helper()
 	value := os.Getenv(name)

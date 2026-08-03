@@ -13,9 +13,9 @@ Platform (EDP), not merely a SQL endpoint over open storage.
 - **Partial** — useful capability exists, but the stated EDP acceptance boundary is not met.
 - **Not started** — no production implementation is claimed.
 
-> LakeHold v1.3.0 ships the managed connector foundation and connector platform. A real connector
-> migration and refresh in a deployed v1.3.0 environment remains an explicit post-release evidence
-> gate; the release alone does not claim that operational proof.
+> LakeHold v1.3.0 ships the managed connector foundation and connector platform, and v1.4.0 ships
+> the versioned public API server. A real connector migration and refresh in a deployed environment
+> remains an explicit post-release evidence gate; a release alone does not claim that operational proof.
 
 ## Executive status
 
@@ -24,7 +24,7 @@ Platform (EDP), not merely a SQL endpoint over open storage.
 | P1.1 Managed ingestion foundation   | **Shipped**               | v1.3.0 includes REST JSON-array/NDJSON and gRPC full snapshots, durable definitions/runs, schedules, fencing, target ownership, quality, egress, scratch controls, telemetry, API outcomes, and production-path tests | Post-release migration and real connector-refresh deployment evidence                                                                                 |
 | P1.2 Connector platform             | **Shipped**               | v1.3.0 includes the versioned adapter SDK/manifest, commit-fenced checkpoints, replay-safe keyed upsert, retry/dead-letter lifecycle, mappings, schema policy, external secrets, approved auth, PostgreSQL, and HubSpot | Deployment evidence and a broader production-certified adapter catalogue                                                                              |
 | P1.3 Catalog and governance         | **Partial**               | Owners, descriptions, tags, quality policy, audit, and connector run lineage exist on initial surfaces                                                                                                | Stable identity for every asset, search, classification, freshness, policy administration, and end-to-end lineage graph                              |
-| P1.4 Public API and client SDKs     | **Implemented in source** | Canonical `/api/v1`, NDJSON query/CDC streams, snapshot detail/keysets, production OpenAPI, semantic compatibility gate, generated/tested Java, Go, .NET, and Python streaming clients, documentation, examples, matrices, and gated signed-release automation | Execute conformance against a released authenticated server; publish, index, and clean-install all four public packages |
+| P1.4 Public API and client SDKs     | **Partial**               | v1.4.0 public API images; canonical `/api/v1`, NDJSON query/CDC streams, snapshot detail/keysets, production OpenAPI, semantic compatibility gate, generated/tested Java, Go, .NET, and Python clients, released-image authentication/query/isolation/cancellation conformance, documentation, examples, matrices, and a successful 0.1.0 non-publishing package/provenance dry run | Complete exhaustive public-error conformance; sign, publish, index, and clean-install all four public packages |
 | P1.5 Semantic and consumption layer | **Partial**               | HTTP, Workbench, MCP, EF Core, PostgreSQL wire for psql/DBeaver/Npgsql, and saved-query publication                                                                                                   | Governed metrics/semantic models, Power BI fix, supported JDBC/ODBC, and open multi-engine catalog access                                            |
 | P1.6 Enterprise operations          | **Partial**               | Maintenance, leases, telemetry, backup/restore, verified eject, bounded connector resources, connector lifecycle operations, and safe errors                                                           | Connector UI, freshness/SLO dashboards, alerting, usage/cost reporting, and release runbooks                                                          |
 
@@ -198,18 +198,18 @@ The detailed endpoint contract and staged migration remain in
 - [x] Run the shared language-neutral reliability fixture through all four source SDKs for typed
       problems, pagination, retries, idempotency, operation polling, transport-appropriate cancellation, request ids,
       timeouts, user agents, token redaction, and unknown additive fields.
-- [ ] Run the full language-neutral conformance suite against all four SDKs, including tenant
-      isolation, released-server authorization, streaming cancellation, and every public error
-      code. The authenticated four-language streaming workflow now exists, but has not run against a
-      released server and does not yet cover every error code.
+- [x] Run authenticated query-streaming, tenant-isolation, and streaming-cancellation conformance
+      through all four SDKs against an immutable released API image.
+- [ ] Extend released-image conformance to every stable public error code.
 - [x] Publish source reference documentation, runnable examples, a supported runtime matrix,
       compatibility policy, changelog, provenance generation, and coordinated fail-closed release
       automation.
 - [ ] Publish the signed packages through that workflow and prove registry indexing plus clean
       installs. No Maven Central, Go proxy, NuGet, or PyPI publication is claimed by source automation.
 
-P1.4 remains **implemented in source**, not shipped. It is complete only when all four packages are publicly installable, pass the same conformance
-fixtures against a released LakeHold server, and no supported workflow requires an internal route.
+P1.4 remains **partial**. Its server contract ships in v1.4.0, but the workstream is complete only
+when all four packages are publicly installable, pass the complete conformance fixtures against a
+released LakeHold server, and no supported workflow requires an internal route.
 The existing `src/Lakehold.Client` project is useful implementation evidence, but it is not currently
 a published general-purpose SDK and must not be presented as one.
 
@@ -253,20 +253,20 @@ Priority 1 is complete only when all of these are demonstrable:
 
 ## Next implementation
 
-The P1.4 implementation is complete in source but is not shipped and has not passed the external
-release evidence gates. Continue in this order:
+The P1.4 server contract ships in v1.4.0 and its four source SDKs pass released-image authentication,
+query-streaming, tenant-isolation, and cancellation conformance. Continue in this order:
 
-1. Release a server containing this contract and run `sdk-conformance.yml` against a dedicated
-   authenticated read-only tenant/catalog; extend the shared fixtures to tenant isolation,
-   cancellation, and every stable public error code.
-2. With explicit version and registry approval, run `sdk-release.yml` with publication enabled,
-   verify its signed artifacts/provenance, registry indexing, and clean installs. Only then mark
-   P1.4 shipped.
-3. Continue the remaining time-travel resources: arbitrary-query `asOf`, labels/pins/retention, and
+1. Configure protected signing credentials, registry namespace ownership, and PyPI trusted
+   publishing for SDK 0.1.0; the successful non-publishing dry run is not publication evidence.
+2. With explicit registry approval, run `sdk-release.yml` with publication enabled and verify signed
+   artifacts/provenance, Maven Central, Go proxy, NuGet and PyPI indexing, and clean installs. Only
+   then mark P1.4 shipped.
+3. Extend the shared released-image fixtures to every stable public error code.
+4. Continue the remaining time-travel resources: arbitrary-query `asOf`, labels/pins/retention, and
    catalog-wide restore. Continue converting generic offset cursors only where source semantics make
    a stable keyset possible.
 
 P1.3 governance proceeds through the same contract: stable governed asset identifiers must land
 before SDK models for assets and lineage are frozen. In parallel, capture post-release migration and
-real connector-refresh evidence from a deployed v1.3.0 environment; the shipped status does not
+real connector-refresh evidence from a deployed released environment; the shipped status does not
 imply that operational proof.

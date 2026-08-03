@@ -6,11 +6,10 @@ schema, snapshots and rollback, maintenance, backup, eject, change feeds, provis
 
 **Status date:** 3 August 2026
 
-**Current boundary:** the public API foundation is implemented in source. The application maps the
-canonical `/api/v1` surface, retains `/api` as a sunset-advertised compatibility alias, publishes
-OpenAPI in production, and generates tested Java, Go, .NET, and Python source clients from the frozen
-contract. This is not yet a released server contract, and none of the four SDKs is published to a
-public package registry.
+**Current boundary:** LakeHold v1.4.0 ships the canonical `/api/v1` server contract, retains `/api`
+as a sunset-advertised compatibility alias, and publishes OpenAPI in production. Java, Go, .NET,
+and Python 0.1.0 source clients are generated and tested from that frozen contract, but none of the
+four SDKs is published to a public package registry.
 
 Like [`AUTHENTICATION.md`](AUTHENTICATION.md), this is a specification and a running record. It is
 written to be worked one step at a time: each step is independently shippable and testable and leaves
@@ -26,8 +25,9 @@ re-specified here; this document references them and fills in the surface around
 provisioning endpoints, the principal model, roles, and audit. Versioning, common problem responses,
 bounded cursor pagination, durable operations, idempotency, capability discovery, and production
 OpenAPI, NDJSON query/CDC streaming, snapshot keysets/detail/table preview, the shared SDK runtime
-layer, and semantic compatibility automation are implemented in source. Released-server black-box
-conformance and public package publication remain open.
+layer, and semantic compatibility automation ship in v1.4.0. Released-image SDK conformance covers
+authenticated query streaming, tenant isolation, and cancellation in all four languages. Exhaustive
+public-error fixtures and public package publication remain open.
 One caveat carries forward: `RequireAuthentication` defaults to false, so deployment policy still
 decides whether a particular installation requires credentials on HTTP routes.
 
@@ -46,7 +46,7 @@ families. Tenant and catalog route segments are checked against the resolved pri
 | Collections | Opaque, request-bound cursor envelopes with a 24-hour lifetime; snapshot history freezes a native snapshot-id keyset and CDC uses its native snapshot/row cursor | Replace remaining offset cursors only where a source-native ordering can provide stable traversal |
 | Retryable mutations | Durable, content-type/query/payload-bound idempotency records on bounded control mutations; visible-ASCII keys are hashed at rest, bodies are capped at 1 MiB, and completed records are retained for seven days | Streaming imports and one-time token issuance are deliberately excluded because neither response can be safely replayed |
 | Long work | Maintenance compact/backup, restore backup, and eject enqueue durable operations on v1; legacy calls retain their old synchronous behavior | Progress/cancellation and remaining future long-running resources |
-| SDKs | Digest-pinned generation plus shared authentication, streaming query/CDC, typed problems, retry, pagination, idempotency, operation polling, cancellation, correlation, timeout, user-agent, redaction, docs/examples/matrices, and gated signing/provenance for all four languages | Run released-server conformance; publish, index, and clean-install public packages |
+| SDKs | Digest-pinned generation plus shared authentication, streaming query/CDC, typed problems, retry, pagination, idempotency, operation polling, cancellation, correlation, timeout, user-agent, redaction, docs/examples/matrices, and released-image query/isolation/cancellation conformance for all four languages | Complete exhaustive public-error conformance; publish, index, and clean-install public packages |
 
 ### Query-language contract
 
@@ -190,10 +190,10 @@ Every SDK must provide the same observable contract:
   operations, and audit according to the caller's capability.
 
 The shared source fixtures run through Java, Go, .NET, and Python and prove reliability plus
-incremental NDJSON behavior appropriate to each transport model. An authenticated workflow invokes
-every SDK against a released server, but no successful released-server run is claimed yet;
-tenant-isolation, cancellation, and exhaustive public-error fixtures remain. An SDK is not released
-merely because generated code compiles: package signing/provenance,
+incremental NDJSON behavior appropriate to each transport model. The authenticated workflow pulls
+an immutable released API image, provisions an isolated catalog-scoped reader, and verifies query
+streaming, tenant isolation, and cancellation in every SDK. Exhaustive public-error fixtures remain.
+An SDK is not released merely because generated code compiles: package signing/provenance,
 reference documentation, examples, supported runtime versions, compatibility tables, and a clean
 install test from the public registry are release gates.
 

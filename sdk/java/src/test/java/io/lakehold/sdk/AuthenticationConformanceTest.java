@@ -6,6 +6,7 @@ import io.lakehold.sdk.api.LakehouseApi;
 import io.lakehold.sdk.model.AccessDto;
 import io.lakehold.sdk.model.CreatedTokenDto;
 import io.lakehold.sdk.runtime.LakeholdRuntime;
+import java.io.InterruptedIOException;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -248,6 +249,52 @@ final class AuthenticationConformanceTest {
             "SELECT 1 AS conformance",
             event -> types.add(event.type()));
         assertEquals(List.of("schema", "row", "complete"), types);
+    }
+
+    @Test
+    void releasedServerEnforcesTenantIsolation() throws Exception {
+        String endpoint = System.getenv("LAKEHOLD_CONFORMANCE_URL");
+        if (endpoint == null || endpoint.trim().isEmpty()) {
+            return;
+        }
+        ApiClient client = LakeholdRuntime.configure(
+            new ApiClient().setBasePath(endpoint), Duration.ofSeconds(30));
+        ApiException exception = assertThrows(ApiException.class, () -> LakeholdRuntime.streamQuery(
+            client,
+            requiredEnvironment("LAKEHOLD_CONFORMANCE_TOKEN"),
+            requiredEnvironment("LAKEHOLD_CONFORMANCE_TENANT") + "-other",
+            requiredEnvironment("LAKEHOLD_CONFORMANCE_CATALOG"),
+            "SELECT 1 AS conformance",
+            event -> { }));
+        LakeholdRuntime.ProblemException problem = LakeholdRuntime.problem(exception);
+        assertEquals(404, problem.status());
+        assertEquals("not_found", problem.code());
+        assertTrue(problem.requestId() != null && !problem.requestId().isBlank());
+    }
+
+    @Test
+    void releasedServerStreamingCanBeCancelled() throws Exception {
+        String endpoint = System.getenv("LAKEHOLD_CONFORMANCE_URL");
+        if (endpoint == null || endpoint.trim().isEmpty()) {
+            return;
+        }
+        ApiClient client = LakeholdRuntime.configure(
+            new ApiClient().setBasePath(endpoint), Duration.ofSeconds(30));
+        try {
+            assertThrows(InterruptedIOException.class, () -> LakeholdRuntime.streamQuery(
+                client,
+                requiredEnvironment("LAKEHOLD_CONFORMANCE_TOKEN"),
+                requiredEnvironment("LAKEHOLD_CONFORMANCE_TENANT"),
+                requiredEnvironment("LAKEHOLD_CONFORMANCE_CATALOG"),
+                "SELECT * FROM range(1000000)",
+                event -> {
+                    if ("schema".equals(event.type())) {
+                        Thread.currentThread().interrupt();
+                    }
+                }));
+        } finally {
+            Thread.interrupted();
+        }
     }
 
     private static String requiredEnvironment(String name) {
