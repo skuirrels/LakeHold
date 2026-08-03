@@ -254,6 +254,44 @@ def test_streaming_fixture_is_consumed_incrementally():
     assert kwargs["headers"]["Authorization"] == "Bearer test-token"
 
 
+def test_streaming_cancellation_is_checked_between_buffered_records():
+    fixture = Path("../conformance/query-stream.ndjson").read_bytes()
+
+    class Response:
+        status = 200
+        reason = "OK"
+        headers = {"Content-Type": "application/x-ndjson"}
+
+        def stream(self, **_kwargs):
+            yield fixture
+
+        def release_conn(self):
+            return None
+
+    class Pool:
+        def request(self, *_args, **_kwargs):
+            return Response()
+
+    client = LakeholdApiClient(lakehold_sdk.Configuration(
+        host="https://lakehold.test",
+        access_token="test-token",
+    ), timeout=5)
+    client.rest_client.pool_manager = Pool()
+    cancelled = False
+    events = stream_query(
+        client,
+        tenant="tenant",
+        catalog="catalog",
+        sql="SELECT 1",
+        cancelled=lambda: cancelled,
+    )
+
+    assert next(events).type == "schema"
+    cancelled = True
+    with pytest.raises(CancelledError):
+        next(events)
+
+
 def test_change_streaming_fixture_is_consumed_incrementally():
     fixture = Path("../conformance/change-stream.ndjson").read_bytes()
 
@@ -300,9 +338,67 @@ def test_change_streaming_fixture_is_consumed_incrementally():
 
 
 def test_released_server_streaming_conformance():
+    endpoint, token, tenant, catalog = _released_server_settings()
+    if endpoint is None:
+        pytest.skip("LAKEHOLD_CONFORMANCE_URL is not configured")
+    configuration = lakehold_sdk.Configuration(
+        host=endpoint,
+        access_token=token,
+    )
+    with LakeholdApiClient(configuration, timeout=30) as client:
+        events = list(stream_query(
+            client,
+            tenant=tenant,
+            catalog=catalog,
+            sql="SELECT 1 AS conformance",
+        ))
+
+    assert [event.type for event in events] == ["schema", "row", "complete"]
+
+
+def test_released_server_enforces_tenant_isolation():
+    endpoint, token, tenant, catalog = _released_server_settings()
+    if endpoint is None:
+        pytest.skip("LAKEHOLD_CONFORMANCE_URL is not configured")
+    configuration = lakehold_sdk.Configuration(host=endpoint, access_token=token)
+    with LakeholdApiClient(configuration, timeout=30) as client:
+        with pytest.raises(LakeholdProblemError) as captured:
+            list(stream_query(
+                client,
+                tenant=f"{tenant}-other",
+                catalog=catalog,
+                sql="SELECT 1 AS conformance",
+            ))
+
+    assert captured.value.status == 404
+    assert captured.value.code == "not_found"
+    assert captured.value.request_id
+
+
+def test_released_server_streaming_can_be_cancelled():
+    endpoint, token, tenant, catalog = _released_server_settings()
+    if endpoint is None:
+        pytest.skip("LAKEHOLD_CONFORMANCE_URL is not configured")
+    configuration = lakehold_sdk.Configuration(host=endpoint, access_token=token)
+    cancelled = False
+    with LakeholdApiClient(configuration, timeout=30) as client:
+        events = stream_query(
+            client,
+            tenant=tenant,
+            catalog=catalog,
+            sql="SELECT * FROM range(1000000)",
+            cancelled=lambda: cancelled,
+        )
+        assert next(events).type == "schema"
+        cancelled = True
+        with pytest.raises(CancelledError):
+            next(events)
+
+
+def _released_server_settings():
     endpoint = os.getenv("LAKEHOLD_CONFORMANCE_URL")
     if not endpoint:
-        pytest.skip("LAKEHOLD_CONFORMANCE_URL is not configured")
+        return None, None, None, None
     required = {
         name: os.getenv(name)
         for name in (
@@ -313,16 +409,9 @@ def test_released_server_streaming_conformance():
     }
     missing = [name for name, value in required.items() if not value]
     assert not missing, f"missing released-server conformance settings: {', '.join(missing)}"
-    configuration = lakehold_sdk.Configuration(
-        host=endpoint.rstrip("/"),
-        access_token=required["LAKEHOLD_CONFORMANCE_TOKEN"],
+    return (
+        endpoint.rstrip("/"),
+        required["LAKEHOLD_CONFORMANCE_TOKEN"],
+        required["LAKEHOLD_CONFORMANCE_TENANT"],
+        required["LAKEHOLD_CONFORMANCE_CATALOG"],
     )
-    with LakeholdApiClient(configuration, timeout=30) as client:
-        events = list(stream_query(
-            client,
-            tenant=required["LAKEHOLD_CONFORMANCE_TENANT"],
-            catalog=required["LAKEHOLD_CONFORMANCE_CATALOG"],
-            sql="SELECT 1 AS conformance",
-        ))
-
-    assert [event.type for event in events] == ["schema", "row", "complete"]

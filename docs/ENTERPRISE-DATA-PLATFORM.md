@@ -5,9 +5,10 @@ one governed place to acquire, store, understand, serve, and operate organisatio
 is not to imitate every service in Databricks or Snowflake. It is to give .NET and lean data teams a
 smaller, private platform with open storage, explicit operations, and an exit path they can prove.
 
-> **Current boundary:** LakeHold v1.3.0 includes the managed connector platform. The current source
-> also implements the `/api/v1` public API foundation and generated Java, Go, .NET, and Python SDK
-> candidates, but those changes are not a released server or publicly installed packages.
+> **Current boundary:** LakeHold v1.3.0 introduced the managed connector platform, and v1.4.0 ships
+> the `/api/v1` public server contract. Generated Java, Go, .NET, and Python 0.1.0 SDK candidates
+> pass released-image authentication, query-streaming, tenant-isolation, and cancellation checks,
+> but they are not publicly installed packages.
 > Searchable governance, end-to-end lineage, a semantic layer, mature BI compatibility, full SDK
 > convenience/conformance coverage, and a broad adapter ecosystem remain incomplete.
 
@@ -26,8 +27,8 @@ An Enterprise Data Platform normally brings six responsibilities together:
 
 ## What LakeHold provides
 
-The distinction below is deliberate: v1.3.0 ships the governed lakehouse and managed connector
-platform, while the broader EDP capabilities remain partial or planned.
+The distinction below is deliberate: v1.3.0 ships the managed connector platform and v1.4.0 ships
+the versioned public API, while the broader EDP capabilities remain partial or planned.
 
 ### Available on the main branch: governed lakehouse foundation
 
@@ -67,12 +68,12 @@ The managed connector contract and operator settings are documented in
   PostgreSQL wire endpoint.
 - `psql`, DBeaver, and Npgsql work through the wire endpoint. Power BI remains blocked by the
   documented PostgreSQL type-catalogue compatibility gap.
-- Canonical `/api/v1` routes, production OpenAPI, RFC 9457 errors, cursor pages, idempotent bounded
-  mutations, durable long-running operations, and capability discovery are implemented in source.
+- LakeHold v1.4.0 ships canonical `/api/v1` routes, production OpenAPI, RFC 9457 errors, cursor
+  pages, idempotent bounded mutations, durable long-running operations, and capability discovery.
 - Generated Java, Go, .NET, and Python clients cover the frozen v1 contract and have authentication,
-  reliability, pagination, operation-waiter, and streaming conformance tests. They remain source
-  candidates rather than released packages; released-server conformance and registry publication are
-  still open.
+  reliability, pagination, operation-waiter, streaming, tenant-isolation, and cancellation
+  conformance tests against the released API image. They remain source candidates rather than
+  released packages; exhaustive public-error coverage and registry publication are still open.
 - The older source-only `Lakehold.Client` project still supports the first-party .NET replication
   worker and is separate from the new general-purpose .NET SDK candidate.
 
@@ -103,10 +104,10 @@ open:
   Iceberg-compatible catalog.
 - A connector administration experience in the Workbench.
 - Connector service objectives, alerting, and resource/cost reporting.
-- Full released-server SDK conformance coverage and publicly signed Java, Go, .NET, and Python
-  packages. The semantic OpenAPI compatibility gate and source SDK conveniences are implemented;
-  the remaining acceptance gates and exact source-versus-release boundary are tracked in the
-  delivery plan.
+- Exhaustive released-server public-error coverage and publicly signed Java, Go, .NET, and Python
+  packages. Released-image authentication, query-streaming, tenant-isolation, and cancellation
+  coverage is implemented; the remaining acceptance gates and exact source-versus-release boundary
+  are tracked in the delivery plan.
 
 ## Delivery plan and status
 

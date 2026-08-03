@@ -225,6 +225,7 @@ public static class LakeholdRuntime
             var completed = false;
             await foreach (var line in ReadNdjsonRecordsAsync(body, cancellationToken).ConfigureAwait(false))
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 using var document = JsonDocument.Parse(line);
                 var payload = document.RootElement.Clone();
                 var type = payload.TryGetProperty("type", out var kind) ? kind.GetString() : null;

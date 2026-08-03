@@ -322,6 +322,8 @@ def _stream(
             if len(buffer) > 64 * 1024 * 1024:
                 raise ValueError("a LakeHold stream record exceeded the 64 MiB client ceiling")
             while b"\n" in buffer:
+                if cancelled():
+                    raise CancelledError("stream consumption was cancelled")
                 raw, _, remaining = buffer.partition(b"\n")
                 buffer = bytearray(remaining)
                 if not raw.strip():

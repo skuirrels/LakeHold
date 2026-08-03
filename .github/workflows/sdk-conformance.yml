@@ -3,44 +3,107 @@ name: Released server SDK conformance
 on:
   workflow_dispatch:
     inputs:
-      server_url:
-        description: Released LakeHold API origin (HTTPS)
+      server_image_tag:
+        description: Immutable released GHCR image tag without a v prefix
         required: true
-        type: string
-      tenant:
-        description: Read-only conformance tenant slug
-        required: true
-        type: string
-      catalog:
-        description: Read-only conformance catalog name
-        required: true
+        default: 1.4.0
         type: string
 
 permissions:
   contents: read
+  packages: read
+
+concurrency:
+  group: sdk-conformance-${{ inputs.server_image_tag }}
+  cancel-in-progress: false
 
 jobs:
   conformance:
-    name: ${{ matrix.sdk }} authenticated streaming smoke
+    name: ${{ matrix.sdk }} released-image conformance
     runs-on: ubuntu-latest
-    environment: sdk-conformance
     strategy:
       fail-fast: false
       matrix:
         sdk: [java, go, dotnet, python]
     env:
-      LAKEHOLD_CONFORMANCE_URL: ${{ inputs.server_url }}
-      LAKEHOLD_CONFORMANCE_TOKEN: ${{ secrets.LAKEHOLD_SDK_CONFORMANCE_TOKEN }}
-      LAKEHOLD_CONFORMANCE_TENANT: ${{ inputs.tenant }}
-      LAKEHOLD_CONFORMANCE_CATALOG: ${{ inputs.catalog }}
+      LAKEHOLD_CONFORMANCE_TENANT: sdk-conformance
+      LAKEHOLD_CONFORMANCE_CATALOG: sdk_release
     steps:
       - uses: actions/checkout@v4
 
-      - name: Require an HTTPS target and token
+      - name: Start an isolated released server
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SERVER_IMAGE_TAG: ${{ inputs.server_image_tag }}
         shell: bash
         run: |
-          case "$LAKEHOLD_CONFORMANCE_URL" in https://*) ;; *) echo "server_url must use HTTPS"; exit 1;; esac
-          test -n "$LAKEHOLD_CONFORMANCE_TOKEN"
+          set -euo pipefail
+          [[ "$SERVER_IMAGE_TAG" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]
+          registry_owner=$(printf '%s' "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          server_image="ghcr.io/$registry_owner/lakehold-api:$SERVER_IMAGE_TAG"
+          echo "$GHCR_TOKEN" | docker login ghcr.io --username "${{ github.actor }}" --password-stdin
+          docker pull "$server_image"
+          docker network create lakehold-sdk-conformance
+          docker run --detach --name lakehold-sdk-postgres \
+            --network lakehold-sdk-conformance \
+            --env POSTGRES_USER=lakehold \
+            --env POSTGRES_PASSWORD=lakehold \
+            --env POSTGRES_DB=lakeholdmeta \
+            postgres:17-alpine
+          for attempt in {1..60}; do
+            if docker exec lakehold-sdk-postgres pg_isready -U lakehold -d lakeholdmeta >/dev/null 2>&1; then
+              break
+            fi
+            if [[ "$attempt" == 60 ]]; then
+              docker logs lakehold-sdk-postgres
+              exit 1
+            fi
+            sleep 1
+          done
+          bootstrap_token="lkh_admin_$(openssl rand -hex 32)"
+          echo "::add-mask::$bootstrap_token"
+          docker run --detach --name lakehold-sdk-api \
+            --network lakehold-sdk-conformance \
+            --publish 127.0.0.1:5200:5200 \
+            --env ASPNETCORE_ENVIRONMENT=Production \
+            --env Lakehouse__StateRoot=/var/lib/lakehold \
+            --env 'ConnectionStrings__ControlPlane=Host=lakehold-sdk-postgres;Port=5432;Database=lakeholdmeta;Username=lakehold;Password=lakehold' \
+            --env 'ConnectionStrings__DuckLakeMetadata=Host=lakehold-sdk-postgres;Port=5432;Database=lakeholdmeta;Username=lakehold;Password=lakehold' \
+            --env Lakehold__Auth__RequireAuthentication=true \
+            --env Lakehold__BootstrapToken="$bootstrap_token" \
+            "$server_image"
+          for attempt in {1..90}; do
+            if curl --fail --silent http://127.0.0.1:5200/health >/dev/null; then
+              break
+            fi
+            if [[ "$attempt" == 90 ]]; then
+              docker logs lakehold-sdk-api
+              exit 1
+            fi
+            sleep 1
+          done
+          api_origin=http://127.0.0.1:5200
+          curl --fail --silent --show-error -X POST "$api_origin/api/tenants" \
+            -H "Authorization: Bearer $bootstrap_token" \
+            -H 'Content-Type: application/json' \
+            -d '{"slug":"sdk-conformance","displayName":"SDK Conformance"}' \
+            -o /dev/null
+          curl --fail --silent --show-error -X POST "$api_origin/api/tenants/sdk-conformance/catalogs" \
+            -H "Authorization: Bearer $bootstrap_token" \
+            -H 'Content-Type: application/json' \
+            -d '{"name":"sdk_release"}' \
+            -o /dev/null
+          token_response=$(curl --fail --silent --show-error -X POST \
+            "$api_origin/api/tenants/sdk-conformance/tokens" \
+            -H "Authorization: Bearer $bootstrap_token" \
+            -H 'Content-Type: application/json' \
+            -d '{"name":"released-sdk-conformance","role":"reader","catalogName":"sdk_release"}')
+          conformance_token=$(jq -er '.token' <<<"$token_response")
+          echo "::add-mask::$conformance_token"
+          {
+            echo 'LAKEHOLD_CONFORMANCE_URL=http://127.0.0.1:5200'
+            echo "LAKEHOLD_CONFORMANCE_TOKEN=$conformance_token"
+          } >> "$GITHUB_ENV"
 
       - uses: actions/setup-java@v4
         if: matrix.sdk == 'java'
@@ -80,3 +143,10 @@ jobs:
         run: |
           python -m pip install . pytest
           python -m pytest -q
+
+      - name: Stop the isolated server
+        if: always()
+        shell: bash
+        run: |
+          docker rm --force lakehold-sdk-api lakehold-sdk-postgres 2>/dev/null || true
+          docker network rm lakehold-sdk-conformance 2>/dev/null || true
