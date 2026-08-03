@@ -256,13 +256,30 @@ Priority 1 is complete only when all of these are demonstrable:
 The P1.4 server contract ships in v1.4.0 and its four source SDKs pass released-image authentication,
 query-streaming, tenant-isolation, and cancellation conformance. Continue in this order:
 
-1. Configure protected signing credentials, registry namespace ownership, and PyPI trusted
-   publishing for SDK 0.1.0; the successful non-publishing dry run is not publication evidence.
-2. With explicit registry approval, run `sdk-release.yml` with publication enabled and verify signed
-   artifacts/provenance, Maven Central, Go proxy, NuGet and PyPI indexing, and clean installs. Only
-   then mark P1.4 shipped.
-3. Extend the shared released-image fixtures to every stable public error code.
-4. Continue the remaining time-travel resources: arbitrary-query `asOf`, labels/pins/retention, and
+### Future SDK registry publication
+
+The SDK source packages exist, but none of the following public distribution tasks is complete.
+Treat every registry as future work until its package is independently indexed and a clean consumer
+can install the exact published version:
+
+- **Maven Central:** publish `io.lakehold:lakehold-sdk:0.1.0` with protected Central credentials,
+  namespace ownership, GPG signing, provenance, indexing, and a clean Maven consumer build.
+- **Go module proxy:** publish the immutable signed tag for
+  `github.com/skuirrels/LakeHold/sdk/go`, verify proxy and checksum-database indexing, and run a clean
+  downstream module build.
+- **NuGet:** publish `Lakehold.Sdk` version `0.1.0` with protected registry credentials, package
+  signing and provenance, verify public indexing, and run a clean restore and consumer build.
+- **PyPI:** publish `lakehold-sdk` version `0.1.0` through trusted publishing with attestations,
+  verify public indexing, and install it in a clean virtual environment.
+
+Configure protected release environments and registry ownership first. With explicit registry
+approval, run `sdk-release.yml` with publication enabled and verify every registry independently;
+the successful non-publishing dry run is not publication evidence. Only then mark P1.4 shipped.
+
+After that publication work:
+
+1. Extend the shared released-image fixtures to every stable public error code.
+2. Continue the remaining time-travel resources: arbitrary-query `asOf`, labels/pins/retention, and
    catalog-wide restore. Continue converting generic offset cursors only where source semantics make
    a stable keyset possible.
 
