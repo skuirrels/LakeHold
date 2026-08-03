@@ -69,9 +69,10 @@ The managed connector contract and operator settings are documented in
   documented PostgreSQL type-catalogue compatibility gap.
 - Canonical `/api/v1` routes, production OpenAPI, RFC 9457 errors, cursor pages, idempotent bounded
   mutations, durable long-running operations, and capability discovery are implemented in source.
-- Generated Java, Go, .NET, and Python clients cover the frozen v1 contract and have authentication
-  conformance tests. They are source candidates, not released packages; advanced retry, iterator,
-  operation-waiter, and streaming conveniences remain open.
+- Generated Java, Go, .NET, and Python clients cover the frozen v1 contract and have authentication,
+  reliability, pagination, operation-waiter, and streaming conformance tests. They remain source
+  candidates rather than released packages; released-server conformance and registry publication are
+  still open.
 - The older source-only `Lakehold.Client` project still supports the first-party .NET replication
   worker and is separate from the new general-purpose .NET SDK candidate.
 
@@ -87,7 +88,7 @@ The managed connector contract and operator settings are documented in
 - Replace opaque warehouse lock-in with open Parquet, ordinary SQL metadata, tested backup/restore,
   and a signed export path.
 
-## What is not complete
+## Roadmap
 
 LakeHold should not yet be presented as a broad, finished EDP. The following capabilities remain
 open:
@@ -102,9 +103,10 @@ open:
   Iceberg-compatible catalog.
 - A connector administration experience in the Workbench.
 - Connector service objectives, alerting, and resource/cost reporting.
-- Full cross-language SDK conveniences and conformance coverage, an automated semantic OpenAPI
-  compatibility diff, and publicly signed Java, Go, .NET, and Python packages. The API/SDK
-  acceptance gates and exact source-versus-release boundary are tracked in the delivery plan.
+- Full released-server SDK conformance coverage and publicly signed Java, Go, .NET, and Python
+  packages. The semantic OpenAPI compatibility gate and source SDK conveniences are implemented;
+  the remaining acceptance gates and exact source-versus-release boundary are tracked in the
+  delivery plan.
 
 ## Delivery plan and status
 

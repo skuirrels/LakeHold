@@ -150,6 +150,115 @@ final class AuthenticationConformanceTest {
                 () -> false));
     }
 
+    @Test
+    void operationTimeoutBoundsAnOversizedPollInterval() {
+        long started = System.nanoTime();
+
+        assertThrows(LakeholdRuntime.OperationTimeoutException.class, () ->
+            LakeholdRuntime.waitForOperation(
+                () -> new LakeholdRuntime.OperationSnapshot<>("running", null, null),
+                Duration.ofMillis(25),
+                Duration.ofSeconds(5),
+                () -> false));
+
+        assertTrue(Duration.ofNanos(System.nanoTime() - started).compareTo(Duration.ofSeconds(1)) < 0);
+    }
+
+    @Test
+    void streamingFixtureIsConsumedIncrementally() throws Exception {
+        byte[] fixture = Files.readAllBytes(Path.of("..", "conformance", "query-stream.ndjson"));
+        HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        String[] observed = new String[3];
+        server.createContext("/", exchange -> {
+            observed[0] = exchange.getRequestMethod();
+            observed[1] = exchange.getRequestURI().getRawPath();
+            observed[2] = exchange.getRequestHeaders().getFirst("Authorization");
+            exchange.getResponseHeaders().add("Content-Type", "application/x-ndjson");
+            exchange.sendResponseHeaders(200, fixture.length);
+            exchange.getResponseBody().write(fixture);
+            exchange.close();
+        });
+        server.start();
+        try {
+            ApiClient client = LakeholdRuntime.configure(
+                new ApiClient().setBasePath("http://127.0.0.1:" + server.getAddress().getPort()),
+                Duration.ofSeconds(5));
+            List<String> types = new ArrayList<>();
+            LakeholdRuntime.streamQuery(
+                client, "test-token", "tenant one", "catalog/one", "SELECT 1",
+                event -> types.add(event.type()));
+            assertEquals(List.of("schema", "row", "row", "complete"), types);
+            assertEquals("POST", observed[0]);
+            assertEquals(
+                "/api/v1/tenants/tenant%20one/catalogs/catalog%2Fone/query:stream",
+                observed[1]);
+            assertEquals("Bearer test-token", observed[2]);
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
+    void changeStreamingFixtureIsConsumedIncrementally() throws Exception {
+        byte[] fixture = Files.readAllBytes(Path.of("..", "conformance", "change-stream.ndjson"));
+        HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        String[] observed = new String[2];
+        server.createContext("/", exchange -> {
+            observed[0] = exchange.getRequestMethod();
+            observed[1] = exchange.getRequestURI().getRawQuery();
+            exchange.getResponseHeaders().add("Content-Type", "application/x-ndjson");
+            exchange.sendResponseHeaders(200, fixture.length);
+            exchange.getResponseBody().write(fixture);
+            exchange.close();
+        });
+        server.start();
+        try {
+            ApiClient client = LakeholdRuntime.configure(
+                new ApiClient().setBasePath("http://127.0.0.1:" + server.getAddress().getPort()),
+                Duration.ofSeconds(5));
+            List<String> types = new ArrayList<>();
+            LakeholdRuntime.streamChanges(
+                client, "test-token", "tenant one", "catalog/one", "orders current", 10,
+                "main", 12L, 1, null, event -> types.add(event.type()));
+            assertEquals(List.of("stream", "change", "change", "complete"), types);
+            assertEquals("GET", observed[0]);
+            assertTrue(observed[1].contains("table=orders%20current"));
+            assertTrue(observed[1].contains("fromSnapshot=10"));
+            assertTrue(observed[1].contains("toSnapshot=12"));
+            assertTrue(observed[1].contains("pageSize=1"));
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
+    void releasedServerStreamingConformance() throws Exception {
+        String endpoint = System.getenv("LAKEHOLD_CONFORMANCE_URL");
+        if (endpoint == null || endpoint.trim().isEmpty()) {
+            return;
+        }
+        ApiClient client = LakeholdRuntime.configure(
+            new ApiClient().setBasePath(endpoint), Duration.ofSeconds(30));
+        List<String> types = new ArrayList<>();
+        LakeholdRuntime.streamQuery(
+            client,
+            requiredEnvironment("LAKEHOLD_CONFORMANCE_TOKEN"),
+            requiredEnvironment("LAKEHOLD_CONFORMANCE_TENANT"),
+            requiredEnvironment("LAKEHOLD_CONFORMANCE_CATALOG"),
+            "SELECT 1 AS conformance",
+            event -> types.add(event.type()));
+        assertEquals(List.of("schema", "row", "complete"), types);
+    }
+
+    private static String requiredEnvironment(String name) {
+        String value = System.getenv(name);
+        if (value == null || value.trim().isEmpty()) {
+            throw new IllegalStateException(
+                name + " is required when released-server conformance is enabled.");
+        }
+        return value;
+    }
+
     private static JsonObject loadFixture() {
         try {
             return JSON.getGson().fromJson(

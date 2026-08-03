@@ -3,7 +3,9 @@ from concurrent.futures import CancelledError
 from threading import Thread
 import http.client
 import json
+import os
 from pathlib import Path
+import time
 import pytest
 
 import lakehold_sdk
@@ -20,6 +22,8 @@ from lakehold_sdk.runtime import (
     paginate,
     problem,
     request_id,
+    stream_changes,
+    stream_query,
     validate_idempotency_key,
     wait_for_operation,
 )
@@ -167,6 +171,15 @@ def test_shared_reliability_fixture_is_implemented():
             cancelled=lambda: True,
         )
 
+    started = time.monotonic()
+    with pytest.raises(TimeoutError):
+        wait_for_operation(
+            lambda: OperationSnapshot("running"),
+            timeout=0.02,
+            poll_interval=5,
+        )
+    assert time.monotonic() - started < 0.5
+
     assert validate_idempotency_key(FIXTURE["idempotencyKey"]) == FIXTURE["idempotencyKey"]
     for invalid in ("too-short", "0123456789abcde ", "0123456789abcde\t", "0123456789abcdeé"):
         with pytest.raises(ValueError):
@@ -193,3 +206,123 @@ def test_default_request_timeout_is_applied_and_can_be_overridden():
     client.call_api("GET", "http://lakehold.test/api/v1/access", _request_timeout=2)
 
     assert recorder.timeouts == [5.0, 2]
+
+
+def test_streaming_fixture_is_consumed_incrementally():
+    fixture = Path("../conformance/query-stream.ndjson").read_bytes()
+
+    class Response:
+        status = 200
+        reason = "OK"
+        headers = {"Content-Type": "application/x-ndjson"}
+
+        def stream(self, **_kwargs):
+            midpoint = len(fixture) // 2
+            yield fixture[:midpoint]
+            yield fixture[midpoint:]
+
+        def release_conn(self):
+            return None
+
+    class Pool:
+        def __init__(self):
+            self.observed = None
+
+        def request(self, method, url, **kwargs):
+            self.observed = (method, url, kwargs)
+            return Response()
+
+    configuration = lakehold_sdk.Configuration(
+        host="https://lakehold.test",
+        access_token="test-token",
+    )
+    client = LakeholdApiClient(configuration, timeout=5)
+    pool = Pool()
+    client.rest_client.pool_manager = pool
+
+    events = list(stream_query(
+        client,
+        tenant="tenant one",
+        catalog="catalog/one",
+        sql="SELECT 1",
+    ))
+
+    assert [event.type for event in events] == ["schema", "row", "row", "complete"]
+    method, url, kwargs = pool.observed
+    assert method == "POST"
+    assert url == "https://lakehold.test/api/v1/tenants/tenant%20one/catalogs/catalog%2Fone/query:stream"
+    assert kwargs["headers"]["Authorization"] == "Bearer test-token"
+
+
+def test_change_streaming_fixture_is_consumed_incrementally():
+    fixture = Path("../conformance/change-stream.ndjson").read_bytes()
+
+    class Response:
+        status = 200
+        reason = "OK"
+        headers = {"Content-Type": "application/x-ndjson"}
+
+        def stream(self, **_kwargs):
+            yield fixture
+
+        def release_conn(self):
+            return None
+
+    class Pool:
+        def request(self, method, url, **kwargs):
+            self.observed = (method, url, kwargs)
+            return Response()
+
+    client = LakeholdApiClient(lakehold_sdk.Configuration(
+        host="https://lakehold.test",
+        access_token="test-token",
+    ), timeout=5)
+    pool = Pool()
+    client.rest_client.pool_manager = pool
+
+    events = list(stream_changes(
+        client,
+        tenant="tenant one",
+        catalog="catalog/one",
+        table="orders current",
+        from_snapshot=10,
+        to_snapshot=12,
+        page_size=1,
+    ))
+
+    assert [event.type for event in events] == ["stream", "change", "change", "complete"]
+    method, url, _ = pool.observed
+    assert method == "GET"
+    assert "table=orders+current" in url
+    assert "fromSnapshot=10" in url
+    assert "toSnapshot=12" in url
+    assert "pageSize=1" in url
+
+
+def test_released_server_streaming_conformance():
+    endpoint = os.getenv("LAKEHOLD_CONFORMANCE_URL")
+    if not endpoint:
+        pytest.skip("LAKEHOLD_CONFORMANCE_URL is not configured")
+    required = {
+        name: os.getenv(name)
+        for name in (
+            "LAKEHOLD_CONFORMANCE_TOKEN",
+            "LAKEHOLD_CONFORMANCE_TENANT",
+            "LAKEHOLD_CONFORMANCE_CATALOG",
+        )
+    }
+    missing = [name for name, value in required.items() if not value]
+    assert not missing, f"missing released-server conformance settings: {', '.join(missing)}"
+    configuration = lakehold_sdk.Configuration(
+        host=endpoint.rstrip("/"),
+        access_token=required["LAKEHOLD_CONFORMANCE_TOKEN"],
+    )
+    with LakeholdApiClient(configuration, timeout=30) as client:
+        events = list(stream_query(
+            client,
+            tenant=required["LAKEHOLD_CONFORMANCE_TENANT"],
+            catalog=required["LAKEHOLD_CONFORMANCE_CATALOG"],
+            sql="SELECT 1 AS conformance",
+        ))
+
+    assert [event.type for event in events] == ["schema", "row", "complete"]

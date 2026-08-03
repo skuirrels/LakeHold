@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable, Generator, Iterable
+from collections.abc import Callable, Generator, Iterable, Iterator, Mapping
 from concurrent.futures import CancelledError
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -12,6 +12,7 @@ import math
 import secrets
 import time
 from typing import Generic, Optional, TypeVar
+from urllib.parse import quote, urlencode
 
 from lakehold_sdk.api_client import ApiClient
 from lakehold_sdk.exceptions import ApiException
@@ -201,6 +202,170 @@ def paginate(loader: Callable[[Optional[str]], CursorPage[T]]) -> Generator[T, N
 
 
 @dataclass(frozen=True)
+class StreamEvent:
+    """One immutable NDJSON record from a LakeHold query or CDC stream."""
+
+    type: str
+    payload: Mapping[str, object]
+
+
+def stream_query(
+    client: ApiClient,
+    *,
+    tenant: str,
+    catalog: str,
+    sql: str,
+    cancelled: Callable[[], bool] = lambda: False,
+) -> Iterator[StreamEvent]:
+    """Yield a read-only SQL result without materialising the complete response."""
+    if not sql or not sql.strip():
+        raise ValueError("query source is required")
+    path = _stream_path(client, tenant, catalog, "query:stream")
+    return _stream(
+        client,
+        "POST",
+        path,
+        expected_first_type="schema",
+        body=json.dumps({"sql": sql}).encode("utf-8"),
+        cancelled=cancelled,
+    )
+
+
+def stream_changes(
+    client: ApiClient,
+    *,
+    tenant: str,
+    catalog: str,
+    table: str,
+    from_snapshot: int,
+    schema: str = "main",
+    to_snapshot: Optional[int] = None,
+    page_size: int = 1000,
+    cursor: Optional[str] = None,
+    cancelled: Callable[[], bool] = lambda: False,
+) -> Iterator[StreamEvent]:
+    """Yield a finite CDC range whose omitted upper snapshot is frozen by the server."""
+    if not table or not table.strip() or not schema or not schema.strip():
+        raise ValueError("table and schema are required")
+    if from_snapshot < 0 or not 1 <= page_size <= 10_000:
+        raise ValueError("from_snapshot must be non-negative and page_size must be between 1 and 10000")
+    query = {
+        "table": table,
+        "schema": schema,
+        "fromSnapshot": from_snapshot,
+        "pageSize": page_size,
+    }
+    if to_snapshot is not None:
+        query["toSnapshot"] = to_snapshot
+    if cursor:
+        query["cursor"] = cursor
+    path = f"{_stream_path(client, tenant, catalog, 'changes:stream')}?{urlencode(query)}"
+    return _stream(
+        client,
+        "GET",
+        path,
+        expected_first_type="stream",
+        body=None,
+        cancelled=cancelled,
+    )
+
+
+def _stream(
+    client: ApiClient,
+    method: str,
+    url: str,
+    *,
+    expected_first_type: str,
+    body: Optional[bytes],
+    cancelled: Callable[[], bool],
+) -> Iterator[StreamEvent]:
+    if client is None:
+        raise ValueError("client is required")
+    token = client.configuration.access_token
+    if not token:
+        raise ValueError("the ApiClient configuration needs an access_token")
+    headers = {
+        "Accept": "application/x-ndjson",
+        "Authorization": f"Bearer {token}",
+        "User-Agent": SDK_USER_AGENT,
+    }
+    if body is not None:
+        headers["Content-Type"] = "application/json"
+
+    timeout = getattr(client, "_lakehold_request_timeout", None)
+    response = client.rest_client.pool_manager.request(
+        method,
+        url,
+        body=body,
+        headers=headers,
+        preload_content=False,
+        timeout=timeout,
+    )
+    try:
+        if not 200 <= response.status < 300:
+            raw = response.read(1024 * 1024)
+            exception = ApiException(
+                status=response.status,
+                reason=response.reason,
+                body=raw.decode("utf-8", errors="replace"),
+            )
+            exception.headers = response.headers
+            raise problem(exception)
+
+        buffer = bytearray()
+        first = True
+        completed = False
+        for chunk in response.stream(amt=64 * 1024, decode_content=True):
+            if cancelled():
+                raise CancelledError("stream consumption was cancelled")
+            buffer.extend(chunk)
+            if len(buffer) > 64 * 1024 * 1024:
+                raise ValueError("a LakeHold stream record exceeded the 64 MiB client ceiling")
+            while b"\n" in buffer:
+                raw, _, remaining = buffer.partition(b"\n")
+                buffer = bytearray(remaining)
+                if not raw.strip():
+                    continue
+                payload = json.loads(raw)
+                record_type = payload.get("type")
+                if not isinstance(record_type, str) or not record_type:
+                    raise ValueError("a LakeHold stream record has no type discriminator")
+                if first and record_type != expected_first_type:
+                    raise ValueError(
+                        f"expected the stream to begin with {expected_first_type!r}, not {record_type!r}"
+                    )
+                first = False
+                if record_type == "error":
+                    cause = ApiException(status=200, reason="stream failed", body=raw.decode("utf-8"))
+                    raise LakeholdProblemError(
+                        200,
+                        str(payload.get("code") or "stream_failed"),
+                        payload.get("requestId"),
+                        payload.get("detail"),
+                        None,
+                        cause,
+                    )
+                completed = record_type == "complete"
+                yield StreamEvent(record_type, payload)
+        if buffer.strip():
+            raise EOFError("the LakeHold stream ended with a partial NDJSON record")
+        if not completed:
+            raise EOFError("the LakeHold stream ended without a completion record")
+    finally:
+        response.release_conn()
+
+
+def _stream_path(client: ApiClient, tenant: str, catalog: str, operation: str) -> str:
+    if not tenant or not tenant.strip() or not catalog or not catalog.strip():
+        raise ValueError("tenant and catalog are required")
+    base = client.configuration.host.rstrip("/")
+    return (
+        f"{base}/api/v1/tenants/{quote(tenant, safe='')}/catalogs/"
+        f"{quote(catalog, safe='')}/{operation}"
+    )
+
+
+@dataclass(frozen=True)
 class OperationSnapshot(Generic[T]):
     status: str
     result: Optional[T] = None
@@ -237,9 +402,10 @@ def wait_for_operation(
             raise LakeholdOperationError(operation.status, operation.error)
         if status not in {"queued", "running"}:
             raise ValueError(f"unknown operation status '{operation.status}'")
-        if time.monotonic() >= deadline:
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
             raise TimeoutError("the operation did not complete before the timeout")
-        sleep(poll_interval)
+        sleep(min(poll_interval, remaining))
 
 
 def _retry_after(headers) -> Optional[float]:
@@ -274,12 +440,15 @@ __all__ = [
     "RetryOptions",
     "SDK_USER_AGENT",
     "SDK_VERSION",
+    "StreamEvent",
     "configure",
     "create_idempotency_key",
     "execute_with_retry",
     "paginate",
     "problem",
     "request_id",
+    "stream_changes",
+    "stream_query",
     "validate_idempotency_key",
     "wait_for_operation",
 ]

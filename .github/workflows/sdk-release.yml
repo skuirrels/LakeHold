@@ -1,0 +1,195 @@
+name: SDK release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Exact version already recorded in all four SDK manifests (for example 0.1.0)
+        required: true
+        type: string
+      publish:
+        description: Publish to Maven Central, NuGet.org, PyPI, and the Go module proxy
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+  id-token: write
+  attestations: write
+
+concurrency:
+  group: sdk-release-${{ inputs.version }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    environment: sdk-release
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate immutable release input
+        shell: bash
+        run: |
+          [[ "${{ inputs.version }}" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]
+          test "$(git rev-parse HEAD)" = "$(git rev-parse origin/main)"
+          grep -Fq "<Version>${{ inputs.version }}</Version>" sdk/dotnet/src/Lakehold.Sdk/Lakehold.Sdk.csproj
+          grep -Fq "<version>${{ inputs.version }}</version>" sdk/java/pom.xml
+          grep -Fq 'version = "${{ inputs.version }}"' sdk/python/pyproject.toml
+          grep -Fq 'SDKVersion      = "${{ inputs.version }}"' sdk/go/runtime.go
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: sdk/go/go.mod
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Build and test every SDK
+        shell: bash
+        run: |
+          mvn --batch-mode --no-transfer-progress -f sdk/java/pom.xml verify
+          (cd sdk/go && go test ./...)
+          dotnet test sdk/dotnet/Lakehold.Sdk.sln
+          python -m pip install --disable-pip-version-check build pytest
+          python -m pip install ./sdk/python
+          (cd sdk/python && python -m pytest -q)
+
+      - name: Assemble release artifacts
+        shell: bash
+        run: |
+          mkdir -p artifacts/java/io/lakehold/lakehold-sdk/${{ inputs.version }} artifacts/nuget artifacts/python artifacts/go
+          cp sdk/java/target/lakehold-sdk-${{ inputs.version }}.jar artifacts/java/io/lakehold/lakehold-sdk/${{ inputs.version }}/
+          cp sdk/java/target/lakehold-sdk-${{ inputs.version }}-sources.jar artifacts/java/io/lakehold/lakehold-sdk/${{ inputs.version }}/
+          cp sdk/java/target/lakehold-sdk-${{ inputs.version }}-javadoc.jar artifacts/java/io/lakehold/lakehold-sdk/${{ inputs.version }}/
+          cp sdk/java/pom.xml artifacts/java/io/lakehold/lakehold-sdk/${{ inputs.version }}/lakehold-sdk-${{ inputs.version }}.pom
+          dotnet pack sdk/dotnet/src/Lakehold.Sdk/Lakehold.Sdk.csproj --configuration Release --no-restore --output artifacts/nuget
+          (cd sdk/python && python -m build --outdir ../../artifacts/python)
+          git archive --format=tar.gz --prefix=lakehold-go-${{ inputs.version }}/ --output=artifacts/go/lakehold-go-${{ inputs.version }}.tar.gz HEAD:sdk/go
+
+      - name: Generate dry-run build provenance
+        if: ${{ !inputs.publish }}
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: artifacts/**/*
+
+      - name: Upload release evidence
+        if: ${{ !inputs.publish }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: lakehold-sdks-${{ inputs.version }}
+          path: artifacts/
+          if-no-files-found: error
+
+      - name: Require publication credentials
+        if: inputs.publish
+        env:
+          CENTRAL_TOKEN: ${{ secrets.CENTRAL_TOKEN }}
+          GPG_PRIVATE_KEY: ${{ secrets.SDK_GPG_PRIVATE_KEY_BASE64 }}
+          GPG_PASSPHRASE: ${{ secrets.SDK_GPG_PASSPHRASE }}
+          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+          NUGET_CERTIFICATE: ${{ secrets.NUGET_SIGNING_CERTIFICATE_BASE64 }}
+          NUGET_CERTIFICATE_PASSWORD: ${{ secrets.NUGET_SIGNING_CERTIFICATE_PASSWORD }}
+        shell: bash
+        run: |
+          test -n "$CENTRAL_TOKEN"
+          test -n "$GPG_PRIVATE_KEY"
+          test -n "$GPG_PASSPHRASE"
+          test -n "$NUGET_API_KEY"
+          test -n "$NUGET_CERTIFICATE"
+          test -n "$NUGET_CERTIFICATE_PASSWORD"
+
+      - name: Sign Java, Go, and NuGet artifacts
+        if: inputs.publish
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.SDK_GPG_PRIVATE_KEY_BASE64 }}
+          GPG_PASSPHRASE: ${{ secrets.SDK_GPG_PASSPHRASE }}
+          NUGET_CERTIFICATE: ${{ secrets.NUGET_SIGNING_CERTIFICATE_BASE64 }}
+          NUGET_CERTIFICATE_PASSWORD: ${{ secrets.NUGET_SIGNING_CERTIFICATE_PASSWORD }}
+        shell: bash
+        run: |
+          echo "$GPG_PRIVATE_KEY" | base64 --decode > "$RUNNER_TEMP/sdk-signing-key.asc"
+          gpg --batch --import "$RUNNER_TEMP/sdk-signing-key.asc"
+          find artifacts/java -type f ! -name '*.asc' -print0 | while IFS= read -r -d '' file; do
+            gpg --batch --yes --pinentry-mode loopback --passphrase "$GPG_PASSPHRASE" --armor --detach-sign "$file"
+          done
+          find artifacts/java -type f ! -name '*.asc' ! -name '*.md5' ! -name '*.sha1' -print0 | while IFS= read -r -d '' file; do
+            md5sum "$file" | cut -d ' ' -f 1 > "$file.md5"
+            sha1sum "$file" | cut -d ' ' -f 1 > "$file.sha1"
+          done
+          echo "$NUGET_CERTIFICATE" | base64 --decode > "$RUNNER_TEMP/nuget-signing.pfx"
+          dotnet nuget sign artifacts/nuget/*.nupkg --certificate-path "$RUNNER_TEMP/nuget-signing.pfx" --certificate-password "$NUGET_CERTIFICATE_PASSWORD" --timestamper http://timestamp.digicert.com
+          dotnet nuget verify artifacts/nuget/*.nupkg --all
+          git config user.name "LakeHold SDK release"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          signing_key="$(gpg --list-secret-keys --with-colons | awk -F: '$1 == "sec" {print $5; exit}')"
+          test -n "$signing_key"
+          git tag -s -u "$signing_key" -m "LakeHold Go SDK ${{ inputs.version }}" "sdk/go/v${{ inputs.version }}"
+
+      - name: Generate signed-artifact provenance
+        if: inputs.publish
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: artifacts/**/*
+
+      - name: Upload signed release evidence
+        if: inputs.publish
+        uses: actions/upload-artifact@v4
+        with:
+          name: lakehold-sdks-${{ inputs.version }}-signed
+          path: artifacts/
+          if-no-files-found: error
+
+      - name: Publish Java bundle to Maven Central
+        if: inputs.publish
+        env:
+          CENTRAL_TOKEN: ${{ secrets.CENTRAL_TOKEN }}
+        shell: bash
+        run: |
+          (cd artifacts/java && zip -qr ../lakehold-sdk-central-${{ inputs.version }}.zip .)
+          curl --fail-with-body --request POST --header "Authorization: Bearer $CENTRAL_TOKEN" --form "bundle=@artifacts/lakehold-sdk-central-${{ inputs.version }}.zip" "https://central.sonatype.com/api/v1/publisher/upload?name=lakehold-sdk-${{ inputs.version }}&publishingType=AUTOMATIC"
+
+      - name: Publish signed NuGet package
+        if: inputs.publish
+        shell: bash
+        run: dotnet nuget push 'artifacts/nuget/*.nupkg' --api-key '${{ secrets.NUGET_API_KEY }}' --source https://api.nuget.org/v3/index.json --skip-duplicate
+
+      - name: Publish Python package with Trusted Publishing and attestations
+        if: inputs.publish
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: artifacts/python/
+          attestations: true
+
+      - name: Publish signed Go module tag
+        if: inputs.publish
+        shell: bash
+        run: |
+          git push origin "sdk/go/v${{ inputs.version }}"
+          curl --fail --retry 30 --retry-delay 20 --retry-all-errors "https://proxy.golang.org/github.com/skuirrels/!lake!hold/sdk/go/@v/v${{ inputs.version }}.info"
+
+      - name: Prove clean public-registry installs
+        if: inputs.publish
+        shell: bash
+        run: |
+          mkdir -p "$RUNNER_TEMP/clean/dotnet" "$RUNNER_TEMP/clean/go"
+          curl --fail --retry 30 --retry-delay 20 --retry-all-errors "https://repo1.maven.org/maven2/io/lakehold/lakehold-sdk/${{ inputs.version }}/lakehold-sdk-${{ inputs.version }}.pom" -o /dev/null
+          curl --fail --retry 30 --retry-delay 20 --retry-all-errors "https://api.nuget.org/v3-flatcontainer/lakehold.sdk/${{ inputs.version }}/lakehold.sdk.${{ inputs.version }}.nupkg" -o /dev/null
+          curl --fail --retry 30 --retry-delay 20 --retry-all-errors "https://pypi.org/pypi/lakehold-sdk/${{ inputs.version }}/json" -o /dev/null
+          mvn --batch-mode --no-transfer-progress dependency:get -Dartifact=io.lakehold:lakehold-sdk:${{ inputs.version }} -Dtransitive=false
+          dotnet new console --framework net8.0 --output "$RUNNER_TEMP/clean/dotnet"
+          dotnet add "$RUNNER_TEMP/clean/dotnet" package Lakehold.Sdk --version ${{ inputs.version }} --source https://api.nuget.org/v3/index.json
+          python -m venv "$RUNNER_TEMP/clean/python"
+          "$RUNNER_TEMP/clean/python/bin/python" -m pip install --no-cache-dir lakehold-sdk==${{ inputs.version }}
+          (cd "$RUNNER_TEMP/clean/go" && go mod init clean-install && GOPROXY=https://proxy.golang.org go get github.com/skuirrels/LakeHold/sdk/go@v${{ inputs.version }})

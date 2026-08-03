@@ -25,9 +25,11 @@ public sealed record MaintenanceResult(string Operation, string Detail, TimeSpan
 ///         compaction schedule, so hiding the knobs would remove a reason to self-host.
 ///     </para>
 ///     <para>
-///         Every operation delegates to the provider's typed DuckLake facade. Before 1.13.0 these
-///         were hand-built <c>CALL</c> statements with interpolated timestamp literals — precisely
-///         the string-building an ORM exists to eliminate.
+///         Mutating operations delegate to the provider's typed DuckLake facade. Snapshot reads use
+///         DuckLake's table function directly so identifier/time keysets and the row limit execute
+///         in DuckDB rather than materialising the full commit history in the control plane. Before
+///         1.13.0 the mutations were hand-built <c>CALL</c> statements with interpolated timestamp
+///         literals — precisely the string-building an ORM exists to eliminate.
 ///     </para>
 ///     <para>
 ///         <see cref="FlushInlinedDataAsync"/> deserves particular attention. DuckLake writes small
@@ -44,18 +46,63 @@ public static class LakehouseMaintenance
         Duckling duckling,
         int limit,
         CancellationToken cancellationToken)
+        => await ListSnapshotsAsync(
+                duckling,
+                limit,
+                upperSnapshotInclusive: null,
+                beforeSnapshotExclusive: null,
+                committedFromInclusive: null,
+                committedToInclusive: null,
+                cancellationToken)
+            .ConfigureAwait(false);
+
+    /// <summary>
+    ///     Lists a stable keyset window of snapshots, newest first. Snapshot identifiers are the
+    ///     source's monotonic commit key and therefore remain valid while newer commits arrive.
+    /// </summary>
+    public static async Task<IReadOnlyList<SnapshotInfo>> ListSnapshotsAsync(
+        Duckling duckling,
+        int limit,
+        long? upperSnapshotInclusive,
+        long? beforeSnapshotExclusive,
+        DateTimeOffset? committedFromInclusive,
+        DateTimeOffset? committedToInclusive,
+        CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(duckling);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(limit);
 
-        var snapshots = await duckling
-            .InvokeAsync(ct => duckling.Maintenance.GetSnapshotsAsync(ct), cancellationToken)
-            .ConfigureAwait(false);
+        var predicates = new List<string>(4);
+        if (upperSnapshotInclusive is { } upper)
+        {
+            predicates.Add($"snapshot_id <= {upper.ToString(CultureInfo.InvariantCulture)}");
+        }
 
-        return [.. snapshots
-            .OrderByDescending(s => s.SnapshotId)
-            .Take(limit)
-            .Select(s => new SnapshotInfo(s.SnapshotId, s.SnapshotTime, s.SchemaVersion, s.CommitMessage))];
+        if (beforeSnapshotExclusive is { } before)
+        {
+            predicates.Add($"snapshot_id < {before.ToString(CultureInfo.InvariantCulture)}");
+        }
+
+        if (committedFromInclusive is { } committedFrom)
+        {
+            predicates.Add($"snapshot_time >= {TimestampLiteral(committedFrom)}");
+        }
+
+        if (committedToInclusive is { } committedTo)
+        {
+            predicates.Add($"snapshot_time <= {TimestampLiteral(committedTo)}");
+        }
+
+        var where = predicates.Count == 0 ? string.Empty : $" WHERE {string.Join(" AND ", predicates)}";
+        var sql =
+            "SELECT snapshot_id, snapshot_time, schema_version, commit_message "
+            + $"FROM ducklake_snapshots({SqlIdentifier.Literal(duckling.Catalog.CatalogName)})"
+            + where
+            + " ORDER BY snapshot_id DESC"
+            + $" LIMIT {limit.ToString(CultureInfo.InvariantCulture)}";
+        var result = await duckling.ExecuteQueryAsync(sql, cancellationToken).ConfigureAwait(false);
+
+        return [.. result.Rows.Select(ToSnapshotInfo)];
     }
 
     /// <summary>Returns one retained snapshot by id, or null when it is not available.</summary>
@@ -67,19 +114,41 @@ public static class LakehouseMaintenance
         ArgumentNullException.ThrowIfNull(duckling);
         ArgumentOutOfRangeException.ThrowIfNegative(snapshotId);
 
-        var snapshots = await duckling
-            .InvokeAsync(ct => duckling.Maintenance.GetSnapshotsAsync(ct), cancellationToken)
+        var snapshots = await ListSnapshotsAsync(
+                duckling,
+                limit: 1,
+                upperSnapshotInclusive: snapshotId,
+                beforeSnapshotExclusive: null,
+                committedFromInclusive: null,
+                committedToInclusive: null,
+                cancellationToken)
             .ConfigureAwait(false);
-        var snapshot = snapshots.FirstOrDefault(item => item.SnapshotId == snapshotId);
 
-        return snapshot is null
-            ? null
-            : new SnapshotInfo(
-                snapshot.SnapshotId,
-                snapshot.SnapshotTime,
-                snapshot.SchemaVersion,
-                snapshot.CommitMessage);
+        return snapshots.FirstOrDefault(item => item.SnapshotId == snapshotId);
     }
+
+    private static SnapshotInfo ToSnapshotInfo(object?[] row)
+        => new(
+            Convert.ToInt64(row[0], CultureInfo.InvariantCulture),
+            ToTimestamp(row[1]),
+            Convert.ToInt64(row[2], CultureInfo.InvariantCulture),
+            row[3] is null or DBNull ? null : Convert.ToString(row[3], CultureInfo.InvariantCulture));
+
+    private static DateTimeOffset ToTimestamp(object? value) => value switch
+    {
+        DateTimeOffset timestamp => timestamp,
+        DateTime timestamp => new DateTimeOffset(
+            DateTime.SpecifyKind(
+                timestamp,
+                timestamp.Kind == DateTimeKind.Unspecified ? DateTimeKind.Utc : timestamp.Kind)),
+        _ => DateTimeOffset.Parse(
+            Convert.ToString(value, CultureInfo.InvariantCulture) ?? string.Empty,
+            CultureInfo.InvariantCulture,
+            DateTimeStyles.AssumeUniversal),
+    };
+
+    private static string TimestampLiteral(DateTimeOffset value)
+        => $"{SqlIdentifier.Literal(value.UtcDateTime.ToString("O", CultureInfo.InvariantCulture))}::TIMESTAMPTZ";
 
     /// <summary>
     ///     Exports the catalog's metadata to Parquet beside its data, so the storage location alone

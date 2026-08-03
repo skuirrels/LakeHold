@@ -11,6 +11,13 @@ node_modules/
 .angular/
 .lakehold-test.lock/
 
+# Java
+target/
+
+# Python
+__pycache__/
+*.py[cod]
+
 # Lakehold local state: catalogs, Parquet data, control-plane database
 .lakehold/
 

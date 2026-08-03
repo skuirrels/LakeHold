@@ -1,6 +1,8 @@
+using System.Buffers;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Runtime.CompilerServices;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Lakehold.Sdk.Client;
@@ -10,6 +12,8 @@ namespace Lakehold.Sdk.Runtime;
 /// <summary>Supported reliability behavior layered over the generated LakeHold v1 operations.</summary>
 public static class LakeholdRuntime
 {
+    private const int MaximumStreamRecordBytes = 64 * 1024 * 1024;
+    private const int MaximumErrorBodyBytes = 1024 * 1024;
     /// <summary>The source SDK version.</summary>
     public const string Version = "0.1.0";
     /// <summary>The product user-agent sent by the .NET runtime layer.</summary>
@@ -54,15 +58,7 @@ public static class LakeholdRuntime
     public static LakeholdProblemException Problem(IApiResponse response)
     {
         ArgumentNullException.ThrowIfNull(response);
-        ProblemEnvelope? problem = null;
-        try
-        {
-            problem = JsonSerializer.Deserialize<ProblemEnvelope>(response.RawContent, JsonOptions);
-        }
-        catch (JsonException)
-        {
-            // A proxy may return a non-problem body. Preserve the HTTP facts and use a stable fallback.
-        }
+        var problem = DeserializeProblem(response.RawContent);
 
         return new LakeholdProblemException(
             (int)response.StatusCode,
@@ -128,6 +124,227 @@ public static class LakeholdRuntime
         while (cursor is not null);
     }
 
+    /// <summary>Streams a read-only SQL result as schema, row, and completion events.</summary>
+    public static IAsyncEnumerable<LakeholdStreamEvent> StreamQueryAsync(
+        HttpClient client,
+        Uri baseUri,
+        string bearerToken,
+        string tenant,
+        string catalog,
+        string sql,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(sql);
+        var body = JsonSerializer.Serialize(new { sql });
+        return ReadNdjsonAsync(
+            client,
+            Request(
+                HttpMethod.Post,
+                baseUri,
+                $"api/v1/tenants/{Segment(tenant)}/catalogs/{Segment(catalog)}/query:stream",
+                bearerToken,
+                new StringContent(body, Encoding.UTF8, "application/json")),
+            "schema",
+            cancellationToken);
+    }
+
+    /// <summary>Streams a finite table change range whose upper snapshot is frozen by the server.</summary>
+    public static IAsyncEnumerable<LakeholdStreamEvent> StreamChangesAsync(
+        HttpClient client,
+        Uri baseUri,
+        string bearerToken,
+        string tenant,
+        string catalog,
+        string table,
+        long fromSnapshot,
+        string schema = "main",
+        long? toSnapshot = null,
+        int pageSize = 1000,
+        string? cursor = null,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(fromSnapshot);
+        ArgumentOutOfRangeException.ThrowIfLessThan(pageSize, 1);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(pageSize, 10_000);
+        var parameters = new List<string>
+        {
+            $"table={Uri.EscapeDataString(Required(table, nameof(table)))}",
+            $"schema={Uri.EscapeDataString(Required(schema, nameof(schema)))}",
+            $"fromSnapshot={fromSnapshot}",
+            $"pageSize={pageSize}",
+        };
+        if (toSnapshot is { } upper)
+        {
+            parameters.Add($"toSnapshot={upper}");
+        }
+        if (!string.IsNullOrWhiteSpace(cursor))
+        {
+            parameters.Add($"cursor={Uri.EscapeDataString(cursor)}");
+        }
+
+        return ReadNdjsonAsync(
+            client,
+            Request(
+                HttpMethod.Get,
+                baseUri,
+                $"api/v1/tenants/{Segment(tenant)}/catalogs/{Segment(catalog)}/changes:stream?{string.Join('&', parameters)}",
+                bearerToken),
+            "stream",
+            cancellationToken);
+    }
+
+    private static async IAsyncEnumerable<LakeholdStreamEvent> ReadNdjsonAsync(
+        HttpClient client,
+        HttpRequestMessage request,
+        string expectedFirstType,
+        [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(client);
+        using (request)
+        using (var response = await client
+                   .SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken)
+                   .ConfigureAwait(false))
+        {
+            if (!response.IsSuccessStatusCode)
+            {
+                var detail = await ReadBoundedBodyAsync(
+                        response.Content,
+                        MaximumErrorBodyBytes,
+                        cancellationToken)
+                    .ConfigureAwait(false);
+                var problem = DeserializeProblem(detail);
+                throw new LakeholdStreamException(
+                    (int)response.StatusCode,
+                    problem?.Code ?? "stream_request_failed",
+                    problem?.RequestId ?? RequestId(response.Headers),
+                    problem?.Detail ?? detail);
+            }
+
+            await using var body = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+            var first = true;
+            var completed = false;
+            await foreach (var line in ReadNdjsonRecordsAsync(body, cancellationToken).ConfigureAwait(false))
+            {
+                using var document = JsonDocument.Parse(line);
+                var payload = document.RootElement.Clone();
+                var type = payload.TryGetProperty("type", out var kind) ? kind.GetString() : null;
+                if (string.IsNullOrWhiteSpace(type))
+                {
+                    throw new InvalidDataException("A LakeHold stream record has no type discriminator.");
+                }
+                if (first && !string.Equals(type, expectedFirstType, StringComparison.Ordinal))
+                {
+                    throw new InvalidDataException($"Expected the stream to begin with '{expectedFirstType}', not '{type}'.");
+                }
+                first = false;
+                if (string.Equals(type, "error", StringComparison.Ordinal))
+                {
+                    throw new LakeholdStreamException(
+                        200,
+                        payload.TryGetProperty("code", out var code) ? code.GetString() ?? "stream_failed" : "stream_failed",
+                        payload.TryGetProperty("requestId", out var id) ? id.GetString() : null,
+                        payload.TryGetProperty("detail", out var detail) ? detail.GetString() : null);
+                }
+
+                completed = string.Equals(type, "complete", StringComparison.Ordinal);
+                yield return new LakeholdStreamEvent(type, payload);
+            }
+
+            if (!completed)
+            {
+                throw new EndOfStreamException("The LakeHold stream ended without a completion record.");
+            }
+        }
+    }
+
+    private static async IAsyncEnumerable<byte[]> ReadNdjsonRecordsAsync(
+        Stream body,
+        [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        var readBuffer = ArrayPool<byte>.Shared.Rent(64 * 1024);
+        var record = new ArrayBufferWriter<byte>(64 * 1024);
+        try
+        {
+            while (true)
+            {
+                var read = await body.ReadAsync(readBuffer, cancellationToken).ConfigureAwait(false);
+                if (read == 0)
+                {
+                    break;
+                }
+                for (var index = 0; index < read; index++)
+                {
+                    var value = readBuffer[index];
+                    if (value == (byte)'\n')
+                    {
+                        if (record.WrittenCount > 0)
+                        {
+                            yield return record.WrittenSpan.ToArray();
+                            record.Clear();
+                        }
+                        continue;
+                    }
+                    if (record.WrittenCount >= MaximumStreamRecordBytes)
+                    {
+                        throw new InvalidDataException(
+                            "A LakeHold stream record exceeded the 64 MiB client ceiling.");
+                    }
+                    var destination = record.GetSpan(1);
+                    destination[0] = value;
+                    record.Advance(1);
+                }
+            }
+            if (record.WrittenCount > 0)
+            {
+                yield return record.WrittenSpan.ToArray();
+            }
+        }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(readBuffer);
+        }
+    }
+
+    private static async Task<string> ReadBoundedBodyAsync(
+        HttpContent content,
+        int maximumBytes,
+        CancellationToken cancellationToken)
+    {
+        await using var stream = await content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+        var buffer = new byte[maximumBytes + 1];
+        var count = 0;
+        while (count < buffer.Length)
+        {
+            var read = await stream.ReadAsync(buffer.AsMemory(count), cancellationToken).ConfigureAwait(false);
+            if (read == 0)
+            {
+                break;
+            }
+            count += read;
+        }
+        var bounded = Math.Min(count, maximumBytes);
+        return Encoding.UTF8.GetString(buffer, 0, bounded);
+    }
+
+    private static HttpRequestMessage Request(
+        HttpMethod method,
+        Uri baseUri,
+        string relativePath,
+        string bearerToken,
+        HttpContent? content = null)
+    {
+        ArgumentNullException.ThrowIfNull(baseUri);
+        var request = new HttpRequestMessage(method, new Uri(baseUri, relativePath)) { Content = content };
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", Required(bearerToken, nameof(bearerToken)));
+        request.Headers.Accept.ParseAdd("application/x-ndjson");
+        return request;
+    }
+
+    private static string Segment(string value) => Uri.EscapeDataString(Required(value, nameof(value)));
+
+    private static string Required(string value, string parameter)
+        => !string.IsNullOrWhiteSpace(value) ? value : throw new ArgumentException("A non-empty value is required.", parameter);
+
     /// <summary>Polls a durable operation until it reaches a terminal state.</summary>
     public static async Task<OperationSnapshot<T>> WaitForOperationAsync<T>(
         Func<CancellationToken, Task<OperationSnapshot<T>>> loader,
@@ -178,6 +395,24 @@ public static class LakeholdRuntime
     }
 
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
+
+    private static ProblemEnvelope? DeserializeProblem(string? content)
+    {
+        if (string.IsNullOrWhiteSpace(content))
+        {
+            return null;
+        }
+
+        try
+        {
+            return JsonSerializer.Deserialize<ProblemEnvelope>(content, JsonOptions);
+        }
+        catch (JsonException)
+        {
+            // A proxy may return a non-problem body. Preserve the HTTP facts and use a stable fallback.
+            return null;
+        }
+    }
 
     private static bool IsTransient(HttpStatusCode status)
         => status is HttpStatusCode.RequestTimeout
@@ -275,6 +510,32 @@ public sealed record OperationSnapshot<T>
     public T? Result { get; }
     /// <summary>Safe terminal error when failed or indeterminate.</summary>
     public string? Error { get; }
+}
+
+/// <summary>One immutable NDJSON record from a LakeHold query or CDC stream.</summary>
+public sealed record LakeholdStreamEvent(string Type, JsonElement Payload);
+
+/// <summary>A stream request or terminal in-band record reported failure.</summary>
+public sealed class LakeholdStreamException : Exception
+{
+    /// <summary>Creates a streaming transport or terminal-record failure.</summary>
+    public LakeholdStreamException(int status, string code, string? requestId, string? detail)
+        : base(detail ?? code)
+    {
+        Status = status;
+        Code = code;
+        RequestId = requestId;
+        Detail = detail;
+    }
+
+    /// <summary>HTTP status, or 200 for an in-band terminal error.</summary>
+    public int Status { get; }
+    /// <summary>Stable machine-readable failure code.</summary>
+    public string Code { get; }
+    /// <summary>Server request identifier when supplied.</summary>
+    public string? RequestId { get; }
+    /// <summary>Bounded server or transport detail.</summary>
+    public string? Detail { get; }
 }
 
 /// <summary>Typed RFC 9457 failure returned by LakeHold.</summary>

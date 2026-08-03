@@ -3,6 +3,7 @@ package lakehold
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -176,6 +177,146 @@ func TestOneTimeTokenIsRedactedFromDiagnosticRendering(t *testing.T) {
 	if created.Token != "one-time-secret" {
 		t.Fatalf("token accessor was altered: %q", created.Token)
 	}
+}
+
+func TestStreamingFixtureIsConsumedIncrementally(t *testing.T) {
+	t.Parallel()
+	fixture, err := os.ReadFile("../conformance/query-stream.ndjson")
+	if err != nil {
+		t.Fatal(err)
+	}
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		if request.Method != http.MethodPost || request.URL.EscapedPath() != "/api/v1/tenants/tenant%20one/catalogs/catalog%2Fone/query:stream" {
+			t.Errorf("unexpected request: %s %s", request.Method, request.URL.EscapedPath())
+		}
+		if request.Header.Get("Authorization") != "Bearer test-token" {
+			t.Errorf("unexpected authorization: %q", request.Header.Get("Authorization"))
+		}
+		if request.Header.Get("User-Agent") != SDKUserAgent {
+			t.Errorf("unexpected user agent: %q", request.Header.Get("User-Agent"))
+		}
+		writer.Header().Set("Content-Type", "application/x-ndjson")
+		_, _ = writer.Write(fixture)
+	}))
+	defer server.Close()
+
+	var types []string
+	err = StreamQuery(
+		context.Background(),
+		server.Client(),
+		server.URL,
+		"test-token",
+		"tenant one",
+		"catalog/one",
+		"SELECT 1",
+		func(event StreamEvent) error {
+			types = append(types, event.Type)
+			return nil
+		})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if fmt.Sprint(types) != "[schema row row complete]" {
+		t.Fatalf("unexpected stream types: %v", types)
+	}
+}
+
+func TestStreamingHandshakePreservesPublicProblem(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		writer.Header().Set("Content-Type", "application/problem+json")
+		writer.Header().Set(RequestIDHeader, conformanceFixture.RequestID)
+		writer.Header().Set("Retry-After", "2")
+		writer.WriteHeader(http.StatusTooManyRequests)
+		_, _ = writer.Write(conformanceFixture.Problem)
+	}))
+	defer server.Close()
+
+	err := StreamQuery(
+		context.Background(),
+		server.Client(),
+		server.URL,
+		"test-token",
+		"tenant",
+		"catalog",
+		"SELECT 1",
+		func(StreamEvent) error { return nil })
+
+	var problem *ProblemError
+	if !errors.As(err, &problem) {
+		t.Fatalf("expected ProblemError, got %T: %v", err, err)
+	}
+	if problem.Status != http.StatusTooManyRequests || problem.Code != "rate_limited" ||
+		problem.RequestID != conformanceFixture.RequestID || problem.RetryAfter != 2*time.Second {
+		t.Fatalf("unexpected stream problem: %#v", problem)
+	}
+}
+
+func TestChangeStreamingFixtureIsConsumedIncrementally(t *testing.T) {
+	t.Parallel()
+	fixture, err := os.ReadFile("../conformance/change-stream.ndjson")
+	if err != nil {
+		t.Fatal(err)
+	}
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		if request.Method != http.MethodGet || request.URL.EscapedPath() != "/api/v1/tenants/tenant%20one/catalogs/catalog%2Fone/changes:stream" {
+			t.Errorf("unexpected request: %s %s", request.Method, request.URL.EscapedPath())
+		}
+		query := request.URL.Query()
+		if query.Get("table") != "orders current" || query.Get("fromSnapshot") != "10" || query.Get("toSnapshot") != "12" || query.Get("pageSize") != "1" {
+			t.Errorf("unexpected query: %s", request.URL.RawQuery)
+		}
+		writer.Header().Set("Content-Type", "application/x-ndjson")
+		_, _ = writer.Write(fixture)
+	}))
+	defer server.Close()
+
+	upper := int64(12)
+	var types []string
+	err = StreamChanges(
+		context.Background(), server.Client(), server.URL, "test-token", "tenant one", "catalog/one",
+		"orders current", 10, "main", &upper, 1, "", func(event StreamEvent) error {
+			types = append(types, event.Type)
+			return nil
+		})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if fmt.Sprint(types) != "[stream change change complete]" {
+		t.Fatalf("unexpected stream types: %v", types)
+	}
+}
+
+func TestReleasedServerStreamingConformance(t *testing.T) {
+	endpoint := os.Getenv("LAKEHOLD_CONFORMANCE_URL")
+	if endpoint == "" {
+		t.Skip("LAKEHOLD_CONFORMANCE_URL is not configured")
+	}
+	token := requiredEnvironment(t, "LAKEHOLD_CONFORMANCE_TOKEN")
+	tenant := requiredEnvironment(t, "LAKEHOLD_CONFORMANCE_TENANT")
+	catalog := requiredEnvironment(t, "LAKEHOLD_CONFORMANCE_CATALOG")
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	var types []string
+	err := StreamQuery(ctx, http.DefaultClient, endpoint, token, tenant, catalog, "SELECT 1 AS conformance", func(event StreamEvent) error {
+		types = append(types, event.Type)
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if fmt.Sprint(types) != "[schema row complete]" {
+		t.Fatalf("unexpected released-server stream: %v", types)
+	}
+}
+
+func requiredEnvironment(t *testing.T, name string) string {
+	t.Helper()
+	value := os.Getenv(name)
+	if value == "" {
+		t.Fatalf("%s is required when released-server conformance is enabled", name)
+	}
+	return value
 }
 
 func loadRuntimeFixture() runtimeFixture {

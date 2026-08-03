@@ -1,0 +1,11 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>io.lakehold.examples</groupId>
+  <artifactId>stream-query</artifactId>
+  <version>0.1.0</version>
+  <properties><maven.compiler.release>17</maven.compiler.release><project.build.sourceEncoding>UTF-8</project.build.sourceEncoding></properties>
+  <dependencies>
+    <dependency><groupId>io.lakehold</groupId><artifactId>lakehold-sdk</artifactId><version>0.1.0</version></dependency>
+  </dependencies>
+  <build><plugins><plugin><groupId>org.codehaus.mojo</groupId><artifactId>exec-maven-plugin</artifactId><version>3.5.0</version><configuration><mainClass>io.lakehold.examples.StreamQuery</mainClass></configuration></plugin></plugins></build>
+</project>

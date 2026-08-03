@@ -25,15 +25,15 @@ re-specified here; this document references them and fills in the surface around
 **That gate is now met.** Every phase of `AUTHENTICATION.md` has landed: tokens, instance-scoped
 provisioning endpoints, the principal model, roles, and audit. Versioning, common problem responses,
 bounded cursor pagination, durable operations, idempotency, capability discovery, and production
-OpenAPI and the shared non-streaming SDK reliability layer are also implemented. Expanded
-time-travel and streaming resources, the remaining black-box conformance, compatibility-diff
-automation, and public package publication remain open.
+OpenAPI, NDJSON query/CDC streaming, snapshot keysets/detail/table preview, the shared SDK runtime
+layer, and semantic compatibility automation are implemented in source. Released-server black-box
+conformance and public package publication remain open.
 One caveat carries forward: `RequireAuthentication` defaults to false, so deployment policy still
 decides whether a particular installation requires credentials on HTTP routes.
 
 ## Implemented source boundary
 
-The frozen contract currently contains 62 typed operations. It versions the existing access,
+The frozen contract currently contains 66 typed operations. It versions the existing access,
 provisioning, token, system-settings, query-language, bounded-query, import, saved-query, schema,
 storage, snapshot, maintenance, backup, eject, CDC, audit-history, scheduling, and managed-connector
 families. Tenant and catalog route segments are checked against the resolved principal.
@@ -41,12 +41,12 @@ families. Tenant and catalog route segments are checked against the resolved pri
 | Contract capability | Implemented source behavior | Remaining boundary |
 |---|---|---|
 | Versioning | Canonical `/api/v1`; `/api` rewrites to v1 and emits `Deprecation`, `Sunset`, and successor links | Remove the alias only after its documented compatibility window |
-| Discovery and documentation | Anonymous capability discovery and production OpenAPI at `/api/v1/openapi.json`; stable unique operation ids and Bearer requirements | Automated semantic diff against the merge base and richer examples |
+| Discovery and documentation | Anonymous capability discovery and production OpenAPI at `/api/v1/openapi.json`; stable unique operation ids, Bearer requirements, SDK reference/examples, and semantic merge-base compatibility gate | Expand error examples as exhaustive error conformance lands |
 | Errors | Canonical failures are normalized to RFC 9457 with bounded handler-selected detail, stable `code`, and `requestId`; unhandled exceptions remain generic | Complete a conformance fixture for every public error code |
-| Collections | Opaque, request-bound cursor envelopes with a 24-hour lifetime on bounded list routes; database sources apply the window before materialisation | Replace offset cursors with source-native keyset/snapshot cursors where traversal must remain stable while the collection changes |
+| Collections | Opaque, request-bound cursor envelopes with a 24-hour lifetime; snapshot history freezes a native snapshot-id keyset and CDC uses its native snapshot/row cursor | Replace remaining offset cursors only where a source-native ordering can provide stable traversal |
 | Retryable mutations | Durable, content-type/query/payload-bound idempotency records on bounded control mutations; visible-ASCII keys are hashed at rest, bodies are capped at 1 MiB, and completed records are retained for seven days | Streaming imports and one-time token issuance are deliberately excluded because neither response can be safely replayed |
 | Long work | Maintenance compact/backup, restore backup, and eject enqueue durable operations on v1; legacy calls retain their old synchronous behavior | Progress/cancellation and remaining future long-running resources |
-| SDKs | Digest-pinned generation plus shared authentication, typed-problem, retry, pagination, idempotency, operation-polling, transport-appropriate cancellation, correlation, timeout, user-agent, redaction, and additive-field conformance for Java, Go, .NET, and Python | Streaming helpers, remaining released-server conformance, signing, and registry publication |
+| SDKs | Digest-pinned generation plus shared authentication, streaming query/CDC, typed problems, retry, pagination, idempotency, operation polling, cancellation, correlation, timeout, user-agent, redaction, docs/examples/matrices, and gated signing/provenance for all four languages | Run released-server conformance; publish, index, and clean-install public packages |
 
 ### Query-language contract
 
@@ -80,6 +80,26 @@ Planner transport is not a public credential surface. The API sends source and a
 never catalog credentials, validates the returned single read-only command, and alone owns
 attachment, authorization, execution, limits, telemetry, and history. See
 [C# LINQ in the Workbench](LINQ_WORKBENCH.md).
+
+### Streaming and time-travel contract
+
+`POST /api/v1/tenants/{tenant}/catalogs/{catalog}/query:stream` accepts a SQL query request and emits
+`application/x-ndjson`: one `schema` record, zero or more `row` records, and one `complete` record.
+Only SQL is accepted on this transport; optional planners compile source before a stream is opened.
+The server validates the statement as read-only before writing response headers, executes through a
+structural read-only attachment, flushes each record, and honours disconnect cancellation. A failure
+before streaming is RFC 9457; a failure after headers is a bounded `error` record. A client must not
+treat EOF without `complete` as success.
+
+`GET …/changes:stream` applies the same framing to a finite CDC window: `stream`, zero or more
+`change`, then `complete`. When `toSnapshot` is omitted, the server freezes the newest snapshot once
+before the first record and follows the native opaque CDC cursor until that bound is drained.
+
+Snapshot history uses a protected keyset bound to tenant, catalog, and time filters. The cursor
+carries a frozen upper native snapshot id and an exclusive lower position, so commits arriving during
+traversal do not duplicate or displace rows. `GET …/snapshots/{snapshotId}` returns retained metadata;
+`GET …/snapshots/{snapshotId}/table` returns a bounded, truncation-aware table preview using quoted
+schema/table identifiers and DuckLake's exact snapshot version. It is not arbitrary historical SQL.
 
 ## Design rules
 
@@ -169,9 +189,11 @@ Every SDK must provide the same observable contract:
   runs, dead letters and checkpoints, snapshots/time travel, CDC, maintenance, backup/eject,
   operations, and audit according to the caller's capability.
 
-The shared source fixture now runs through Java, Go, .NET, and Python and proves the non-streaming
-reliability behavior appropriate to each transport model above. Streaming helpers, tenant-isolation tests against a real server,
-and exhaustive public-error fixtures are not implemented yet. An SDK is not released merely because generated code compiles: package signing/provenance,
+The shared source fixtures run through Java, Go, .NET, and Python and prove reliability plus
+incremental NDJSON behavior appropriate to each transport model. An authenticated workflow invokes
+every SDK against a released server, but no successful released-server run is claimed yet;
+tenant-isolation, cancellation, and exhaustive public-error fixtures remain. An SDK is not released
+merely because generated code compiles: package signing/provenance,
 reference documentation, examples, supported runtime versions, compatibility tables, and a clean
 install test from the public registry are release gates.
 
@@ -340,8 +362,8 @@ long outage.
 
 To settle during the step they block, not before starting:
 
-1. **Streaming transport.** NDJSON is the simplest and matches the wire endpoint's row-at-a-time
-   model; Server-Sent Events buys nothing here. Decide when `query:stream` is built.
+1. **Streaming transport — decided.** NDJSON matches the wire endpoint's row-at-a-time model and is
+   implemented for query and CDC. Server-Sent Events is not used because it adds no useful semantics.
 2. **Where labels and pins live.** A control-plane table keyed by `(catalogName, snapshotId)` is the
    recommendation — it survives backup, restore, and eject without those three having to reason about
    it, exactly the argument `AUTHENTICATION.md` makes for keeping access rules out of DuckLake. The
@@ -363,12 +385,12 @@ auth closes the door.
 | 0 | **Shipped** | `AUTHENTICATION.md` phases 1–3b (tokens, principal, provisioning) | The prerequisite; not part of this doc |
 | 1 | **Implemented in source** | `/api/v1` prefix, common RFC 9457 normalization, bounded cursor pagination, production OpenAPI | Convention and contract tests pass; old routes still alias |
 | 2 | **Not started** | `asOf` on `POST …/query` (read-only attachment) | As-of read returns historical rows; live query unchanged |
-| 3 | **Partial** | Snapshot list filters + detail; `POST …/snapshots/{id}/restore` (dry-run/apply) | Existing single-table dry-run/apply is versioned; filters, detail, and multi-table resource remain |
+| 3 | **Partial** | Snapshot list filters/keyset + detail/table preview; `POST …/snapshots/{id}/restore` (dry-run/apply) | Filters, detail, and exact-snapshot table preview are implemented; catalog-wide restore remains |
 | 4 | **Not started** | Labels, pins, retention policy; `expire` honours pins | Pinned snapshot survives an expire |
 | 5 | **Implemented in source** | `operations/{id}` resource; eject, compact/backup maintenance, and backup restore become jobs | v1 returns `202`; persisted worker completion and expired-lease indeterminate state are tested |
-| 6 | **Partial** | `query:stream` (NDJSON); API-settable schedules; principal in history | Principal history exists; stream and schedule mutation remain |
-| 7 | **Partial** | Generate Java, Go, .NET, and Python SDK candidates from the reviewed contract | All source clients build and run equivalent auth/model tests; full released-server conformance remains |
-| 8 | **Not started** | Publish signed SDK packages, reference documentation, examples, and compatibility policy | Clean public-registry install and smoke workflow in every language |
+| 6 | **Partial** | `query:stream` (NDJSON); API-settable schedules; principal in history | Query and CDC streams plus principal history exist; schedule mutation remains |
+| 7 | **Partial** | Generate Java, Go, .NET, and Python SDK candidates from the reviewed contract | Source clients and streaming fixtures exist; authenticated workflow is ready, but full released-server conformance remains |
+| 8 | **Partial** | Publish signed SDK packages, reference documentation, examples, and compatibility policy | Documentation, examples, matrices, changelog, signing/provenance workflow, and clean-install gate exist; public publication has not run |
 
 Steps 2–4 are the time-travel control surface this document exists for. Step 1 is what makes the whole
 thing a public API rather than an internal one. The source clients now have executable verification,

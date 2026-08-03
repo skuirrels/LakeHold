@@ -15,7 +15,7 @@ idempotency, error, and durable-operation contract.
 Regenerate all libraries with `./scripts/generate-sdks.sh`. Generated source is reviewed and built
 in CI; do not edit it directly. Add handwritten conveniences only outside generator-owned files.
 
-Each client provides typed models and low-level operations for all 62 operations in the frozen v1
+Each client provides typed models and low-level operations for all 66 operations in the frozen v1
 contract. A small handwritten runtime layer adds the shared supported behavior that generators do
 not provide consistently:
 
@@ -25,6 +25,7 @@ not provide consistently:
 - bounded retries for calls the application has explicitly identified as retry-safe;
 - caller-generated and validated idempotency keys;
 - lazy cursor traversal and durable-operation polling;
+- incremental NDJSON query and finite CDC streams with terminal-completion validation;
 - transport-appropriate cancellation, request timeouts, and access to `X-Request-Id`; and
 - tolerance for additive response fields.
 
@@ -43,16 +44,19 @@ Go and .NET propagate request cancellation. Java generated async calls are cance
 waits are interruptible. Python uses a synchronous urllib3 transport: cancellation is cooperative
 between retries and operation polls, while the configured request timeout bounds an in-flight call.
 
-The shared language-neutral fixture in [`conformance/runtime-fixture.json`](conformance/runtime-fixture.json)
+The shared language-neutral fixtures under [`conformance`](conformance/)
 drives every language suite. It currently proves authentication, token redaction, typed problems,
 bounded retry and `Retry-After`, cursor traversal, idempotency validation, operation polling,
 transport-appropriate cancellation, correlation identifiers, user agents, timeouts, and
-additive-field compatibility.
+additive-field compatibility, plus incremental query/CDC stream framing.
 
-Streaming query/CDC helpers are not implemented. The current bounded query and cursor APIs must not
-be described as streaming, and the full released-server black-box suite still needs tenant-isolation,
-all-error-code, streaming-cancellation, and registry-install coverage.
+The dedicated `sdk-conformance.yml` workflow runs each language against an authenticated released
+server. Its source and secret gates are implemented, but no successful released-server execution is
+claimed here; tenant-isolation, every-error-code, and cross-transport cancellation coverage remain.
+See [`REFERENCE.md`](REFERENCE.md), [`COMPATIBILITY.md`](COMPATIBILITY.md), and
+[`examples`](examples/) for the supported runtime surface.
 
 These packages are source-complete but are **not published** to Maven Central, a Go module proxy,
-NuGet, or PyPI by this change. Publication requires repository/namespace ownership, signing,
-credentials, release approval, and independent public-feed verification.
+NuGet, or PyPI by this change. `sdk-release.yml` implements fail-closed signing, provenance,
+publication, registry-indexing, and clean-install gates; it still requires repository/namespace
+ownership, protected credentials, an approved version, and an explicit publication run.

@@ -11,8 +11,9 @@ invariant in `AGENT.md`; where a rule already exists, this document says how the
 it rather than restating why.
 
 **Status: Phases 1-5 have landed, bar two items that are blocked or have nothing to carry.** The
-capability rules live in one transport-neutral policy; the endpoint serves five read-only tools —
-`list_tenants`, `describe_schema`, `query`, `list_snapshots`, `list_changes` — plus a schema resource,
+capability rules live in one transport-neutral policy; the endpoint serves seven read-only tools —
+`list_tenants`, `describe_schema`, `query`, `list_snapshots`, `get_snapshot`, `query_snapshot`, and
+`list_changes` — plus schema and snapshot resources,
 behind a credential it always demands; it publishes RFC 9728 protected-resource metadata where OIDC is
 configured; and a sixth tool, `execute`, appears only where an operator has opted into writes. What
 remains is recorded under [Phases](#phases) with the reason rather than as an aspiration.
@@ -225,11 +226,14 @@ wire endpoint does.
 | `describe_schema` | `TenantData` | **Shipped.** Schemas, tables, columns. `ducklake_*` internals are filtered by `CatalogBrowser` at the source — verified behaviours 2 and 9 in `ARCHITECTURE.md` — which matters more here than in the workbench: a human scrolls past ~28 internal tables, an agent reasons about them |
 | `query` | `TenantData` | **Shipped.** Read-only; see below. A materialising path, so a row cap applies (invariant 6) |
 | `list_snapshots` | `TenantData` | **Shipped.** Time travel, which the closest peer's own roadmap still lists as forthcoming. It also supplies the bounds `list_changes` takes |
+| `get_snapshot` | `TenantData` | **Implemented in source.** Returns one retained snapshot by native id and refuses a missing id without inventing a second snapshot store |
+| `query_snapshot` | `TenantData` | **Implemented in source.** Bounded table preview at an exact retained snapshot through the same structural read-only attachment as REST; it does not present a materialized MCP result as streaming |
 | `list_changes` | `TenantData` | **Shipped.** The CDC feed, paged. Inclusive at both ends (invariant 18, verified behaviour 6), and the tool's *description* says so — an agent that assumes exclusivity skips a window. Omitting the upper bound reads to the newest snapshot, which is also what keeps a caller clear of verified behaviour 7, where a range ending before the table existed raises. The engine's complaint is forwarded verbatim when it does |
 
 **Resources.** `lakehold://{tenant}/{catalog}/schema` carries the same information
 `describe_schema` returns, so a client can pin it as standing context instead of spending a tool call
-whenever it needs a column name. It is a **template**, not a set of concrete resources, and that is a
+whenever it needs a column name. `lakehold://{tenant}/{catalog}/snapshots/{snapshotId}` carries the
+same bounded metadata as `get_snapshot`. Both are **templates**, not concrete resource lists, and that is a
 security choice rather than a convenience one: enumerating every reachable catalog would mean
 resolving the credential during resource *listing*, and listing is the one place a mistake would hand
 catalog names to a caller that cannot reach them. A template discloses nothing.

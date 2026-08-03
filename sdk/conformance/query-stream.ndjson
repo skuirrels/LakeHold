@@ -1,0 +1,4 @@
+{"type":"schema","columns":[{"name":"value","dataType":"INTEGER","clrType":"System.Int32"}]}
+{"type":"row","values":[1]}
+{"type":"row","values":[2]}
+{"type":"complete","rowCount":2}

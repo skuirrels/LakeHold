@@ -4,6 +4,7 @@ using Lakehold.ControlPlane.Data;
 using Lakehold.ControlPlane.Model;
 using Lakehold.ControlPlane.Security;
 using Lakehold.Engine.Catalog;
+using Lakehold.Engine.Execution;
 using Microsoft.EntityFrameworkCore;
 using ModelContextProtocol;
 using ModelContextProtocol.Server;
@@ -153,6 +154,91 @@ public sealed class LakeholdTools(
         }
     }
 
+    /// <summary>Returns one retained snapshot by its native DuckLake identifier.</summary>
+    [McpServerTool(Name = "get_snapshot", Title = "Get one catalog snapshot", ReadOnly = true,
+        Destructive = false)]
+    [Description(
+        "Returns one retained snapshot by id, including commit time, schema version, and commit message. "
+        + "Use list_snapshots to discover valid ids.")]
+    public async Task<McpSnapshot> GetSnapshotAsync(
+        [Description("Tenant slug the catalog belongs to.")] string tenant,
+        [Description("Catalog whose history to read.")] string catalog,
+        [Description("Source-native snapshot identifier.")] long snapshotId,
+        CancellationToken cancellationToken)
+    {
+        McpCaller.Authorize(httpContextAccessor, tenant, catalog);
+
+        try
+        {
+            var snapshot = await lakehouse
+                .GetSnapshotAsync(tenant, catalog, snapshotId, cancellationToken)
+                .ConfigureAwait(false);
+            return snapshot is null
+                ? throw new McpException($"Snapshot {snapshotId} is not retained in catalog '{catalog}'.")
+                : new McpSnapshot(
+                    snapshot.SnapshotId,
+                    snapshot.CommittedAt,
+                    snapshot.SchemaVersion,
+                    snapshot.CommitMessage);
+        }
+        catch (CatalogNotFoundException ex)
+        {
+            throw new McpException(ex.Message);
+        }
+        catch (ArgumentOutOfRangeException ex)
+        {
+            throw new McpException(ex.Message);
+        }
+    }
+
+    /// <summary>Returns a bounded, read-only table preview at an exact snapshot.</summary>
+    [McpServerTool(Name = "query_snapshot", Title = "Preview a table at a snapshot", ReadOnly = true,
+        Destructive = false)]
+    [Description(
+        "Returns a bounded table preview at an exact retained snapshot. This is a materialized MCP "
+        + "result, not a stream; use the REST query:stream endpoint for unbounded row streaming.")]
+    public async Task<McpQueryResult> QuerySnapshotAsync(
+        [Description("Tenant slug the catalog belongs to.")] string tenant,
+        [Description("Catalog holding the table.")] string catalog,
+        [Description("Source-native snapshot identifier.")] long snapshotId,
+        [Description("Table to preview.")] string table,
+        CancellationToken cancellationToken,
+        [Description("Schema holding the table. Defaults to 'main'.")] string schema = "main",
+        [Description("Maximum rows to return. Bounded by the server's MCP page ceiling.")] int limit = 100)
+    {
+        var principal = McpCaller.Authorize(httpContextAccessor, tenant, catalog);
+        var settings = McpCaller.Settings(httpContextAccessor);
+        var bounded = settings.BoundPageSize(limit, 500);
+
+        try
+        {
+            var result = await lakehouse
+                .ReadTableAtSnapshotAsync(
+                    tenant,
+                    catalog,
+                    schema,
+                    table,
+                    snapshotId,
+                    bounded,
+                    cancellationToken,
+                    principal.TokenId)
+                .ConfigureAwait(false);
+            return ToMcpQueryResult(result, settings.MaxRowsPerResult);
+        }
+        catch (CatalogNotFoundException ex)
+        {
+            throw new McpException(ex.Message);
+        }
+        catch (ArgumentException ex)
+        {
+            throw new McpException(ex.Message);
+        }
+        catch (DuckDB.NET.Data.DuckDBException ex)
+        {
+            throw new McpException(ex.Message);
+        }
+    }
+
     /// <summary>Reads a table's row-level changes over an inclusive snapshot range.</summary>
     /// <remarks>
     ///     <para>
@@ -290,16 +376,7 @@ public sealed class LakeholdTools(
             // Zero or less means no MCP-specific ceiling. Applying Take(0) instead would return an
             // empty result that claimed to be truncated, which reads as "the table is empty" to a
             // caller that cannot see the configuration.
-            var cap = McpCaller.Settings(httpContextAccessor).MaxRowsPerResult;
-            var rows = cap > 0 && result.Rows.Count > cap
-                ? result.Rows.Take(cap).ToList()
-                : result.Rows;
-
-            return new McpQueryResult(
-                [.. result.Columns.Select(c => new McpColumn(c.Name, c.DataType))],
-                [.. rows],
-                Truncated: result.Truncated || rows.Count < result.Rows.Count,
-                RowCount: rows.Count);
+            return ToMcpQueryResult(result, McpCaller.Settings(httpContextAccessor).MaxRowsPerResult);
         }
         catch (CatalogNotFoundException ex)
         {
@@ -311,6 +388,19 @@ public sealed class LakeholdTools(
             // correct its own SQL on the next call rather than guessing.
             throw new McpException(ex.Message);
         }
+    }
+
+    private static McpQueryResult ToMcpQueryResult(QueryResult result, int cap)
+    {
+        var rows = cap > 0 && result.Rows.Count > cap
+            ? result.Rows.Take(cap).ToList()
+            : result.Rows;
+
+        return new McpQueryResult(
+            [.. result.Columns.Select(c => new McpColumn(c.Name, c.DataType))],
+            [.. rows],
+            Truncated: result.Truncated || rows.Count < result.Rows.Count,
+            RowCount: rows.Count);
     }
 }
 

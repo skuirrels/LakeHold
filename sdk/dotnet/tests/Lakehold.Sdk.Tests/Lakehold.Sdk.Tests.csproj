@@ -19,5 +19,11 @@
     <None Include="../../../conformance/runtime-fixture.json"
           Link="conformance/runtime-fixture.json"
           CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../../conformance/query-stream.ndjson"
+          Link="conformance/query-stream.ndjson"
+          CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../../conformance/change-stream.ndjson"
+          Link="conformance/change-stream.ndjson"
+          CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

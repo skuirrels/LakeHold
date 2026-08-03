@@ -13,6 +13,7 @@ using Lakehold.ControlPlane.Security;
 using Lakehold.Engine.Catalog;
 using Lakehold.Engine.Configuration;
 using Lakehold.Api.PublicApi;
+using Microsoft.AspNetCore.DataProtection;
 
 namespace Lakehold.Api.Endpoints;
 
@@ -54,6 +55,11 @@ public static class LakehouseEndpoints
         tenants.MapPost("/{tenantSlug}/catalogs/{catalogName}/query", ExecuteAsync)
             .WithSummary("Executes a statement against a tenant's catalog.");
 
+        tenants.MapPost("/{tenantSlug}/catalogs/{catalogName}/query:stream", StreamQueryAsync)
+            .Produces(StatusCodes.Status200OK, contentType: Ndjson.ContentType)
+            .WithName("StreamQuery")
+            .WithSummary("Streams a read-only SQL result as schema, row, and completion NDJSON records.");
+
         tenants.MapGet(
                 "/{tenantSlug}/catalogs/{catalogName}/query-languages/{language}/starter",
                 GetQueryStarterAsync)
@@ -70,7 +76,19 @@ public static class LakehouseEndpoints
 
         tenants.MapGet("/{tenantSlug}/catalogs/{catalogName}/snapshots", GetSnapshotsAsync)
             .WithCursorPagination<SnapshotDto>()
-            .WithSummary("Returns the catalog's snapshot history for time travel.");
+            .WithSummary("Returns a stable keyset page of snapshot history for time travel.");
+
+        tenants.MapGet("/{tenantSlug}/catalogs/{catalogName}/snapshots/{snapshotId:long}", GetSnapshotAsync)
+            .Produces<SnapshotDto>()
+            .WithName("GetSnapshot")
+            .WithSummary("Returns one retained snapshot by its source-native identifier.");
+
+        tenants.MapGet(
+                "/{tenantSlug}/catalogs/{catalogName}/snapshots/{snapshotId:long}/table",
+                GetSnapshotTableAsync)
+            .Produces<QueryResponse>()
+            .WithName("GetSnapshotTable")
+            .WithSummary("Returns a bounded table preview at an exact retained snapshot.");
 
         tenants.MapPost(
                 "/{tenantSlug}/catalogs/{catalogName}/snapshots/{snapshotId:long}/restore-table",
@@ -137,6 +155,11 @@ public static class LakehouseEndpoints
 
         tenants.MapGet("/{tenantSlug}/catalogs/{catalogName}/changes", GetChangesAsync)
             .WithSummary("Reads a table's row-level changes over an inclusive snapshot range.");
+
+        tenants.MapGet("/{tenantSlug}/catalogs/{catalogName}/changes:stream", StreamChangesAsync)
+            .Produces(StatusCodes.Status200OK, contentType: Ndjson.ContentType)
+            .WithName("StreamChanges")
+            .WithSummary("Streams a snapshot-frozen table change range as NDJSON.");
 
         tenants.MapGet(
                 "/{tenantSlug}/catalogs/{catalogName}/cdc/snapshots/{snapshot:long}/changes",
@@ -325,6 +348,65 @@ public static class LakehouseEndpoints
             return TypedResults.Problem(
                 $"The query planner returned an unsafe plan: {ex.Message}",
                 statusCode: StatusCodes.Status502BadGateway);
+        }
+    }
+
+    private static async Task<IResult> StreamQueryAsync(
+        HttpContext http,
+        string tenantSlug,
+        string catalogName,
+        ExecuteRequest request,
+        LakehouseService lakehouse,
+        ILoggerFactory loggerFactory,
+        CancellationToken cancellationToken)
+    {
+        var source = request?.EffectiveSource;
+        if (string.IsNullOrWhiteSpace(source))
+        {
+            return PublicApiProblems.Create(
+                http,
+                StatusCodes.Status400BadRequest,
+                "Query source is required.",
+                "query_source_required");
+        }
+
+        if (!string.Equals(request!.EffectiveLanguage, "sql", StringComparison.Ordinal))
+        {
+            return PublicApiProblems.Create(
+                http,
+                StatusCodes.Status400BadRequest,
+                "Streaming currently accepts SQL source only; compile another query language before opening the stream.",
+                "streaming_language_not_supported");
+        }
+
+        try
+        {
+            if (!await lakehouse.IsReadQueryAsync(tenantSlug, catalogName, source, cancellationToken)
+                    .ConfigureAwait(false))
+            {
+                return PublicApiProblems.Create(
+                    http,
+                    StatusCodes.Status400BadRequest,
+                    "A streaming query must be one read-only SQL statement.",
+                    "streaming_query_not_read_only");
+            }
+
+            var principal = http.GetLakeholdPrincipal();
+            return new QueryNdjsonResult(
+                lakehouse,
+                tenantSlug,
+                catalogName,
+                source,
+                principal.TokenId,
+                loggerFactory.CreateLogger<QueryNdjsonResult>());
+        }
+        catch (CatalogNotFoundException ex)
+        {
+            return PublicApiProblems.Create(http, StatusCodes.Status404NotFound, ex.Message);
+        }
+        catch (DuckDB.NET.Data.DuckDBException ex)
+        {
+            return PublicApiProblems.Create(http, StatusCodes.Status400BadRequest, ex.Message);
         }
     }
 
@@ -643,34 +725,171 @@ public static class LakehouseEndpoints
         }
     }
 
-    private static async Task<Results<Ok<IReadOnlyList<SnapshotDto>>, NotFound<string>>> GetSnapshotsAsync(
+    private static async Task<IResult> GetSnapshotsAsync(
         string tenantSlug,
         string catalogName,
         HttpContext http,
         LakehouseService lakehouse,
+        IDataProtectionProvider dataProtection,
         CancellationToken cancellationToken,
-        int limit = 50)
+        int limit = 100,
+        string? cursor = null,
+        DateTimeOffset? committedFrom = null,
+        DateTimeOffset? committedTo = null)
     {
+        if (limit is < 1 or > PublicApiPagination.MaximumLimit)
+        {
+            return PublicApiProblems.Create(
+                http,
+                StatusCodes.Status400BadRequest,
+                $"The limit query parameter must be an integer from 1 to {PublicApiPagination.MaximumLimit}.",
+                "invalid_page_limit");
+        }
+        if (committedFrom > committedTo)
+        {
+            return PublicApiProblems.Create(
+                http,
+                StatusCodes.Status400BadRequest,
+                "committedFrom must not be later than committedTo.",
+                "invalid_snapshot_window");
+        }
+
         try
         {
+            if (http.IsLegacyApiRequest())
+            {
+                var legacy = await lakehouse
+                    .GetSnapshotsAsync(tenantSlug, catalogName, limit, cancellationToken)
+                    .ConfigureAwait(false);
+                return TypedResults.Ok<IReadOnlyList<SnapshotDto>>(
+                    [.. legacy.Select(ToSnapshotDto)]);
+            }
+
+            var scope = SnapshotCursor.Scope(tenantSlug, catalogName, committedFrom, committedTo);
+            long? upperSnapshotInclusive = null;
+            long? beforeSnapshotExclusive = null;
+            if (!string.IsNullOrWhiteSpace(cursor))
+            {
+                if (!SnapshotCursor.TryDecode(dataProtection, cursor, scope, out var position))
+                {
+                    return PublicApiProblems.Create(
+                        http,
+                        StatusCodes.Status400BadRequest,
+                        "The cursor is invalid, expired, or belongs to a different snapshot request.",
+                        "invalid_cursor");
+                }
+                upperSnapshotInclusive = position.UpperSnapshotInclusive;
+                beforeSnapshotExclusive = position.BeforeSnapshotExclusive;
+            }
+
             var snapshots = await lakehouse
                 .GetSnapshotsAsync(
                     tenantSlug,
                     catalogName,
-                    http.IsLegacyApiRequest()
-                        ? Math.Clamp(limit, 1, 500)
-                        : PublicApiPagination.RequiredSourceCount(http),
+                    limit + 1,
+                    upperSnapshotInclusive,
+                    beforeSnapshotExclusive,
+                    committedFrom,
+                    committedTo,
                     cancellationToken)
                 .ConfigureAwait(false);
 
-            return TypedResults.Ok<IReadOnlyList<SnapshotDto>>(
-                [.. snapshots.Select(s => new SnapshotDto(s.SnapshotId, s.CommittedAt, s.SchemaVersion, s.CommitMessage))]);
+            var page = snapshots.Take(limit).Select(ToSnapshotDto).ToArray();
+            var frozenUpper = upperSnapshotInclusive ?? (page.FirstOrDefault()?.SnapshotId ?? 0);
+            var nextCursor = snapshots.Count > limit && page.Length > 0
+                ? SnapshotCursor.Encode(dataProtection, scope, frozenUpper, page[^1].SnapshotId)
+                : null;
+            return TypedResults.Ok(new CursorPage<SnapshotDto>(page, nextCursor));
         }
         catch (CatalogNotFoundException ex)
         {
-            return TypedResults.NotFound(ex.Message);
+            return PublicApiProblems.Create(http, StatusCodes.Status404NotFound, ex.Message);
         }
     }
+
+    private static async Task<IResult> GetSnapshotAsync(
+        string tenantSlug,
+        string catalogName,
+        long snapshotId,
+        HttpContext http,
+        LakehouseService lakehouse,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var snapshot = await lakehouse
+                .GetSnapshotAsync(tenantSlug, catalogName, snapshotId, cancellationToken)
+                .ConfigureAwait(false);
+            return snapshot is null
+                ? PublicApiProblems.Create(
+                    http,
+                    StatusCodes.Status404NotFound,
+                    $"Snapshot {snapshotId} is not retained in catalog '{catalogName}'.",
+                    "snapshot_not_found")
+                : TypedResults.Ok(ToSnapshotDto(snapshot));
+        }
+        catch (CatalogNotFoundException ex)
+        {
+            return PublicApiProblems.Create(http, StatusCodes.Status404NotFound, ex.Message);
+        }
+        catch (ArgumentOutOfRangeException ex)
+        {
+            return PublicApiProblems.Create(http, StatusCodes.Status400BadRequest, ex.Message);
+        }
+    }
+
+    private static async Task<IResult> GetSnapshotTableAsync(
+        string tenantSlug,
+        string catalogName,
+        long snapshotId,
+        string table,
+        HttpContext http,
+        LakehouseService lakehouse,
+        CancellationToken cancellationToken,
+        string schema = "main",
+        int limit = 100)
+    {
+        if (limit is < 1 or > PublicApiPagination.MaximumLimit)
+        {
+            return PublicApiProblems.Create(
+                http,
+                StatusCodes.Status400BadRequest,
+                $"The limit query parameter must be an integer from 1 to {PublicApiPagination.MaximumLimit}.",
+                "invalid_page_limit");
+        }
+
+        try
+        {
+            var principal = http.GetLakeholdPrincipal();
+            var result = await lakehouse
+                .ReadTableAtSnapshotAsync(
+                    tenantSlug,
+                    catalogName,
+                    schema,
+                    table,
+                    snapshotId,
+                    limit,
+                    cancellationToken,
+                    principal.TokenId)
+                .ConfigureAwait(false);
+            return TypedResults.Ok(QueryResponse.From(result));
+        }
+        catch (CatalogNotFoundException ex)
+        {
+            return PublicApiProblems.Create(http, StatusCodes.Status404NotFound, ex.Message);
+        }
+        catch (ArgumentException ex)
+        {
+            return PublicApiProblems.Create(http, StatusCodes.Status400BadRequest, ex.Message);
+        }
+        catch (DuckDB.NET.Data.DuckDBException ex)
+        {
+            return PublicApiProblems.Create(http, StatusCodes.Status400BadRequest, ex.Message);
+        }
+    }
+
+    private static SnapshotDto ToSnapshotDto(SnapshotInfo snapshot)
+        => new(snapshot.SnapshotId, snapshot.CommittedAt, snapshot.SchemaVersion, snapshot.CommitMessage);
 
     internal static async Task<Results<Ok<TableRestoreDto>, NotFound<string>, BadRequest<string>>> RestoreTableAsync(
         string tenantSlug,
@@ -996,6 +1215,71 @@ public static class LakehouseEndpoints
             // e.g. an unknown table, or a range whose end predates the table's creation. The engine
             // names the problem precisely; forward it.
             return TypedResults.BadRequest(ex.Message);
+        }
+    }
+
+    private static async Task<IResult> StreamChangesAsync(
+        string tenantSlug,
+        string catalogName,
+        string table,
+        HttpContext http,
+        LakehouseService lakehouse,
+        ILoggerFactory loggerFactory,
+        CancellationToken cancellationToken,
+        long fromSnapshot = 0,
+        string schema = "main",
+        long? toSnapshot = null,
+        int pageSize = 1000,
+        string? cursor = null)
+    {
+        if (pageSize is < 1 or > 10_000)
+        {
+            return PublicApiProblems.Create(
+                http,
+                StatusCodes.Status400BadRequest,
+                "The pageSize query parameter must be an integer from 1 to 10000.",
+                "invalid_page_limit");
+        }
+
+        try
+        {
+            // Freeze an omitted upper bound once, before the response begins. New commits cannot
+            // move the end of a live stream and make completion nondeterministic.
+            var to = toSnapshot
+                ?? await lakehouse.GetLatestSnapshotAsync(tenantSlug, catalogName, cancellationToken)
+                    .ConfigureAwait(false)
+                ?? 0;
+            var first = await lakehouse
+                .GetChangesAsync(
+                    tenantSlug,
+                    catalogName,
+                    schema,
+                    table,
+                    fromSnapshot,
+                    to,
+                    pageSize,
+                    cursor,
+                    cancellationToken)
+                .ConfigureAwait(false);
+            return new ChangeNdjsonResult(
+                lakehouse,
+                tenantSlug,
+                catalogName,
+                first,
+                pageSize,
+                loggerFactory.CreateLogger<ChangeNdjsonResult>());
+        }
+        catch (CatalogNotFoundException ex)
+        {
+            return PublicApiProblems.Create(http, StatusCodes.Status404NotFound, ex.Message);
+        }
+        catch (ArgumentException ex)
+        {
+            return PublicApiProblems.Create(http, StatusCodes.Status400BadRequest, ex.Message);
+        }
+        catch (DuckDB.NET.Data.DuckDBException ex)
+        {
+            return PublicApiProblems.Create(http, StatusCodes.Status400BadRequest, ex.Message);
         }
     }
 

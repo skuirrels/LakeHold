@@ -41,6 +41,7 @@ perl -0pi -e 's/authors = \[\n  \{name = "OpenAPI Generator Community",email = "
 perl -pi -e 's/^license = "NoLicense"$/license = "Apache-2.0"/' "${temporary}/python/pyproject.toml"
 perl -pi -e 's/^name = "lakehold_sdk"$/name = "lakehold-sdk"/' "${temporary}/python/pyproject.toml"
 perl -pi -e 's/author="OpenAPI Generator community"/author="LakeHold contributors"/; s/author_email="team\@openapitools\.org"/author_email=""/' "${temporary}/python/setup.py"
+perl -0pi -e 's/PYTHON_REQUIRES = ">= 3\.9"\nREQUIRES = \[.*?\]\n\n//s; s/    install_requires=REQUIRES,\n//' "${temporary}/python/setup.py"
 find "${temporary}/python/lakehold_sdk" -type f -name '*.py' \
     -exec perl -ni -e 'print unless /# TODO/' {} \;
 perl -ni -e 'print unless /# TODO/' "${temporary}/python/pyproject.toml"
@@ -53,6 +54,8 @@ find "${temporary}/dotnet/src/Lakehold.Sdk/Model" -type f -name '*.cs' \
 find "${temporary}/dotnet/src/Lakehold.Sdk/Api" -type f -name '*.cs' \
     -exec perl -0pi -e 's/(            )catch \(Exception\)\n\1\{\n\1    return null;\n\1\}/${1}catch (OperationCanceledException)\n${1}{\n${1}    throw;\n${1}}\n${1}catch (Exception)\n${1}{\n${1}    return null;\n${1}}/g' {} \;
 perl -pi -e 's/<AssemblyTitle>OpenAPI Library<\/AssemblyTitle>/<AssemblyTitle>LakeHold SDK<\/AssemblyTitle>/; s/<PackageReleaseNotes>Minor update<\/PackageReleaseNotes>/<PackageReleaseNotes>Initial v1 public API client.<\/PackageReleaseNotes>/' "${temporary}/dotnet/src/Lakehold.Sdk/Lakehold.Sdk.csproj"
+perl -0pi -e 's#    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>#    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>\n    <PackageReadmeFile>README.md</PackageReadmeFile>#' "${temporary}/dotnet/src/Lakehold.Sdk/Lakehold.Sdk.csproj"
+perl -0pi -e 's#  <ItemGroup>\n    <PackageReference#  <ItemGroup>\n    <None Update="README.md" Pack="true" PackagePath="\\" />\n  </ItemGroup>\n\n  <ItemGroup>\n    <PackageReference#' "${temporary}/dotnet/src/Lakehold.Sdk/Lakehold.Sdk.csproj"
 perl -0pi -e 's#    <ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally>#    <ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally>\n    <!-- Generated public symbols retain contract names; suppress only conflicting design-style rules. -->\n    <NoWarn>\$(NoWarn);CA1507;CA1510;CA1707;CA1711;CA1715</NoWarn>#' "${temporary}/dotnet/src/Lakehold.Sdk/Lakehold.Sdk.csproj"
 perl -pi -e 's/^    <description>OpenAPI Java<\/description>$/    <description>Official client for the LakeHold v1 public API<\/description>/; $_ = "" if /^\s*<email><\/email>\s*$/' "${temporary}/java/pom.xml"
 perl -pi -e 's/using Org\.OpenAPITools\.Extensions;/using Lakehold.Sdk.Extensions;/; s/GetApiCapabilitiesAsync\("todo"\)/GetApiCapabilitiesAsync()/' "${temporary}/dotnet/src/Lakehold.Sdk/README.md"
@@ -71,6 +74,13 @@ perl -pi -e 's/httplib\.HTTPConnection\.debuglevel = 1/httplib.HTTPConnection.de
 perl -pi -e 's/# turn on httplib debug/# keep raw httplib wire dumps disabled/' "${temporary}/python/lakehold_sdk/configuration.py"
 perl -0pi -e 's#func \(o CreatedTokenDto\) MarshalJSON#// String returns a diagnostic-safe representation. Use MarshalJSON when explicit serialization is required.\nfunc (o CreatedTokenDto) String() string {\n\treturn fmt.Sprintf("CreatedTokenDto{Id:%d Name:%q Token:<redacted>}", o.Id, o.Name)\n}\n\nfunc (o CreatedTokenDto) MarshalJSON#' "${temporary}/go/model_created_token_dto.go"
 perl -0pi -e 's#if c\.cfg\.Debug \{\n\t\tdump, err := httputil\.DumpRequestOut\(request, true\)\n\t\tif err != nil \{\n\t\t\treturn nil, err\n\t\t\}\n\t\tlog\.Printf\("\\n%s\\n", string\(dump\)\)\n\t\}#if c.cfg.Debug {\n\t\tlog.Printf("LakeHold request %s %s", request.Method, request.URL.EscapedPath())\n\t}#; s#if c\.cfg\.Debug \{\n\t\tdump, err := httputil\.DumpResponse\(resp, true\)\n\t\tif err != nil \{\n\t\t\treturn resp, err\n\t\t\}\n\t\tlog\.Printf\("\\n%s\\n", string\(dump\)\)\n\t\}#if c.cfg.Debug {\n\t\tlog.Printf("LakeHold response %s %s", resp.Status, request.URL.EscapedPath())\n\t}#; s#\n\t"net/http/httputil"##' "${temporary}/go/client.go"
+
+# The API templates emit trailing spaces in generated operation documentation. Normalize only the
+# three affected aggregate API files, rather than creating formatting churn in model files.
+perl -pi -e 's/[ \t]+$//' \
+    "${temporary}/java/src/main/java/io/lakehold/sdk/api/LakehouseApi.java" \
+    "${temporary}/dotnet/src/Lakehold.Sdk/Api/LakehouseApi.cs" \
+    "${temporary}/python/lakehold_sdk/api/lakehouse_api.py"
 
 # Treat an upstream template change as a failed generation, not as permission to emit an unsafe
 # client. These assertions also make the intended security properties visible in CI output.

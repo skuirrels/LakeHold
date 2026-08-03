@@ -143,7 +143,9 @@ public sealed class McpServerTests : IAsyncLifetime
 
         var names = (await client.ListToolsAsync()).Select(t => t.Name).OrderBy(n => n).ToArray();
 
-        Assert.Equal(["describe_schema", "list_changes", "list_snapshots", "list_tenants", "query"], names);
+        Assert.Equal(
+            ["describe_schema", "get_snapshot", "list_changes", "list_snapshots", "list_tenants", "query", "query_snapshot"],
+            names);
     }
 
     [Fact]
