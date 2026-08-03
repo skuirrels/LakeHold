@@ -38,6 +38,13 @@ export class TokenAdministrationComponent implements OnInit {
   protected readonly pendingRevokeId = signal<number | null>(null);
   protected readonly revokingId = signal<number | null>(null);
 
+  /**
+   * Discriminates listings so a slower reply for the previous workspace cannot overwrite a newer
+   * one. Switching workspaces twice in quick succession otherwise renders one tenant's credentials
+   * under another's name, and revoking from that list would act on the workspace now selected.
+   */
+  private tokenRequestGeneration = 0;
+
   protected readonly selectedTenant = computed(
     () => this.tenants().find((tenant) => tenant.slug === this.tenantSlug()) ?? null,
   );
@@ -59,6 +66,10 @@ export class TokenAdministrationComponent implements OnInit {
         const selected =
           tenants.find((tenant) => tenant.slug === this.tenantSlug()) ?? tenants[0] ?? null;
         this.tenantSlug.set(selected?.slug ?? '');
+        // A pending "click again to confirm" is scoped to the list it was armed against. Reloading
+        // the workspaces can move the selection — a deleted tenant falls back to the first — and an
+        // id armed against the old list would then revoke whichever credential shares that id here.
+        this.pendingRevokeId.set(null);
         const catalog = this.catalogName();
         this.catalogName.set(
           selected?.catalogs.some((candidate) => candidate.name === catalog)
@@ -94,6 +105,13 @@ export class TokenAdministrationComponent implements OnInit {
     const expiresUtc = this.expirationUtc();
     if (expiresUtc === undefined) {
       this.error.set('Expiry must be a valid date and time.');
+      return;
+    }
+
+    // The API accepts any timestamp, so a past expiry mints a credential that is dead on arrival
+    // and reports success. Refuse here rather than hand back a token that can never authenticate.
+    if (expiresUtc !== null && new Date(expiresUtc).getTime() <= Date.now()) {
+      this.error.set('Expiry must be in the future.');
       return;
     }
 
@@ -180,19 +198,29 @@ export class TokenAdministrationComponent implements OnInit {
   }
 
   private loadTokens(): void {
+    const generation = ++this.tokenRequestGeneration;
     const tenant = this.tenantSlug();
     if (!tenant) {
       this.tokens.set([]);
+      this.tokensLoading.set(false);
       return;
     }
 
     this.tokensLoading.set(true);
     this.api.listTokens(tenant).subscribe({
       next: (tokens) => {
+        if (generation !== this.tokenRequestGeneration) {
+          return;
+        }
+
         this.tokens.set(tokens);
         this.tokensLoading.set(false);
       },
       error: (error: Error) => {
+        if (generation !== this.tokenRequestGeneration) {
+          return;
+        }
+
         this.tokensLoading.set(false);
         this.error.set(error.message);
       },

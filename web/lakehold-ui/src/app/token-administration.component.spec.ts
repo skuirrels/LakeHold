@@ -1,8 +1,27 @@
 import { provideZonelessChangeDetection } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { Observable, Subject } from 'rxjs';
 import { LakehouseService } from './lakehouse.service';
+import { ApiToken } from './models';
 import { FakeLakehouseService } from './test-doubles';
 import { TokenAdministrationComponent } from './token-administration.component';
+
+/** An active tenant credential, with only the behaviour-relevant fields stated. */
+function apiToken(overrides: Partial<ApiToken> = {}): ApiToken {
+  return {
+    id: 1,
+    name: 'token',
+    scope: 'Tenant',
+    role: 'Reader',
+    catalogName: null,
+    readOnly: true,
+    createdUtc: '2026-07-29T18:00:00Z',
+    expiresUtc: null,
+    revokedUtc: null,
+    lastUsedUtc: null,
+    ...overrides,
+  };
+}
 
 describe('TokenAdministrationComponent', () => {
   let api: FakeLakehouseService;
@@ -145,5 +164,76 @@ describe('TokenAdministrationComponent', () => {
 
     expect(api.lastArgs('revokeToken')).toEqual(['demo', 9]);
     expect(api.countOf('listTokens')).toBe(2);
+  });
+
+  it('ignores a credential listing that arrives after the workspace changed', async () => {
+    api.tenants = [
+      {
+        slug: 'alpha',
+        displayName: 'Alpha',
+        catalogs: [{ name: 'a', dataPath: '/a', isReadOnly: false }],
+      },
+      {
+        slug: 'beta',
+        displayName: 'Beta',
+        catalogs: [{ name: 'b', dataPath: '/b', isReadOnly: false }],
+      },
+    ];
+    await mount();
+
+    // Take listing over so both replies can be held open at once, which is what lets the slower
+    // one land last.
+    const pending: Subject<ApiToken[]>[] = [];
+    api.listTokens = (): Observable<ApiToken[]> => {
+      const reply = new Subject<ApiToken[]>();
+      pending.push(reply);
+      return reply.asObservable();
+    };
+
+    const tenant = fixture.nativeElement.querySelector(
+      'select[name="tenant"]',
+    ) as HTMLSelectElement;
+    tenant.value = 'beta';
+    tenant.dispatchEvent(new Event('change'));
+    await fixture.whenStable();
+
+    tenant.value = 'alpha';
+    tenant.dispatchEvent(new Event('change'));
+    await fixture.whenStable();
+
+    // Alpha's listing resolves first and beta's — the one now stale — lands last. Order matters:
+    // if the stale reply arrived first the final state would be correct with or without the guard,
+    // so only a late stale reply proves anything. Rendering it would show one workspace's
+    // credentials under another's name, and revoking from that list would act on alpha.
+    pending[1].next([apiToken({ id: 2, name: 'alpha-credential' })]);
+    pending[0].next([apiToken({ id: 1, name: 'beta-credential' })]);
+    await fixture.whenStable();
+
+    expect(fixture.nativeElement.textContent).toContain('alpha-credential');
+    expect(fixture.nativeElement.textContent).not.toContain('beta-credential');
+  });
+
+  it('refuses an expiry that has already passed instead of minting a dead credential', async () => {
+    await mount();
+
+    const name = fixture.nativeElement.querySelector(
+      'input[name="token-name"]',
+    ) as HTMLInputElement;
+    name.value = 'stale';
+    name.dispatchEvent(new Event('input'));
+
+    const expires = fixture.nativeElement.querySelector(
+      'input[name="expires"]',
+    ) as HTMLInputElement;
+    expires.value = '2020-01-01T00:00';
+    expires.dispatchEvent(new Event('input'));
+
+    (fixture.nativeElement.querySelector('form') as HTMLFormElement).dispatchEvent(
+      new Event('submit'),
+    );
+    await fixture.whenStable();
+
+    expect(api.countOf('createToken')).toBe(0);
+    expect(fixture.nativeElement.textContent).toContain('Expiry must be in the future.');
   });
 });
