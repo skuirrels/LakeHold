@@ -3,6 +3,12 @@ import { ChangeDetectionStrategy, Component, input, output, signal } from '@angu
 /** What is standing between this browser and a usable workbench. */
 export type FirstRunMode = 'none' | 'unauthorized' | 'setup';
 
+/** A credential offered at first run, and whether it should survive closing the tab. */
+export interface SignInRequest {
+  token: string;
+  persist: boolean;
+}
+
 /** The workspace a first run asks for. */
 export interface WorkspaceRequest {
   slug: string;
@@ -73,6 +79,14 @@ export interface WorkspaceRequest {
               (input)="token.set($any($event.target).value)"
               (keydown.enter)="submitToken()"
             />
+          </label>
+          <label class="remember">
+            <input
+              type="checkbox"
+              [checked]="remember()"
+              (change)="remember.set($any($event.target).checked)"
+            />
+            <span>Keep me signed in on this device</span>
           </label>
           <div class="actions">
             <button
@@ -211,6 +225,23 @@ export interface WorkspaceRequest {
       input:focus-visible {
         outline: 2px solid var(--accent);
         outline-offset: 1px;
+      }
+
+      .remember {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        margin-top: 14px;
+        font-size: 13px;
+        color: var(--text-muted, var(--text-faint));
+        cursor: pointer;
+      }
+
+      .remember input {
+        width: 15px;
+        height: 15px;
+        margin: 0;
+        accent-color: var(--accent);
       }
 
       .actions {
@@ -360,11 +391,17 @@ export class FirstRunComponent {
   /** The workspace that token belongs to, for the sentence above it. */
   readonly workspace = input('');
 
-  readonly signIn = output<string>();
+  readonly signIn = output<SignInRequest>();
   readonly createWorkspace = output<WorkspaceRequest>();
   readonly adoptToken = output<void>();
 
   protected readonly token = signal('');
+
+  /**
+   * Whether the credential should outlive the tab. Off by default: the durable choice is one an
+   * operator makes deliberately, not one they inherit from a pre-ticked box.
+   */
+  protected readonly remember = signal(false);
   protected readonly slug = signal('');
   protected readonly displayName = signal('');
   protected readonly catalog = signal('analytics');
@@ -372,7 +409,7 @@ export class FirstRunComponent {
   protected submitToken(): void {
     const value = this.token().trim();
     if (value) {
-      this.signIn.emit(value);
+      this.signIn.emit({ token: value, persist: this.remember() });
       this.token.set('');
     }
   }

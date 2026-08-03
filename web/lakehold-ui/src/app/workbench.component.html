@@ -74,6 +74,14 @@
                 (keydown.enter)="saveCredential()"
               />
             </label>
+            <label class="credential-persist">
+              <input
+                type="checkbox"
+                [checked]="rememberCredential()"
+                (change)="rememberCredential.set($any($event.target).checked)"
+              />
+              <span>Keep it on this device</span>
+            </label>
             <div class="credential-actions">
               <button class="btn btn-primary" type="button" (click)="saveCredential()">Save</button>
               @if (auth.hasToken()) {
@@ -84,8 +92,12 @@
               @if (demoMode()) {
                 Operators can paste a LakeHold API token to leave the public read-only demo.
               } @else if (auth.hasToken()) {
-                Sent as a bearer token on API calls this tab makes. Kept for this browser session
-                only, so a closed tab needs it again.
+                Sent as a bearer token on API calls this tab makes.
+                @if (auth.persistent()) {
+                  Kept on this device until you clear it.
+                } @else {
+                  Kept for this browser session only, so a closed tab needs it again.
+                }
               } @else if (credentialRequired()) {
                 This node requires a credential. Tokens are issued by whoever operates it; a node
                 with none yet writes a one-time <code>lkh_admin_…</code> bootstrap token to its API

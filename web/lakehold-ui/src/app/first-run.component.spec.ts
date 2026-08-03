@@ -1,6 +1,6 @@
 import { provideZonelessChangeDetection } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { FirstRunComponent, WorkspaceRequest } from './first-run.component';
+import { FirstRunComponent, SignInRequest, WorkspaceRequest } from './first-run.component';
 
 describe('FirstRunComponent', () => {
   let fixture: ComponentFixture<FirstRunComponent>;
@@ -17,8 +17,8 @@ describe('FirstRunComponent', () => {
 
   it('trims a credential, emits it once, and clears the draft', async () => {
     await mount('unauthorized');
-    const received: string[] = [];
-    fixture.componentInstance.signIn.subscribe((token) => received.push(token));
+    const received: SignInRequest[] = [];
+    fixture.componentInstance.signIn.subscribe((request) => received.push(request));
     const input = fixture.nativeElement.querySelector('input[type="password"]') as HTMLInputElement;
     input.value = '  lkh_bootstrap  ';
     input.dispatchEvent(new Event('input'));
@@ -27,8 +27,32 @@ describe('FirstRunComponent', () => {
     (fixture.nativeElement.querySelector('.actions button') as HTMLButtonElement).click();
     await fixture.whenStable();
 
-    expect(received).toEqual(['lkh_bootstrap']);
+    // Session-scoped unless the operator asks otherwise, so the safer lifetime is the one you get
+    // without making a decision.
+    expect(received).toEqual([{ token: 'lkh_bootstrap', persist: false }]);
     expect(input.value).toBe('');
+  });
+
+  it('carries the keep-me-signed-in choice with the credential', async () => {
+    await mount('unauthorized');
+    const received: SignInRequest[] = [];
+    fixture.componentInstance.signIn.subscribe((request) => received.push(request));
+
+    const input = fixture.nativeElement.querySelector('input[type="password"]') as HTMLInputElement;
+    input.value = 'lkh_bootstrap';
+    input.dispatchEvent(new Event('input'));
+
+    const remember = fixture.nativeElement.querySelector(
+      '.remember input[type="checkbox"]',
+    ) as HTMLInputElement;
+    remember.checked = true;
+    remember.dispatchEvent(new Event('change'));
+    await fixture.whenStable();
+
+    (fixture.nativeElement.querySelector('.actions button') as HTMLButtonElement).click();
+    await fixture.whenStable();
+
+    expect(received).toEqual([{ token: 'lkh_bootstrap', persist: true }]);
   });
 
   it('offers browser OIDC without removing the break-glass token path', async () => {

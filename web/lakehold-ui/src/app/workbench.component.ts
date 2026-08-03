@@ -19,7 +19,12 @@ import { TabularImportComponent } from './tabular-import.component';
 import { ChangesPanelComponent } from './changes-panel.component';
 import { DataHistoryPanelComponent } from './data-history-panel.component';
 import { EjectPanelComponent } from './eject-panel.component';
-import { FirstRunComponent, FirstRunMode, WorkspaceRequest } from './first-run.component';
+import {
+  FirstRunComponent,
+  FirstRunMode,
+  SignInRequest,
+  WorkspaceRequest,
+} from './first-run.component';
 import { formatTime } from './format';
 import { ApiError, LakehouseService } from './lakehouse.service';
 import {
@@ -124,6 +129,12 @@ export class WorkbenchComponent {
   /** Whether the credential popover is open, and the token being typed into it. */
   protected readonly credentialOpen = signal(false);
   protected readonly tokenDraft = signal('');
+
+  /**
+   * Whether the next credential saved should outlive the tab. Seeded from how the current one is
+   * held, so reopening the panel shows the choice already in force rather than resetting it.
+   */
+  protected readonly rememberCredential = signal(this.auth.persistent());
 
   protected readonly tenants = signal<Tenant[]>([]);
   protected readonly access = signal<AccessContext | null>(null);
@@ -500,8 +511,9 @@ export class WorkbenchComponent {
   }
 
   /** Signs in with a token pasted into the first-run panel, rather than the header popover. */
-  protected signInWith(token: string): void {
-    this.auth.setToken(token);
+  protected signInWith(request: SignInRequest): void {
+    this.auth.setToken(request.token, request.persist);
+    this.rememberCredential.set(request.persist);
     this.loadTenants();
   }
 
@@ -526,12 +538,13 @@ export class WorkbenchComponent {
   /** Toggles the credential popover, seeding the draft with nothing (the token is never echoed back). */
   protected toggleCredential(): void {
     this.tokenDraft.set('');
+    this.rememberCredential.set(this.auth.persistent());
     this.credentialOpen.update((open) => !open);
   }
 
   /** Stores the typed token and reloads, since it may change which tenants are visible. */
   protected saveCredential(): void {
-    this.auth.setToken(this.tokenDraft());
+    this.auth.setToken(this.tokenDraft(), this.rememberCredential());
     this.tokenDraft.set('');
     this.credentialOpen.set(false);
     this.loadTenants();
@@ -541,6 +554,7 @@ export class WorkbenchComponent {
   protected clearCredential(): void {
     this.auth.clear();
     this.tokenDraft.set('');
+    this.rememberCredential.set(false);
     this.credentialOpen.set(false);
     this.loadTenants();
   }

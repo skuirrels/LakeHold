@@ -84,7 +84,11 @@ services:
       - default
       - linq-internal
     healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://localhost:5200/api/tenants || exit 1"]
+      # /health, not /api/tenants. A data route answers 401 as soon as
+      # Lakehold__Auth__RequireAuthentication is set, so probing one made the container unhealthy
+      # for the correct reason and stopped the UI, which waits on service_healthy, from starting at
+      # all. Health has to mean "the process is serving", not "this request was authorised".
+      test: ["CMD-SHELL", "curl -fsS http://localhost:5200/health || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 30

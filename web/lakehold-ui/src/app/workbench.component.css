@@ -270,6 +270,22 @@
   border-radius: 6px;
 }
 
+.credential-persist {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-muted, var(--text-faint));
+  cursor: pointer;
+}
+
+.credential-persist input {
+  width: 15px;
+  height: 15px;
+  margin: 0;
+  accent-color: var(--accent);
+}
+
 .credential-actions {
   display: flex;
   gap: 8px;
