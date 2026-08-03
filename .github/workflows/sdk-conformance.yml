@@ -18,12 +18,8 @@ permissions:
   contents: read
   packages: read
 
-env:
-  # A scheduled run carries no inputs, so the tag falls back to the current released line.
-  RESOLVED_SERVER_IMAGE_TAG: ${{ inputs.server_image_tag || '1.4.0' }}
-
 concurrency:
-  group: sdk-conformance-${{ inputs.server_image_tag || '1.4.0' }}
+  group: sdk-conformance-${{ inputs.server_image_tag || 'latest-release' }}
   cancel-in-progress: false
 
 jobs:
@@ -43,10 +39,18 @@ jobs:
       - name: Start an isolated released server
         env:
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SERVER_IMAGE_TAG: ${{ env.RESOLVED_SERVER_IMAGE_TAG }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SERVER_IMAGE_TAG: ${{ inputs.server_image_tag }}
         shell: bash
         run: |
           set -euo pipefail
+          # A scheduled run carries no inputs. Resolve the newest release rather than defaulting to a
+          # literal version: a hard-coded fallback silently keeps testing an old image once the next
+          # release ships, which is the staleness this schedule exists to prevent.
+          if [[ -z "$SERVER_IMAGE_TAG" ]]; then
+            SERVER_IMAGE_TAG=$(gh release view --repo "${{ github.repository }}" --json tagName --jq '.tagName' | sed 's/^v//')
+            echo "Resolved latest release tag: $SERVER_IMAGE_TAG"
+          fi
           [[ "$SERVER_IMAGE_TAG" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]
           registry_owner=$(printf '%s' "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
           server_image="ghcr.io/$registry_owner/lakehold-api:$SERVER_IMAGE_TAG"

@@ -80,7 +80,7 @@ other client. That is a UI product and a separate decision. It is out of scope h
 |---|---|
 | MCP specification revision **2026-07-28** | final |
 | C# SDK **2.0.0-rc.1** | published 25 July 2026 |
-| SDK **2.0.0** stable | committed by the maintainers "on or before 2026-07-28" |
+| SDK **2.0.0** stable | published; taken 3 August 2026 |
 
 The 2026-07-28 revision is not a point release. Per secondary reporting — **still not verified against
 the specification text** — it removes sessions, drops the initialization handshake, deprecates three
@@ -91,14 +91,15 @@ The decision taken:
 
 1. **Nothing is written against SDK 1.4.x.** It tracks the superseded revision and would be legacy
    within the week.
-2. **The dependency is `2.0.0-rc.1`**, taken deliberately on the basis that nothing here ships as
+2. **The dependency was `2.0.0-rc.1`**, taken deliberately on the basis that nothing here ships as
    stable before the SDK does. The earlier concern that release-candidate analyzer diagnostics (the rc
    notes cite `MCP9007`) would break a warnings-as-errors build did **not** materialise — the package
    restores and builds with zero warnings, and `MCP9007` applies to a client-side OAuth API this
-   server does not use. Move to 2.0.0 stable when it publishes.
+   server does not use. **Settled 3 August 2026:** 2.0.0 stable published and was taken; the build
+   and the full backend suite pass on it.
 
-The package reference carries this reasoning as a comment in `Directory.Packages.props`, because a
-pre-release pin with no explanation is the kind of thing a later reader "fixes".
+The package reference carries this reasoning as a comment in `Directory.Packages.props`, because the
+version history is otherwise unexplained to a later reader.
 
 ## The structural problem, and the refactor it forced — landed
 
@@ -414,9 +415,9 @@ unchanged by the existing filter tests, new direct coverage of the rules. No MCP
 outstanding from this phase: **verify the 2026-07-28 specification text** against the assumptions
 above, which needs the published spec rather than the reporting summarising it.
 
-**Phase 2 — the server. Landed.** `ModelContextProtocol.AspNetCore` **2.0.0-rc.1**, on the deliberate
-decision that nothing here ships as stable before the SDK does — see the note in
-`Directory.Packages.props`. The endpoint is hosted at `Lakehold:Mcp:Route`, guarded by
+**Phase 2 — the server. Landed.** `ModelContextProtocol.AspNetCore` **2.0.0** (taken 3 August 2026;
+landed originally on `2.0.0-rc.1` under the deliberate decision that nothing here ships as stable
+before the SDK does) — see the note in `Directory.Packages.props`. The endpoint is hosted at `Lakehold:Mcp:Route`, guarded by
 `McpAuthenticationFilter`, and exposes exactly one tool: `query`, read-only. Outstanding from this
 phase: **protected-resource metadata (RFC 9728) is not served yet**, so OIDC-only clients that rely on
 discovery cannot find the authorization server. Bearer tokens work today; that is the gap.
@@ -566,8 +567,8 @@ Shipping this is not done until:
   tests, which is not the same as having read the spec.
 - ~~.NET 10 target support in SDK 2.0.0.~~ Confirmed: the package ships a `net10.0` target, and the
   API builds and runs against it.
-- **When to move off `2.0.0-rc.1`.** Taken deliberately, since nothing here ships as stable before the
-  SDK does. Revisit when 2.0.0 stable is published.
+- ~~When to move off `2.0.0-rc.1`.~~ Settled 3 August 2026: 2.0.0 stable published and the
+  dependency moved to it.
 - ~~Whether `RouteCapability` is renamed.~~ Settled: moved in Phase 1, renamed to `Capability`
   immediately after, for the reason given above.
 - ~~Whether the MCP endpoint is separately toggleable.~~ Settled: a shared runtime setting,
