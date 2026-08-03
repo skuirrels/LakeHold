@@ -186,6 +186,10 @@ jobs:
   e2e:
     name: Test real user journeys in Chromium
     runs-on: ubuntu-latest
+    env:
+      # Shared by the stack (which adopts it as the instance credential) and the suites (which
+      # exchange it for a tenant owner token). Disposable, and scoped to this runner.
+      LAKEHOLD_E2E_BOOTSTRAP_TOKEN: lkh_admin_e2ebootstrapcredential00000000000000000000
     steps:
       - uses: actions/checkout@v7
 
@@ -202,7 +206,11 @@ jobs:
           npx playwright install --with-deps chromium
 
       - name: Configure the development stack
-        run: cp .env.example .env
+        # The journeys authenticate, because the stack they run against does. A known bootstrap
+        # credential makes that deterministic; it is disposable and never leaves this runner.
+        run: |
+          cp .env.example .env
+          echo "LAKEHOLD_BOOTSTRAP_TOKEN=$LAKEHOLD_E2E_BOOTSTRAP_TOKEN" >> .env
 
       - name: Start Lakehold
         run: |
