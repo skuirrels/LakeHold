@@ -9,6 +9,7 @@
 #   make test         Run the complete backend, frontend, integration, and browser test suite.
 #   make dev          Start the local development stack with hot reload.
 #   make demo         Pull, build, and start the public demo with C# LINQ enabled.
+#   make prune-worktrees  List finished agent worktrees; APPLY=1 removes them.
 #
 # Deployment targets drive compose.production.yaml; only `make dev` drives compose.yaml. The
 # development stack bind-mounts source and runs a file watcher, so it has no build step to redo —
@@ -54,7 +55,7 @@ WAIT_TIMEOUT ?= 180
 
 .DEFAULT_GOAL := help
 
-.PHONY: help test dev demo deploy production check-tree pull build build-demo up status logs stop backup-state
+.PHONY: help test dev demo deploy production check-tree pull build build-demo up status logs stop backup-state prune-worktrees
 
 help:
 	@echo "Lakehold — make targets"
@@ -68,6 +69,8 @@ help:
 	@echo "  logs          Follow the stack's logs"
 	@echo "  stop          Stop the stack, keeping the state volume"
 	@echo "  backup-state  Archive the state volume to a tarball here"
+	@echo ""
+	@echo "  prune-worktrees  List finished agent worktrees (APPLY=1 to remove them)"
 	@echo ""
 	@echo "  Overrides:    WAIT_TIMEOUT=$(WAIT_TIMEOUT) (seconds to wait for healthy containers)"
 	@echo "                LAKEHOLD_PORT=<port> (host port; defaults to 8080)"
@@ -193,3 +196,10 @@ backup-state:
 		-v "$(CURDIR)":/archive \
 		alpine tar czf "/archive/$(ARCHIVE)" -C /state .
 	@ls -lh "$(ARCHIVE)"
+
+# Agent sessions leave a worktree behind per task. Left alone they pin branches against deletion and
+# eventually one of them holds main, at which point this checkout can never simply be on the default
+# branch. Lists by default and needs APPLY=1 to remove, because "clean and merged" cannot distinguish
+# a finished session from one that has only just started.
+prune-worktrees:
+	@./scripts/prune-worktrees.sh $(if $(APPLY),--apply,)
