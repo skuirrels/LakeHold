@@ -1,7 +1,9 @@
 # Disposable services used only by `make test`.
 #
 # Combined with compose.production.yaml and compose.build.yaml, this adds real PostgreSQL and
-# S3-compatible integrations while making the application a seeded, authentication-free test node.
+# S3-compatible integrations to a seeded test node. Authentication is required here exactly as it is
+# in production -- a test stack that authenticates differently from the thing it is testing proves
+# nothing about the thing it is testing.
 # scripts/test-all.sh gives the stack its own project name, host ports, and volumes, then removes all
 # of them on exit. Nothing here shares state with the development or production deployment.
 
@@ -9,7 +11,9 @@ services:
   api:
     environment:
       Lakehold__SeedDemoData: "true"
-      Lakehold__Auth__RequireAuthentication: "false"
+      # A deliberately public test credential, valid only inside this disposable state volume. The
+      # browser suites exchange it for a tenant owner token; see web/lakehold-ui/e2e/credential.ts.
+      Lakehold__BootstrapToken: "lkh_admin_e2ebootstrapcredential00000000000000000000"
       ConnectionStrings__ControlPlane: Host=postgres;Port=5432;Database=lakeholdmeta;Username=lakehold;Password=lakehold
       ConnectionStrings__DuckLakeMetadata: Host=postgres;Port=5432;Database=lakeholdmeta;Username=lakehold;Password=lakehold
       Lakehold__Querying__Planners__0__SharedSecret: lakehold-test-linq-planner

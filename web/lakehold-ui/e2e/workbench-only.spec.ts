@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { signIn } from './credential';
 
 test.describe('private production surface', () => {
   test.skip(
@@ -7,6 +8,8 @@ test.describe('private production surface', () => {
   );
 
   test('exposes the Workbench without exposing the public website', async ({ page, request }) => {
+    await signIn(page, request);
+
     const root = await request.get('/', { maxRedirects: 0 });
     expect(root.status()).toBe(302);
     expect(root.headers()['location']).toBe('/workbench');
