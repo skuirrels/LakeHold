@@ -501,6 +501,10 @@ The credential names the tenant; the URL segment is validated against it rather 
 belongs to one tenant, may be narrowed to a single catalog, and carries a role — `owner`, `editor`,
 or `reader`.
 
+To get signed in for the first time, or to put Keycloak (or any OIDC provider) behind the Workbench,
+follow [`docs/IDENTITY-PROVIDER-SETUP.md`](docs/IDENTITY-PROVIDER-SETUP.md) — it is the step-by-step
+version of this section, including the claim mappers an external provider has to emit.
+
 **The application default is off**, so a fresh checkout still runs token-lessly. The production
 compose file turns it on, and any deployment with a published port should:
 
