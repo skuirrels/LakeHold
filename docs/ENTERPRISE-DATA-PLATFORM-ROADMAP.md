@@ -199,7 +199,11 @@ The detailed endpoint contract and staged migration remain in
       problems, pagination, retries, idempotency, operation polling, transport-appropriate cancellation, request ids,
       timeouts, user agents, token redaction, and unknown additive fields.
 - [x] Run authenticated query-streaming, tenant-isolation, and streaming-cancellation conformance
-      through all four SDKs against an immutable released API image.
+      through all four SDKs against an immutable released API image. **Evidence is dated, not
+      standing:** `sdk-conformance.yml` runs on a weekly schedule and on manual dispatch against a
+      pinned image tag, so this box records the most recent run rather than every commit. It is not
+      a pull-request gate — the released image it tests is by definition not the merge candidate.
+      Record the image tag and date when citing this as release evidence.
 - [ ] Extend released-image conformance to every stable public error code.
 - [x] Publish source reference documentation, runnable examples, a supported runtime matrix,
       compatibility policy, changelog, provenance generation, and coordinated fail-closed release
@@ -234,27 +238,53 @@ a published general-purpose SDK and must not be presented as one.
 
 ## Priority acceptance gates
 
-Priority 1 is complete only when all of these are demonstrable:
+These are split into two tiers. A single list meant P1 could only close when every remaining
+workstream closed — the *Serve* gate alone requires Power BI and open multi-engine access, both of
+which are unstarted P1.5 items — which made "Priority 1" indistinguishable from "the whole roadmap".
+The tiers let the ingestion half be signed off on its own evidence.
+
+### P1a — ingestion and safety
+
+Demonstrable independently of governance and consumption work:
 
 - **Acquire:** supported batch and incremental connectors resume after worker failure without lost
   checkpoints or duplicate publication.
 - **Store and process:** publication remains atomic on source, quality, schema, cancellation, and
   node failure; large reads remain bounded and observable.
+- **Secure:** credentials use an external secret provider, egress stays allowlisted and DNS-pinned,
+  tenant boundaries are structural, and no source credential or source row appears in logs or
+  durable errors. The first-start instance bootstrap token remains the documented one-time operator
+  log exception unless it is injected through `Lakehold__BootstrapToken`.
+
+P1a is met in source and shipped in v1.3.0. It closes when post-release migration and a real
+connector refresh are proven in a deployed environment.
+
+### P1b — governance and consumption
+
+Each depends on work that is currently unstarted, and none may be claimed early:
+
 - **Govern:** every managed asset has stable identity, owner, description, classification, contract,
   freshness, quality, audit, and navigable upstream/downstream lineage.
 - **Serve:** SQL, the versioned public API and all four supported SDKs, Power BI, and at least one
   open multi-engine path consume the same governed assets and authorization decisions.
 - **Operate:** operators inspect schedules, retries, leases, resource usage, alerts, and objectives
   without querying raw control-plane tables.
-- **Secure:** credentials use an external secret provider, egress stays allowlisted and DNS-pinned,
-  tenant boundaries are structural, and no source credential or source row appears in logs or
-  durable errors. The first-start instance bootstrap token remains the documented one-time operator
-  log exception unless it is injected through `Lakehold__BootstrapToken`.
 
 ## Next implementation
 
 The P1.4 server contract ships in v1.4.0 and its four source SDKs pass released-image authentication,
-query-streaming, tenant-isolation, and cancellation conformance. Continue in this order:
+query-streaming, tenant-isolation, and cancellation conformance.
+
+**Ordering question, recorded rather than settled.** The sequence below puts SDK registry publication
+first. The competing claim is the P1.6 Workbench connector administration experience: connectors are
+currently configurable only through the owner API, and this document names "lean data teams" as the
+audience — for whom a UI is the difference between adoption and a platform they cannot operate.
+Registry publication serves integrators who can already use the HTTP API. Publishing also freezes a
+public compatibility surface, and P1.3 governance is meant to land before asset and lineage models
+are frozen; today's SDKs avoid that collision only because they do not yet model assets. Whoever owns
+this decision should settle it explicitly instead of inheriting the order below.
+
+Continue in this order:
 
 ### Future SDK registry publication
 

@@ -12,6 +12,16 @@ smaller, private platform with open storage, explicit operations, and an exit pa
 > Searchable governance, end-to-end lineage, a semantic layer, mature BI compatibility, full SDK
 > convenience/conformance coverage, and a broad adapter ecosystem remain incomplete.
 
+> **Scale and workload boundary:** a query executes on one worker in one process. Additional API
+> and worker nodes serve other queries against the same PostgreSQL metadata and object storage, but
+> no single query scales past a node and there is no distributed execution. There is also no
+> admission control: `Lakehouse:MemoryLimit` and `Lakehouse:Threads` bound each session
+> individually and do not compose into a node-level guarantee, so concurrent sessions can
+> collectively exhaust a worker. Scheduled connector refreshes share that worker with interactive
+> queries. Size nodes for peak concurrency, and treat workload isolation between tenants as an
+> operational responsibility rather than a platform guarantee. Aggregate admission control is
+> tracked in [`PRODUCTION-READINESS-ROADMAP.md`](PRODUCTION-READINESS-ROADMAP.md).
+
 ## What an EDP does
 
 An Enterprise Data Platform normally brings six responsibilities together:

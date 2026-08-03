@@ -8,13 +8,22 @@ on:
         required: true
         default: 1.4.0
         type: string
+  # Manual-only evidence goes stale silently: nothing re-runs it when the server changes, so a
+  # green result records a past image rather than a standing guarantee. The weekly run keeps the
+  # roadmap's released-image conformance claim honest between releases.
+  schedule:
+    - cron: "0 5 * * 1"
 
 permissions:
   contents: read
   packages: read
 
+env:
+  # A scheduled run carries no inputs, so the tag falls back to the current released line.
+  RESOLVED_SERVER_IMAGE_TAG: ${{ inputs.server_image_tag || '1.4.0' }}
+
 concurrency:
-  group: sdk-conformance-${{ inputs.server_image_tag }}
+  group: sdk-conformance-${{ inputs.server_image_tag || '1.4.0' }}
   cancel-in-progress: false
 
 jobs:
@@ -34,7 +43,7 @@ jobs:
       - name: Start an isolated released server
         env:
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SERVER_IMAGE_TAG: ${{ inputs.server_image_tag }}
+          SERVER_IMAGE_TAG: ${{ env.RESOLVED_SERVER_IMAGE_TAG }}
         shell: bash
         run: |
           set -euo pipefail
