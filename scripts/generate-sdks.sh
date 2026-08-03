@@ -78,10 +78,12 @@ grep -Fq 'loggingInterceptor.redactHeader("Authorization");' "${temporary}/java/
 grep -Fq 'loggingInterceptor.setLevel(Level.HEADERS);' "${temporary}/java/src/main/java/io/lakehold/sdk/ApiClient.java"
 grep -Fq 'token: <redacted>' "${temporary}/java/src/main/java/io/lakehold/sdk/model/CreatedTokenDto.java"
 grep -Fq 'Token: <redacted>' "${temporary}/dotnet/src/Lakehold.Sdk/Model/CreatedTokenDto.cs"
-dotnet_default_catches="$(rg -U -o 'catch \(Exception\)\n\s*\{\n\s*return null;' \
-    "${temporary}/dotnet/src/Lakehold.Sdk/Api" | rg -c 'catch \(Exception\)' | tr -d ' ')"
-dotnet_cancellation_catches="$(rg -o 'catch \(OperationCanceledException\)' \
-    "${temporary}/dotnet/src/Lakehold.Sdk/Api" | wc -l | tr -d ' ')"
+dotnet_default_catches="$(perl -0ne \
+    '$count += () = /catch \(Exception\)\s*\{\s*return null;/g; END { print $count // 0 }' \
+    "${temporary}/dotnet/src/Lakehold.Sdk/Api/"*.cs)"
+dotnet_cancellation_catches="$(perl -0ne \
+    '$count += () = /catch \(OperationCanceledException\)/g; END { print $count // 0 }' \
+    "${temporary}/dotnet/src/Lakehold.Sdk/Api/"*.cs)"
 if [[ "${dotnet_default_catches}" == "0" \
     || "${dotnet_default_catches}" != "${dotnet_cancellation_catches}" ]]; then
     printf 'Generated .NET SDK still swallows caller cancellation in an OrDefault helper.\n' >&2
