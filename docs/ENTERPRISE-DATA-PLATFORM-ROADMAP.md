@@ -273,18 +273,7 @@ Each depends on work that is currently unstarted, and none may be claimed early:
 ## Next implementation
 
 The P1.4 server contract ships in v1.4.0 and its four source SDKs pass released-image authentication,
-query-streaming, tenant-isolation, and cancellation conformance.
-
-**Ordering question, recorded rather than settled.** The sequence below puts SDK registry publication
-first. The competing claim is the P1.6 Workbench connector administration experience: connectors are
-currently configurable only through the owner API, and this document names "lean data teams" as the
-audience — for whom a UI is the difference between adoption and a platform they cannot operate.
-Registry publication serves integrators who can already use the HTTP API. Publishing also freezes a
-public compatibility surface, and P1.3 governance is meant to land before asset and lineage models
-are frozen; today's SDKs avoid that collision only because they do not yet model assets. Whoever owns
-this decision should settle it explicitly instead of inheriting the order below.
-
-Continue in this order:
+query-streaming, tenant-isolation, and cancellation conformance. Continue in this order:
 
 ### Future SDK registry publication
 
