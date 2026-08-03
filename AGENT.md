@@ -54,10 +54,6 @@ integration.
   `Lakehold:Auth:RequireAuthentication` still defaults to **false**, so a token-less request falls
   back to trusting the route until an operator turns it on. Read it before adding any surface that
   resolves a tenant.
-- `docs/IDENTITY-PROVIDER-SETUP.md`: the operational companion to the above — how a human actually
-  signs in, and how to put Keycloak or another provider behind the Workbench. Covers the bootstrap
-  token, first-workspace provisioning, the claim mappers LakeHold reads (`tenant`, `role`,
-  system-admin), and why an empty `Lakehold:Oidc:Audience` accepts every token that issuer minted.
 - `docs/PUBLIC-API.md`: the phased spec for the public HTTP control API and first-party Java, Go,
   .NET, and Python SDKs — time travel and the whole lakehouse. Builds on `docs/AUTHENTICATION.md`
   (auth is its gate); the cross-cutting API conventions (versioning, `problem+json`, pagination,
