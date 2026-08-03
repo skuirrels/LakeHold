@@ -28,12 +28,31 @@ public sealed class BrowserAuthenticationEndpointsTests
                 ("name", "Ada Administrator"),
                 ("groups", "lakehold-administrators"),
                 ("unrelated-secret-claim", "must-not-leave")),
-            options);
+            options,
+            Options.Create(new LakeholdAuthOptions { RequireAuthentication = true }));
 
         Assert.True(session.OidcEnabled);
         Assert.True(session.Authenticated);
         Assert.True(session.SystemAdmin);
         Assert.Equal("Ada Administrator", session.DisplayName);
+        Assert.True(session.RequiresAuthentication);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void Session_reports_whether_the_node_requires_a_credential(bool required)
+    {
+        // The Workbench decides from this whether to describe the node as gated. Reporting it
+        // wrongly would have it advertise a check that is not running, or hide one that is.
+        var session = BrowserAuthenticationEndpoints.Session(
+            new ClaimsPrincipal(new ClaimsIdentity()),
+            Options.Create(new LakeholdOidcOptions()),
+            Options.Create(new LakeholdAuthOptions { RequireAuthentication = required }));
+
+        Assert.Equal(required, session.RequiresAuthentication);
+        Assert.False(session.OidcEnabled);
+        Assert.False(session.Authenticated);
     }
 
     [Theory]

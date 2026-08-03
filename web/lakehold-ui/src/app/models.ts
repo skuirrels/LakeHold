@@ -26,6 +26,8 @@ export interface BrowserSession {
   authenticated: boolean;
   displayName: string | null;
   systemAdmin: boolean;
+  /** Whether the node refuses credential-less requests. False means a token is optional here. */
+  requiresAuthentication: boolean;
 }
 
 /** Instance-wide MCP settings, versioned for optimistic saves. */

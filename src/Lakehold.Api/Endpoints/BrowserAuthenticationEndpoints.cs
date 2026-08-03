@@ -26,7 +26,8 @@ public static class BrowserAuthenticationEndpoints
 
     internal static BrowserSessionDto Session(
         ClaimsPrincipal user,
-        IOptions<LakeholdOidcOptions> configured)
+        IOptions<LakeholdOidcOptions> configured,
+        IOptions<LakeholdAuthOptions> auth)
     {
         var options = configured.Value;
         var principal = OidcPrincipal.TryResolve(user, options);
@@ -34,7 +35,8 @@ public static class BrowserAuthenticationEndpoints
             options.BrowserLoginEnabled,
             principal is not null,
             principal is null ? null : DisplayName(user),
-            principal?.Scope == Lakehold.ControlPlane.Model.TokenScope.Instance);
+            principal?.Scope == Lakehold.ControlPlane.Model.TokenScope.Instance,
+            auth.Value.RequireAuthentication);
     }
 
     internal static IResult Login(string? returnUrl, IOptions<LakeholdOidcOptions> configured)

@@ -98,6 +98,7 @@ describe('WorkbenchComponent', () => {
       authenticated: true,
       displayName: 'Ada Administrator',
       systemAdmin: true,
+      requiresAuthentication: true,
     };
     api.access = {
       mode: 'authenticated',
@@ -366,7 +367,9 @@ describe('WorkbenchComponent', () => {
       await mount();
 
       expect(text()).toContain('You’re exploring a live LakeHold demo');
-      expect(text()).toContain('Operator sign in');
+      // The escape hatch from the demo is a pasted operator token, so it is labelled as one. It was
+      // "Operator sign in", which described a login the demo has no way to perform.
+      expect(text()).toContain('Operator token');
       expect(fixture.nativeElement.querySelector('.maintenance')).toBeNull();
       expect(fixture.nativeElement.querySelector('[aria-label="SQL editor"]')).not.toBeNull();
 
@@ -779,6 +782,71 @@ describe('WorkbenchComponent', () => {
       // The panel takes the catalog as an input and reloads itself — there is no per-panel state for
       // the workbench to remember to clear.
       expect(api.lastArgs('getStorage')).toEqual(['demo', 'archive']);
+    });
+  });
+
+  describe('credential affordance', () => {
+    it('never calls the token box a sign-in, and says so when the node is open', async () => {
+      api.browserSession = {
+        oidcEnabled: false,
+        authenticated: false,
+        displayName: null,
+        systemAdmin: false,
+        requiresAuthentication: false,
+      };
+
+      await mount();
+
+      const control = fixture.nativeElement.querySelector('.credential button') as HTMLButtonElement;
+      // "Sign in" promises an account. This control takes a machine token and there is no identity
+      // provider configured, so calling it a sign-in describes something the node cannot do.
+      expect(control.textContent?.trim()).toBe('API token');
+      expect(fixture.nativeElement.textContent).not.toContain('Sign in');
+
+      control.click();
+      await fixture.whenStable();
+
+      // The node is answering every request without a check. Saying nothing would leave an operator
+      // believing the gate in front of them is closed.
+      expect(fixture.nativeElement.textContent).toContain('does not require a credential');
+    });
+
+    it('offers a real sign-in only when an identity provider is configured', async () => {
+      api.browserSession = {
+        oidcEnabled: true,
+        authenticated: false,
+        displayName: null,
+        systemAdmin: false,
+        requiresAuthentication: true,
+      };
+
+      await mount();
+
+      const login = fixture.nativeElement.querySelector('a[href^="/auth/login"]') as HTMLAnchorElement;
+      expect(login).toBeTruthy();
+      expect(login.textContent?.trim()).toBe('Sign in');
+
+      // The token box stays available beside it, still labelled for what it is.
+      const control = fixture.nativeElement.querySelector('.credential button') as HTMLButtonElement;
+      expect(control.textContent?.trim()).toBe('API token');
+    });
+
+    it('points at the bootstrap token when the node is gated and holds no credential', async () => {
+      api.browserSession = {
+        oidcEnabled: false,
+        authenticated: false,
+        displayName: null,
+        systemAdmin: false,
+        requiresAuthentication: true,
+      };
+
+      await mount();
+
+      (fixture.nativeElement.querySelector('.credential button') as HTMLButtonElement).click();
+      await fixture.whenStable();
+
+      expect(fixture.nativeElement.textContent).toContain('lkh_admin_');
+      expect(fixture.nativeElement.textContent).not.toContain('does not require a credential');
     });
   });
 });

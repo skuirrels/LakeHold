@@ -121,11 +121,21 @@ public sealed record TenantDto(string Slug, string DisplayName, IReadOnlyList<Ca
 public sealed record AccessDto(string Mode, string Role, bool ReadOnly, bool SystemAdmin);
 
 /// <summary>Non-secret state used by the Workbench to offer the configured sign-in method.</summary>
+/// <param name="OidcEnabled">Whether a browser sign-in flow is configured and can be offered.</param>
+/// <param name="Authenticated">Whether this browser holds a signed-in session.</param>
+/// <param name="DisplayName">Who is signed in, when anyone is.</param>
+/// <param name="SystemAdmin">Whether that identity administers the instance.</param>
+/// <param name="RequiresAuthentication">
+///     Whether this deployment refuses credential-less requests. The Workbench needs it to describe
+///     the node truthfully: with authentication off, a credential is optional and offering "Sign in"
+///     as the primary action invents a ritual around a check that is not running.
+/// </param>
 public sealed record BrowserSessionDto(
     bool OidcEnabled,
     bool Authenticated,
     string? DisplayName,
-    bool SystemAdmin);
+    bool SystemAdmin,
+    bool RequiresAuthentication);
 
 /// <summary>Instance-wide settings currently effective for MCP requests.</summary>
 public sealed record SystemSettingsDto(
