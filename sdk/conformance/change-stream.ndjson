@@ -1,0 +1,4 @@
+{"type":"stream","fromSnapshot":10,"toSnapshot":12}
+{"type":"change","snapshotId":11,"changeType":"insert","row":{"id":1}}
+{"type":"change","snapshotId":12,"changeType":"update_postimage","row":{"id":1}}
+{"type":"complete","changeCount":2,"toSnapshot":12}

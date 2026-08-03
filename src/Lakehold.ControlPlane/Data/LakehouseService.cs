@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Globalization;
 using Microsoft.EntityFrameworkCore;
 using Lakehold.ControlPlane.Model;
 using Lakehold.Engine.Catalog;
@@ -592,6 +593,71 @@ public sealed class LakehouseService(
     {
         var (duckling, _) = await ResolveAsync(tenantSlug, catalogName, cancellationToken).ConfigureAwait(false);
         return await LakehouseMaintenance.ListSnapshotsAsync(duckling, limit, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>Returns one stable keyset window of retained snapshots.</summary>
+    public async Task<IReadOnlyList<SnapshotInfo>> GetSnapshotsAsync(
+        string tenantSlug,
+        string catalogName,
+        int limit,
+        long? upperSnapshotInclusive,
+        long? beforeSnapshotExclusive,
+        DateTimeOffset? committedFromInclusive,
+        DateTimeOffset? committedToInclusive,
+        CancellationToken cancellationToken)
+    {
+        var (duckling, _) = await ResolveAsync(tenantSlug, catalogName, cancellationToken).ConfigureAwait(false);
+        return await LakehouseMaintenance
+            .ListSnapshotsAsync(
+                duckling,
+                limit,
+                upperSnapshotInclusive,
+                beforeSnapshotExclusive,
+                committedFromInclusive,
+                committedToInclusive,
+                cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    /// <summary>
+    ///     Reads a bounded table preview at an exact retained snapshot. The relation is constructed
+    ///     from quoted identifiers and a numeric version; caller SQL never enters this path.
+    /// </summary>
+    public async Task<QueryResult> ReadTableAtSnapshotAsync(
+        string tenantSlug,
+        string catalogName,
+        string schema,
+        string table,
+        long snapshotId,
+        int limit,
+        CancellationToken cancellationToken,
+        int? tokenId = null)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(schema);
+        ArgumentException.ThrowIfNullOrWhiteSpace(table);
+        ArgumentOutOfRangeException.ThrowIfNegative(snapshotId);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(limit);
+
+        var relation = $"{SqlIdentifier.QuoteName(schema)}.{SqlIdentifier.QuoteName(table)}";
+        var readLimit = checked(limit + 1);
+        var sql = $"SELECT * FROM {relation} AT (VERSION => {snapshotId.ToString(CultureInfo.InvariantCulture)}) "
+                  + $"LIMIT {readLimit.ToString(CultureInfo.InvariantCulture)}";
+        var result = await ExecuteAsync(
+                tenantSlug,
+                catalogName,
+                sql,
+                cancellationToken,
+                readOnly: true,
+                tokenId)
+            .ConfigureAwait(false);
+        return new QueryResult
+        {
+            Columns = result.Columns,
+            Rows = result.Rows.Take(limit).ToArray(),
+            Truncated = result.Truncated || result.Rows.Count > limit,
+            RowsAffected = result.RowsAffected,
+            Elapsed = result.Elapsed,
+        };
     }
 
     /// <summary>

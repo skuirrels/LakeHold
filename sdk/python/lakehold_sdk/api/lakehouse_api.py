@@ -16,6 +16,7 @@ from pydantic import validate_call, Field, StrictFloat, StrictStr, StrictInt
 from typing import Any, Dict, List, Optional, Tuple, Union
 from typing_extensions import Annotated
 
+from datetime import datetime
 from pydantic import Field, StrictBool, StrictInt, StrictStr, field_validator
 from typing import List, Optional
 from typing_extensions import Annotated
@@ -61,6 +62,7 @@ from lakehold_sdk.models.restore_request import RestoreRequest
 from lakehold_sdk.models.restore_table_request import RestoreTableRequest
 from lakehold_sdk.models.saved_query_dto import SavedQueryDto
 from lakehold_sdk.models.schema_dto import SchemaDto
+from lakehold_sdk.models.snapshot_dto import SnapshotDto
 from lakehold_sdk.models.subscription_dto import SubscriptionDto
 from lakehold_sdk.models.table_detail_dto import TableDetailDto
 from lakehold_sdk.models.table_files_dto import TableFilesDto
@@ -1672,9 +1674,9 @@ class LakehouseApi:
             _path_params['id'] = id
         # process the query parameters
         if revision is not None:
-            
+
             _query_params.append(('revision', revision))
-            
+
         # process the header parameters
         # process the form parameters
         # process the body parameter
@@ -2614,7 +2616,7 @@ class LakehouseApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json', 
+                    'application/problem+json',
                     'application/json'
                 ]
             )
@@ -2918,13 +2920,13 @@ class LakehouseApi:
         # process the path parameters
         # process the query parameters
         if limit is not None:
-            
+
             _query_params.append(('limit', limit))
-            
+
         if cursor is not None:
-            
+
             _query_params.append(('cursor', cursor))
-            
+
         # process the header parameters
         # process the form parameters
         # process the body parameter
@@ -2934,7 +2936,7 @@ class LakehouseApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json', 
+                    'application/problem+json',
                     'application/json'
                 ]
             )
@@ -3220,7 +3222,7 @@ class LakehouseApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json', 
+                    'application/problem+json',
                     'application/json'
                 ]
             )
@@ -3524,13 +3526,13 @@ class LakehouseApi:
         # process the path parameters
         # process the query parameters
         if limit is not None:
-            
+
             _query_params.append(('limit', limit))
-            
+
         if cursor is not None:
-            
+
             _query_params.append(('cursor', cursor))
-            
+
         # process the header parameters
         # process the form parameters
         # process the body parameter
@@ -3540,7 +3542,7 @@ class LakehouseApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json', 
+                    'application/problem+json',
                     'application/json'
                 ]
             )
@@ -3874,13 +3876,13 @@ class LakehouseApi:
             _path_params['catalogName'] = catalog_name
         # process the query parameters
         if limit is not None:
-            
+
             _query_params.append(('limit', limit))
-            
+
         if cursor is not None:
-            
+
             _query_params.append(('cursor', cursor))
-            
+
         # process the header parameters
         # process the form parameters
         # process the body parameter
@@ -3890,7 +3892,7 @@ class LakehouseApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json', 
+                    'application/problem+json',
                     'application/json'
                 ]
             )
@@ -4224,13 +4226,13 @@ class LakehouseApi:
             _path_params['catalogName'] = catalog_name
         # process the query parameters
         if limit is not None:
-            
+
             _query_params.append(('limit', limit))
-            
+
         if cursor is not None:
-            
+
             _query_params.append(('cursor', cursor))
-            
+
         # process the header parameters
         # process the form parameters
         # process the body parameter
@@ -4240,7 +4242,7 @@ class LakehouseApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json', 
+                    'application/problem+json',
                     'application/json'
                 ]
             )
@@ -4615,21 +4617,21 @@ class LakehouseApi:
             _path_params['snapshot'] = snapshot
         # process the query parameters
         if table is not None:
-            
+
             _query_params.append(('table', table))
-            
+
         if var_schema is not None:
-            
+
             _query_params.append(('schema', var_schema))
-            
+
         if limit is not None:
-            
+
             _query_params.append(('limit', limit))
-            
+
         if cursor is not None:
-            
+
             _query_params.append(('cursor', cursor))
-            
+
         # process the header parameters
         # process the form parameters
         # process the body parameter
@@ -4639,7 +4641,7 @@ class LakehouseApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json', 
+                    'application/problem+json',
                     'application/json'
                 ]
             )
@@ -5025,29 +5027,29 @@ class LakehouseApi:
             _path_params['catalogName'] = catalog_name
         # process the query parameters
         if table is not None:
-            
+
             _query_params.append(('table', table))
-            
+
         if from_snapshot is not None:
-            
+
             _query_params.append(('fromSnapshot', from_snapshot))
-            
+
         if var_schema is not None:
-            
+
             _query_params.append(('schema', var_schema))
-            
+
         if to_snapshot is not None:
-            
+
             _query_params.append(('toSnapshot', to_snapshot))
-            
+
         if limit is not None:
-            
+
             _query_params.append(('limit', limit))
-            
+
         if cursor is not None:
-            
+
             _query_params.append(('cursor', cursor))
-            
+
         # process the header parameters
         # process the form parameters
         # process the body parameter
@@ -5057,7 +5059,7 @@ class LakehouseApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json', 
+                    'application/problem+json',
                     'application/json'
                 ]
             )
@@ -5430,25 +5432,25 @@ class LakehouseApi:
             _path_params['catalogName'] = catalog_name
         # process the query parameters
         if table is not None:
-            
+
             _query_params.append(('table', table))
-            
+
         if column is not None:
-            
+
             _query_params.append(('column', column))
-            
+
         if var_schema is not None:
-            
+
             _query_params.append(('schema', var_schema))
-            
+
         if snapshot is not None:
-            
+
             _query_params.append(('snapshot', snapshot))
-            
+
         if limit is not None:
-            
+
             _query_params.append(('limit', limit))
-            
+
         # process the header parameters
         # process the form parameters
         # process the body parameter
@@ -5458,7 +5460,7 @@ class LakehouseApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json', 
+                    'application/problem+json',
                     'application/json'
                 ]
             )
@@ -5792,13 +5794,13 @@ class LakehouseApi:
             _path_params['catalogName'] = catalog_name
         # process the query parameters
         if limit is not None:
-            
+
             _query_params.append(('limit', limit))
-            
+
         if cursor is not None:
-            
+
             _query_params.append(('cursor', cursor))
-            
+
         # process the header parameters
         # process the form parameters
         # process the body parameter
@@ -5808,7 +5810,7 @@ class LakehouseApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json', 
+                    'application/problem+json',
                     'application/json'
                 ]
             )
@@ -6139,7 +6141,7 @@ class LakehouseApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json', 
+                    'application/problem+json',
                     'application/json'
                 ]
             )
@@ -6488,13 +6490,13 @@ class LakehouseApi:
             _path_params['id'] = id
         # process the query parameters
         if limit is not None:
-            
+
             _query_params.append(('limit', limit))
-            
+
         if cursor is not None:
-            
+
             _query_params.append(('cursor', cursor))
-            
+
         # process the header parameters
         # process the form parameters
         # process the body parameter
@@ -6504,7 +6506,7 @@ class LakehouseApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json', 
+                    'application/problem+json',
                     'application/json'
                 ]
             )
@@ -6853,13 +6855,13 @@ class LakehouseApi:
             _path_params['id'] = id
         # process the query parameters
         if limit is not None:
-            
+
             _query_params.append(('limit', limit))
-            
+
         if cursor is not None:
-            
+
             _query_params.append(('cursor', cursor))
-            
+
         # process the header parameters
         # process the form parameters
         # process the body parameter
@@ -6869,7 +6871,7 @@ class LakehouseApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json', 
+                    'application/problem+json',
                     'application/json'
                 ]
             )
@@ -7203,13 +7205,13 @@ class LakehouseApi:
             _path_params['catalogName'] = catalog_name
         # process the query parameters
         if limit is not None:
-            
+
             _query_params.append(('limit', limit))
-            
+
         if cursor is not None:
-            
+
             _query_params.append(('cursor', cursor))
-            
+
         # process the header parameters
         # process the form parameters
         # process the body parameter
@@ -7219,7 +7221,7 @@ class LakehouseApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json', 
+                    'application/problem+json',
                     'application/json'
                 ]
             )
@@ -7550,7 +7552,7 @@ class LakehouseApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json', 
+                    'application/problem+json',
                     'application/json'
                 ]
             )
@@ -7884,13 +7886,13 @@ class LakehouseApi:
             _path_params['catalogName'] = catalog_name
         # process the query parameters
         if limit is not None:
-            
+
             _query_params.append(('limit', limit))
-            
+
         if cursor is not None:
-            
+
             _query_params.append(('cursor', cursor))
-            
+
         # process the header parameters
         # process the form parameters
         # process the body parameter
@@ -7900,7 +7902,7 @@ class LakehouseApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json', 
+                    'application/problem+json',
                     'application/json'
                 ]
             )
@@ -8231,7 +8233,7 @@ class LakehouseApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json', 
+                    'application/problem+json',
                     'application/json'
                 ]
             )
@@ -8547,7 +8549,7 @@ class LakehouseApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json', 
+                    'application/problem+json',
                     'application/json'
                 ]
             )
@@ -8582,7 +8584,9 @@ class LakehouseApi:
         tenant_slug: StrictStr,
         catalog_name: StrictStr,
         limit: Annotated[Optional[Annotated[int, Field(le=500, strict=True, ge=1)]], Field(description="Maximum items to return (1-500, default 100).")] = None,
-        cursor: Annotated[Optional[StrictStr], Field(description="Opaque nextCursor from the preceding response; repeat the same query parameters.")] = None,
+        cursor: Optional[StrictStr] = None,
+        committed_from: Optional[datetime] = None,
+        committed_to: Optional[datetime] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -8596,7 +8600,7 @@ class LakehouseApi:
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> CursorPageOfSnapshotDto:
-        """Returns the catalog's snapshot history for time travel.
+        """Returns a stable keyset page of snapshot history for time travel.
 
 
         :param tenant_slug: (required)
@@ -8605,8 +8609,12 @@ class LakehouseApi:
         :type catalog_name: str
         :param limit: Maximum items to return (1-500, default 100).
         :type limit: int
-        :param cursor: Opaque nextCursor from the preceding response; repeat the same query parameters.
+        :param cursor:
         :type cursor: str
+        :param committed_from:
+        :type committed_from: datetime
+        :param committed_to:
+        :type committed_to: datetime
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -8634,6 +8642,8 @@ class LakehouseApi:
             catalog_name=catalog_name,
             limit=limit,
             cursor=cursor,
+            committed_from=committed_from,
+            committed_to=committed_to,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -8674,7 +8684,9 @@ class LakehouseApi:
         tenant_slug: StrictStr,
         catalog_name: StrictStr,
         limit: Annotated[Optional[Annotated[int, Field(le=500, strict=True, ge=1)]], Field(description="Maximum items to return (1-500, default 100).")] = None,
-        cursor: Annotated[Optional[StrictStr], Field(description="Opaque nextCursor from the preceding response; repeat the same query parameters.")] = None,
+        cursor: Optional[StrictStr] = None,
+        committed_from: Optional[datetime] = None,
+        committed_to: Optional[datetime] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -8688,7 +8700,7 @@ class LakehouseApi:
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> ApiResponse[CursorPageOfSnapshotDto]:
-        """Returns the catalog's snapshot history for time travel.
+        """Returns a stable keyset page of snapshot history for time travel.
 
 
         :param tenant_slug: (required)
@@ -8697,8 +8709,12 @@ class LakehouseApi:
         :type catalog_name: str
         :param limit: Maximum items to return (1-500, default 100).
         :type limit: int
-        :param cursor: Opaque nextCursor from the preceding response; repeat the same query parameters.
+        :param cursor:
         :type cursor: str
+        :param committed_from:
+        :type committed_from: datetime
+        :param committed_to:
+        :type committed_to: datetime
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -8726,6 +8742,8 @@ class LakehouseApi:
             catalog_name=catalog_name,
             limit=limit,
             cursor=cursor,
+            committed_from=committed_from,
+            committed_to=committed_to,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -8766,7 +8784,9 @@ class LakehouseApi:
         tenant_slug: StrictStr,
         catalog_name: StrictStr,
         limit: Annotated[Optional[Annotated[int, Field(le=500, strict=True, ge=1)]], Field(description="Maximum items to return (1-500, default 100).")] = None,
-        cursor: Annotated[Optional[StrictStr], Field(description="Opaque nextCursor from the preceding response; repeat the same query parameters.")] = None,
+        cursor: Optional[StrictStr] = None,
+        committed_from: Optional[datetime] = None,
+        committed_to: Optional[datetime] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -8780,7 +8800,7 @@ class LakehouseApi:
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> RESTResponseType:
-        """Returns the catalog's snapshot history for time travel.
+        """Returns a stable keyset page of snapshot history for time travel.
 
 
         :param tenant_slug: (required)
@@ -8789,8 +8809,12 @@ class LakehouseApi:
         :type catalog_name: str
         :param limit: Maximum items to return (1-500, default 100).
         :type limit: int
-        :param cursor: Opaque nextCursor from the preceding response; repeat the same query parameters.
+        :param cursor:
         :type cursor: str
+        :param committed_from:
+        :type committed_from: datetime
+        :param committed_to:
+        :type committed_to: datetime
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -8818,6 +8842,8 @@ class LakehouseApi:
             catalog_name=catalog_name,
             limit=limit,
             cursor=cursor,
+            committed_from=committed_from,
+            committed_to=committed_to,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -8854,6 +8880,8 @@ class LakehouseApi:
         catalog_name,
         limit,
         cursor,
+        committed_from,
+        committed_to,
         _request_auth,
         _content_type,
         _headers,
@@ -8881,13 +8909,39 @@ class LakehouseApi:
             _path_params['catalogName'] = catalog_name
         # process the query parameters
         if limit is not None:
-            
+
             _query_params.append(('limit', limit))
-            
+
         if cursor is not None:
-            
+
             _query_params.append(('cursor', cursor))
-            
+
+        if committed_from is not None:
+            if isinstance(committed_from, datetime):
+                _query_params.append(
+                    (
+                        'committedFrom',
+                        committed_from.strftime(
+                            self.api_client.configuration.datetime_format
+                        )
+                    )
+                )
+            else:
+                _query_params.append(('committedFrom', committed_from))
+
+        if committed_to is not None:
+            if isinstance(committed_to, datetime):
+                _query_params.append(
+                    (
+                        'committedTo',
+                        committed_to.strftime(
+                            self.api_client.configuration.datetime_format
+                        )
+                    )
+                )
+            else:
+                _query_params.append(('committedTo', committed_to))
+
         # process the header parameters
         # process the form parameters
         # process the body parameter
@@ -8897,7 +8951,7 @@ class LakehouseApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json', 
+                    'application/problem+json',
                     'application/json'
                 ]
             )
@@ -9213,7 +9267,7 @@ class LakehouseApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json', 
+                    'application/problem+json',
                     'application/json'
                 ]
             )
@@ -9573,21 +9627,21 @@ class LakehouseApi:
             _path_params['catalogName'] = catalog_name
         # process the query parameters
         if table is not None:
-            
+
             _query_params.append(('table', table))
-            
+
         if var_schema is not None:
-            
+
             _query_params.append(('schema', var_schema))
-            
+
         if snapshot is not None:
-            
+
             _query_params.append(('snapshot', snapshot))
-            
+
         if limit is not None:
-            
+
             _query_params.append(('limit', limit))
-            
+
         # process the header parameters
         # process the form parameters
         # process the body parameter
@@ -9597,7 +9651,7 @@ class LakehouseApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json', 
+                    'application/problem+json',
                     'application/json'
                 ]
             )
@@ -9931,13 +9985,13 @@ class LakehouseApi:
             _path_params['catalogName'] = catalog_name
         # process the query parameters
         if limit is not None:
-            
+
             _query_params.append(('limit', limit))
-            
+
         if cursor is not None:
-            
+
             _query_params.append(('cursor', cursor))
-            
+
         # process the header parameters
         # process the form parameters
         # process the body parameter
@@ -9947,7 +10001,7 @@ class LakehouseApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json', 
+                    'application/problem+json',
                     'application/json'
                 ]
             )
@@ -10281,13 +10335,13 @@ class LakehouseApi:
             _path_params['catalogName'] = catalog_name
         # process the query parameters
         if table is not None:
-            
+
             _query_params.append(('table', table))
-            
+
         if var_schema is not None:
-            
+
             _query_params.append(('schema', var_schema))
-            
+
         # process the header parameters
         # process the form parameters
         # process the body parameter
@@ -10297,7 +10351,7 @@ class LakehouseApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json', 
+                    'application/problem+json',
                     'application/json'
                 ]
             )
@@ -10644,17 +10698,17 @@ class LakehouseApi:
             _path_params['catalogName'] = catalog_name
         # process the query parameters
         if table is not None:
-            
+
             _query_params.append(('table', table))
-            
+
         if var_schema is not None:
-            
+
             _query_params.append(('schema', var_schema))
-            
+
         if snapshot is not None:
-            
+
             _query_params.append(('snapshot', snapshot))
-            
+
         # process the header parameters
         # process the form parameters
         # process the body parameter
@@ -10664,7 +10718,7 @@ class LakehouseApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json', 
+                    'application/problem+json',
                     'application/json'
                 ]
             )
@@ -10983,13 +11037,13 @@ class LakehouseApi:
             _path_params['tenantSlug'] = tenant_slug
         # process the query parameters
         if limit is not None:
-            
+
             _query_params.append(('limit', limit))
-            
+
         if cursor is not None:
-            
+
             _query_params.append(('cursor', cursor))
-            
+
         # process the header parameters
         # process the form parameters
         # process the body parameter
@@ -10999,7 +11053,7 @@ class LakehouseApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json', 
+                    'application/problem+json',
                     'application/json'
                 ]
             )
@@ -11318,13 +11372,13 @@ class LakehouseApi:
             _path_params['tenantSlug'] = tenant_slug
         # process the query parameters
         if limit is not None:
-            
+
             _query_params.append(('limit', limit))
-            
+
         if cursor is not None:
-            
+
             _query_params.append(('cursor', cursor))
-            
+
         # process the header parameters
         # process the form parameters
         # process the body parameter
@@ -11334,7 +11388,7 @@ class LakehouseApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json', 
+                    'application/problem+json',
                     'application/json'
                 ]
             )
@@ -11348,6 +11402,719 @@ class LakehouseApi:
         return self.api_client.param_serialize(
             method='GET',
             resource_path='/api/v1/tenants/{tenantSlug}/tokens',
+            path_params=_path_params,
+            query_params=_query_params,
+            header_params=_header_params,
+            body=_body_params,
+            post_params=_form_params,
+            files=_files,
+            auth_settings=_auth_settings,
+            collection_formats=_collection_formats,
+            _host=_host,
+            _request_auth=_request_auth
+        )
+
+
+
+
+    @validate_call
+    def get_snapshot(
+        self,
+        tenant_slug: StrictStr,
+        catalog_name: StrictStr,
+        snapshot_id: StrictInt,
+        _request_timeout: Union[
+            None,
+            Annotated[StrictFloat, Field(gt=0)],
+            Tuple[
+                Annotated[StrictFloat, Field(gt=0)],
+                Annotated[StrictFloat, Field(gt=0)]
+            ]
+        ] = None,
+        _request_auth: Optional[Dict[StrictStr, Any]] = None,
+        _content_type: Optional[StrictStr] = None,
+        _headers: Optional[Dict[StrictStr, Any]] = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> SnapshotDto:
+        """Returns one retained snapshot by its source-native identifier.
+
+
+        :param tenant_slug: (required)
+        :type tenant_slug: str
+        :param catalog_name: (required)
+        :type catalog_name: str
+        :param snapshot_id: (required)
+        :type snapshot_id: int
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """ # noqa: E501
+
+        _param = self._get_snapshot_serialize(
+            tenant_slug=tenant_slug,
+            catalog_name=catalog_name,
+            snapshot_id=snapshot_id,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index
+        )
+
+        _response_types_map: Dict[str, Optional[str]] = {
+            '400': "PublicApiProblemDetails",
+            '401': "PublicApiProblemDetails",
+            '403': "PublicApiProblemDetails",
+            '404': "PublicApiProblemDetails",
+            '408': "PublicApiProblemDetails",
+            '409': "PublicApiProblemDetails",
+            '412': "PublicApiProblemDetails",
+            '413': "PublicApiProblemDetails",
+            '422': "PublicApiProblemDetails",
+            '429': "PublicApiProblemDetails",
+            '500': "PublicApiProblemDetails",
+            '502': "PublicApiProblemDetails",
+            '503': "PublicApiProblemDetails",
+            '504': "PublicApiProblemDetails",
+            '200': "SnapshotDto",
+        }
+        response_data = self.api_client.call_api(
+            *_param,
+            _request_timeout=_request_timeout
+        )
+        response_data.read()
+        return self.api_client.response_deserialize(
+            response_data=response_data,
+            response_types_map=_response_types_map,
+        ).data
+
+
+    @validate_call
+    def get_snapshot_with_http_info(
+        self,
+        tenant_slug: StrictStr,
+        catalog_name: StrictStr,
+        snapshot_id: StrictInt,
+        _request_timeout: Union[
+            None,
+            Annotated[StrictFloat, Field(gt=0)],
+            Tuple[
+                Annotated[StrictFloat, Field(gt=0)],
+                Annotated[StrictFloat, Field(gt=0)]
+            ]
+        ] = None,
+        _request_auth: Optional[Dict[StrictStr, Any]] = None,
+        _content_type: Optional[StrictStr] = None,
+        _headers: Optional[Dict[StrictStr, Any]] = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> ApiResponse[SnapshotDto]:
+        """Returns one retained snapshot by its source-native identifier.
+
+
+        :param tenant_slug: (required)
+        :type tenant_slug: str
+        :param catalog_name: (required)
+        :type catalog_name: str
+        :param snapshot_id: (required)
+        :type snapshot_id: int
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """ # noqa: E501
+
+        _param = self._get_snapshot_serialize(
+            tenant_slug=tenant_slug,
+            catalog_name=catalog_name,
+            snapshot_id=snapshot_id,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index
+        )
+
+        _response_types_map: Dict[str, Optional[str]] = {
+            '400': "PublicApiProblemDetails",
+            '401': "PublicApiProblemDetails",
+            '403': "PublicApiProblemDetails",
+            '404': "PublicApiProblemDetails",
+            '408': "PublicApiProblemDetails",
+            '409': "PublicApiProblemDetails",
+            '412': "PublicApiProblemDetails",
+            '413': "PublicApiProblemDetails",
+            '422': "PublicApiProblemDetails",
+            '429': "PublicApiProblemDetails",
+            '500': "PublicApiProblemDetails",
+            '502': "PublicApiProblemDetails",
+            '503': "PublicApiProblemDetails",
+            '504': "PublicApiProblemDetails",
+            '200': "SnapshotDto",
+        }
+        response_data = self.api_client.call_api(
+            *_param,
+            _request_timeout=_request_timeout
+        )
+        response_data.read()
+        return self.api_client.response_deserialize(
+            response_data=response_data,
+            response_types_map=_response_types_map,
+        )
+
+
+    @validate_call
+    def get_snapshot_without_preload_content(
+        self,
+        tenant_slug: StrictStr,
+        catalog_name: StrictStr,
+        snapshot_id: StrictInt,
+        _request_timeout: Union[
+            None,
+            Annotated[StrictFloat, Field(gt=0)],
+            Tuple[
+                Annotated[StrictFloat, Field(gt=0)],
+                Annotated[StrictFloat, Field(gt=0)]
+            ]
+        ] = None,
+        _request_auth: Optional[Dict[StrictStr, Any]] = None,
+        _content_type: Optional[StrictStr] = None,
+        _headers: Optional[Dict[StrictStr, Any]] = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> RESTResponseType:
+        """Returns one retained snapshot by its source-native identifier.
+
+
+        :param tenant_slug: (required)
+        :type tenant_slug: str
+        :param catalog_name: (required)
+        :type catalog_name: str
+        :param snapshot_id: (required)
+        :type snapshot_id: int
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """ # noqa: E501
+
+        _param = self._get_snapshot_serialize(
+            tenant_slug=tenant_slug,
+            catalog_name=catalog_name,
+            snapshot_id=snapshot_id,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index
+        )
+
+        _response_types_map: Dict[str, Optional[str]] = {
+            '400': "PublicApiProblemDetails",
+            '401': "PublicApiProblemDetails",
+            '403': "PublicApiProblemDetails",
+            '404': "PublicApiProblemDetails",
+            '408': "PublicApiProblemDetails",
+            '409': "PublicApiProblemDetails",
+            '412': "PublicApiProblemDetails",
+            '413': "PublicApiProblemDetails",
+            '422': "PublicApiProblemDetails",
+            '429': "PublicApiProblemDetails",
+            '500': "PublicApiProblemDetails",
+            '502': "PublicApiProblemDetails",
+            '503': "PublicApiProblemDetails",
+            '504': "PublicApiProblemDetails",
+            '200': "SnapshotDto",
+        }
+        response_data = self.api_client.call_api(
+            *_param,
+            _request_timeout=_request_timeout
+        )
+        return response_data.response
+
+
+    def _get_snapshot_serialize(
+        self,
+        tenant_slug,
+        catalog_name,
+        snapshot_id,
+        _request_auth,
+        _content_type,
+        _headers,
+        _host_index,
+    ) -> RequestSerialized:
+
+        _host = None
+
+        _collection_formats: Dict[str, str] = {
+        }
+
+        _path_params: Dict[str, str] = {}
+        _query_params: List[Tuple[str, str]] = []
+        _header_params: Dict[str, Optional[str]] = _headers or {}
+        _form_params: List[Tuple[str, str]] = []
+        _files: Dict[
+            str, Union[str, bytes, List[str], List[bytes], List[Tuple[str, bytes]]]
+        ] = {}
+        _body_params: Optional[bytes] = None
+
+        # process the path parameters
+        if tenant_slug is not None:
+            _path_params['tenantSlug'] = tenant_slug
+        if catalog_name is not None:
+            _path_params['catalogName'] = catalog_name
+        if snapshot_id is not None:
+            _path_params['snapshotId'] = snapshot_id
+        # process the query parameters
+        # process the header parameters
+        # process the form parameters
+        # process the body parameter
+
+
+        # set the HTTP header `Accept`
+        if 'Accept' not in _header_params:
+            _header_params['Accept'] = self.api_client.select_header_accept(
+                [
+                    'application/problem+json',
+                    'application/json'
+                ]
+            )
+
+
+        # authentication setting
+        _auth_settings: List[str] = [
+            'bearerAuth'
+        ]
+
+        return self.api_client.param_serialize(
+            method='GET',
+            resource_path='/api/v1/tenants/{tenantSlug}/catalogs/{catalogName}/snapshots/{snapshotId}',
+            path_params=_path_params,
+            query_params=_query_params,
+            header_params=_header_params,
+            body=_body_params,
+            post_params=_form_params,
+            files=_files,
+            auth_settings=_auth_settings,
+            collection_formats=_collection_formats,
+            _host=_host,
+            _request_auth=_request_auth
+        )
+
+
+
+
+    @validate_call
+    def get_snapshot_table(
+        self,
+        tenant_slug: StrictStr,
+        catalog_name: StrictStr,
+        snapshot_id: StrictInt,
+        table: StrictStr,
+        var_schema: Optional[StrictStr] = None,
+        limit: Optional[StrictInt] = None,
+        _request_timeout: Union[
+            None,
+            Annotated[StrictFloat, Field(gt=0)],
+            Tuple[
+                Annotated[StrictFloat, Field(gt=0)],
+                Annotated[StrictFloat, Field(gt=0)]
+            ]
+        ] = None,
+        _request_auth: Optional[Dict[StrictStr, Any]] = None,
+        _content_type: Optional[StrictStr] = None,
+        _headers: Optional[Dict[StrictStr, Any]] = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> QueryResponse:
+        """Returns a bounded table preview at an exact retained snapshot.
+
+
+        :param tenant_slug: (required)
+        :type tenant_slug: str
+        :param catalog_name: (required)
+        :type catalog_name: str
+        :param snapshot_id: (required)
+        :type snapshot_id: int
+        :param table: (required)
+        :type table: str
+        :param var_schema:
+        :type var_schema: str
+        :param limit:
+        :type limit: int
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """ # noqa: E501
+
+        _param = self._get_snapshot_table_serialize(
+            tenant_slug=tenant_slug,
+            catalog_name=catalog_name,
+            snapshot_id=snapshot_id,
+            table=table,
+            var_schema=var_schema,
+            limit=limit,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index
+        )
+
+        _response_types_map: Dict[str, Optional[str]] = {
+            '400': "PublicApiProblemDetails",
+            '401': "PublicApiProblemDetails",
+            '403': "PublicApiProblemDetails",
+            '404': "PublicApiProblemDetails",
+            '408': "PublicApiProblemDetails",
+            '409': "PublicApiProblemDetails",
+            '412': "PublicApiProblemDetails",
+            '413': "PublicApiProblemDetails",
+            '422': "PublicApiProblemDetails",
+            '429': "PublicApiProblemDetails",
+            '500': "PublicApiProblemDetails",
+            '502': "PublicApiProblemDetails",
+            '503': "PublicApiProblemDetails",
+            '504': "PublicApiProblemDetails",
+            '200': "QueryResponse",
+        }
+        response_data = self.api_client.call_api(
+            *_param,
+            _request_timeout=_request_timeout
+        )
+        response_data.read()
+        return self.api_client.response_deserialize(
+            response_data=response_data,
+            response_types_map=_response_types_map,
+        ).data
+
+
+    @validate_call
+    def get_snapshot_table_with_http_info(
+        self,
+        tenant_slug: StrictStr,
+        catalog_name: StrictStr,
+        snapshot_id: StrictInt,
+        table: StrictStr,
+        var_schema: Optional[StrictStr] = None,
+        limit: Optional[StrictInt] = None,
+        _request_timeout: Union[
+            None,
+            Annotated[StrictFloat, Field(gt=0)],
+            Tuple[
+                Annotated[StrictFloat, Field(gt=0)],
+                Annotated[StrictFloat, Field(gt=0)]
+            ]
+        ] = None,
+        _request_auth: Optional[Dict[StrictStr, Any]] = None,
+        _content_type: Optional[StrictStr] = None,
+        _headers: Optional[Dict[StrictStr, Any]] = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> ApiResponse[QueryResponse]:
+        """Returns a bounded table preview at an exact retained snapshot.
+
+
+        :param tenant_slug: (required)
+        :type tenant_slug: str
+        :param catalog_name: (required)
+        :type catalog_name: str
+        :param snapshot_id: (required)
+        :type snapshot_id: int
+        :param table: (required)
+        :type table: str
+        :param var_schema:
+        :type var_schema: str
+        :param limit:
+        :type limit: int
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """ # noqa: E501
+
+        _param = self._get_snapshot_table_serialize(
+            tenant_slug=tenant_slug,
+            catalog_name=catalog_name,
+            snapshot_id=snapshot_id,
+            table=table,
+            var_schema=var_schema,
+            limit=limit,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index
+        )
+
+        _response_types_map: Dict[str, Optional[str]] = {
+            '400': "PublicApiProblemDetails",
+            '401': "PublicApiProblemDetails",
+            '403': "PublicApiProblemDetails",
+            '404': "PublicApiProblemDetails",
+            '408': "PublicApiProblemDetails",
+            '409': "PublicApiProblemDetails",
+            '412': "PublicApiProblemDetails",
+            '413': "PublicApiProblemDetails",
+            '422': "PublicApiProblemDetails",
+            '429': "PublicApiProblemDetails",
+            '500': "PublicApiProblemDetails",
+            '502': "PublicApiProblemDetails",
+            '503': "PublicApiProblemDetails",
+            '504': "PublicApiProblemDetails",
+            '200': "QueryResponse",
+        }
+        response_data = self.api_client.call_api(
+            *_param,
+            _request_timeout=_request_timeout
+        )
+        response_data.read()
+        return self.api_client.response_deserialize(
+            response_data=response_data,
+            response_types_map=_response_types_map,
+        )
+
+
+    @validate_call
+    def get_snapshot_table_without_preload_content(
+        self,
+        tenant_slug: StrictStr,
+        catalog_name: StrictStr,
+        snapshot_id: StrictInt,
+        table: StrictStr,
+        var_schema: Optional[StrictStr] = None,
+        limit: Optional[StrictInt] = None,
+        _request_timeout: Union[
+            None,
+            Annotated[StrictFloat, Field(gt=0)],
+            Tuple[
+                Annotated[StrictFloat, Field(gt=0)],
+                Annotated[StrictFloat, Field(gt=0)]
+            ]
+        ] = None,
+        _request_auth: Optional[Dict[StrictStr, Any]] = None,
+        _content_type: Optional[StrictStr] = None,
+        _headers: Optional[Dict[StrictStr, Any]] = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> RESTResponseType:
+        """Returns a bounded table preview at an exact retained snapshot.
+
+
+        :param tenant_slug: (required)
+        :type tenant_slug: str
+        :param catalog_name: (required)
+        :type catalog_name: str
+        :param snapshot_id: (required)
+        :type snapshot_id: int
+        :param table: (required)
+        :type table: str
+        :param var_schema:
+        :type var_schema: str
+        :param limit:
+        :type limit: int
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """ # noqa: E501
+
+        _param = self._get_snapshot_table_serialize(
+            tenant_slug=tenant_slug,
+            catalog_name=catalog_name,
+            snapshot_id=snapshot_id,
+            table=table,
+            var_schema=var_schema,
+            limit=limit,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index
+        )
+
+        _response_types_map: Dict[str, Optional[str]] = {
+            '400': "PublicApiProblemDetails",
+            '401': "PublicApiProblemDetails",
+            '403': "PublicApiProblemDetails",
+            '404': "PublicApiProblemDetails",
+            '408': "PublicApiProblemDetails",
+            '409': "PublicApiProblemDetails",
+            '412': "PublicApiProblemDetails",
+            '413': "PublicApiProblemDetails",
+            '422': "PublicApiProblemDetails",
+            '429': "PublicApiProblemDetails",
+            '500': "PublicApiProblemDetails",
+            '502': "PublicApiProblemDetails",
+            '503': "PublicApiProblemDetails",
+            '504': "PublicApiProblemDetails",
+            '200': "QueryResponse",
+        }
+        response_data = self.api_client.call_api(
+            *_param,
+            _request_timeout=_request_timeout
+        )
+        return response_data.response
+
+
+    def _get_snapshot_table_serialize(
+        self,
+        tenant_slug,
+        catalog_name,
+        snapshot_id,
+        table,
+        var_schema,
+        limit,
+        _request_auth,
+        _content_type,
+        _headers,
+        _host_index,
+    ) -> RequestSerialized:
+
+        _host = None
+
+        _collection_formats: Dict[str, str] = {
+        }
+
+        _path_params: Dict[str, str] = {}
+        _query_params: List[Tuple[str, str]] = []
+        _header_params: Dict[str, Optional[str]] = _headers or {}
+        _form_params: List[Tuple[str, str]] = []
+        _files: Dict[
+            str, Union[str, bytes, List[str], List[bytes], List[Tuple[str, bytes]]]
+        ] = {}
+        _body_params: Optional[bytes] = None
+
+        # process the path parameters
+        if tenant_slug is not None:
+            _path_params['tenantSlug'] = tenant_slug
+        if catalog_name is not None:
+            _path_params['catalogName'] = catalog_name
+        if snapshot_id is not None:
+            _path_params['snapshotId'] = snapshot_id
+        # process the query parameters
+        if table is not None:
+
+            _query_params.append(('table', table))
+
+        if var_schema is not None:
+
+            _query_params.append(('schema', var_schema))
+
+        if limit is not None:
+
+            _query_params.append(('limit', limit))
+
+        # process the header parameters
+        # process the form parameters
+        # process the body parameter
+
+
+        # set the HTTP header `Accept`
+        if 'Accept' not in _header_params:
+            _header_params['Accept'] = self.api_client.select_header_accept(
+                [
+                    'application/problem+json',
+                    'application/json'
+                ]
+            )
+
+
+        # authentication setting
+        _auth_settings: List[str] = [
+            'bearerAuth'
+        ]
+
+        return self.api_client.param_serialize(
+            method='GET',
+            resource_path='/api/v1/tenants/{tenantSlug}/catalogs/{catalogName}/snapshots/{snapshotId}/table',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,
@@ -11650,7 +12417,7 @@ class LakehouseApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json', 
+                    'application/problem+json',
                     'application/json'
                 ]
             )
@@ -11994,7 +12761,7 @@ class LakehouseApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json', 
+                    'application/problem+json',
                     'application/json'
                 ]
             )
@@ -12353,7 +13120,7 @@ class LakehouseApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json', 
+                    'application/problem+json',
                     'application/json'
                 ]
             )
@@ -12715,7 +13482,7 @@ class LakehouseApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json', 
+                    'application/problem+json',
                     'application/json'
                 ]
             )
@@ -13074,7 +13841,7 @@ class LakehouseApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json', 
+                    'application/problem+json',
                     'application/json'
                 ]
             )
@@ -13448,7 +14215,7 @@ class LakehouseApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json', 
+                    'application/problem+json',
                     'application/json'
                 ]
             )
@@ -13822,7 +14589,7 @@ class LakehouseApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json', 
+                    'application/problem+json',
                     'application/json'
                 ]
             )
@@ -14196,7 +14963,7 @@ class LakehouseApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json', 
+                    'application/problem+json',
                     'application/json'
                 ]
             )
@@ -14555,7 +15322,7 @@ class LakehouseApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json', 
+                    'application/problem+json',
                     'application/json'
                 ]
             )
@@ -14901,7 +15668,7 @@ class LakehouseApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json', 
+                    'application/problem+json',
                     'application/json'
                 ]
             )
@@ -15230,7 +15997,7 @@ class LakehouseApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json', 
+                    'application/problem+json',
                     'application/json'
                 ]
             )
@@ -15546,7 +16313,7 @@ class LakehouseApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json', 
+                    'application/problem+json',
                     'application/json'
                 ]
             )
@@ -15898,9 +16665,9 @@ class LakehouseApi:
             _path_params['operation'] = operation
         # process the query parameters
         if apply is not None:
-            
+
             _query_params.append(('apply', apply))
-            
+
         # process the header parameters
         if idempotency_key is not None:
             _header_params['Idempotency-Key'] = idempotency_key
@@ -15912,7 +16679,7 @@ class LakehouseApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json', 
+                    'application/problem+json',
                     'application/json'
                 ]
             )
@@ -16243,7 +17010,7 @@ class LakehouseApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json', 
+                    'application/problem+json',
                     'application/json'
                 ]
             )
@@ -16602,7 +17369,7 @@ class LakehouseApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json', 
+                    'application/problem+json',
                     'application/json'
                 ]
             )
@@ -16946,7 +17713,7 @@ class LakehouseApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json', 
+                    'application/problem+json',
                     'application/json'
                 ]
             )
@@ -17307,7 +18074,7 @@ class LakehouseApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json', 
+                    'application/problem+json',
                     'application/json'
                 ]
             )
@@ -17669,9 +18436,9 @@ class LakehouseApi:
             _path_params['id'] = id
         # process the query parameters
         if revision is not None:
-            
+
             _query_params.append(('revision', revision))
-            
+
         # process the header parameters
         if idempotency_key is not None:
             _header_params['Idempotency-Key'] = idempotency_key
@@ -17683,7 +18450,7 @@ class LakehouseApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json', 
+                    'application/problem+json',
                     'application/json'
                 ]
             )
@@ -18044,7 +18811,7 @@ class LakehouseApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json', 
+                    'application/problem+json',
                     'application/json'
                 ]
             )
@@ -18403,7 +19170,7 @@ class LakehouseApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json', 
+                    'application/problem+json',
                     'application/json'
                 ]
             )
@@ -18732,7 +19499,7 @@ class LakehouseApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json', 
+                    'application/problem+json',
                     'application/json'
                 ]
             )
@@ -19091,7 +19858,7 @@ class LakehouseApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json', 
+                    'application/problem+json',
                     'application/json'
                 ]
             )
@@ -19450,7 +20217,7 @@ class LakehouseApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json', 
+                    'application/problem+json',
                     'application/json'
                 ]
             )
@@ -19809,7 +20576,7 @@ class LakehouseApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json', 
+                    'application/problem+json',
                     'application/json'
                 ]
             )
@@ -20168,7 +20935,7 @@ class LakehouseApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json', 
+                    'application/problem+json',
                     'application/json'
                 ]
             )
@@ -20195,6 +20962,766 @@ class LakehouseApi:
         return self.api_client.param_serialize(
             method='PUT',
             resource_path='/api/v1/tenants/{tenantSlug}/catalogs/{catalogName}/subscriptions/{id}',
+            path_params=_path_params,
+            query_params=_query_params,
+            header_params=_header_params,
+            body=_body_params,
+            post_params=_form_params,
+            files=_files,
+            auth_settings=_auth_settings,
+            collection_formats=_collection_formats,
+            _host=_host,
+            _request_auth=_request_auth
+        )
+
+
+
+
+    @validate_call
+    def stream_changes(
+        self,
+        tenant_slug: StrictStr,
+        catalog_name: StrictStr,
+        table: StrictStr,
+        from_snapshot: Optional[StrictInt] = None,
+        var_schema: Optional[StrictStr] = None,
+        to_snapshot: Optional[StrictInt] = None,
+        page_size: Optional[StrictInt] = None,
+        cursor: Optional[StrictStr] = None,
+        _request_timeout: Union[
+            None,
+            Annotated[StrictFloat, Field(gt=0)],
+            Tuple[
+                Annotated[StrictFloat, Field(gt=0)],
+                Annotated[StrictFloat, Field(gt=0)]
+            ]
+        ] = None,
+        _request_auth: Optional[Dict[StrictStr, Any]] = None,
+        _content_type: Optional[StrictStr] = None,
+        _headers: Optional[Dict[StrictStr, Any]] = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> None:
+        """Streams a snapshot-frozen table change range as NDJSON.
+
+
+        :param tenant_slug: (required)
+        :type tenant_slug: str
+        :param catalog_name: (required)
+        :type catalog_name: str
+        :param table: (required)
+        :type table: str
+        :param from_snapshot:
+        :type from_snapshot: int
+        :param var_schema:
+        :type var_schema: str
+        :param to_snapshot:
+        :type to_snapshot: int
+        :param page_size:
+        :type page_size: int
+        :param cursor:
+        :type cursor: str
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """ # noqa: E501
+
+        _param = self._stream_changes_serialize(
+            tenant_slug=tenant_slug,
+            catalog_name=catalog_name,
+            table=table,
+            from_snapshot=from_snapshot,
+            var_schema=var_schema,
+            to_snapshot=to_snapshot,
+            page_size=page_size,
+            cursor=cursor,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index
+        )
+
+        _response_types_map: Dict[str, Optional[str]] = {
+            '400': "PublicApiProblemDetails",
+            '401': "PublicApiProblemDetails",
+            '403': "PublicApiProblemDetails",
+            '404': "PublicApiProblemDetails",
+            '408': "PublicApiProblemDetails",
+            '409': "PublicApiProblemDetails",
+            '412': "PublicApiProblemDetails",
+            '413': "PublicApiProblemDetails",
+            '422': "PublicApiProblemDetails",
+            '429': "PublicApiProblemDetails",
+            '500': "PublicApiProblemDetails",
+            '502': "PublicApiProblemDetails",
+            '503': "PublicApiProblemDetails",
+            '504': "PublicApiProblemDetails",
+            '200': None,
+        }
+        response_data = self.api_client.call_api(
+            *_param,
+            _request_timeout=_request_timeout
+        )
+        response_data.read()
+        return self.api_client.response_deserialize(
+            response_data=response_data,
+            response_types_map=_response_types_map,
+        ).data
+
+
+    @validate_call
+    def stream_changes_with_http_info(
+        self,
+        tenant_slug: StrictStr,
+        catalog_name: StrictStr,
+        table: StrictStr,
+        from_snapshot: Optional[StrictInt] = None,
+        var_schema: Optional[StrictStr] = None,
+        to_snapshot: Optional[StrictInt] = None,
+        page_size: Optional[StrictInt] = None,
+        cursor: Optional[StrictStr] = None,
+        _request_timeout: Union[
+            None,
+            Annotated[StrictFloat, Field(gt=0)],
+            Tuple[
+                Annotated[StrictFloat, Field(gt=0)],
+                Annotated[StrictFloat, Field(gt=0)]
+            ]
+        ] = None,
+        _request_auth: Optional[Dict[StrictStr, Any]] = None,
+        _content_type: Optional[StrictStr] = None,
+        _headers: Optional[Dict[StrictStr, Any]] = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> ApiResponse[None]:
+        """Streams a snapshot-frozen table change range as NDJSON.
+
+
+        :param tenant_slug: (required)
+        :type tenant_slug: str
+        :param catalog_name: (required)
+        :type catalog_name: str
+        :param table: (required)
+        :type table: str
+        :param from_snapshot:
+        :type from_snapshot: int
+        :param var_schema:
+        :type var_schema: str
+        :param to_snapshot:
+        :type to_snapshot: int
+        :param page_size:
+        :type page_size: int
+        :param cursor:
+        :type cursor: str
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """ # noqa: E501
+
+        _param = self._stream_changes_serialize(
+            tenant_slug=tenant_slug,
+            catalog_name=catalog_name,
+            table=table,
+            from_snapshot=from_snapshot,
+            var_schema=var_schema,
+            to_snapshot=to_snapshot,
+            page_size=page_size,
+            cursor=cursor,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index
+        )
+
+        _response_types_map: Dict[str, Optional[str]] = {
+            '400': "PublicApiProblemDetails",
+            '401': "PublicApiProblemDetails",
+            '403': "PublicApiProblemDetails",
+            '404': "PublicApiProblemDetails",
+            '408': "PublicApiProblemDetails",
+            '409': "PublicApiProblemDetails",
+            '412': "PublicApiProblemDetails",
+            '413': "PublicApiProblemDetails",
+            '422': "PublicApiProblemDetails",
+            '429': "PublicApiProblemDetails",
+            '500': "PublicApiProblemDetails",
+            '502': "PublicApiProblemDetails",
+            '503': "PublicApiProblemDetails",
+            '504': "PublicApiProblemDetails",
+            '200': None,
+        }
+        response_data = self.api_client.call_api(
+            *_param,
+            _request_timeout=_request_timeout
+        )
+        response_data.read()
+        return self.api_client.response_deserialize(
+            response_data=response_data,
+            response_types_map=_response_types_map,
+        )
+
+
+    @validate_call
+    def stream_changes_without_preload_content(
+        self,
+        tenant_slug: StrictStr,
+        catalog_name: StrictStr,
+        table: StrictStr,
+        from_snapshot: Optional[StrictInt] = None,
+        var_schema: Optional[StrictStr] = None,
+        to_snapshot: Optional[StrictInt] = None,
+        page_size: Optional[StrictInt] = None,
+        cursor: Optional[StrictStr] = None,
+        _request_timeout: Union[
+            None,
+            Annotated[StrictFloat, Field(gt=0)],
+            Tuple[
+                Annotated[StrictFloat, Field(gt=0)],
+                Annotated[StrictFloat, Field(gt=0)]
+            ]
+        ] = None,
+        _request_auth: Optional[Dict[StrictStr, Any]] = None,
+        _content_type: Optional[StrictStr] = None,
+        _headers: Optional[Dict[StrictStr, Any]] = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> RESTResponseType:
+        """Streams a snapshot-frozen table change range as NDJSON.
+
+
+        :param tenant_slug: (required)
+        :type tenant_slug: str
+        :param catalog_name: (required)
+        :type catalog_name: str
+        :param table: (required)
+        :type table: str
+        :param from_snapshot:
+        :type from_snapshot: int
+        :param var_schema:
+        :type var_schema: str
+        :param to_snapshot:
+        :type to_snapshot: int
+        :param page_size:
+        :type page_size: int
+        :param cursor:
+        :type cursor: str
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """ # noqa: E501
+
+        _param = self._stream_changes_serialize(
+            tenant_slug=tenant_slug,
+            catalog_name=catalog_name,
+            table=table,
+            from_snapshot=from_snapshot,
+            var_schema=var_schema,
+            to_snapshot=to_snapshot,
+            page_size=page_size,
+            cursor=cursor,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index
+        )
+
+        _response_types_map: Dict[str, Optional[str]] = {
+            '400': "PublicApiProblemDetails",
+            '401': "PublicApiProblemDetails",
+            '403': "PublicApiProblemDetails",
+            '404': "PublicApiProblemDetails",
+            '408': "PublicApiProblemDetails",
+            '409': "PublicApiProblemDetails",
+            '412': "PublicApiProblemDetails",
+            '413': "PublicApiProblemDetails",
+            '422': "PublicApiProblemDetails",
+            '429': "PublicApiProblemDetails",
+            '500': "PublicApiProblemDetails",
+            '502': "PublicApiProblemDetails",
+            '503': "PublicApiProblemDetails",
+            '504': "PublicApiProblemDetails",
+            '200': None,
+        }
+        response_data = self.api_client.call_api(
+            *_param,
+            _request_timeout=_request_timeout
+        )
+        return response_data.response
+
+
+    def _stream_changes_serialize(
+        self,
+        tenant_slug,
+        catalog_name,
+        table,
+        from_snapshot,
+        var_schema,
+        to_snapshot,
+        page_size,
+        cursor,
+        _request_auth,
+        _content_type,
+        _headers,
+        _host_index,
+    ) -> RequestSerialized:
+
+        _host = None
+
+        _collection_formats: Dict[str, str] = {
+        }
+
+        _path_params: Dict[str, str] = {}
+        _query_params: List[Tuple[str, str]] = []
+        _header_params: Dict[str, Optional[str]] = _headers or {}
+        _form_params: List[Tuple[str, str]] = []
+        _files: Dict[
+            str, Union[str, bytes, List[str], List[bytes], List[Tuple[str, bytes]]]
+        ] = {}
+        _body_params: Optional[bytes] = None
+
+        # process the path parameters
+        if tenant_slug is not None:
+            _path_params['tenantSlug'] = tenant_slug
+        if catalog_name is not None:
+            _path_params['catalogName'] = catalog_name
+        # process the query parameters
+        if table is not None:
+
+            _query_params.append(('table', table))
+
+        if from_snapshot is not None:
+
+            _query_params.append(('fromSnapshot', from_snapshot))
+
+        if var_schema is not None:
+
+            _query_params.append(('schema', var_schema))
+
+        if to_snapshot is not None:
+
+            _query_params.append(('toSnapshot', to_snapshot))
+
+        if page_size is not None:
+
+            _query_params.append(('pageSize', page_size))
+
+        if cursor is not None:
+
+            _query_params.append(('cursor', cursor))
+
+        # process the header parameters
+        # process the form parameters
+        # process the body parameter
+
+
+        # set the HTTP header `Accept`
+        if 'Accept' not in _header_params:
+            _header_params['Accept'] = self.api_client.select_header_accept(
+                [
+                    'application/problem+json'
+                ]
+            )
+
+
+        # authentication setting
+        _auth_settings: List[str] = [
+            'bearerAuth'
+        ]
+
+        return self.api_client.param_serialize(
+            method='GET',
+            resource_path='/api/v1/tenants/{tenantSlug}/catalogs/{catalogName}/changes:stream',
+            path_params=_path_params,
+            query_params=_query_params,
+            header_params=_header_params,
+            body=_body_params,
+            post_params=_form_params,
+            files=_files,
+            auth_settings=_auth_settings,
+            collection_formats=_collection_formats,
+            _host=_host,
+            _request_auth=_request_auth
+        )
+
+
+
+
+    @validate_call
+    def stream_query(
+        self,
+        tenant_slug: StrictStr,
+        catalog_name: StrictStr,
+        execute_request: ExecuteRequest,
+        _request_timeout: Union[
+            None,
+            Annotated[StrictFloat, Field(gt=0)],
+            Tuple[
+                Annotated[StrictFloat, Field(gt=0)],
+                Annotated[StrictFloat, Field(gt=0)]
+            ]
+        ] = None,
+        _request_auth: Optional[Dict[StrictStr, Any]] = None,
+        _content_type: Optional[StrictStr] = None,
+        _headers: Optional[Dict[StrictStr, Any]] = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> None:
+        """Streams a read-only SQL result as schema, row, and completion NDJSON records.
+
+
+        :param tenant_slug: (required)
+        :type tenant_slug: str
+        :param catalog_name: (required)
+        :type catalog_name: str
+        :param execute_request: (required)
+        :type execute_request: ExecuteRequest
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """ # noqa: E501
+
+        _param = self._stream_query_serialize(
+            tenant_slug=tenant_slug,
+            catalog_name=catalog_name,
+            execute_request=execute_request,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index
+        )
+
+        _response_types_map: Dict[str, Optional[str]] = {
+            '400': "PublicApiProblemDetails",
+            '401': "PublicApiProblemDetails",
+            '403': "PublicApiProblemDetails",
+            '404': "PublicApiProblemDetails",
+            '408': "PublicApiProblemDetails",
+            '409': "PublicApiProblemDetails",
+            '412': "PublicApiProblemDetails",
+            '413': "PublicApiProblemDetails",
+            '422': "PublicApiProblemDetails",
+            '429': "PublicApiProblemDetails",
+            '500': "PublicApiProblemDetails",
+            '502': "PublicApiProblemDetails",
+            '503': "PublicApiProblemDetails",
+            '504': "PublicApiProblemDetails",
+            '200': None,
+        }
+        response_data = self.api_client.call_api(
+            *_param,
+            _request_timeout=_request_timeout
+        )
+        response_data.read()
+        return self.api_client.response_deserialize(
+            response_data=response_data,
+            response_types_map=_response_types_map,
+        ).data
+
+
+    @validate_call
+    def stream_query_with_http_info(
+        self,
+        tenant_slug: StrictStr,
+        catalog_name: StrictStr,
+        execute_request: ExecuteRequest,
+        _request_timeout: Union[
+            None,
+            Annotated[StrictFloat, Field(gt=0)],
+            Tuple[
+                Annotated[StrictFloat, Field(gt=0)],
+                Annotated[StrictFloat, Field(gt=0)]
+            ]
+        ] = None,
+        _request_auth: Optional[Dict[StrictStr, Any]] = None,
+        _content_type: Optional[StrictStr] = None,
+        _headers: Optional[Dict[StrictStr, Any]] = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> ApiResponse[None]:
+        """Streams a read-only SQL result as schema, row, and completion NDJSON records.
+
+
+        :param tenant_slug: (required)
+        :type tenant_slug: str
+        :param catalog_name: (required)
+        :type catalog_name: str
+        :param execute_request: (required)
+        :type execute_request: ExecuteRequest
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """ # noqa: E501
+
+        _param = self._stream_query_serialize(
+            tenant_slug=tenant_slug,
+            catalog_name=catalog_name,
+            execute_request=execute_request,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index
+        )
+
+        _response_types_map: Dict[str, Optional[str]] = {
+            '400': "PublicApiProblemDetails",
+            '401': "PublicApiProblemDetails",
+            '403': "PublicApiProblemDetails",
+            '404': "PublicApiProblemDetails",
+            '408': "PublicApiProblemDetails",
+            '409': "PublicApiProblemDetails",
+            '412': "PublicApiProblemDetails",
+            '413': "PublicApiProblemDetails",
+            '422': "PublicApiProblemDetails",
+            '429': "PublicApiProblemDetails",
+            '500': "PublicApiProblemDetails",
+            '502': "PublicApiProblemDetails",
+            '503': "PublicApiProblemDetails",
+            '504': "PublicApiProblemDetails",
+            '200': None,
+        }
+        response_data = self.api_client.call_api(
+            *_param,
+            _request_timeout=_request_timeout
+        )
+        response_data.read()
+        return self.api_client.response_deserialize(
+            response_data=response_data,
+            response_types_map=_response_types_map,
+        )
+
+
+    @validate_call
+    def stream_query_without_preload_content(
+        self,
+        tenant_slug: StrictStr,
+        catalog_name: StrictStr,
+        execute_request: ExecuteRequest,
+        _request_timeout: Union[
+            None,
+            Annotated[StrictFloat, Field(gt=0)],
+            Tuple[
+                Annotated[StrictFloat, Field(gt=0)],
+                Annotated[StrictFloat, Field(gt=0)]
+            ]
+        ] = None,
+        _request_auth: Optional[Dict[StrictStr, Any]] = None,
+        _content_type: Optional[StrictStr] = None,
+        _headers: Optional[Dict[StrictStr, Any]] = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> RESTResponseType:
+        """Streams a read-only SQL result as schema, row, and completion NDJSON records.
+
+
+        :param tenant_slug: (required)
+        :type tenant_slug: str
+        :param catalog_name: (required)
+        :type catalog_name: str
+        :param execute_request: (required)
+        :type execute_request: ExecuteRequest
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """ # noqa: E501
+
+        _param = self._stream_query_serialize(
+            tenant_slug=tenant_slug,
+            catalog_name=catalog_name,
+            execute_request=execute_request,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index
+        )
+
+        _response_types_map: Dict[str, Optional[str]] = {
+            '400': "PublicApiProblemDetails",
+            '401': "PublicApiProblemDetails",
+            '403': "PublicApiProblemDetails",
+            '404': "PublicApiProblemDetails",
+            '408': "PublicApiProblemDetails",
+            '409': "PublicApiProblemDetails",
+            '412': "PublicApiProblemDetails",
+            '413': "PublicApiProblemDetails",
+            '422': "PublicApiProblemDetails",
+            '429': "PublicApiProblemDetails",
+            '500': "PublicApiProblemDetails",
+            '502': "PublicApiProblemDetails",
+            '503': "PublicApiProblemDetails",
+            '504': "PublicApiProblemDetails",
+            '200': None,
+        }
+        response_data = self.api_client.call_api(
+            *_param,
+            _request_timeout=_request_timeout
+        )
+        return response_data.response
+
+
+    def _stream_query_serialize(
+        self,
+        tenant_slug,
+        catalog_name,
+        execute_request,
+        _request_auth,
+        _content_type,
+        _headers,
+        _host_index,
+    ) -> RequestSerialized:
+
+        _host = None
+
+        _collection_formats: Dict[str, str] = {
+        }
+
+        _path_params: Dict[str, str] = {}
+        _query_params: List[Tuple[str, str]] = []
+        _header_params: Dict[str, Optional[str]] = _headers or {}
+        _form_params: List[Tuple[str, str]] = []
+        _files: Dict[
+            str, Union[str, bytes, List[str], List[bytes], List[Tuple[str, bytes]]]
+        ] = {}
+        _body_params: Optional[bytes] = None
+
+        # process the path parameters
+        if tenant_slug is not None:
+            _path_params['tenantSlug'] = tenant_slug
+        if catalog_name is not None:
+            _path_params['catalogName'] = catalog_name
+        # process the query parameters
+        # process the header parameters
+        # process the form parameters
+        # process the body parameter
+        if execute_request is not None:
+            _body_params = execute_request
+
+
+        # set the HTTP header `Accept`
+        if 'Accept' not in _header_params:
+            _header_params['Accept'] = self.api_client.select_header_accept(
+                [
+                    'application/problem+json'
+                ]
+            )
+
+        # set the HTTP header `Content-Type`
+        if _content_type:
+            _header_params['Content-Type'] = _content_type
+        else:
+            _default_content_type = (
+                self.api_client.select_header_content_type(
+                    [
+                        'application/json'
+                    ]
+                )
+            )
+            if _default_content_type is not None:
+                _header_params['Content-Type'] = _default_content_type
+
+        # authentication setting
+        _auth_settings: List[str] = [
+            'bearerAuth'
+        ]
+
+        return self.api_client.param_serialize(
+            method='POST',
+            resource_path='/api/v1/tenants/{tenantSlug}/catalogs/{catalogName}/query:stream',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,

@@ -59,6 +59,18 @@ public sealed record QueryResponse(
     }
 }
 
+/// <summary>Metadata emitted as the first line of an NDJSON query stream.</summary>
+public sealed record QueryStreamSchemaDto(string Type, IReadOnlyList<ColumnDto> Columns);
+
+/// <summary>One row emitted by an NDJSON query stream.</summary>
+public sealed record QueryStreamRowDto(string Type, IReadOnlyList<object?> Values);
+
+/// <summary>Terminal metadata emitted after a query stream completes successfully.</summary>
+public sealed record QueryStreamCompleteDto(string Type, long RowCount);
+
+/// <summary>Terminal metadata emitted when a response fails after streaming has begun.</summary>
+public sealed record StreamErrorDto(string Type, string Code, string RequestId, string Detail);
+
 /// <summary>A reusable, catalog-scoped query definition.</summary>
 /// <param name="Revision">Optimistic authoring revision.</param>
 /// <param name="PublishedRevision">Revision currently exposed by the view, or null when unpublished.</param>
@@ -511,6 +523,8 @@ public sealed record SchemaDto(string Name, IReadOnlyList<SchemaTableDto> Tables
 /// <summary>A catalog snapshot.</summary>
 public sealed record SnapshotDto(long SnapshotId, DateTimeOffset CommittedAt, long SchemaVersion, string? CommitMessage);
 
+/// <summary>Stable keyset page of catalog snapshots.</summary>
+
 /// <summary>Request to plan or apply a table-data restore from a snapshot.</summary>
 /// <param name="Table">Base table whose rows should return to the selected snapshot.</param>
 /// <param name="Schema">Schema containing <paramref name="Table"/>.</param>
@@ -790,6 +804,20 @@ public sealed record ChangeDto(
     long RowId,
     string ChangeType,
     IReadOnlyDictionary<string, object?> Row);
+
+/// <summary>Metadata emitted as the first line of an NDJSON CDC stream.</summary>
+public sealed record ChangeStreamStartDto(
+    string Type,
+    string Schema,
+    string Table,
+    long FromSnapshot,
+    long ToSnapshot);
+
+/// <summary>One change emitted by an NDJSON CDC stream.</summary>
+public sealed record ChangeStreamItemDto(string Type, ChangeDto Change);
+
+/// <summary>Terminal metadata emitted after a CDC stream completes successfully.</summary>
+public sealed record ChangeStreamCompleteDto(string Type, long ChangeCount, long ToSnapshot);
 
 /// <summary>Request to create a change subscription.</summary>
 /// <param name="EndpointUrl">HTTP or HTTPS endpoint the signed payloads are posted to.</param>

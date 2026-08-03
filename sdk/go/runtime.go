@@ -1,13 +1,17 @@
 package lakehold
 
 import (
+	"bufio"
+	"bytes"
 	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -73,20 +77,28 @@ func (e *ProblemError) Error() string {
 func (e *ProblemError) Unwrap() error { return e.Cause }
 
 func ParseProblem(response *http.Response, err error) *ProblemError {
-	problem := &ProblemError{Code: "request_failed", Cause: err}
+	var body []byte
+	if withBody, ok := err.(interface{ Body() []byte }); ok {
+		body = withBody.Body()
+	}
+	return parseProblemBody(response, body, err, "request_failed")
+}
+
+func parseProblemBody(response *http.Response, body []byte, err error, fallbackCode string) *ProblemError {
+	problem := &ProblemError{Code: fallbackCode, Cause: err}
 	if response != nil {
 		problem.Status = response.StatusCode
 		problem.RequestID = response.Header.Get(RequestIDHeader)
 		problem.RetryAfter = parseRetryAfter(response.Header.Get("Retry-After"), time.Now())
 	}
-	var body []byte
-	if withBody, ok := err.(interface{ Body() []byte }); ok {
-		body = withBody.Body()
-	}
 	var details PublicApiProblemDetails
-	if len(body) > 0 && json.Unmarshal(body, &details) == nil && details.Code != "" && details.RequestId != "" {
-		problem.Code = details.Code
-		problem.RequestID = details.RequestId
+	if len(body) > 0 && json.Unmarshal(body, &details) == nil {
+		if details.Code != "" {
+			problem.Code = details.Code
+		}
+		if details.RequestId != "" {
+			problem.RequestID = details.RequestId
+		}
 		if details.Detail.IsSet() && details.Detail.Get() != nil {
 			problem.Detail = *details.Detail.Get()
 		}
@@ -146,7 +158,11 @@ func ExecuteWithRetry[T any](
 		if !retrySafe || attempt >= options.MaximumRetries || !transientStatus(statusCode(response)) {
 			return zero, response, ParseProblem(response, err)
 		}
-		delay := 100 * time.Millisecond * time.Duration(1<<min(attempt, 8))
+		exponent := attempt
+		if exponent > 8 {
+			exponent = 8
+		}
+		delay := 100 * time.Millisecond * time.Duration(1<<exponent)
 		if response != nil {
 			if advertised := parseRetryAfter(response.Header.Get("Retry-After"), time.Now()); advertised > 0 {
 				delay = advertised
@@ -181,6 +197,186 @@ func NewCursorPager[T any](loader CursorPageLoader[T]) (*CursorPager[T], error) 
 		return nil, errors.New("page loader is required")
 	}
 	return &CursorPager[T]{loader: loader}, nil
+}
+
+// StreamEvent is one immutable NDJSON record from a query or CDC stream.
+type StreamEvent struct {
+	Type    string
+	Payload json.RawMessage
+}
+
+// StreamHandler consumes one stream record. Returning an error stops the HTTP read immediately.
+type StreamHandler func(StreamEvent) error
+
+// StreamQuery consumes a read-only SQL result without materialising the complete result set.
+func StreamQuery(
+	ctx context.Context,
+	client *http.Client,
+	baseURL string,
+	bearerToken string,
+	tenant string,
+	catalog string,
+	sql string,
+	handler StreamHandler,
+) error {
+	if strings.TrimSpace(sql) == "" {
+		return errors.New("query source is required")
+	}
+	body, err := json.Marshal(map[string]string{"sql": sql})
+	if err != nil {
+		return fmt.Errorf("encode streaming query: %w", err)
+	}
+	endpoint, err := streamURL(baseURL, tenant, catalog, "query:stream")
+	if err != nil {
+		return err
+	}
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(body))
+	if err != nil {
+		return fmt.Errorf("create streaming query request: %w", err)
+	}
+	request.Header.Set("Content-Type", "application/json")
+	return consumeStream(client, request, bearerToken, "schema", handler)
+}
+
+// StreamChanges consumes a finite CDC range. The server freezes an omitted upper snapshot once.
+func StreamChanges(
+	ctx context.Context,
+	client *http.Client,
+	baseURL string,
+	bearerToken string,
+	tenant string,
+	catalog string,
+	table string,
+	fromSnapshot int64,
+	schema string,
+	toSnapshot *int64,
+	pageSize int,
+	cursor string,
+	handler StreamHandler,
+) error {
+	if strings.TrimSpace(table) == "" || strings.TrimSpace(schema) == "" {
+		return errors.New("table and schema are required")
+	}
+	if fromSnapshot < 0 || pageSize < 1 || pageSize > 10_000 {
+		return errors.New("fromSnapshot must be non-negative and pageSize must be between 1 and 10000")
+	}
+	endpoint, err := streamURL(baseURL, tenant, catalog, "changes:stream")
+	if err != nil {
+		return err
+	}
+	parsed, _ := url.Parse(endpoint)
+	query := parsed.Query()
+	query.Set("table", table)
+	query.Set("schema", schema)
+	query.Set("fromSnapshot", strconv.FormatInt(fromSnapshot, 10))
+	query.Set("pageSize", strconv.Itoa(pageSize))
+	if toSnapshot != nil {
+		query.Set("toSnapshot", strconv.FormatInt(*toSnapshot, 10))
+	}
+	if cursor != "" {
+		query.Set("cursor", cursor)
+	}
+	parsed.RawQuery = query.Encode()
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, parsed.String(), nil)
+	if err != nil {
+		return fmt.Errorf("create CDC stream request: %w", err)
+	}
+	return consumeStream(client, request, bearerToken, "stream", handler)
+}
+
+func consumeStream(
+	client *http.Client,
+	request *http.Request,
+	bearerToken string,
+	expectedFirstType string,
+	handler StreamHandler,
+) error {
+	if client == nil || handler == nil {
+		return errors.New("HTTP client and stream handler are required")
+	}
+	if strings.TrimSpace(bearerToken) == "" {
+		return errors.New("bearer token is required")
+	}
+	request.Header.Set("Authorization", "Bearer "+bearerToken)
+	request.Header.Set("Accept", "application/x-ndjson")
+	request.Header.Set("User-Agent", SDKUserAgent)
+	response, err := client.Do(request)
+	if err != nil {
+		return err
+	}
+	defer response.Body.Close()
+	if response.StatusCode < 200 || response.StatusCode >= 300 {
+		body, readErr := io.ReadAll(io.LimitReader(response.Body, 1<<20))
+		problem := parseProblemBody(response, body, readErr, "stream_request_failed")
+		if problem.Detail == "" && len(body) > 0 {
+			problem.Detail = string(body)
+		}
+		return problem
+	}
+
+	// One record is bounded independently of the complete stream. The ceiling prevents a peer from
+	// growing a client buffer indefinitely while still allowing wide analytical rows.
+	scanner := bufio.NewScanner(response.Body)
+	scanner.Buffer(make([]byte, 64*1024), 64*1024*1024)
+	first := true
+	completed := false
+	for scanner.Scan() {
+		line := bytes.TrimSpace(scanner.Bytes())
+		if len(line) == 0 {
+			continue
+		}
+		var header struct {
+			Type      string `json:"type"`
+			Code      string `json:"code"`
+			RequestID string `json:"requestId"`
+			Detail    string `json:"detail"`
+		}
+		if err := json.Unmarshal(line, &header); err != nil {
+			return fmt.Errorf("decode LakeHold stream record: %w", err)
+		}
+		if header.Type == "" {
+			return errors.New("a LakeHold stream record has no type discriminator")
+		}
+		if first && header.Type != expectedFirstType {
+			return fmt.Errorf("expected the stream to begin with %q, not %q", expectedFirstType, header.Type)
+		}
+		first = false
+		if header.Type == "error" {
+			return &ProblemError{Status: 200, Code: header.Code, RequestID: header.RequestID, Detail: header.Detail}
+		}
+		payload := append(json.RawMessage(nil), line...)
+		if err := handler(StreamEvent{Type: header.Type, Payload: payload}); err != nil {
+			return err
+		}
+		completed = header.Type == "complete"
+	}
+	if err := scanner.Err(); err != nil {
+		return fmt.Errorf("read LakeHold stream: %w", err)
+	}
+	if !completed {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+
+func streamURL(baseURL, tenant, catalog, operation string) (string, error) {
+	parsed, err := url.Parse(baseURL)
+	if err != nil || parsed.Scheme == "" || parsed.Host == "" {
+		return "", errors.New("baseURL must be an absolute HTTP(S) URL")
+	}
+	if strings.TrimSpace(tenant) == "" || strings.TrimSpace(catalog) == "" {
+		return "", errors.New("tenant and catalog are required")
+	}
+	escapedPath := strings.TrimRight(parsed.EscapedPath(), "/") + "/api/v1/tenants/" + url.PathEscape(tenant) +
+		"/catalogs/" + url.PathEscape(catalog) + "/" + url.PathEscape(operation)
+	decodedPath, err := url.PathUnescape(escapedPath)
+	if err != nil {
+		return "", fmt.Errorf("construct stream URL: %w", err)
+	}
+	parsed.Path = decodedPath
+	parsed.RawPath = escapedPath
+	parsed.RawQuery = ""
+	return parsed.String(), nil
 }
 
 func (pager *CursorPager[T]) Next(ctx context.Context) (T, bool, error) {

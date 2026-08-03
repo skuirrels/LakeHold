@@ -201,10 +201,12 @@ test.describe('disposable operator simulation', () => {
       expect(names).toEqual([
         'describe_schema',
         'execute',
+        'get_snapshot',
         'list_changes',
         'list_snapshots',
         'list_tenants',
         'query',
+        'query_snapshot',
       ]);
 
       const query = await mcp(ownerToken, 'tools/call', {

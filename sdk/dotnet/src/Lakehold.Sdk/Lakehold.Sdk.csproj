@@ -15,6 +15,7 @@
     <Version>0.1.0</Version>
     <DocumentationFile>bin\$(Configuration)\$(TargetFramework)\Lakehold.Sdk.xml</DocumentationFile>
     <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
     <RepositoryUrl>https://github.com/skuirrels/LakeHold.git</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageReleaseNotes>Initial v1 public API client.</PackageReleaseNotes>
@@ -24,6 +25,10 @@
     <!-- Generated public symbols retain contract names; suppress only conflicting design-style rules. -->
     <NoWarn>$(NoWarn);CA1507;CA1510;CA1707;CA1711;CA1715</NoWarn>
   </PropertyGroup>
+
+  <ItemGroup>
+    <None Update="README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Http" Version="8.0.0" />

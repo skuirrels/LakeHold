@@ -59,4 +59,13 @@ describe('Enterprise Data Platform documentation', () => {
       '/enterprise-data-platform',
     );
   });
+
+  it('uses professional roadmap language for incomplete EDP capabilities', () => {
+    const rendered = renderMarkdown(enterpriseDataPlatform, {
+      repositoryDirectory: 'docs',
+    }).html;
+
+    expect(rendered).toContain('id="roadmap"');
+    expect(rendered).not.toContain('What is not complete');
+  });
 });

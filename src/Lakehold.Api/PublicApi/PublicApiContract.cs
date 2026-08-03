@@ -48,6 +48,7 @@ public static class PublicApiEndpointExtensions
         "backups",
         "catalogs",
         "cdc",
+        "cdc-streaming",
         "connectors",
         "cursor-pagination",
         "durable-operations",
@@ -57,9 +58,12 @@ public static class PublicApiEndpointExtensions
         "openapi",
         "query",
         "query-languages",
+        "query-streaming",
         "saved-queries",
         "snapshots",
+        "snapshot-keyset-pagination",
         "system-settings",
+        "time-travel-table-preview",
     ];
 
     public static RouteGroupBuilder MapPublicApiDiscovery(this RouteGroupBuilder api)

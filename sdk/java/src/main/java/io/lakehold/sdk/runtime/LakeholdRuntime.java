@@ -4,6 +4,9 @@ import io.lakehold.sdk.ApiClient;
 import io.lakehold.sdk.ApiException;
 import io.lakehold.sdk.JSON;
 import io.lakehold.sdk.model.PublicApiProblemDetails;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import java.io.IOException;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZonedDateTime;
@@ -18,9 +21,18 @@ import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.CancellationException;
 import java.util.function.BooleanSupplier;
+import java.util.function.Consumer;
+import okhttp3.HttpUrl;
+import okhttp3.MediaType;
+import okhttp3.Request;
+import okhttp3.RequestBody;
+import okhttp3.Response;
+import okio.BufferedSource;
 
 /** Handwritten reliability helpers layered over the generated LakeHold v1 client. */
 public final class LakeholdRuntime {
+    private static final long MAXIMUM_STREAM_RECORD_BYTES = 64L * 1024L * 1024L;
+    private static final long MAXIMUM_ERROR_BODY_BYTES = 1024L * 1024L;
     public static final String VERSION = "0.1.0";
     public static final String USER_AGENT = "lakehold-sdk/" + VERSION + " (java)";
     public static final String REQUEST_ID_HEADER = "X-Request-Id";
@@ -93,6 +105,167 @@ public final class LakeholdRuntime {
         return new CursorIterator<>(loader);
     }
 
+    /** Streams a read-only SQL result without materialising the complete response. */
+    public static void streamQuery(
+        ApiClient client,
+        String bearerToken,
+        String tenant,
+        String catalog,
+        String sql,
+        Consumer<StreamEvent> handler) throws IOException, ApiException {
+        Objects.requireNonNull(sql, "sql");
+        if (sql.trim().isEmpty()) {
+            throw new IllegalArgumentException("Query source is required.");
+        }
+        JsonObject body = new JsonObject();
+        body.addProperty("sql", sql);
+        HttpUrl url = streamUrl(client, tenant, catalog, "query:stream").build();
+        Request request = request(url, bearerToken)
+            .post(RequestBody.create(body.toString(), MediaType.parse("application/json")))
+            .build();
+        consumeStream(client, request, "schema", handler);
+    }
+
+    /** Streams a finite CDC range whose omitted upper snapshot is frozen by the server. */
+    public static void streamChanges(
+        ApiClient client,
+        String bearerToken,
+        String tenant,
+        String catalog,
+        String table,
+        long fromSnapshot,
+        String schema,
+        Long toSnapshot,
+        int pageSize,
+        String cursor,
+        Consumer<StreamEvent> handler) throws IOException, ApiException {
+        if (fromSnapshot < 0 || pageSize < 1 || pageSize > 10_000) {
+            throw new IllegalArgumentException(
+                "fromSnapshot must be non-negative and pageSize must be between 1 and 10000.");
+        }
+        HttpUrl.Builder url = streamUrl(client, tenant, catalog, "changes:stream")
+            .addQueryParameter("table", required(table, "table"))
+            .addQueryParameter("schema", required(schema, "schema"))
+            .addQueryParameter("fromSnapshot", Long.toString(fromSnapshot))
+            .addQueryParameter("pageSize", Integer.toString(pageSize));
+        if (toSnapshot != null) {
+            url.addQueryParameter("toSnapshot", toSnapshot.toString());
+        }
+        if (cursor != null && !cursor.trim().isEmpty()) {
+            url.addQueryParameter("cursor", cursor);
+        }
+        consumeStream(client, request(url.build(), bearerToken).get().build(), "stream", handler);
+    }
+
+    private static void consumeStream(
+        ApiClient client,
+        Request request,
+        String expectedFirstType,
+        Consumer<StreamEvent> handler) throws IOException, ApiException {
+        Objects.requireNonNull(client, "client");
+        Objects.requireNonNull(handler, "handler");
+        try (Response response = client.getHttpClient().newCall(request).execute()) {
+            if (!response.isSuccessful()) {
+                String body = response.body() == null
+                    ? ""
+                    : response.peekBody(MAXIMUM_ERROR_BODY_BYTES).string();
+                throw new ApiException(response.code(), response.message(), response.headers().toMultimap(), body);
+            }
+            if (response.body() == null) {
+                throw new IOException("The LakeHold stream response had no body.");
+            }
+
+            boolean first = true;
+            boolean completed = false;
+            try (BufferedSource source = response.body().source()) {
+                while (!source.exhausted()) {
+                    String line;
+                    try {
+                        line = source.readUtf8LineStrict(MAXIMUM_STREAM_RECORD_BYTES);
+                    } catch (java.io.EOFException exception) {
+                        throw new IOException(
+                            "A LakeHold stream record was partial or exceeded the 64 MiB client ceiling.",
+                            exception);
+                    }
+                    if (Thread.currentThread().isInterrupted()) {
+                        throw new java.io.InterruptedIOException("Stream consumption was interrupted.");
+                    }
+                    if (line.trim().isEmpty()) {
+                        continue;
+                    }
+                    JsonObject payload = JsonParser.parseString(line).getAsJsonObject();
+                    String type = payload.has("type") ? payload.get("type").getAsString() : null;
+                    if (type == null || type.trim().isEmpty()) {
+                        throw new IOException("A LakeHold stream record has no type discriminator.");
+                    }
+                    if (first && !type.equals(expectedFirstType)) {
+                        throw new IOException(
+                            "Expected the stream to begin with '" + expectedFirstType + "', not '" + type + "'.");
+                    }
+                    first = false;
+                    if (type.equals("error")) {
+                        String code = payload.has("code") ? payload.get("code").getAsString() : "stream_failed";
+                        String detail = payload.has("detail") ? payload.get("detail").getAsString() : code;
+                        throw new ApiException(200, detail, response.headers().toMultimap(), line);
+                    }
+                    handler.accept(new StreamEvent(type, payload.deepCopy()));
+                    completed = type.equals("complete");
+                }
+            }
+            if (!completed) {
+                throw new IOException("The LakeHold stream ended without a completion record.");
+            }
+        }
+    }
+
+    private static HttpUrl.Builder streamUrl(
+        ApiClient client,
+        String tenant,
+        String catalog,
+        String operation) {
+        Objects.requireNonNull(client, "client");
+        HttpUrl base = HttpUrl.parse(client.getBasePath());
+        if (base == null) {
+            throw new IllegalArgumentException("The ApiClient base path must be an absolute HTTP(S) URL.");
+        }
+        return base.newBuilder()
+            .addPathSegments("api/v1/tenants")
+            .addPathSegment(required(tenant, "tenant"))
+            .addPathSegment("catalogs")
+            .addPathSegment(required(catalog, "catalog"))
+            .addPathSegment(operation);
+    }
+
+    private static Request.Builder request(HttpUrl url, String bearerToken) {
+        return new Request.Builder()
+            .url(url)
+            .header("Authorization", "Bearer " + required(bearerToken, "bearerToken"))
+            .header("Accept", "application/x-ndjson")
+            .header("User-Agent", USER_AGENT);
+    }
+
+    private static String required(String value, String name) {
+        Objects.requireNonNull(value, name);
+        if (value.trim().isEmpty()) {
+            throw new IllegalArgumentException(name + " is required.");
+        }
+        return value;
+    }
+
+    /** One immutable record from a LakeHold query or CDC stream. */
+    public static final class StreamEvent {
+        private final String type;
+        private final JsonObject payload;
+
+        public StreamEvent(String type, JsonObject payload) {
+            this.type = Objects.requireNonNull(type, "type");
+            this.payload = Objects.requireNonNull(payload, "payload").deepCopy();
+        }
+
+        public String type() { return type; }
+        public JsonObject payload() { return payload.deepCopy(); }
+    }
+
     public static <T> OperationSnapshot<T> waitForOperation(
         OperationLoader<T> loader,
         Duration timeout,
@@ -117,10 +290,15 @@ public final class LakeholdRuntime {
             if (!status.equals("queued") && !status.equals("running")) {
                 throw new IllegalStateException("Unknown operation status '" + operation.status() + "'.");
             }
-            if (!Instant.now().isBefore(deadline)) {
+            Instant now = Instant.now();
+            if (!now.isBefore(deadline)) {
                 throw new OperationTimeoutException("The operation did not complete before the timeout.");
             }
-            Thread.sleep(exactMilliseconds(interval, "pollInterval"));
+            long remainingMilliseconds = Duration.between(now, deadline).toMillis();
+            if (remainingMilliseconds <= 0) {
+                throw new OperationTimeoutException("The operation did not complete before the timeout.");
+            }
+            Thread.sleep(Math.min(exactMilliseconds(interval, "pollInterval"), remainingMilliseconds));
         }
     }
 

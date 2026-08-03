@@ -1,0 +1,66 @@
+name: SDK runtime matrix
+
+on:
+  pull_request:
+    paths:
+      - 'sdk/**'
+      - 'openapi/**'
+      - 'scripts/generate-sdks.sh'
+      - '.github/workflows/sdk-runtime-matrix.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  java:
+    strategy:
+      matrix:
+        version: ['17', '21']
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ matrix.version }}
+      - working-directory: sdk/java
+        run: mvn --batch-mode --no-transfer-progress test
+
+  go:
+    strategy:
+      matrix:
+        version: ['1.18.x', 'stable']
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.version }}
+      - working-directory: sdk/go
+        run: go test ./...
+
+  dotnet:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - working-directory: sdk/dotnet
+        run: dotnet test Lakehold.Sdk.sln
+
+  python:
+    strategy:
+      matrix:
+        version: ['3.9', '3.13']
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.version }}
+      - working-directory: sdk/python
+        run: |
+          python -m pip install . pytest
+          python -m pytest -q

@@ -1,0 +1,82 @@
+name: Released server SDK conformance
+
+on:
+  workflow_dispatch:
+    inputs:
+      server_url:
+        description: Released LakeHold API origin (HTTPS)
+        required: true
+        type: string
+      tenant:
+        description: Read-only conformance tenant slug
+        required: true
+        type: string
+      catalog:
+        description: Read-only conformance catalog name
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  conformance:
+    name: ${{ matrix.sdk }} authenticated streaming smoke
+    runs-on: ubuntu-latest
+    environment: sdk-conformance
+    strategy:
+      fail-fast: false
+      matrix:
+        sdk: [java, go, dotnet, python]
+    env:
+      LAKEHOLD_CONFORMANCE_URL: ${{ inputs.server_url }}
+      LAKEHOLD_CONFORMANCE_TOKEN: ${{ secrets.LAKEHOLD_SDK_CONFORMANCE_TOKEN }}
+      LAKEHOLD_CONFORMANCE_TENANT: ${{ inputs.tenant }}
+      LAKEHOLD_CONFORMANCE_CATALOG: ${{ inputs.catalog }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Require an HTTPS target and token
+        shell: bash
+        run: |
+          case "$LAKEHOLD_CONFORMANCE_URL" in https://*) ;; *) echo "server_url must use HTTPS"; exit 1;; esac
+          test -n "$LAKEHOLD_CONFORMANCE_TOKEN"
+
+      - uses: actions/setup-java@v4
+        if: matrix.sdk == 'java'
+        with:
+          distribution: temurin
+          java-version: "21"
+      - name: Test Java SDK
+        if: matrix.sdk == 'java'
+        working-directory: sdk/java
+        run: mvn --batch-mode --no-transfer-progress test
+
+      - uses: actions/setup-go@v5
+        if: matrix.sdk == 'go'
+        with:
+          go-version-file: sdk/go/go.mod
+      - name: Test Go SDK
+        if: matrix.sdk == 'go'
+        working-directory: sdk/go
+        run: go test ./...
+
+      - uses: actions/setup-dotnet@v4
+        if: matrix.sdk == 'dotnet'
+        with:
+          dotnet-version: "8.0.x"
+      - name: Test .NET SDK
+        if: matrix.sdk == 'dotnet'
+        working-directory: sdk/dotnet
+        run: dotnet test Lakehold.Sdk.sln
+
+      - uses: actions/setup-python@v5
+        if: matrix.sdk == 'python'
+        with:
+          python-version: "3.13"
+      - name: Test Python SDK
+        if: matrix.sdk == 'python'
+        working-directory: sdk/python
+        run: |
+          python -m pip install . pytest
+          python -m pytest -q

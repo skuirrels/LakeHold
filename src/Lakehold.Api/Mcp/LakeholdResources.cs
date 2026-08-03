@@ -58,6 +58,49 @@ public sealed class LakeholdResources(LakehouseService lakehouse, IHttpContextAc
             throw new McpException(ex.Message);
         }
     }
+
+    [McpServerResource(
+        UriTemplate = "lakehold://{tenant}/{catalog}/snapshots/{snapshotId}",
+        Name = "catalog_snapshot",
+        Title = "Catalog snapshot",
+        MimeType = "application/json")]
+    [System.ComponentModel.Description(
+        "One retained catalog snapshot as JSON. Snapshot ids come from the list_snapshots tool.")]
+    public async Task<string> CatalogSnapshotAsync(
+        string tenant,
+        string catalog,
+        long snapshotId,
+        CancellationToken cancellationToken)
+    {
+        McpCaller.Authorize(httpContextAccessor, tenant, catalog);
+
+        try
+        {
+            var snapshot = await lakehouse
+                .GetSnapshotAsync(tenant, catalog, snapshotId, cancellationToken)
+                .ConfigureAwait(false);
+            if (snapshot is null)
+            {
+                throw new McpException($"Snapshot {snapshotId} is not retained in catalog '{catalog}'.");
+            }
+
+            return JsonSerializer.Serialize(
+                new McpSnapshot(
+                    snapshot.SnapshotId,
+                    snapshot.CommittedAt,
+                    snapshot.SchemaVersion,
+                    snapshot.CommitMessage),
+                McpJson.Options);
+        }
+        catch (CatalogNotFoundException ex)
+        {
+            throw new McpException(ex.Message);
+        }
+        catch (ArgumentOutOfRangeException ex)
+        {
+            throw new McpException(ex.Message);
+        }
+    }
 }
 
 /// <summary>Serialisation for resource bodies, which are strings rather than typed results.</summary>
