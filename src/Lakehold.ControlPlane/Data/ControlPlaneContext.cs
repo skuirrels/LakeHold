@@ -22,6 +22,10 @@ public sealed class ControlPlaneContext(DbContextOptions<ControlPlaneContext> op
 
     public DbSet<SystemSettings> SystemSettings => Set<SystemSettings>();
 
+    public DbSet<ApiIdempotencyRecord> ApiIdempotencyRecords => Set<ApiIdempotencyRecord>();
+
+    public DbSet<ApiOperation> ApiOperations => Set<ApiOperation>();
+
     public DbSet<Tenant> Tenants => Set<Tenant>();
 
     public DbSet<LakeCatalog> Catalogs => Set<LakeCatalog>();
@@ -60,6 +64,39 @@ public sealed class ControlPlaneContext(DbContextOptions<ControlPlaneContext> op
             entity.Property(s => s.McpPublicBaseUrl)
                 .HasMaxLength(Lakehold.ControlPlane.Model.SystemSettings.McpPublicBaseUrlMaxLength);
             entity.Property(s => s.ConcurrencyVersion).IsConcurrencyToken();
+        });
+
+        modelBuilder.Entity<ApiIdempotencyRecord>(entity =>
+        {
+            entity.HasKey(record => record.Id);
+            ConfigureGeneratedId(entity.Property(record => record.Id), isDuckDb);
+            entity.Property(record => record.Scope).HasMaxLength(512);
+            entity.Property(record => record.KeyHash).HasMaxLength(64);
+            entity.Property(record => record.RequestHash).HasMaxLength(64);
+            entity.Property(record => record.Status).HasConversion<int>();
+            entity.Property(record => record.ResponseContentType).HasMaxLength(256);
+            entity.Property(record => record.ResponseLocation).HasMaxLength(2_048);
+            entity.Property(record => record.ConcurrencyVersion).IsConcurrencyToken();
+            entity.HasIndex(record => new { record.Scope, record.KeyHash }).IsUnique();
+            entity.HasIndex(record => new { record.Status, record.CompletedUtc });
+        });
+
+        modelBuilder.Entity<ApiOperation>(entity =>
+        {
+            entity.HasKey(operation => operation.Id);
+            entity.Property(operation => operation.Id).HasMaxLength(32).ValueGeneratedNever();
+            entity.Property(operation => operation.TenantSlug).HasMaxLength(64);
+            entity.Property(operation => operation.CatalogName).HasMaxLength(63);
+            entity.Property(operation => operation.Kind).HasMaxLength(64);
+            entity.Property(operation => operation.RequestJson).HasMaxLength(16_384);
+            entity.Property(operation => operation.Status).HasConversion<int>();
+            entity.Property(operation => operation.ResultJson).HasMaxLength(1_048_576);
+            entity.Property(operation => operation.Error).HasMaxLength(4_000);
+            entity.Property(operation => operation.LeaseOwner).HasMaxLength(128);
+            entity.Property(operation => operation.ConcurrencyVersion).IsConcurrencyToken();
+            entity.HasIndex(operation => new { operation.Status, operation.CreatedUtc });
+            entity.HasIndex(operation => new { operation.Status, operation.CompletedUtc });
+            entity.HasIndex(operation => new { operation.TenantSlug, operation.CreatedUtc });
         });
 
         modelBuilder.Entity<Tenant>(entity =>

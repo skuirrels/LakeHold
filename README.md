@@ -784,8 +784,8 @@ gates, and retained run lineage, a PostgreSQL wire endpoint for
 `psql`, DBeaver, and Npgsql (Power BI still needs the type-catalogue shim), read-only cross-catalog
 attach, tenant-scoped credentials and audit, and demo seeding.
 
-The connector API, versioned source SDK, security model, and deliberately narrow four-adapter
-catalogue are documented in
+The connector API, versioned in-process adapter contract, security model, and deliberately narrow
+four-adapter catalogue are documented in
 [`docs/CONNECTORS.md`](docs/CONNECTORS.md). The remaining ingestion, governance, semantic, and BI
 work needed for the broader Enterprise Data Platform position is tracked in the
 [`Enterprise Data Platform roadmap`](docs/ENTERPRISE-DATA-PLATFORM-ROADMAP.md).
@@ -804,9 +804,21 @@ restarting the API. See
 API enforcement is opt-in per deployment via `Lakehold:Auth:RequireAuthentication`, while MCP always
 requires a credential.
 
-Next: an Iceberg REST Catalog endpoint so Spark, Trino, and Snowflake read LakeHold tables live with
-no export, a `Lakehold.Client` package whose typed change stream turns the CDC feed into
-`ChangeEvent<T>` in your own model, and read-only share links.
+Also implemented in source: a canonical `/api/v1` control surface, production OpenAPI, common
+errors/pagination/idempotency/durable-operation conventions, and generated Java, Go, .NET, and
+Python SDK candidates. Their source reliability layers now share typed errors, bounded
+`Retry-After` retries, lazy pagination, idempotency helpers, durable-operation polling,
+transport-appropriate cancellation, request timeouts, correlation ids, user agents, and
+additive-field tolerance. The packages are
+not published, streaming helpers and the remaining released-server conformance are still open, and
+the existing `Lakehold.Client` remains the separate replication-only client.
+
+Next: implement streaming query/CDC resources and SDK helpers, then complete released-server
+conformance and approved package publication;
+an Iceberg REST Catalog endpoint so Spark, Trino, and Snowflake read LakeHold tables live with no
+export; and read-only share links. See
+[`docs/PUBLIC-API.md`](docs/PUBLIC-API.md) and the
+[`EDP roadmap`](docs/ENTERPRISE-DATA-PLATFORM-ROADMAP.md).
 
 Later: continuous exit attestation — the verified eject running on a schedule, so "you can leave" is
 a signed and dated artifact rather than an on-demand call. And embedded Duckling — the same lakehouse

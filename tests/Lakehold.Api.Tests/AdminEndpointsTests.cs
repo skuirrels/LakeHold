@@ -197,7 +197,7 @@ public sealed class AdminEndpointsTests : IAsyncLifetime
         Assert.StartsWith("lkh_acme_", minted.Token, StringComparison.Ordinal);
 
         // The listing never carries the secret, and reports the metadata.
-        var list = await AdminEndpoints.ListTokensAsync("acme", _context, default);
+        var list = await AdminEndpoints.ListTokensAsync("acme", new DefaultHttpContext(), _context, default);
         var tokens = Assert.IsType<Ok<IReadOnlyList<ApiTokenDto>>>(Unwrap(list)).Value!;
         var only = Assert.Single(tokens);
         Assert.Equal("bi", only.Name);
@@ -212,7 +212,8 @@ public sealed class AdminEndpointsTests : IAsyncLifetime
         Assert.IsType<NoContent>(Unwrap(await AdminEndpoints.RevokeTokenAsync("acme", minted.Id, _context, TimeProvider.System, default)));
         Assert.IsType<NoContent>(Unwrap(await AdminEndpoints.RevokeTokenAsync("acme", minted.Id, _context, TimeProvider.System, default)));
 
-        var afterList = await AdminEndpoints.ListTokensAsync("acme", _context, default);
+        var afterList = await AdminEndpoints.ListTokensAsync(
+            "acme", new DefaultHttpContext(), _context, default);
         var afterTokens = Assert.IsType<Ok<IReadOnlyList<ApiTokenDto>>>(Unwrap(afterList)).Value!;
         Assert.NotNull(Assert.Single(afterTokens).RevokedUtc);
     }

@@ -54,14 +54,16 @@ integration.
   `Lakehold:Auth:RequireAuthentication` still defaults to **false**, so a token-less request falls
   back to trusting the route until an operator turns it on. Read it before adding any surface that
   resolves a tenant.
-- `docs/PUBLIC-API.md`: the phased spec for the public HTTP control API — time travel and the whole
-  lakehouse. Builds on `docs/AUTHENTICATION.md` (auth is its gate); the cross-cutting API conventions
-  (versioning, `problem+json`, pagination, async jobs) live here.
+- `docs/PUBLIC-API.md`: the phased spec for the public HTTP control API and first-party Java, Go,
+  .NET, and Python SDKs — time travel and the whole lakehouse. Builds on `docs/AUTHENTICATION.md`
+  (auth is its gate); the cross-cutting API conventions (versioning, `problem+json`, pagination,
+  async jobs), SDK boundary, and shared conformance gates live here.
 - `docs/CONNECTORS.md`: the managed full-snapshot and incremental connector contract, administration
   API, adapter SDK, checkpoints, security boundaries, limits, and explicit limitations. Keep it aligned with `Connectors/`, the
   connector DTOs, and `Lakehold:Connectors` configuration.
-- `docs/ENTERPRISE-DATA-PLATFORM-ROADMAP.md`: the staged ingestion, governance, semantic, and
-  enterprise-consumption plan. A partial connector must not be described there as completing P1.
+- `docs/ENTERPRISE-DATA-PLATFORM-ROADMAP.md`: the staged ingestion, governance, public API/client
+  SDK, semantic, and enterprise-consumption plan. A partial connector or unpublished client must not
+  be described there as completing P1.
 - `docs/MCP.md`: the phased spec and running record for the MCP server under `src/Lakehold.Api/Mcp/`.
   Phases 1-5 have landed: five read-only tools, a schema resource, and optional writes. Development
   enables it by default; instance-level System Settings persist live controls in PostgreSQL and use

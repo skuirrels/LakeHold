@@ -22,6 +22,7 @@ public static class TabularImportEndpoints
                 (Func<HttpContext, string, string, TabularUploadService, CancellationToken, Task<IResult>>)ImportAsync)
             .RequireCapability(Capability.TenantWrite)
             .WithMetadata(new RequestSizeLimitAttribute(maxBytes))
+            .Produces<TabularImportDto>()
             .WithSummary("Uploads a CSV or XLSX file and creates a new DuckLake table.");
 
         tenants.MapPost(
@@ -29,6 +30,7 @@ public static class TabularImportEndpoints
                 (Func<HttpContext, string, string, TabularUploadService, CancellationToken, Task<IResult>>)ImportCsvAsync)
             .RequireCapability(Capability.TenantWrite)
             .WithMetadata(new RequestSizeLimitAttribute(maxBytes))
+            .Produces<TabularImportDto>()
             .WithSummary("Compatibility alias for CSV uploads.");
     }
 

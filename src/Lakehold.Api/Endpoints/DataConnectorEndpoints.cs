@@ -4,6 +4,7 @@ using Lakehold.Api.Security;
 using Lakehold.ControlPlane.Data;
 using Lakehold.ControlPlane.Model;
 using Lakehold.ControlPlane.Security;
+using Lakehold.Api.PublicApi;
 using Lakehold.Engine.Catalog;
 using Microsoft.Extensions.Options;
 
@@ -15,18 +16,44 @@ public static class DataConnectorEndpoints
     public static void MapDataConnectorEndpoints(this RouteGroupBuilder tenants)
     {
         const string route = "/{tenantSlug}/catalogs/{catalogName}/connectors";
-        tenants.MapGet(route, ListAsync).RequireCapability(Capability.TenantOwner);
-        tenants.MapGet(route + "/{id:int}", GetAsync).RequireCapability(Capability.TenantOwner);
-        tenants.MapPost(route, CreateAsync).RequireCapability(Capability.TenantOwner);
-        tenants.MapPut(route + "/{id:int}", UpdateAsync).RequireCapability(Capability.TenantOwner);
-        tenants.MapDelete(route + "/{id:int}", DeleteAsync).RequireCapability(Capability.TenantOwner);
-        tenants.MapPost(route + "/{id:int}/run", RunAsync).RequireCapability(Capability.TenantOwner);
-        tenants.MapGet(route + "/{id:int}/runs", ListRunsAsync).RequireCapability(Capability.TenantOwner);
+        tenants.MapGet(route, ListAsync)
+            .RequireCapability(Capability.TenantOwner)
+            .WithCursorPagination<DataConnectorDto>();
+        tenants.MapGet(route + "/{id:int}", GetAsync)
+            .RequireCapability(Capability.TenantOwner)
+            .Produces<DataConnectorDto>();
+        tenants.MapPost(route, CreateAsync)
+            .RequireCapability(Capability.TenantOwner)
+            .Produces<DataConnectorDto>(StatusCodes.Status201Created)
+            .WithIdempotency();
+        tenants.MapPut(route + "/{id:int}", UpdateAsync)
+            .RequireCapability(Capability.TenantOwner)
+            .Produces<DataConnectorDto>();
+        tenants.MapDelete(route + "/{id:int}", DeleteAsync)
+            .RequireCapability(Capability.TenantOwner)
+            .Produces(StatusCodes.Status204NoContent);
+        tenants.MapPost(route + "/{id:int}/run", RunAsync)
+            .RequireCapability(Capability.TenantOwner)
+            .Produces<DataConnectorExecutionDto>()
+            .WithIdempotency();
+        tenants.MapGet(route + "/{id:int}/runs", ListRunsAsync)
+            .RequireCapability(Capability.TenantOwner)
+            .WithCursorPagination<DataConnectorRunDto>();
         tenants.MapGet(route + "/{id:int}/dead-letters", ListDeadLettersAsync)
-            .RequireCapability(Capability.TenantOwner);
-        tenants.MapPost(route + "/{id:int}/pause", PauseAsync).RequireCapability(Capability.TenantOwner);
-        tenants.MapPost(route + "/{id:int}/resume", ResumeAsync).RequireCapability(Capability.TenantOwner);
-        tenants.MapPost(route + "/{id:int}/retry", RetryAsync).RequireCapability(Capability.TenantOwner);
+            .RequireCapability(Capability.TenantOwner)
+            .WithCursorPagination<DataConnectorRunDto>();
+        tenants.MapPost(route + "/{id:int}/pause", PauseAsync)
+            .RequireCapability(Capability.TenantOwner)
+            .Produces<DataConnectorDto>()
+            .WithIdempotency();
+        tenants.MapPost(route + "/{id:int}/resume", ResumeAsync)
+            .RequireCapability(Capability.TenantOwner)
+            .Produces<DataConnectorDto>()
+            .WithIdempotency();
+        tenants.MapPost(route + "/{id:int}/retry", RetryAsync)
+            .RequireCapability(Capability.TenantOwner)
+            .Produces<DataConnectorExecutionDto>()
+            .WithIdempotency();
     }
 
     private static async Task<IResult> ListAsync(
@@ -89,7 +116,8 @@ public static class DataConnectorEndpoints
                     cancellationToken)
                 .ConfigureAwait(false);
             return Results.Created(
-                $"/api/tenants/{tenantSlug}/catalogs/{catalogName}/connectors/{connector.Id}",
+                PublicApiRoutes.Canonical(
+                    $"/tenants/{tenantSlug}/catalogs/{catalogName}/connectors/{connector.Id}"),
                 DataConnectorDto.From(connector));
         }
         catch (ArgumentException ex)
@@ -239,6 +267,7 @@ public static class DataConnectorEndpoints
         string tenantSlug,
         string catalogName,
         int id,
+        HttpContext http,
         int? limit,
         DataConnectorService connectors,
         CancellationToken cancellationToken)
@@ -249,7 +278,9 @@ public static class DataConnectorEndpoints
                     tenantSlug,
                     catalogName,
                     id,
-                    limit ?? 50,
+                    http.IsLegacyApiRequest()
+                        ? Math.Clamp(limit ?? 50, 1, PublicApiPagination.MaximumLimit)
+                        : PublicApiPagination.RequiredSourceCount(http),
                     cancellationToken)
                 .ConfigureAwait(false);
             return Results.Ok(runs.Select(DataConnectorRunDto.From));
@@ -264,6 +295,7 @@ public static class DataConnectorEndpoints
         string tenantSlug,
         string catalogName,
         int id,
+        HttpContext http,
         int? limit,
         DataConnectorService connectors,
         CancellationToken cancellationToken)
@@ -275,7 +307,9 @@ public static class DataConnectorEndpoints
                     catalogName,
                     id,
                     DataConnectorRunStatus.DeadLettered,
-                    limit ?? 50,
+                    http.IsLegacyApiRequest()
+                        ? Math.Clamp(limit ?? 50, 1, PublicApiPagination.MaximumLimit)
+                        : PublicApiPagination.RequiredSourceCount(http),
                     cancellationToken)
                 .ConfigureAwait(false);
             return Results.Ok(runs.Select(DataConnectorRunDto.From));

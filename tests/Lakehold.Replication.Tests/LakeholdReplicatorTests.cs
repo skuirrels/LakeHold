@@ -83,7 +83,12 @@ public sealed class LakeholdReplicatorTests
             {
                 var snapshot = Interlocked.Increment(ref _snapshotReads) == 1 ? 2 : 3;
                 return Json(
-                    $$"""[{"snapshotId":{{snapshot}},"committedAt":"2026-07-30T12:00:00Z","schemaVersion":1,"commitMessage":null}]""");
+                    $$"""
+                    {
+                      "items":[{"snapshotId":{{snapshot}},"committedAt":"2026-07-30T12:00:00Z","schemaVersion":1,"commitMessage":null}],
+                      "nextCursor":null
+                    }
+                    """);
             }
 
             if (path.EndsWith("/schemas", StringComparison.Ordinal))

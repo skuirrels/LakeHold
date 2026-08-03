@@ -2,6 +2,7 @@ using Lakehold.Api.Auth;
 using Lakehold.ControlPlane.Data;
 using Lakehold.ControlPlane.Model;
 using Lakehold.ControlPlane.Security;
+using Lakehold.Api.PublicApi;
 using Microsoft.AspNetCore.Http.HttpResults;
 
 namespace Lakehold.Api.Endpoints;
@@ -17,6 +18,7 @@ public static class SavedQueryEndpoints
         var route = "/{tenantSlug}/catalogs/{catalogName}/saved-queries";
 
         tenants.MapGet(route, ListAsync)
+            .WithCursorPagination<SavedQueryDto>()
             .WithSummary("Lists reusable queries saved in a catalog.");
 
         tenants.MapGet(route + "/{id:int}", GetAsync)
@@ -24,6 +26,7 @@ public static class SavedQueryEndpoints
 
         tenants.MapPost(route, CreateAsync)
             .RequireCapability(Capability.TenantWrite)
+            .WithIdempotency()
             .WithSummary("Saves a reusable query. Requires editor or owner access.");
 
         tenants.MapPut(route + "/{id:int}", UpdateAsync)
@@ -39,10 +42,12 @@ public static class SavedQueryEndpoints
 
         tenants.MapPost(route + "/{id:int}/publish", PublishAsync)
             .RequireCapability(Capability.TenantWrite)
+            .WithIdempotency()
             .WithSummary("Publishes the current query revision as a catalog view.");
 
         tenants.MapPost(route + "/{id:int}/unpublish", UnpublishAsync)
             .RequireCapability(Capability.TenantWrite)
+            .WithIdempotency()
             .WithSummary("Drops the query's published view.");
     }
 
@@ -112,7 +117,8 @@ public static class SavedQueryEndpoints
                 .ConfigureAwait(false);
 
             return TypedResults.Created(
-                $"/api/tenants/{tenantSlug}/catalogs/{catalogName}/saved-queries/{query.Id}",
+                PublicApiRoutes.Canonical(
+                    $"/tenants/{tenantSlug}/catalogs/{catalogName}/saved-queries/{query.Id}"),
                 ToDto(query));
         }
         catch (CatalogNotFoundException ex)

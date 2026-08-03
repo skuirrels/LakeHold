@@ -2,10 +2,7 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
-using Microsoft.AspNetCore.DataProtection;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
-using Lakehold.ControlPlane.Data;
 
 namespace Lakehold.Api.Auth;
 
@@ -29,11 +26,6 @@ public static class BrowserAuthentication
         {
             return services;
         }
-
-        services
-            .AddDataProtection()
-            .SetApplicationName("LakeHold")
-            .PersistKeysToDbContext<ControlPlaneContext>();
 
         var authentication = services
             .AddAuthentication(options =>

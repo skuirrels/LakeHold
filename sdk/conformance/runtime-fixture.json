@@ -1,0 +1,35 @@
+{
+  "sdkVersion": "0.1.0",
+  "idempotencyKey": "0123456789abcdef0123456789abcdef",
+  "requestId": "req-conformance-42",
+  "problem": {
+    "type": "about:blank",
+    "title": "Too Many Requests",
+    "status": 429,
+    "detail": "Retry after the advertised delay.",
+    "instance": "/api/v1/conformance",
+    "code": "rate_limited",
+    "requestId": "req-conformance-42",
+    "futureField": "ignored"
+  },
+  "retry": {
+    "maximumRetries": 2,
+    "retryAfterSeconds": 2
+  },
+  "pagination": {
+    "pages": [
+      { "items": [1, 2], "nextCursor": "cursor-2" },
+      { "items": [3], "nextCursor": null }
+    ]
+  },
+  "operation": {
+    "states": ["queued", "running", "succeeded"]
+  },
+  "additiveAccess": {
+    "mode": "authenticated",
+    "role": "reader",
+    "readOnly": true,
+    "systemAdmin": false,
+    "futureField": "ignored"
+  }
+}

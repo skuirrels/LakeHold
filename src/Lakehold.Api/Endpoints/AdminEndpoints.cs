@@ -10,6 +10,7 @@ using Lakehold.ControlPlane.Model;
 using Lakehold.ControlPlane.Security;
 using Lakehold.Engine.Catalog;
 using Lakehold.Engine.Configuration;
+using Lakehold.Api.PublicApi;
 
 namespace Lakehold.Api.Endpoints;
 
@@ -34,6 +35,7 @@ public static partial class AdminEndpoints
 
         tenants.MapPost("/", CreateTenantAsync)
             .RequireCapability(Capability.Instance)
+            .WithIdempotency()
             .WithSummary("Creates a tenant. Instance scope.");
 
         tenants.MapDelete("/{tenantSlug}", DeleteTenantAsync)
@@ -42,6 +44,7 @@ public static partial class AdminEndpoints
 
         tenants.MapPost("/{tenantSlug}/catalogs", CreateCatalogAsync)
             .RequireCapability(Capability.Instance)
+            .WithIdempotency()
             .WithSummary("Creates a catalog under a tenant. Instance scope.");
 
         tenants.MapDelete("/{tenantSlug}/catalogs/{catalogName}", DeleteCatalogAsync)
@@ -50,10 +53,14 @@ public static partial class AdminEndpoints
 
         tenants.MapPost("/{tenantSlug}/tokens", CreateTokenAsync)
             .RequireCapability(Capability.TenantAdmin)
-            .WithSummary("Mints a tenant-scoped API token, returned once.");
+            // The plaintext token is returned once and is deliberately unrecoverable. Response
+            // idempotency would have to persist that credential, violating the token boundary.
+            .WithOneTimeSecretResponse()
+            .WithSummary("Mints a tenant-scoped API token, returned once. Idempotency-Key is not supported.");
 
         tenants.MapGet("/{tenantSlug}/tokens", ListTokensAsync)
             .RequireCapability(Capability.TenantAdmin)
+            .WithCursorPagination<ApiTokenDto>()
             .WithSummary("Lists token metadata for a tenant. Never returns the secret.");
 
         tenants.MapDelete("/{tenantSlug}/tokens/{id:int}", RevokeTokenAsync)
@@ -101,7 +108,7 @@ public static partial class AdminEndpoints
         await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
         return TypedResults.Created(
-            $"/api/tenants/{tenant.Slug}",
+            PublicApiRoutes.Canonical($"/tenants/{tenant.Slug}"),
             new TenantDto(tenant.Slug, tenant.DisplayName, []));
     }
 
@@ -248,7 +255,7 @@ public static partial class AdminEndpoints
         await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
         return TypedResults.Created(
-            $"/api/tenants/{tenantSlug}/catalogs/{catalog.Name}",
+            PublicApiRoutes.Canonical($"/tenants/{tenantSlug}/catalogs/{catalog.Name}"),
             new CatalogDto(
                 catalog.Name,
                 catalog.DataPath,
@@ -347,12 +354,13 @@ public static partial class AdminEndpoints
         await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
         return TypedResults.Created(
-            $"/api/tenants/{tenantSlug}/tokens/{issued.Record.Id}",
+            PublicApiRoutes.Canonical($"/tenants/{tenantSlug}/tokens/{issued.Record.Id}"),
             new CreatedTokenDto(issued.Record.Id, issued.Record.Name, issued.Plaintext));
     }
 
     internal static async Task<Results<Ok<IReadOnlyList<ApiTokenDto>>, NotFound<string>>> ListTokensAsync(
         string tenantSlug,
+        HttpContext http,
         ControlPlaneContext context,
         CancellationToken cancellationToken)
     {
@@ -361,10 +369,11 @@ public static partial class AdminEndpoints
             return TypedResults.NotFound($"Tenant '{tenantSlug}' was not found.");
         }
 
-        var tokens = await context.ApiTokens
+        var tokenQuery = context.ApiTokens
             .AsNoTracking()
             .Where(t => t.Tenant!.Slug == tenantSlug)
-            .OrderBy(t => t.Id)
+            .OrderBy(t => t.Id);
+        var tokens = await PublicApiPagination.ApplySourceWindow(tokenQuery, http)
             .Select(t => new ApiTokenDto(
                 t.Id,
                 t.Name,

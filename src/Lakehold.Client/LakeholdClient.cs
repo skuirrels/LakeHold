@@ -53,21 +53,24 @@ public sealed record LakeholdCdcConsumer(
     DateTimeOffset CreatedUtc,
     DateTimeOffset UpdatedUtc);
 
+internal sealed record LakeholdCursorPage<T>(IReadOnlyList<T> Items, string? NextCursor);
+
 /// <summary>Authenticated client for the LakeHold surfaces required by replication.</summary>
 public sealed class LakeholdClient(HttpClient httpClient, string token)
 {
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
+    private const string ApiBasePath = "/api/v1";
 
     public async Task<LakeholdSnapshot?> GetLatestSnapshotAsync(
         string tenant,
         string catalog,
         CancellationToken cancellationToken)
     {
-        var snapshots = await GetAsync<IReadOnlyList<LakeholdSnapshot>>(
-                $"/api/tenants/{Escape(tenant)}/catalogs/{Escape(catalog)}/snapshots?limit=1",
+        var snapshots = await GetAsync<LakeholdCursorPage<LakeholdSnapshot>>(
+                $"{ApiBasePath}/tenants/{Escape(tenant)}/catalogs/{Escape(catalog)}/snapshots?limit=1",
                 cancellationToken)
             .ConfigureAwait(false);
-        return snapshots.Count == 0 ? null : snapshots[0];
+        return snapshots.Items.Count == 0 ? null : snapshots.Items[0];
     }
 
     public Task<IReadOnlyList<LakeholdSchema>> GetSchemasAsync(
@@ -75,7 +78,7 @@ public sealed class LakeholdClient(HttpClient httpClient, string token)
         string catalog,
         CancellationToken cancellationToken)
         => GetAsync<IReadOnlyList<LakeholdSchema>>(
-            $"/api/tenants/{Escape(tenant)}/catalogs/{Escape(catalog)}/schemas",
+            $"{ApiBasePath}/tenants/{Escape(tenant)}/catalogs/{Escape(catalog)}/schemas",
             cancellationToken);
 
     public async Task<LakeholdQueryPage> ExecuteQueryAsync(
@@ -86,7 +89,7 @@ public sealed class LakeholdClient(HttpClient httpClient, string token)
     {
         using var request = CreateRequest(
             HttpMethod.Post,
-            $"/api/tenants/{Escape(tenant)}/catalogs/{Escape(catalog)}/query");
+            $"{ApiBasePath}/tenants/{Escape(tenant)}/catalogs/{Escape(catalog)}/query");
         request.Content = JsonContent.Create(new ExecuteRequest(sql), options: Json);
 
         using var response = await httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
@@ -107,7 +110,7 @@ public sealed class LakeholdClient(HttpClient httpClient, string token)
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(limit);
 
         var path =
-            $"/api/tenants/{Escape(tenant)}/catalogs/{Escape(catalog)}/cdc/snapshots/"
+            $"{ApiBasePath}/tenants/{Escape(tenant)}/catalogs/{Escape(catalog)}/cdc/snapshots/"
             + $"{snapshot.ToString(CultureInfo.InvariantCulture)}/changes"
             + $"?schema={Escape(schema)}&table={Escape(table)}&limit={Math.Min(limit, 10_000)}";
         if (!string.IsNullOrEmpty(cursor))
@@ -127,7 +130,7 @@ public sealed class LakeholdClient(HttpClient httpClient, string token)
     {
         using var request = CreateRequest(
             HttpMethod.Post,
-            $"/api/tenants/{Escape(tenant)}/catalogs/{Escape(catalog)}/cdc/consumers");
+            $"{ApiBasePath}/tenants/{Escape(tenant)}/catalogs/{Escape(catalog)}/cdc/consumers");
         request.Content = JsonContent.Create(
             new RegisterConsumerRequest(name, lastAppliedSnapshot),
             options: Json);
@@ -144,7 +147,7 @@ public sealed class LakeholdClient(HttpClient httpClient, string token)
     {
         using var request = CreateRequest(
             HttpMethod.Put,
-            $"/api/tenants/{Escape(tenant)}/catalogs/{Escape(catalog)}/cdc/consumers/{consumerId}/checkpoint");
+            $"{ApiBasePath}/tenants/{Escape(tenant)}/catalogs/{Escape(catalog)}/cdc/consumers/{consumerId}/checkpoint");
         request.Content = JsonContent.Create(
             new AdvanceConsumerRequest(lastAppliedSnapshot),
             options: Json);
