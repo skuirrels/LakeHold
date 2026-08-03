@@ -1,3 +1,6 @@
+using Lakehold.ControlPlane.Model;
+using Lakehold.ControlPlane.Security;
+using Lakehold.Api.Auth;
 using Lakehold.Api.Endpoints;
 using Lakehold.Api.Importing;
 using Lakehold.ControlPlane.Data;
@@ -15,6 +18,8 @@ using Microsoft.Extensions.Primitives;
 using Xunit;
 
 namespace Lakehold.Api.Tests;
+
+
 
 /// <summary>Covers streamed bodies, scratch limits, and the API-to-engine CSV/XLSX import path.</summary>
 public sealed class TabularImportEndpointsTests : IAsyncLifetime
@@ -422,6 +427,17 @@ public sealed class TabularImportEndpointsTests : IAsyncLifetime
         Dictionary<string, StringValues> fields)
     {
         var http = new DefaultHttpContext();
+
+        // These tests call the handler directly, so no authorization filter has run. Stash the
+        // principal the filter would have resolved; reading one without it now throws by design.
+        http.Items[LakeholdAuthorizationFilter.PrincipalItemKey] = new LakeholdPrincipal(
+            Scope: TokenScope.Tenant,
+            TenantId: 1,
+            TenantSlug: "demo",
+            CatalogName: null,
+            IsReadOnly: false,
+            TokenId: 1);
+
         http.Request.ContentType = contentType;
         http.Request.ContentLength = contents.Length;
         http.Request.Body = new MemoryStream(contents);

@@ -36,8 +36,6 @@ public sealed class McpAuthenticationFilterTests : IAsyncLifetime
         services.AddScoped<McpRuntimeSettingsStore>();
         services.AddSingleton(TimeProvider.System);
         services.Configure<McpOptions>(options => options.Enabled = true);
-        // Deliberately false: the whole point is that MCP refuses anyway.
-        services.Configure<LakeholdAuthOptions>(o => o.RequireAuthentication = false);
         services.Configure<LakeholdOidcOptions>(_ => { });
         _services = services.BuildServiceProvider();
 
@@ -94,7 +92,6 @@ public sealed class McpAuthenticationFilterTests : IAsyncLifetime
         Assert.True(passed);
         Assert.Equal(StatusCodes.Status200OK, status);
         Assert.NotNull(principal);
-        Assert.True(principal!.IsAuthenticated);
         Assert.Equal("demo", principal.TenantSlug);
     }
 

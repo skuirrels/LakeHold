@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using System.Security.Claims;
 using System.Text.Json;
 using DuckDB.EFCoreProvider.Extensions;
+using Lakehold.Api.Auth;
 using Lakehold.Api.PublicApi;
 using Lakehold.ControlPlane.Data;
 using Lakehold.ControlPlane.Model;
@@ -93,6 +94,7 @@ public sealed class PublicApiContractTests
             app.UsePublicApiRequestHashing();
             var executions = 0;
             app.MapGroup(PublicApiRoutes.BasePath)
+                .AddEndpointFilter(StubPrincipal)
                 .MapPost("/mutations", () => Results.Created(
                     "/api/v1/mutations/one",
                     new { execution = ++executions }))
@@ -144,6 +146,7 @@ public sealed class PublicApiContractTests
             app.UseRouting();
             app.UsePublicApiRequestHashing();
             app.MapGroup(PublicApiRoutes.BasePath)
+                .AddEndpointFilter(StubPrincipal)
                 .MapPost("/mutations", () => Results.NoContent())
                 .WithIdempotency();
 
@@ -188,6 +191,7 @@ public sealed class PublicApiContractTests
             app.UseRouting();
             app.UsePublicApiRequestHashing();
             app.MapGroup(PublicApiRoutes.BasePath)
+                .AddEndpointFilter(StubPrincipal)
                 .MapPost("/mutations", () => Results.NoContent())
                 .WithIdempotency();
 
@@ -263,7 +267,6 @@ public sealed class PublicApiContractTests
         var alice = OidcContext("alice");
         var bob = OidcContext("bob");
         var principal = new LakeholdPrincipal(
-            IsAuthenticated: true,
             Scope: TokenScope.Tenant,
             TenantId: null,
             TenantSlug: "acme",
@@ -561,6 +564,25 @@ public sealed class PublicApiContractTests
         Assert.Equal(JsonValueKind.Null, second.GetProperty("nextCursor").ValueKind);
     }
 
+    /// <summary>
+    ///     Stands in for the authorization filter, which these harnesses do not mount. Reading a
+    ///     principal without one now throws rather than yielding a route-trusting default, so a
+    ///     pipeline that exercises idempotency has to supply the identity it scopes by.
+    /// </summary>
+    private static ValueTask<object?> StubPrincipal(
+        EndpointFilterInvocationContext context,
+        EndpointFilterDelegate next)
+    {
+        context.HttpContext.Items[LakeholdAuthorizationFilter.PrincipalItemKey] = new LakeholdPrincipal(
+            Scope: TokenScope.Tenant,
+            TenantId: 1,
+            TenantSlug: "demo",
+            CatalogName: null,
+            IsReadOnly: false,
+            TokenId: 1);
+        return next(context);
+    }
+
     private static async Task<WebApplication> CreateApplicationAsync()
     {
         var builder = WebApplication.CreateBuilder();
@@ -613,7 +635,6 @@ public sealed class PublicApiContractTests
 
     private static LakeholdPrincipal Principal(TokenScope scope, string? tenant, string? catalog)
         => new(
-            IsAuthenticated: true,
             Scope: scope,
             TenantId: null,
             TenantSlug: tenant,

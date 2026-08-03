@@ -243,16 +243,6 @@ export class WorkbenchComponent {
   protected readonly ssoAvailable = computed(() => this.browserSession()?.oidcEnabled ?? false);
 
   /**
-   * Whether the node refuses credential-less requests.
-   *
-   * Defaults to true while the session is still loading. Describing an unknown node as open would
-   * be the one wrong guess here: a reader who is told no credential is needed stops looking for one.
-   */
-  protected readonly credentialRequired = computed(
-    () => this.browserSession()?.requiresAuthentication ?? true,
-  );
-
-  /**
    * What the credential control says it is. Never "Sign in" — this control takes a machine token,
    * and the identity-provider login beside it is the thing that signs a person in.
    */

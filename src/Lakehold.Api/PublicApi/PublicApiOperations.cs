@@ -519,7 +519,7 @@ public static class PublicApiOperationEndpoints
 
     internal static bool IsVisibleTo(ILakeholdPrincipal principal, ApiOperation operation)
     {
-        if (!principal.IsAuthenticated || principal.Scope == TokenScope.Instance)
+        if (principal.Scope == TokenScope.Instance)
         {
             return true;
         }

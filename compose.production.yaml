@@ -49,7 +49,6 @@ services:
       # without it the API trusts whatever tenant a URL names, and this stack publishes :8080. The
       # node mints a bootstrap token on first start and logs it once — see README.md — so turning it
       # on here costs one `docker compose logs` rather than a locked-out deployment.
-      Lakehold__Auth__RequireAuthentication: ${LAKEHOLD_REQUIRE_AUTH:-true}
       Lakehold__BootstrapToken: ${LAKEHOLD_BOOTSTRAP_TOKEN:-}
       # Trust the proxy headers supplied by the colocated Workbench nginx so OIDC callback URLs use
       # the browser-facing scheme and host rather than the API container address.

@@ -223,17 +223,13 @@ public static class LakehouseEndpoints
     private static Ok<AccessDto> GetAccess(HttpContext http)
     {
         var principal = http.GetLakeholdPrincipal();
-        var mode = principal.IsDemo
-            ? "demo"
-            : principal.IsAuthenticated
-                ? "authenticated"
-                : "open";
+        var mode = principal.IsDemo ? "demo" : "authenticated";
 
         return TypedResults.Ok(new AccessDto(
             mode,
             principal.Role.ToString().ToLowerInvariant(),
             principal.IsReadOnly,
-            principal.IsAuthenticated && principal.Scope == TokenScope.Instance));
+            principal.Scope == TokenScope.Instance));
     }
 
     private static async Task<Ok<IReadOnlyList<TenantDto>>> ListTenantsAsync(
@@ -241,11 +237,10 @@ public static class LakehouseEndpoints
         ControlPlaneContext context,
         CancellationToken cancellationToken)
     {
-        // An instance token (and the transitional token-less caller) sees every tenant; a tenant token
-        // sees only its own. The scope is applied here rather than in the filter because the filter
-        // decides reachability, not projection.
+        // An instance token sees every tenant; a tenant token sees only its own. The scope is applied
+        // here rather than in the filter because the filter decides reachability, not projection.
         var principal = http.GetLakeholdPrincipal();
-        var ownTenant = principal.IsAuthenticated && principal.Scope == TokenScope.Tenant
+        var ownTenant = principal.Scope == TokenScope.Tenant
             ? principal.TenantSlug
             : null;
 
@@ -1744,7 +1739,7 @@ public static class LakehouseEndpoints
         var principal = http.GetLakeholdPrincipal();
         var runs = log.Recent().AsEnumerable();
 
-        if (principal.IsAuthenticated && principal.Scope == TokenScope.Tenant)
+        if (principal.Scope == TokenScope.Tenant)
         {
             runs = runs.Where(r => string.Equals(r.Tenant, principal.TenantSlug, StringComparison.Ordinal));
 

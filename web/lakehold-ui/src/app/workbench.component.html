@@ -98,15 +98,10 @@
                 } @else {
                   Kept for this browser session only, so a closed tab needs it again.
                 }
-              } @else if (credentialRequired()) {
+              } @else {
                 This node requires a credential. Tokens are issued by whoever operates it; a node
                 with none yet writes a one-time <code>lkh_admin_…</code> bootstrap token to its API
                 startup log, which creates the first workspace and its owner token.
-              } @else {
-                <strong>This node does not require a credential</strong> — it is serving every
-                request, including this one, without checking for one. A token is only needed to act
-                as a specific tenant or role. Set
-                <code>Lakehold__Auth__RequireAuthentication=true</code> to close it.
               }
             </p>
           </div>

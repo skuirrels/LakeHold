@@ -26,10 +26,9 @@ internal static class McpCaller
         var http = accessor.HttpContext
             ?? throw new McpException("This server is only available over the HTTP transport.");
 
-        var principal = http.GetLakeholdPrincipal();
-        return principal.IsAuthenticated
-            ? principal
-            : throw new McpException("A credential is required.");
+        // The MCP filter refuses a credential-less call before this runs, and GetLakeholdPrincipal
+        // throws if no filter resolved one, so there is no unauthenticated case left to guard.
+        return http.GetLakeholdPrincipal();
     }
 
     /// <summary>The runtime settings snapshot loaded before this transport request was accepted.</summary>

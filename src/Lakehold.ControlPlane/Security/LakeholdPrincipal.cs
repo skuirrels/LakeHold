@@ -9,9 +9,6 @@ namespace Lakehold.ControlPlane.Security;
 /// </summary>
 public interface ILakeholdPrincipal
 {
-    /// <summary>True when resolved from a token; false for the transitional route-trusting caller.</summary>
-    bool IsAuthenticated { get; }
-
     /// <summary>Capability: acts as a tenant, or provisions the instance.</summary>
     TokenScope Scope { get; }
 
@@ -39,12 +36,17 @@ public interface ILakeholdPrincipal
 
 /// <inheritdoc cref="ILakeholdPrincipal"/>
 /// <remarks>
-///     <paramref name="Role"/> is positioned last with a default so the many call sites that predate
-///     roles keep compiling and resolve to <see cref="TokenRole.Owner"/> — the capability every
-///     credential had before roles existed.
+///     Every principal is authenticated by construction. There is deliberately no representation of
+///     "a caller we could not identify": such a request is refused before a principal exists, so no
+///     downstream policy has to remember to check. A route-trusting principal used to live here,
+///     and while it did, both policies below began by allowing everything it asked for.
+///     <para>
+///         <paramref name="Role"/> is positioned last with a default so the many call sites that
+///         predate roles keep compiling and resolve to <see cref="TokenRole.Owner"/> — the capability
+///         every credential had before roles existed.
+///     </para>
 /// </remarks>
 public sealed record LakeholdPrincipal(
-    bool IsAuthenticated,
     TokenScope Scope,
     int? TenantId,
     string? TenantSlug,
@@ -55,26 +57,12 @@ public sealed record LakeholdPrincipal(
     bool IsDemo = false) : ILakeholdPrincipal
 {
     /// <summary>
-    ///     The caller for a request that carried no token. It trusts the route, preserving today's
-    ///     behaviour until token issuance and the UI wiring land and enforcement can be required. It is
-    ///     never produced when a token is presented — an invalid token is refused, not downgraded.
-    /// </summary>
-    public static LakeholdPrincipal Legacy { get; } = new(
-        IsAuthenticated: false,
-        Scope: TokenScope.Tenant,
-        TenantId: null,
-        TenantSlug: null,
-        CatalogName: null,
-        IsReadOnly: false,
-        TokenId: null);
-
-    /// <summary>
-    ///     A credential-less visitor constrained to one tenant and catalog and attached read-only.
-    ///     It is treated as an authorised principal rather than as <see cref="Legacy"/>, because the
-    ///     legacy principal deliberately trusts every route and therefore cannot be exposed publicly.
+    ///     A credential-less visitor constrained to one tenant and catalog and attached read-only,
+    ///     used only where an operator has deliberately published a demo catalog. It is a real
+    ///     subject-scoped identity, not a bypass: it names exactly one tenant and one catalog and can
+    ///     never write.
     /// </summary>
     public static LakeholdPrincipal Demo(string tenant, string catalog) => new(
-        IsAuthenticated: true,
         Scope: TokenScope.Tenant,
         TenantId: null,
         TenantSlug: tenant,

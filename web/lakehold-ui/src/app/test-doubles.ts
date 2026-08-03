@@ -216,7 +216,6 @@ export class FakeLakehouseService {
     authenticated: false,
     displayName: null,
     systemAdmin: false,
-    requiresAuthentication: false,
   };
   systemSettings: SystemSettings = {
     mcpEnabled: true,

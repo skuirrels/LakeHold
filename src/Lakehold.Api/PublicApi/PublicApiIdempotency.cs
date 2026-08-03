@@ -299,15 +299,13 @@ public sealed class PublicApiIdempotencyFilter : IEndpointFilter
                 tokenId.ToString(System.Globalization.CultureInfo.InvariantCulture))
             : principal.IsDemo
                 ? string.Concat("demo:", principal.TenantSlug, ":", principal.CatalogName)
-                : principal.IsAuthenticated
-                    ? string.Concat(
-                        "oidc:",
-                        http.User.FindFirst("sub")?.Value
-                        ?? http.User.FindFirst(ClaimTypes.NameIdentifier)?.Value
-                        ?? http.User.Identity?.Name
-                        ?? throw new InvalidOperationException(
-                            "An authenticated OIDC identity requires a stable subject for idempotency."))
-                    : "legacy";
+                : string.Concat(
+                    "oidc:",
+                    http.User.FindFirst("sub")?.Value
+                    ?? http.User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                    ?? http.User.Identity?.Name
+                    ?? throw new InvalidOperationException(
+                        "An authenticated OIDC identity requires a stable subject for idempotency."));
         var callerHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(caller)));
         return string.Concat(callerHash, ":", http.Request.Method, ":", http.Request.Path);
     }

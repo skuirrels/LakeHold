@@ -14,17 +14,23 @@ public sealed record RouteCapabilityMetadata(Capability Capability);
 public static class PrincipalHttpExtensions
 {
     /// <summary>
-    ///     The principal the authorization filter resolved for this request, or
-    ///     <see cref="LakeholdPrincipal.Legacy"/> when none was stashed — a route reached without the
-    ///     filter, or a token-less request while enforcement is not required.
+    ///     The principal the authorization filter resolved for this request.
     /// </summary>
+    /// <exception cref="InvalidOperationException">
+    ///     The route did not run <see cref="LakeholdAuthorizationFilter"/>. This used to return a
+    ///     route-trusting principal instead, which turned "this endpoint forgot its filter" into
+    ///     "this endpoint serves anyone" — silently, and only on the endpoint that made the mistake.
+    ///     Failing loudly is the point: it is a wiring bug, and it should be impossible to ship.
+    /// </exception>
     public static ILakeholdPrincipal GetLakeholdPrincipal(this HttpContext http)
     {
         ArgumentNullException.ThrowIfNull(http);
         return http.Items.TryGetValue(LakeholdAuthorizationFilter.PrincipalItemKey, out var value)
             && value is ILakeholdPrincipal principal
             ? principal
-            : LakeholdPrincipal.Legacy;
+            : throw new InvalidOperationException(
+                $"No principal was resolved for {http.Request.Path}. Every route that reads a "
+                + "principal must have AddEndpointFilter<LakeholdAuthorizationFilter>() applied.");
     }
 
     /// <summary>Attaches a <see cref="Capability"/> to an endpoint, read back by the filter.</summary>

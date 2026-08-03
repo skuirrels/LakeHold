@@ -24,17 +24,12 @@ public static class TenantAccessPolicy
     ///     A mismatch is a 404 rather than a 403 on purpose: a 403 confirms the tenant or catalog
     ///     exists, which is itself information the caller has no right to. An instance-scoped principal
     ///     names no tenant, so it matches no data route and is refused by the same rule — no special
-    ///     case. An unauthenticated (route-trusting) caller is allowed, which keeps the product working
-    ///     for token-less clients until authentication is required.
+    ///     case. Every principal reaching here is authenticated: a caller that could not be identified
+    ///     was refused before one was constructed.
     /// </remarks>
     public static AccessDecision Evaluate(ILakeholdPrincipal principal, string? routeTenant, string? routeCatalog)
     {
         ArgumentNullException.ThrowIfNull(principal);
-
-        if (!principal.IsAuthenticated)
-        {
-            return AccessDecision.Allow;
-        }
 
         if (routeTenant is not null
             && !string.Equals(routeTenant, principal.TenantSlug, StringComparison.Ordinal))

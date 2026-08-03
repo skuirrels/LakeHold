@@ -6,13 +6,12 @@ public sealed class LakeholdAuthOptions
     /// <summary>Configuration section name.</summary>
     public const string Section = "Lakehold:Auth";
 
-    /// <summary>
-    ///     Whether a request must carry a valid token. Default false: a request with no token falls
-    ///     back to trusting the route, preserving today's behaviour until token issuance (phase 1,
-    ///     step 3) and the workbench wiring (step 4) land. A token that <em>is</em> presented is always
-    ///     validated, regardless of this flag.
-    /// </summary>
-    public bool RequireAuthentication { get; set; }
+    // There is deliberately no RequireAuthentication switch. It existed to keep token-less callers
+    // working "until token issuance and the workbench wiring land"; both landed, the switch stayed,
+    // and because it defaulted to off the entire authorization layer was inert in the one
+    // configuration developers actually ran. Authentication is not optional. An operator who wants
+    // to publish something without a credential does it by publishing a demo catalog below, which
+    // is a real read-only identity scoped to one tenant rather than a bypass.
 
     /// <summary>
     ///     Tenant exposed in demo mode to credential-less visitors as a tightly scoped reader.
