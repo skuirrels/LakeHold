@@ -5,10 +5,11 @@ one governed place to acquire, store, understand, serve, and operate organisatio
 is not to imitate every service in Databricks or Snowflake. It is to give .NET and lean data teams a
 smaller, private platform with open storage, explicit operations, and an exit path they can prove.
 
-> **Current boundary:** LakeHold v1.3.0 includes the managed connector platform: full snapshots,
-> checkpointed incremental publication, PostgreSQL, and HubSpot Contacts. LakeHold is not yet a
-> complete EDP. Searchable governance, end-to-end
-> lineage, a semantic layer, mature BI compatibility, and a broad adapter ecosystem remain planned.
+> **Current boundary:** LakeHold v1.3.0 includes the managed connector platform. The current source
+> also implements the `/api/v1` public API foundation and generated Java, Go, .NET, and Python SDK
+> candidates, but those changes are not a released server or publicly installed packages.
+> Searchable governance, end-to-end lineage, a semantic layer, mature BI compatibility, full SDK
+> convenience/conformance coverage, and a broad adapter ecosystem remain incomplete.
 
 ## What an EDP does
 
@@ -19,7 +20,7 @@ An Enterprise Data Platform normally brings six responsibilities together:
 | Acquire           | Bring operational, SaaS, file, event, and database data into governed storage | Full and incremental managed connectors, browser imports, and CDC                      |
 | Store and process | Keep durable analytical data and execute transformations and queries          | DuckLake tables, open Parquet, DuckDB compute, snapshots, and saved SQL                |
 | Govern            | Define ownership, contracts, quality, classification, policy, and lineage     | Shipped connector contracts; searchable asset governance and lineage planned            |
-| Serve             | Make trusted data available to applications, analysts, BI, and AI             | HTTP, PostgreSQL wire, EF Core, MCP, and future semantic/open-engine interfaces        |
+| Serve             | Make trusted data available to applications, analysts, BI, and AI             | Versioned HTTP, PostgreSQL wire, EF Core, MCP, source SDK candidates, and planned open-engine interfaces |
 | Operate           | Schedule, observe, recover, optimise, and prove service health                | Leases, audit, telemetry, maintenance, backup/restore, and verified eject              |
 | Secure            | Enforce identity, tenant boundaries, secrets, and controlled egress           | Scoped tokens, OIDC, roles, DNS-pinned egress, and external secret references          |
 
@@ -60,12 +61,19 @@ The managed connector contract and operator settings are documented in
 - Browser-local CSV and XLSX imports with bounded, owner-only scratch space.
 - Typed CDC pull and signed at-least-once webhooks for downstream change consumption.
 
-### Available on the main branch: consumption
+### Implemented consumption surfaces
 
 - Browser Workbench, HTTP APIs, MCP resources/tools, EF Core integration, and direct SQL through the
   PostgreSQL wire endpoint.
 - `psql`, DBeaver, and Npgsql work through the wire endpoint. Power BI remains blocked by the
   documented PostgreSQL type-catalogue compatibility gap.
+- Canonical `/api/v1` routes, production OpenAPI, RFC 9457 errors, cursor pages, idempotent bounded
+  mutations, durable long-running operations, and capability discovery are implemented in source.
+- Generated Java, Go, .NET, and Python clients cover the frozen v1 contract and have authentication
+  conformance tests. They are source candidates, not released packages; advanced retry, iterator,
+  operation-waiter, and streaming conveniences remain open.
+- The older source-only `Lakehold.Client` project still supports the first-party .NET replication
+  worker and is separate from the new general-purpose .NET SDK candidate.
 
 ## Typical enterprise uses
 
@@ -85,7 +93,8 @@ LakeHold should not yet be presented as a broad, finished EDP. The following cap
 open:
 
 - A broad, separately distributed and production-certified database/SaaS adapter ecosystem. The
-  current source SDK is part of the API assembly and the built-in catalogue contains four adapters.
+  current in-process connector adapter contract is part of the API assembly and the built-in
+  catalogue contains four adapters; it is distinct from the planned client SDKs.
 - Searchable enterprise catalog, column classification, policy administration, freshness status,
   and navigable upstream/downstream lineage.
 - Governed metrics and semantic models.
@@ -93,6 +102,9 @@ open:
   Iceberg-compatible catalog.
 - A connector administration experience in the Workbench.
 - Connector service objectives, alerting, and resource/cost reporting.
+- Full cross-language SDK conveniences and conformance coverage, an automated semantic OpenAPI
+  compatibility diff, and publicly signed Java, Go, .NET, and Python packages. The API/SDK
+  acceptance gates and exact source-versus-release boundary are tracked in the delivery plan.
 
 ## Delivery plan and status
 

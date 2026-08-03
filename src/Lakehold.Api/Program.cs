@@ -1,5 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.DataProtection;
+using Microsoft.OpenApi;
 using Lakehold.Api;
 using Lakehold.Api.Auth;
 using Lakehold.Api.Cdc;
@@ -10,6 +13,7 @@ using Lakehold.Api.Importing;
 using Lakehold.Api.Querying;
 using Lakehold.Api.Mcp;
 using Lakehold.Api.PgWire;
+using Lakehold.Api.PublicApi;
 using Lakehold.Api.Scheduling;
 using Lakehold.Api.Storage;
 using Lakehold.Api.Security;
@@ -45,8 +49,172 @@ builder.Services.AddOpenTelemetry()
 builder.Services.AddHealthChecks()
     .AddCheck<ControlPlaneHealthCheck>("control-plane");
 
-builder.Services.AddOpenApi();
-builder.Services.AddProblemDetails();
+builder.Services.AddOpenApi(options =>
+{
+    options.AddOperationTransformer((operation, context, _) =>
+    {
+        var metadata = context.Description.ActionDescriptor.EndpointMetadata;
+        operation.OperationId ??= PublicApiOperationIds.Create(
+            context.Description.HttpMethod,
+            context.Description.RelativePath);
+        if (!metadata.OfType<IAllowAnonymous>().Any())
+        {
+            operation.Security ??= [];
+            operation.Security.Add(new OpenApiSecurityRequirement
+            {
+                [new OpenApiSecuritySchemeReference("bearerAuth")] = [],
+            });
+        }
+
+        if (metadata.OfType<CursorPaginationMetadata>().SingleOrDefault() is { } pagination)
+        {
+            operation.Parameters ??= [];
+            var defaultLimit = Math.Min(PublicApiPagination.DefaultLimit, pagination.MaximumLimit);
+            var limitParameter = new OpenApiParameter
+            {
+                Name = "limit",
+                In = ParameterLocation.Query,
+                Required = false,
+                Description =
+                    $"Maximum items to return (1-{pagination.MaximumLimit}, default {defaultLimit}).",
+                Schema = new OpenApiSchema
+                {
+                    Type = JsonSchemaType.Integer,
+                    Format = "int32",
+                    Minimum = "1",
+                    Maximum = pagination.MaximumLimit.ToString(
+                        System.Globalization.CultureInfo.InvariantCulture),
+                    Default = defaultLimit,
+                },
+            };
+            var existingLimit = operation.Parameters
+                .Select((parameter, index) => new { parameter, index })
+                .SingleOrDefault(candidate =>
+                    candidate.parameter.In == ParameterLocation.Query
+                    && string.Equals(candidate.parameter.Name, "limit", StringComparison.Ordinal));
+            if (existingLimit is null)
+            {
+                operation.Parameters.Add(limitParameter);
+            }
+            else
+            {
+                operation.Parameters[existingLimit.index] = limitParameter;
+            }
+
+            if (!operation.Parameters.Any(parameter =>
+                    parameter.In == ParameterLocation.Query
+                    && string.Equals(parameter.Name, "cursor", StringComparison.Ordinal)))
+            {
+                operation.Parameters.Add(new OpenApiParameter
+                {
+                    Name = "cursor",
+                    In = ParameterLocation.Query,
+                    Required = false,
+                    Description = "Opaque nextCursor from the preceding response; repeat the same query parameters.",
+                    Schema = new OpenApiSchema { Type = JsonSchemaType.String },
+                });
+            }
+        }
+
+        if (metadata.OfType<IdempotentMutationMetadata>().Any())
+        {
+            operation.Parameters ??= [];
+            operation.Parameters.Add(new OpenApiParameter
+            {
+                Name = "Idempotency-Key",
+                In = ParameterLocation.Header,
+                Required = false,
+                Description = "A caller-generated 16-128 character key. Reuse only for an identical retry.",
+                Schema = new OpenApiSchema
+                {
+                    Type = JsonSchemaType.String,
+                    MinLength = 16,
+                    MaxLength = 128,
+                    Pattern = "^[!-~]{16,128}$",
+                },
+            });
+        }
+
+        return Task.CompletedTask;
+    });
+    options.AddDocumentTransformer((document, _, _) =>
+    {
+        document.Info.Title = "LakeHold Public API";
+        document.Info.Version = "v1";
+        document.Info.Description =
+            "Stable, versioned control-plane and lakehouse API for LakeHold. "
+            + "Send machine credentials as a Bearer token and an Idempotency-Key on retryable mutations.";
+        document.Servers = [new OpenApiServer { Url = "/" }];
+        document.Components ??= new OpenApiComponents();
+        document.Components.SecuritySchemes ??= new Dictionary<string, IOpenApiSecurityScheme>(StringComparer.Ordinal);
+        document.Components.SecuritySchemes["bearerAuth"] = new OpenApiSecurityScheme
+        {
+            Type = SecuritySchemeType.Http,
+            Scheme = "bearer",
+            BearerFormat = "LakeHold API token",
+            Description = "A LakeHold API token with the capability required by the operation.",
+        };
+        foreach (var path in document.Paths.Keys
+                     .Where(path => !path.StartsWith(PublicApiRoutes.BasePath, StringComparison.Ordinal))
+                     .ToArray())
+        {
+            document.Paths.Remove(path);
+        }
+
+        foreach (var operation in document.Paths.Values.SelectMany(path =>
+                     path.Operations is null
+                         ? Enumerable.Empty<OpenApiOperation>()
+                         : path.Operations.Values))
+        {
+            if (operation.Security is not { Count: > 0 })
+            {
+                continue;
+            }
+
+            operation.Security =
+            [
+                new OpenApiSecurityRequirement
+                {
+                    [new OpenApiSecuritySchemeReference("bearerAuth", document)] = [],
+                },
+            ];
+        }
+        PublicApiOpenApi.NormalizeProblemResponses(document);
+        foreach (var response in document.Paths.Values
+                     .SelectMany(path => path.Operations is null
+                         ? Enumerable.Empty<OpenApiOperation>()
+                         : path.Operations.Values)
+                     .SelectMany(operation => operation.Responses is null
+                         ? Enumerable.Empty<IOpenApiResponse>()
+                         : operation.Responses.Values))
+        {
+            if (response is not OpenApiResponse concreteResponse)
+            {
+                continue;
+            }
+
+            concreteResponse.Headers ??= new Dictionary<string, IOpenApiHeader>(StringComparer.OrdinalIgnoreCase);
+            concreteResponse.Headers[PublicApiCorrelationExtensions.HeaderName] = new OpenApiHeader
+            {
+                Description = "Server correlation identifier for support and diagnostics.",
+                Schema = new OpenApiSchema { Type = JsonSchemaType.String },
+            };
+        }
+        PublicApiOpenApi.NormalizeNumericSchemas(document);
+        PublicApiOpenApi.PruneUnusedSchemas(document);
+
+        return Task.CompletedTask;
+    });
+});
+builder.Services.AddProblemDetails(options =>
+{
+    options.CustomizeProblemDetails = context =>
+        PublicApiProblems.Enrich(context.ProblemDetails, context.HttpContext);
+});
+builder.Services
+    .AddDataProtection()
+    .SetApplicationName("LakeHold")
+    .PersistKeysToDbContext<ControlPlaneContext>();
 
 builder.Services.Configure<LakehouseOptions>(builder.Configuration.GetSection(LakehouseOptions.SectionName));
 builder.Services.Configure<CsvUploadOptions>(builder.Configuration.GetSection(CsvUploadOptions.SectionName));
@@ -104,6 +272,10 @@ builder.Services.AddSingleton<IDucklingSessionConfigurator, DucklingSessionConfi
 builder.Services.AddScoped<LakehouseService>();
 builder.Services.AddScoped<SavedQueryService>();
 builder.Services.AddScoped<DataConnectorService>();
+builder.Services.AddScoped<PublicApiIdempotencyStore>();
+builder.Services.AddScoped<PublicApiOperationStore>();
+builder.Services.AddHostedService<PublicApiOperationWorker>();
+builder.Services.AddHostedService<PublicApiRetentionWorker>();
 builder.Services.AddSingleton<TabularScratchSpace>();
 builder.Services.AddScoped<TabularUploadService>();
 builder.Services.AddOptions<QueryPlannerOptions>()
@@ -319,9 +491,15 @@ _ = app.Services.GetRequiredService<ConnectorScratchSpace>();
 
 app.MapDefaultEndpoints();
 
+// The compatibility rewrite must run before routing. The old /api path remains available for one
+// release, but every response points clients at the canonical, documented v1 contract.
+app.UseLegacyApiCompatibility();
+app.UsePublicApiCorrelation();
+app.UseRouting();
+app.UsePublicApiRequestHashing();
+
 if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi();
     app.UseCors(DevCors);
 }
 
@@ -335,8 +513,42 @@ if (oidc.Enabled)
     app.UseAuthorization();
 }
 
-app.MapLakehouseEndpoints();
-app.MapSystemSettingsEndpoints();
+var publicApi = app.MapGroup(PublicApiRoutes.BasePath)
+    .AddEndpointFilter<PublicApiProblemFilter>();
+foreach (var status in new[]
+         {
+             StatusCodes.Status400BadRequest,
+             StatusCodes.Status401Unauthorized,
+             StatusCodes.Status403Forbidden,
+             StatusCodes.Status404NotFound,
+             StatusCodes.Status408RequestTimeout,
+             StatusCodes.Status409Conflict,
+             StatusCodes.Status412PreconditionFailed,
+             StatusCodes.Status413PayloadTooLarge,
+             StatusCodes.Status422UnprocessableEntity,
+             StatusCodes.Status429TooManyRequests,
+             StatusCodes.Status500InternalServerError,
+             StatusCodes.Status502BadGateway,
+             StatusCodes.Status503ServiceUnavailable,
+             StatusCodes.Status504GatewayTimeout,
+         })
+{
+    ((IEndpointConventionBuilder)publicApi).Add(endpoint => endpoint.Metadata.Add(new ProducesResponseTypeMetadata(
+        status,
+        typeof(PublicApiProblemDetails),
+        ["application/problem+json"])));
+}
+publicApi.MapPublicApiDiscovery();
+publicApi.MapPublicApiOperations();
+publicApi.MapLakehouseEndpoints();
+publicApi.MapSystemSettingsEndpoints();
+app.MapOpenApi(PublicApiRoutes.BasePath + "/openapi/{documentName}.json");
+app.MapGet(PublicApiRoutes.OpenApiPath, () => Results.Redirect(
+        PublicApiRoutes.BasePath + "/openapi/v1.json",
+        permanent: false,
+        preserveMethod: true))
+    .AllowAnonymous()
+    .ExcludeFromDescription();
 app.MapBrowserAuthenticationEndpoints();
 app.MapLakeholdMcp();
 app.MapMcpResourceMetadata();

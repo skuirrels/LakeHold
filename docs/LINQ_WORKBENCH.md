@@ -157,7 +157,7 @@ and cannot execute an old plan.
 
 The dynamic model uses the provider's public store-type inspection API and supports its mapped
 scalar types, decimals, dates/times, JSON, blobs, and one-dimensional ARRAY columns. Native
-`STRUCT`, `MAP`, `UNION`, `ENUM`, `HUGEINT`,
+`STRUCT`, `MAP`, `UNION`, `VARIANT`, native `ENUM`, fixed-size arrays, `HUGEINT`,
 `UHUGEINT`, `VARINT`, `BIT`, and `INTERVAL` columns are omitted from generated LINQ row types because
 the provider does not expose EF entity-property mappings for them. Supported columns and tables in
 the same catalog remain queryable. Referencing an omitted property produces an editor diagnostic;

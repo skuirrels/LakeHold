@@ -312,7 +312,8 @@ public sealed class DataConnectorService(ControlPlaneContext context)
             .AsNoTracking()
             .Where(run => run.DataConnectorId == id)
             .OrderByDescending(run => run.StartedUtc)
-            .Take(Math.Clamp(limit, 1, 500))
+            .ThenByDescending(run => run.Id)
+            .Take(Math.Max(limit, 1))
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
     }
@@ -330,7 +331,8 @@ public sealed class DataConnectorService(ControlPlaneContext context)
             .AsNoTracking()
             .Where(run => run.DataConnectorId == id && run.Status == status)
             .OrderByDescending(run => run.StartedUtc)
-            .Take(Math.Clamp(limit, 1, 500))
+            .ThenByDescending(run => run.Id)
+            .Take(Math.Max(limit, 1))
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
     }

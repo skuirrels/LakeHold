@@ -306,15 +306,27 @@ public sealed class LinqQueryCompilerTests
 
     [Theory]
     [InlineData("HUGEINT")]
+    [InlineData("UHUGEINT")]
     [InlineData("INTERVAL")]
     [InlineData("MAP(VARCHAR, INTEGER)")]
-    [InlineData("LIST(VARCHAR)")]
-    public void Raw_reader_only_types_are_rejected_at_the_EF_model_boundary(string storeType)
+    [InlineData("UNION(number INTEGER, text VARCHAR)")]
+    [InlineData("VARIANT")]
+    [InlineData("ENUM('open', 'closed')")]
+    [InlineData("BIT")]
+    [InlineData("INTEGER[3]")]
+    public void Provider_raw_reader_only_types_are_rejected_at_the_EF_model_boundary(string storeType)
         => Assert.Throws<NotSupportedException>(() => DuckDbClrTypeMapper.Map(storeType, nullable: true));
 
     [Theory]
     [InlineData("STRUCT(name VARCHAR)", DuckDBStoreTypeSupport.ComplexProperty)]
+    [InlineData("MAP(VARCHAR, INTEGER)", DuckDBStoreTypeSupport.RawReaderOnly)]
+    [InlineData("UNION(number INTEGER, text VARCHAR)", DuckDBStoreTypeSupport.RawReaderOnly)]
+    [InlineData("VARIANT", DuckDBStoreTypeSupport.RawReaderOnly)]
+    [InlineData("ENUM('open', 'closed')", DuckDBStoreTypeSupport.RawReaderOnly)]
+    [InlineData("INTEGER[3]", DuckDBStoreTypeSupport.RawReaderOnly)]
     [InlineData("HUGEINT", DuckDBStoreTypeSupport.RawReaderOnly)]
+    [InlineData("VARINT", DuckDBStoreTypeSupport.Unsupported)]
+    [InlineData("LIST(VARCHAR)", DuckDBStoreTypeSupport.Unsupported)]
     [InlineData("NOT_A_DUCKDB_TYPE", DuckDBStoreTypeSupport.Unsupported)]
     public void Provider_inspection_defines_the_dynamic_model_boundary(
         string storeType,

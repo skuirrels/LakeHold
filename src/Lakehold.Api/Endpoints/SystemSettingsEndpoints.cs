@@ -12,15 +12,17 @@ public static class SystemSettingsEndpoints
     {
         ArgumentNullException.ThrowIfNull(app);
 
-        var settings = app.MapGroup("/api/system-settings")
+        var settings = app.MapGroup("/system-settings")
             .WithTags("System settings")
             .AddEndpointFilter<LakeholdAuthorizationFilter>()
             .RequireCapability(Capability.Instance);
 
         settings.MapGet("/", GetAsync)
+            .Produces<SystemSettingsDto>()
             .WithSummary("Returns the instance-wide runtime settings.");
 
         settings.MapPut("/", SaveAsync)
+            .Produces<SystemSettingsDto>()
             .WithSummary("Saves and immediately applies the instance-wide runtime settings.");
 
         return app;

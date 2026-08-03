@@ -34,6 +34,113 @@ public sealed class SystemSettings
 }
 
 /// <summary>
+///     Durable response ledger for one public-API idempotency key. The key itself is never stored;
+///     only its SHA-256 digest is persisted.
+/// </summary>
+/// <remarks>
+///     An interrupted request remains <see cref="ApiIdempotencyStatus.InProgress"/> and is never
+///     reclaimed automatically. That fail-closed choice can require operator intervention, but it
+///     cannot silently execute an indeterminate mutation twice.
+/// </remarks>
+public sealed class ApiIdempotencyRecord
+{
+    public int Id { get; set; }
+
+    public required string Scope { get; set; }
+
+    public required string KeyHash { get; set; }
+
+    public required string RequestHash { get; set; }
+
+    public ApiIdempotencyStatus Status { get; set; }
+
+    public int? ResponseStatusCode { get; set; }
+
+    public string? ResponseContentType { get; set; }
+
+    public string? ResponseLocation { get; set; }
+
+    public byte[]? ResponseBody { get; set; }
+
+    public DateTimeOffset CreatedUtc { get; set; }
+
+    public DateTimeOffset? CompletedUtc { get; set; }
+
+    public long ConcurrencyVersion { get; set; }
+
+    public void Complete(
+        int statusCode,
+        string? contentType,
+        string? location,
+        byte[] responseBody,
+        DateTimeOffset completedUtc)
+    {
+        if (Status != ApiIdempotencyStatus.InProgress)
+        {
+            throw new InvalidOperationException("Only an in-progress idempotency record can complete.");
+        }
+
+        ArgumentNullException.ThrowIfNull(responseBody);
+        ResponseStatusCode = statusCode;
+        ResponseContentType = contentType;
+        ResponseLocation = location;
+        ResponseBody = responseBody;
+        CompletedUtc = completedUtc;
+        Status = ApiIdempotencyStatus.Completed;
+        ConcurrencyVersion++;
+    }
+}
+
+public enum ApiIdempotencyStatus
+{
+    InProgress = 0,
+    Completed = 1,
+}
+
+/// <summary>Durable state for one long-running public API operation.</summary>
+public sealed class ApiOperation
+{
+    public required string Id { get; set; }
+
+    public required string TenantSlug { get; set; }
+
+    public required string CatalogName { get; set; }
+
+    public required string Kind { get; set; }
+
+    public required string RequestJson { get; set; }
+
+    public ApiOperationStatus Status { get; set; }
+
+    public int? RequestedByTokenId { get; set; }
+
+    public string? ResultJson { get; set; }
+
+    public string? Error { get; set; }
+
+    public DateTimeOffset CreatedUtc { get; set; }
+
+    public DateTimeOffset? StartedUtc { get; set; }
+
+    public DateTimeOffset? CompletedUtc { get; set; }
+
+    public string? LeaseOwner { get; set; }
+
+    public DateTimeOffset? LeaseExpiresUtc { get; set; }
+
+    public long ConcurrencyVersion { get; set; }
+}
+
+public enum ApiOperationStatus
+{
+    Queued = 0,
+    Running = 1,
+    Succeeded = 2,
+    Failed = 3,
+    Indeterminate = 4,
+}
+
+/// <summary>
 ///     An isolation boundary: an organisation, team, or environment. A tenant owns catalogs, and
 ///     a query always executes in exactly one tenant's context.
 /// </summary>

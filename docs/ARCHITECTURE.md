@@ -546,14 +546,17 @@ DuckLake-to-IRC bridge exists. Ship both; lead with this one.
 - **Preconditions**: authentication, which is met (see below), and a decision on whether writes are
   ever accepted over IRC — read-only keeps invariants 4 and 5 intact for free.
 
-### 6. Typed .NET client and change stream — not built
+### 6. Typed multi-language SDKs and change stream — partial
 
 .NET/EF Core integration is claimed above as the differentiator no competitor has, and the claim is
-architecturally true. But there is **no client package in `src/`**, so today it is a property of the
-design rather than something a user can install. This is the cheapest of the three to close and the
-one that makes the other .NET arguments concrete.
+architecturally true. A source-only `src/Lakehold.Client` supports the first-party replication
+worker, but it remains a separate, unpublished replication client. Generated Java, Go, .NET, and
+Python candidates now cover the frozen `/api/v1` contract and pass basic authentication/response
+conformance tests; they are not published and do not yet provide the complete shared convenience
+and conformance layer.
 
-A `Lakehold.Client` package would carry three things:
+The supported SDK programme adds Java, Go, .NET, and Python clients over the versioned public API.
+The .NET `Lakehold.Client` package additionally carries three differentiators:
 
 1. **The model as the contract.** The application's EF Core model defines the lake tables, so
    migrations and analytics schema cannot drift — no parallel dbt model restating what `DbSet<Order>`
@@ -612,8 +615,8 @@ The authenticated MCP server (`docs/MCP.md`) is also shipped, with read tools/re
 operator-gated writes. HTTP API enforcement is opt-in per deployment
 (`Lakehold:Auth:RequireAuthentication`); MCP always requires a credential.
 
-**Next** — Iceberg REST Catalog endpoint (USP 5), `Lakehold.Client` with the typed change stream
-(USP 6), and read-only share links.
+**Next** — complete and release the Java, Go, .NET, and Python SDK programme (USP 6), add an Iceberg
+REST Catalog endpoint (USP 5), and add read-only share links.
 
 **Later** — continuous exit attestation (USP 4), embedded Duckling, read replicas for concurrent
 readers, a broad separately distributed connector ecosystem, semantic layer generated from the EF

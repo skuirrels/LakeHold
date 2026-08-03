@@ -12,6 +12,7 @@ using Lakehold.ControlPlane.Model;
 using Lakehold.ControlPlane.Security;
 using Lakehold.Engine.Catalog;
 using Lakehold.Engine.Configuration;
+using Lakehold.Api.PublicApi;
 
 namespace Lakehold.Api.Endpoints;
 
@@ -23,13 +24,13 @@ public static class LakehouseEndpoints
     {
         ArgumentNullException.ThrowIfNull(app);
 
-        app.MapGet("/api/access", GetAccess)
+        app.MapGet("/access", GetAccess)
             .WithTags("Lakehouse")
             .AddEndpointFilter<LakeholdAuthorizationFilter>()
             .RequireCapability(Capability.Listing)
             .WithSummary("Describes the caller's effective workbench access.");
 
-        app.MapGet("/api/query-languages", GetQueryLanguagesAsync)
+        app.MapGet("/query-languages", GetQueryLanguagesAsync)
             .WithTags("Lakehouse")
             .AddEndpointFilter<LakeholdAuthorizationFilter>()
             .RequireCapability(Capability.Listing)
@@ -38,12 +39,13 @@ public static class LakehouseEndpoints
         // Every tenant-scoped path shares one authentication check: the bearer token is resolved to a
         // principal and the route's tenant and catalog are validated against it. See
         // docs/AUTHENTICATION.md; today the filter is permissive for token-less requests.
-        var tenants = app.MapGroup("/api/tenants")
+        var tenants = app.MapGroup("/tenants")
             .WithTags("Lakehouse")
             .AddEndpointFilter<LakeholdAuthorizationFilter>();
 
         tenants.MapGet("/", ListTenantsAsync)
             .RequireCapability(Capability.Listing)
+            .WithCursorPagination<TenantDto>()
             .WithSummary("Lists tenants and their catalogs, scoped to what the credential may see.");
 
         // Provisioning and token management share this group's authentication filter.
@@ -67,12 +69,14 @@ public static class LakehouseEndpoints
             .WithSummary("Returns the catalog's schema tree.");
 
         tenants.MapGet("/{tenantSlug}/catalogs/{catalogName}/snapshots", GetSnapshotsAsync)
+            .WithCursorPagination<SnapshotDto>()
             .WithSummary("Returns the catalog's snapshot history for time travel.");
 
         tenants.MapPost(
                 "/{tenantSlug}/catalogs/{catalogName}/snapshots/{snapshotId:long}/restore-table",
                 RestoreTableAsync)
             .RequireCapability(Capability.TenantWrite)
+            .WithIdempotency()
             .WithSummary("Plans or atomically restores one table's rows from a snapshot.");
 
         // TenantData, not TenantOwner. Maintenance is the owner's to authorise because it destroys or
@@ -102,23 +106,33 @@ public static class LakehouseEndpoints
         // something a reader or editor credential authorises. See docs/AUTHENTICATION.md phase 4.
         tenants.MapPost("/{tenantSlug}/catalogs/{catalogName}/maintenance/{operation}", RunMaintenanceAsync)
             .RequireCapability(Capability.TenantOwner)
+            .Produces<MaintenanceDto>()
+            .Produces<PublicApiOperationDto>(StatusCodes.Status202Accepted)
+            .WithIdempotency()
             .WithSummary("Runs a maintenance operation: flush, compact, backup, expire, or cleanup.");
 
         tenants.MapGet("/{tenantSlug}/history", GetHistoryAsync)
+            .WithCursorPagination<QueryRunDto>(maximumLimit: 200)
             .WithSummary("Returns recent query runs for a tenant.");
 
         tenants.MapGet("/{tenantSlug}/catalogs/{catalogName}/backups", ListBackupsAsync)
+            .WithCursorPagination<BackupGenerationDto>()
             .WithSummary("Lists catalog metadata backup generations, newest first.");
 
         tenants.MapPost("/{tenantSlug}/catalogs/{catalogName}/backups/restore", RestoreBackupAsync)
             .RequireCapability(Capability.TenantOwner)
+            .Produces<PublicApiOperationDto>(StatusCodes.Status202Accepted)
+            .WithIdempotency()
             .WithSummary("Rebuilds a catalog from a backup into a new metadata file.");
 
         tenants.MapPost("/{tenantSlug}/catalogs/{catalogName}/eject", EjectAsync)
             .RequireCapability(Capability.TenantOwner)
+            .Produces<PublicApiOperationDto>(StatusCodes.Status202Accepted)
+            .WithIdempotency()
             .WithSummary("Writes a verified, reader-agnostic eject bundle of the catalog.");
 
         tenants.MapGet("/{tenantSlug}/catalogs/{catalogName}/ejects", ListEjectsAsync)
+            .WithCursorPagination<EjectBundleDto>()
             .WithSummary("Lists eject bundles, newest first.");
 
         tenants.MapGet("/{tenantSlug}/catalogs/{catalogName}/changes", GetChangesAsync)
@@ -130,10 +144,12 @@ public static class LakehouseEndpoints
             .WithSummary("Reads one resumable page of a table's changes in one snapshot.");
 
         tenants.MapGet("/{tenantSlug}/catalogs/{catalogName}/subscriptions", ListSubscriptionsAsync)
+            .WithCursorPagination<SubscriptionDto>()
             .WithSummary("Lists the catalog's change subscriptions.");
 
         tenants.MapPost("/{tenantSlug}/catalogs/{catalogName}/subscriptions", CreateSubscriptionAsync)
             .RequireCapability(Capability.TenantWrite)
+            .WithIdempotency()
             .WithSummary("Creates a webhook subscription to the catalog's change feed.");
 
         tenants.MapDelete("/{tenantSlug}/catalogs/{catalogName}/subscriptions/{id:int}", DeleteSubscriptionAsync)
@@ -147,10 +163,12 @@ public static class LakehouseEndpoints
             .WithSummary("Pauses, resumes, rotates, retries, or replays a change subscription.");
 
         tenants.MapGet("/{tenantSlug}/catalogs/{catalogName}/cdc/consumers", ListCdcConsumersAsync)
+            .WithCursorPagination<CdcConsumerDto>()
             .WithSummary("Lists durable pull-consumer checkpoints.");
 
         tenants.MapPost("/{tenantSlug}/catalogs/{catalogName}/cdc/consumers", RegisterCdcConsumerAsync)
             .RequireCapability(Capability.TenantWrite)
+            .WithIdempotency()
             .WithSummary("Registers or resumes a durable pull consumer.");
 
         tenants.MapPut(
@@ -169,10 +187,11 @@ public static class LakehouseEndpoints
         // tenant and catalog the scheduler touched, which is not anonymous-readable. Listing rather
         // than Instance because a tenant credential has a legitimate reason to check its own backups
         // ran — the handler narrows the rows to what the principal may see.
-        app.MapGet("/api/maintenance/schedule", GetScheduledRuns)
+        app.MapGet("/maintenance/schedule", GetScheduledRuns)
             .WithTags("Lakehouse")
             .AddEndpointFilter<LakeholdAuthorizationFilter>()
             .RequireCapability(Capability.Listing)
+            .WithCursorPagination<ScheduledRunDto>()
             .WithSummary("Recent scheduled maintenance runs, scoped to what the credential may see.");
 
         return app;
@@ -213,8 +232,8 @@ public static class LakehouseEndpoints
             query = query.Where(t => t.Slug == ownTenant);
         }
 
-        var tenants = await query
-            .OrderBy(t => t.DisplayName)
+        var orderedTenants = query.OrderBy(t => t.DisplayName).ThenBy(t => t.Id);
+        var tenants = await PublicApiPagination.ApplySourceWindow(orderedTenants, http)
             .Select(t => new TenantDto(
                 t.Slug,
                 t.DisplayName,
@@ -627,6 +646,7 @@ public static class LakehouseEndpoints
     private static async Task<Results<Ok<IReadOnlyList<SnapshotDto>>, NotFound<string>>> GetSnapshotsAsync(
         string tenantSlug,
         string catalogName,
+        HttpContext http,
         LakehouseService lakehouse,
         CancellationToken cancellationToken,
         int limit = 50)
@@ -634,7 +654,13 @@ public static class LakehouseEndpoints
         try
         {
             var snapshots = await lakehouse
-                .GetSnapshotsAsync(tenantSlug, catalogName, Math.Clamp(limit, 1, 500), cancellationToken)
+                .GetSnapshotsAsync(
+                    tenantSlug,
+                    catalogName,
+                    http.IsLegacyApiRequest()
+                        ? Math.Clamp(limit, 1, 500)
+                        : PublicApiPagination.RequiredSourceCount(http),
+                    cancellationToken)
                 .ConfigureAwait(false);
 
             return TypedResults.Ok<IReadOnlyList<SnapshotDto>>(
@@ -699,14 +725,32 @@ public static class LakehouseEndpoints
         }
     }
 
-    private static async Task<Results<Ok<MaintenanceDto>, NotFound<string>, BadRequest<string>>> RunMaintenanceAsync(
+    private static async Task<IResult> RunMaintenanceAsync(
         string tenantSlug,
         string catalogName,
         string operation,
+        HttpContext http,
         LakehouseService lakehouse,
+        PublicApiOperationStore operations,
         CancellationToken cancellationToken,
         bool apply = false)
     {
+        if (!http.IsLegacyApiRequest()
+            && operation is "compact" or "backup")
+        {
+            var queued = await operations.EnqueueAsync(
+                    tenantSlug,
+                    catalogName,
+                    PublicApiOperationKinds.Maintenance,
+                    new MaintenanceOperationRequest(operation, apply),
+                    http.GetLakeholdPrincipal().TokenId,
+                    cancellationToken)
+                .ConfigureAwait(false);
+            return Results.Accepted(
+                PublicApiRoutes.Canonical($"/operations/{queued.Id}"),
+                PublicApiOperationStore.ToDto(queued));
+        }
+
         try
         {
             var result = await lakehouse
@@ -765,16 +809,33 @@ public static class LakehouseEndpoints
         }
     }
 
-    private static async Task<Results<Ok<RestoreResponse>, NotFound<string>, BadRequest<string>>> RestoreBackupAsync(
+    private static async Task<IResult> RestoreBackupAsync(
         string tenantSlug,
         string catalogName,
         RestoreRequest request,
+        HttpContext http,
         LakehouseService lakehouse,
+        PublicApiOperationStore operations,
         CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(request?.TargetMetadataPath))
         {
             return TypedResults.BadRequest("A target metadata path is required.");
+        }
+
+        if (!http.IsLegacyApiRequest())
+        {
+            var queued = await operations.EnqueueAsync(
+                    tenantSlug,
+                    catalogName,
+                    PublicApiOperationKinds.RestoreBackup,
+                    new RestoreBackupOperationRequest(request.Generation, request.TargetMetadataPath),
+                    http.GetLakeholdPrincipal().TokenId,
+                    cancellationToken)
+                .ConfigureAwait(false);
+            return Results.Accepted(
+                PublicApiRoutes.Canonical($"/operations/{queued.Id}"),
+                PublicApiOperationStore.ToDto(queued));
         }
 
         try
@@ -798,13 +859,30 @@ public static class LakehouseEndpoints
         }
     }
 
-    private static async Task<Results<Ok<EjectResponse>, NotFound<string>, BadRequest<string>>> EjectAsync(
+    private static async Task<IResult> EjectAsync(
         string tenantSlug,
         string catalogName,
         EjectRequest? request,
+        HttpContext http,
         LakehouseService lakehouse,
+        PublicApiOperationStore operations,
         CancellationToken cancellationToken)
     {
+        if (!http.IsLegacyApiRequest())
+        {
+            var queued = await operations.EnqueueAsync(
+                    tenantSlug,
+                    catalogName,
+                    PublicApiOperationKinds.Eject,
+                    new EjectOperationRequest(request?.IncludeHistory ?? false),
+                    http.GetLakeholdPrincipal().TokenId,
+                    cancellationToken)
+                .ConfigureAwait(false);
+            return Results.Accepted(
+                PublicApiRoutes.Canonical($"/operations/{queued.Id}"),
+                PublicApiOperationStore.ToDto(queued));
+        }
+
         try
         {
             var result = await lakehouse
@@ -946,6 +1024,7 @@ public static class LakehouseEndpoints
     private static async Task<Results<Ok<IReadOnlyList<SubscriptionDto>>, NotFound<string>>> ListSubscriptionsAsync(
         string tenantSlug,
         string catalogName,
+        HttpContext http,
         ControlPlaneContext context,
         CancellationToken cancellationToken)
     {
@@ -954,10 +1033,11 @@ public static class LakehouseEndpoints
             return TypedResults.NotFound($"Catalog '{catalogName}' was not found for tenant '{tenantSlug}'.");
         }
 
-        var subscriptions = await context.ChangeSubscriptions
+        var subscriptionQuery = context.ChangeSubscriptions
             .AsNoTracking()
             .Where(s => s.Tenant.Slug == tenantSlug && s.CatalogName == catalogName)
-            .OrderBy(s => s.Id)
+            .OrderBy(s => s.Id);
+        var subscriptions = await PublicApiPagination.ApplySourceWindow(subscriptionQuery, http)
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 
@@ -1038,7 +1118,8 @@ public static class LakehouseEndpoints
         await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
         return TypedResults.Created(
-            $"/api/tenants/{tenantSlug}/catalogs/{catalogName}/subscriptions/{subscription.Id}",
+            PublicApiRoutes.Canonical(
+                $"/tenants/{tenantSlug}/catalogs/{catalogName}/subscriptions/{subscription.Id}"),
             ToDto(subscription));
     }
 
@@ -1157,6 +1238,7 @@ public static class LakehouseEndpoints
     private static async Task<Results<Ok<IReadOnlyList<CdcConsumerDto>>, NotFound<string>>> ListCdcConsumersAsync(
         string tenantSlug,
         string catalogName,
+        HttpContext http,
         ControlPlaneContext context,
         CancellationToken cancellationToken)
     {
@@ -1165,10 +1247,12 @@ public static class LakehouseEndpoints
             return TypedResults.NotFound($"Catalog '{catalogName}' was not found for tenant '{tenantSlug}'.");
         }
 
-        var consumers = await context.CdcConsumers
+        var consumerQuery = context.CdcConsumers
             .AsNoTracking()
             .Where(c => c.Tenant.Slug == tenantSlug && c.CatalogName == catalogName)
             .OrderBy(c => c.Name)
+            .ThenBy(c => c.Id);
+        var consumers = await PublicApiPagination.ApplySourceWindow(consumerQuery, http)
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
         return TypedResults.Ok<IReadOnlyList<CdcConsumerDto>>([.. consumers.Select(ToDto)]);
@@ -1245,7 +1329,8 @@ public static class LakehouseEndpoints
         context.CdcConsumers.Add(consumer);
         await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         return TypedResults.Created(
-            $"/api/tenants/{tenantSlug}/catalogs/{catalogName}/cdc/consumers/{consumer.Id}",
+            PublicApiRoutes.Canonical(
+                $"/tenants/{tenantSlug}/catalogs/{catalogName}/cdc/consumers/{consumer.Id}"),
             ToDto(consumer));
     }
 
@@ -1394,16 +1479,20 @@ public static class LakehouseEndpoints
 
     private static async Task<Ok<IReadOnlyList<QueryRunDto>>> GetHistoryAsync(
         string tenantSlug,
+        HttpContext http,
         ControlPlaneContext context,
         CancellationToken cancellationToken,
         int limit = 50)
     {
-        var history = await context.QueryRuns
+        var historyQuery = context.QueryRuns
             .AsNoTracking()
             .Where(r => r.Tenant.Slug == tenantSlug)
             .OrderByDescending(r => r.StartedUtc)
-            .ThenByDescending(r => r.Id)
-            .Take(Math.Clamp(limit, 1, 200))
+            .ThenByDescending(r => r.Id);
+        var windowedHistory = http.IsLegacyApiRequest()
+            ? historyQuery.Take(Math.Clamp(limit, 1, 200))
+            : PublicApiPagination.ApplySourceWindow(historyQuery, http);
+        var history = await windowedHistory
             .Select(r => new QueryRunDto(
                 r.Id,
                 r.CatalogName,

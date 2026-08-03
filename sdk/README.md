@@ -1,0 +1,58 @@
+# LakeHold SDKs
+
+The SDKs in this directory are generated from the reviewed
+[`openapi/lakehold-v1.json`](../openapi/lakehold-v1.json) contract with OpenAPI Generator 7.14.0.
+They expose every documented `/api/v1` operation and share the same authentication, pagination,
+idempotency, error, and durable-operation contract.
+
+| Language | Directory | Package identity | Build command |
+|---|---|---|---|
+| Java | `java` | `io.lakehold:lakehold-sdk` | `mvn test` |
+| Go | `go` | `lakehold` | `go test ./...` |
+| .NET | `dotnet` | `Lakehold.Sdk` | `dotnet test` |
+| Python | `python` | `lakehold-sdk` | `python -m pytest` |
+
+Regenerate all libraries with `./scripts/generate-sdks.sh`. Generated source is reviewed and built
+in CI; do not edit it directly. Add handwritten conveniences only outside generator-owned files.
+
+Each client provides typed models and low-level operations for all 62 operations in the frozen v1
+contract. A small handwritten runtime layer adds the shared supported behavior that generators do
+not provide consistently:
+
+- SDK user-agent and explicit request timeout configuration (`LakeholdApiClient` supplies Python's
+  default while still allowing a per-call override);
+- typed RFC 9457 failures with LakeHold code, request id, detail, and `Retry-After`;
+- bounded retries for calls the application has explicitly identified as retry-safe;
+- caller-generated and validated idempotency keys;
+- lazy cursor traversal and durable-operation polling;
+- transport-appropriate cancellation, request timeouts, and access to `X-Request-Id`; and
+- tolerance for additive response fields.
+
+Use `io.lakehold.sdk.runtime.LakeholdRuntime`, `runtime.go`,
+`Lakehold.Sdk.Runtime.LakeholdRuntime`, or `lakehold_sdk.runtime` respectively. The runtime accepts
+callable page/operation loaders, keeping it independent of generated method names while the frozen
+OpenAPI document remains the only wire-model source. Retry helpers never retry unless the caller
+passes `retrySafe=true` (or its language equivalent); use an idempotency key for a retryable
+mutation.
+
+Token issuance deliberately has no `Idempotency-Key` parameter: a replayable response would require
+LakeHold to retain the one-time plaintext credential. Streaming imports are also excluded from
+response idempotency because their bodies exceed the bounded replay contract.
+
+Go and .NET propagate request cancellation. Java generated async calls are cancellable and runtime
+waits are interruptible. Python uses a synchronous urllib3 transport: cancellation is cooperative
+between retries and operation polls, while the configured request timeout bounds an in-flight call.
+
+The shared language-neutral fixture in [`conformance/runtime-fixture.json`](conformance/runtime-fixture.json)
+drives every language suite. It currently proves authentication, token redaction, typed problems,
+bounded retry and `Retry-After`, cursor traversal, idempotency validation, operation polling,
+transport-appropriate cancellation, correlation identifiers, user agents, timeouts, and
+additive-field compatibility.
+
+Streaming query/CDC helpers are not implemented. The current bounded query and cursor APIs must not
+be described as streaming, and the full released-server black-box suite still needs tenant-isolation,
+all-error-code, streaming-cancellation, and registry-install coverage.
+
+These packages are source-complete but are **not published** to Maven Central, a Go module proxy,
+NuGet, or PyPI by this change. Publication requires repository/namespace ownership, signing,
+credentials, release approval, and independent public-feed verification.

@@ -4,6 +4,14 @@ The plan for a public HTTP API to control **time travel** and the **whole lakeho
 schema, snapshots and rollback, maintenance, backup, eject, change feeds, provisioning, and schedules
 — as one versioned, authenticated, documented surface.
 
+**Status date:** 3 August 2026
+
+**Current boundary:** the public API foundation is implemented in source. The application maps the
+canonical `/api/v1` surface, retains `/api` as a sunset-advertised compatibility alias, publishes
+OpenAPI in production, and generates tested Java, Go, .NET, and Python source clients from the frozen
+contract. This is not yet a released server contract, and none of the four SDKs is published to a
+public package registry.
+
 Like [`AUTHENTICATION.md`](AUTHENTICATION.md), this is a specification and a running record. It is
 written to be worked one step at a time: each step is independently shippable and testable and leaves
 the product working. Nothing here contradicts an invariant in `AGENT.md`; where a rule already exists,
@@ -15,45 +23,37 @@ a "public" API in front of an open door is not public, it is exposed. Auth and p
 re-specified here; this document references them and fills in the surface around them.
 
 **That gate is now met.** Every phase of `AUTHENTICATION.md` has landed: tokens, instance-scoped
-provisioning endpoints, the principal model, roles, and audit. What remains for this document is the
-surface around them — versioning, `problem+json`, pagination, async jobs, and time travel. One caveat
-carries forward: `RequireAuthentication` defaults to false, so a public surface must not assume every
-request is authenticated.
+provisioning endpoints, the principal model, roles, and audit. Versioning, common problem responses,
+bounded cursor pagination, durable operations, idempotency, capability discovery, and production
+OpenAPI and the shared non-streaming SDK reliability layer are also implemented. Expanded
+time-travel and streaming resources, the remaining black-box conformance, compatibility-diff
+automation, and public package publication remain open.
+One caveat carries forward: `RequireAuthentication` defaults to false, so deployment policy still
+decides whether a particular installation requires credentials on HTTP routes.
 
-## What exists today
+## Implemented source boundary
 
-Everything is under `/api` (unversioned) and errors are bare strings despite `AddProblemDetails` being
-registered. Authentication and provisioning now exist (`AdminEndpoints`); the tenant is still a URL
-segment, but it is validated against the credential rather than trusted.
-`src/Lakehold.Api/Endpoints/`:
+The frozen contract currently contains 62 typed operations. It versions the existing access,
+provisioning, token, system-settings, query-language, bounded-query, import, saved-query, schema,
+storage, snapshot, maintenance, backup, eject, CDC, audit-history, scheduling, and managed-connector
+families. Tenant and catalog route segments are checked against the resolved principal.
 
-| Area | Route | Gap for a public API |
+| Contract capability | Implemented source behavior | Remaining boundary |
 |---|---|---|
-| Query languages | `GET /api/query-languages`, `GET …/query-languages/{language}/starter` | SQL is built in; healthy optional planners are discovered at runtime. Unversioned. |
-| Discovery | `GET /api/tenants` | Now scoped to the credential; still unversioned and unpaginated. |
-| Provisioning | `POST`/`DELETE /api/tenants`, `…/catalogs` | Synchronous; no async job model. |
-| Tokens | `POST`/`GET`/`DELETE …/{tenant}/tokens` | Creation is used by System Settings and returns the plaintext once; listing has no pagination and request-path last-used tracking remains absent. |
-| System settings | `GET`/`PUT /api/system-settings` | Instance credential only; optimistic version; MCP changes apply on the next request without restart. |
-| Browser authentication | `GET /auth/session`, `/auth/login`, `/auth/logout` | Optional OIDC authorization-code flow; returns an HttpOnly LakeHold session, not provider tokens. |
-| Query | `POST …/catalogs/{c}/query` | Accepts backward-compatible `sql` or explicit `language` + `source`; non-SQL responses include generated SQL and source diagnostics. No time-travel option; result capped, no streaming variant. |
-| CSV/XLSX import | `POST …/catalogs/{c}/imports/files` | Streamed request body, synchronous, new tables only; CSV automatic mode retries malformed rows with bounded reject capture, while XLSX reads the first or named worksheet. Per-file, aggregate scratch, concurrency, and free-space limits apply. The earlier `/imports/csv` CSV route remains as a compatibility alias. Imports above the configured ceiling still need a direct-to-object-storage path. |
-| Saved queries | `GET`/`POST`/`PUT`/`DELETE …/saved-queries`, `POST …/{id}/{execute\|publish\|unpublish}` | Catalog-scoped and revisioned; still unversioned and unpaginated. |
-| Schema | `GET …/catalogs/{c}/schemas` | — |
-| Storage | `GET …/catalogs/{c}/storage`, `GET …/storage/files` | Read-only footprint and snapshot-aware file inventory; unversioned and unpaginated. |
-| Time travel | `GET …/catalogs/{c}/snapshots?limit=`, `POST …/snapshots/{id}/restore-table` | Bounded list plus atomic single-table plan/apply; no versioned as-of request, label, pin, or retention. |
-| Maintenance | `POST …/catalogs/{c}/maintenance/{op}?apply=` | Synchronous; heavy ops block the request. |
-| Backup | `GET …/backups`, `POST …/backups/restore` | Synchronous restore; no job model. |
-| Eject | `POST …/eject`, `GET …/ejects` | Synchronous; no download. |
-| CDC | `GET …/cdc/snapshots/{id}/changes`, compatibility `GET …/changes`, `…/subscriptions`, `…/cdc/consumers` | Cursor-paged and retention-aware; still unversioned and uses bare-string errors. |
-| History | `GET …/{tenant}/history` | Principal now recorded; no cursor pagination. |
-| Scheduling | `GET /api/maintenance/schedule` | Node-global, read-only; schedule is config-only. |
+| Versioning | Canonical `/api/v1`; `/api` rewrites to v1 and emits `Deprecation`, `Sunset`, and successor links | Remove the alias only after its documented compatibility window |
+| Discovery and documentation | Anonymous capability discovery and production OpenAPI at `/api/v1/openapi.json`; stable unique operation ids and Bearer requirements | Automated semantic diff against the merge base and richer examples |
+| Errors | Canonical failures are normalized to RFC 9457 with bounded handler-selected detail, stable `code`, and `requestId`; unhandled exceptions remain generic | Complete a conformance fixture for every public error code |
+| Collections | Opaque, request-bound cursor envelopes with a 24-hour lifetime on bounded list routes; database sources apply the window before materialisation | Replace offset cursors with source-native keyset/snapshot cursors where traversal must remain stable while the collection changes |
+| Retryable mutations | Durable, content-type/query/payload-bound idempotency records on bounded control mutations; visible-ASCII keys are hashed at rest, bodies are capped at 1 MiB, and completed records are retained for seven days | Streaming imports and one-time token issuance are deliberately excluded because neither response can be safely replayed |
+| Long work | Maintenance compact/backup, restore backup, and eject enqueue durable operations on v1; legacy calls retain their old synchronous behavior | Progress/cancellation and remaining future long-running resources |
+| SDKs | Digest-pinned generation plus shared authentication, typed-problem, retry, pagination, idempotency, operation-polling, transport-appropriate cancellation, correlation, timeout, user-agent, redaction, and additive-field conformance for Java, Go, .NET, and Python | Streaming helpers, remaining released-server conformance, signing, and registry publication |
 
 ### Query-language contract
 
-`GET /api/query-languages` always returns SQL and adds only optional planners whose descriptor health
+`GET /api/v1/query-languages` always returns SQL and adds only optional planners whose descriptor health
 check succeeds. A client should populate its language selector from this endpoint rather than assume
 that `csharp-linq` is installed. The catalog-aware starter endpoint is
-`GET /api/tenants/{tenant}/catalogs/{catalog}/query-languages/{language}/starter`; it returns source
+`GET /api/v1/tenants/{tenant}/catalogs/{catalog}/query-languages/{language}/starter`; it returns source
 generated against the current catalog shape plus its schema fingerprint.
 
 The query request supports both forms:
@@ -96,23 +96,84 @@ call" and a public one.
   field — `catalog_not_found`, `snapshot_predates_table`, `restore_target_exists`, `read_only_catalog`,
   `instance_token_cannot_query`. The engine's verbatim message (today's response body) goes in
   `detail`; the `code` is what a client branches on.
-- **Cursor pagination** on every list: `?limit=&cursor=` → `{ "items": [...], "nextCursor": "…"|null }`.
-  Replaces the bare `?limit=` clamps in place today.
-- **Long-running operations are async jobs.** Eject, backup, restore, compact, and catalog-wide
-  snapshot restore return `202 Accepted` with `{ "operationId": "…" }`; the caller polls
+- **Cursor pagination** on bounded lists: `?limit=&cursor=` →
+  `{ "items": [...], "nextCursor": "…"|null }`. The cursor is opaque and bound to the route and
+  non-cursor query parameters. It expires after 24 hours; clients must restart traversal rather than
+  persist it as an asset identifier. The current generic cursor carries a protected offset, not a
+  database snapshot: concurrent inserts or deletes can therefore move items across page boundaries.
+  Database-backed handlers apply `Skip`/`Take` before materialisation; adapters that expose only a
+  leading limit can re-read an earlier prefix during deep traversal. Source-native keyset/snapshot
+  cursors remain a scale and consistency follow-up, not an implemented property.
+- **Long-running operations are async jobs.** Eject, compact/backup maintenance, and backup restore
+  return `202 Accepted` with `{ "operationId": "…" }`; the caller polls
   `GET /api/v1/operations/{id}` → `{ status: queued|running|succeeded|failed, result?, error? }`. This
   keeps HTTP responsive, survives client disconnects, and gives one place to report progress. Fast,
-  bounded operations (flush, a single-table restore) may stay synchronous.
-- **`Idempotency-Key` header** is honoured on every mutating `POST` — eject, restore, snapshot
-  restore, subscription create — so a retried request does not run twice.
+  bounded operations (flush, a single-table restore) may stay synchronous. Terminal operation
+  records are retained for 30 days. A restore target that is a local filesystem path is safe only
+  in a single-node deployment or when every worker sees the same genuinely shared mount at that
+  path; the durable queue does not make node-local files shared.
+- **`Idempotency-Key` header** is honoured on bounded retryable control mutations and binds the key
+  to method, route, content type, query, and payload, so a retry replays the response and a changed
+  request is refused. Both request and replay response are capped at 1 MiB. Streaming imports are
+  excluded rather than buffering unbounded bodies. Token issuance is also excluded: replay would
+  require persisting the one-time plaintext credential, which LakeHold explicitly refuses to do.
+  Keys contain 16-128 visible ASCII characters. A completed response can be replayed for seven days;
+  after that retention window the same key is new work. In-progress records are never expired
+  automatically because an interrupted mutation is indeterminate and must fail closed.
 - **Destructive stays dry-run.** Anything that drops history or data — `expire`, `cleanup`, snapshot
   restore, tenant/catalog delete — returns a **plan** by default and only commits with `?apply=true`
   (invariant 10). Restore never overwrites an existing catalog (invariant 12); deleting a catalog or
   tenant record detaches it and leaves DuckLake metadata and Parquet in place.
-- **Secrets never appear in a response or a log.** Object-store and metadata credentials are set by
-  *secret name* and never echoed (invariants 8, 13); the eject signing key and a subscription's secret
-  are write-only (invariant 17).
-- **OpenAPI is published in every environment** at `GET /api/v1/openapi.json`, not dev-only as today.
+- **Secrets never appear in public responses or routine diagnostics.** Object-store and metadata
+  credentials are set by *secret name* and never echoed (invariants 8, 13); the eject signing key and
+  a subscription's secret are write-only (invariant 17). The documented first-start bootstrap is the
+  explicit exception: when no token is supplied through `Lakehold__BootstrapToken` and the token
+  store is empty, LakeHold emits the auto-minted instance provisioning token once to the operator
+  log because it cannot be recovered later. Production deployments should inject that value through
+  their secret manager so it is never logged.
+- **OpenAPI is published in every environment** at `GET /api/v1/openapi.json`.
+- **The API is the only SDK control boundary.** An SDK never connects to LakeHold's control-plane
+  PostgreSQL database, DuckDB/DuckLake metadata, connector worker internals, or LINQ planner
+  transport. Public DTOs and behavior belong to this contract, not to persistence entities.
+
+## SDK contract
+
+LakeHold has four first-party source SDK candidates over this API:
+
+| Language | Source package | Current implementation |
+|---|---|---|
+| Java | `io.lakehold:lakehold-sdk` | Typed synchronous/asynchronous operations plus `LakeholdRuntime`; not on Maven Central |
+| Go | `github.com/skuirrels/LakeHold/sdk/go` | Typed context-aware operations plus `runtime.go`; not release-tagged |
+| .NET | `Lakehold.Sdk` | Typed cancellable async operations plus `Lakehold.Sdk.Runtime`; not on NuGet |
+| Python | `lakehold-sdk` | Typed synchronous operations plus `lakehold_sdk.runtime`; not on PyPI |
+
+The OpenAPI document is the single source for low-level operations and wire models. Generated code
+will be wrapped by small handwritten convenience layers for language conventions; it does not
+duplicate server authorization, validation, checkpoint, retry, or publication policy. The existing
+`src/Lakehold.Client` remains a separate source-only replication client and is not the new
+general-purpose `Lakehold.Sdk` candidate.
+
+Every SDK must provide the same observable contract:
+
+- bearer-token authentication without logging credentials;
+- typed RFC 9457 errors carrying LakeHold error code, status, correlation id, and bounded detail;
+- cursor iterators, idempotency keys, operation polling, `Retry-After` support, bounded retries, and
+  explicit request timeouts. Go and .NET propagate request cancellation; Java exposes generated
+  asynchronous-call cancellation and thread-interruptible runtime waits; Python's synchronous
+  transport checks cooperative cancellation between retries/polls and relies on its request timeout
+  to bound an in-flight call;
+- streaming query/CDC consumption without silently materializing an unbounded result;
+- API capability/version discovery, additive-field tolerance, SDK user-agent/version headers, and
+  access to request correlation identifiers;
+- coverage for access, tenants/catalogs/tokens, schemas and queries, saved queries, connectors and
+  runs, dead letters and checkpoints, snapshots/time travel, CDC, maintenance, backup/eject,
+  operations, and audit according to the caller's capability.
+
+The shared source fixture now runs through Java, Go, .NET, and Python and proves the non-streaming
+reliability behavior appropriate to each transport model above. Streaming helpers, tenant-isolation tests against a real server,
+and exhaustive public-error fixtures are not implemented yet. An SDK is not released merely because generated code compiles: package signing/provenance,
+reference documentation, examples, supported runtime versions, compatibility tables, and a clean
+install test from the public registry are release gates.
 
 ## Invariants this API preserves
 
@@ -292,20 +353,24 @@ To settle during the step they block, not before starting:
    statement timeout are per-node. If quotas become per-principal, `query` and `query:stream` are
    where they bind.
 
-## Order of work
+## Delivery status and order of work
 
 Each step ships on its own. Steps are gated on `AUTHENTICATION.md` — nothing public is exposed before
 auth closes the door.
 
-| Step | Deliverable | Gate |
-|---|---|---|
-| 0 | `AUTHENTICATION.md` phases 1–3b (tokens, principal, provisioning) | The prerequisite; not part of this doc |
-| 1 | `/api/v1` prefix, `problem+json` everywhere, cursor pagination, published OpenAPI | Conventions test suite; old routes still alias |
-| 2 | `asOf` on `POST …/query` (read-only attachment) | As-of read returns historical rows; live query unchanged |
-| 3 | Snapshot list filters + detail; `POST …/snapshots/{id}/restore` (dry-run/apply) | Single-table rollback verified; `snapshot_predates_table` returned |
-| 4 | Labels, pins, retention policy; `expire` honours pins | Pinned snapshot survives an expire |
-| 5 | `operations/{id}` resource; eject/backup/restore/compact become jobs | A slow eject returns `202` and completes out of band |
-| 6 | `query:stream` (NDJSON); API-settable schedules; principal in history | Stream exceeds `MaxRowsPerResult` without truncation |
+| Step | Status | Deliverable | Gate |
+|---|---|---|---|
+| 0 | **Shipped** | `AUTHENTICATION.md` phases 1–3b (tokens, principal, provisioning) | The prerequisite; not part of this doc |
+| 1 | **Implemented in source** | `/api/v1` prefix, common RFC 9457 normalization, bounded cursor pagination, production OpenAPI | Convention and contract tests pass; old routes still alias |
+| 2 | **Not started** | `asOf` on `POST …/query` (read-only attachment) | As-of read returns historical rows; live query unchanged |
+| 3 | **Partial** | Snapshot list filters + detail; `POST …/snapshots/{id}/restore` (dry-run/apply) | Existing single-table dry-run/apply is versioned; filters, detail, and multi-table resource remain |
+| 4 | **Not started** | Labels, pins, retention policy; `expire` honours pins | Pinned snapshot survives an expire |
+| 5 | **Implemented in source** | `operations/{id}` resource; eject, compact/backup maintenance, and backup restore become jobs | v1 returns `202`; persisted worker completion and expired-lease indeterminate state are tested |
+| 6 | **Partial** | `query:stream` (NDJSON); API-settable schedules; principal in history | Principal history exists; stream and schedule mutation remain |
+| 7 | **Partial** | Generate Java, Go, .NET, and Python SDK candidates from the reviewed contract | All source clients build and run equivalent auth/model tests; full released-server conformance remains |
+| 8 | **Not started** | Publish signed SDK packages, reference documentation, examples, and compatibility policy | Clean public-registry install and smoke workflow in every language |
 
 Steps 2–4 are the time-travel control surface this document exists for. Step 1 is what makes the whole
-thing a public API rather than an internal one. Everything else is depth.
+thing a public API rather than an internal one. The source clients now have executable verification,
+but steps 7–8 are not complete until the full shared suite and public release gates pass. Everything
+else is depth.

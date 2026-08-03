@@ -3,7 +3,7 @@
 This is the delivery and status record for positioning LakeHold as a focused Enterprise Data
 Platform (EDP), not merely a SQL endpoint over open storage.
 
-**Status date:** 2 August 2026
+**Status date:** 3 August 2026
 
 **Status vocabulary:**
 
@@ -24,8 +24,9 @@ Platform (EDP), not merely a SQL endpoint over open storage.
 | P1.1 Managed ingestion foundation   | **Shipped**               | v1.3.0 includes REST JSON-array/NDJSON and gRPC full snapshots, durable definitions/runs, schedules, fencing, target ownership, quality, egress, scratch controls, telemetry, API outcomes, and production-path tests | Post-release migration and real connector-refresh deployment evidence                                                                                 |
 | P1.2 Connector platform             | **Shipped**               | v1.3.0 includes the versioned adapter SDK/manifest, commit-fenced checkpoints, replay-safe keyed upsert, retry/dead-letter lifecycle, mappings, schema policy, external secrets, approved auth, PostgreSQL, and HubSpot | Deployment evidence and a broader production-certified adapter catalogue                                                                              |
 | P1.3 Catalog and governance         | **Partial**               | Owners, descriptions, tags, quality policy, audit, and connector run lineage exist on initial surfaces                                                                                                | Stable identity for every asset, search, classification, freshness, policy administration, and end-to-end lineage graph                              |
-| P1.4 Semantic and consumption layer | **Partial**               | HTTP, Workbench, MCP, EF Core, PostgreSQL wire for psql/DBeaver/Npgsql, and saved-query publication                                                                                                   | Governed metrics/semantic models, Power BI fix, supported JDBC/ODBC, and open multi-engine catalog access                                            |
-| P1.5 Enterprise operations          | **Partial**               | Maintenance, leases, telemetry, backup/restore, verified eject, bounded connector resources, connector lifecycle operations, and safe errors                                                           | Connector UI, freshness/SLO dashboards, alerting, usage/cost reporting, and release runbooks                                                          |
+| P1.4 Public API and client SDKs     | **Implemented in source** | Canonical `/api/v1`, compatibility aliases, production OpenAPI, problem errors, pagination, idempotency, durable operations, and generated/tested Java, Go, .NET, and Python clients with shared non-streaming reliability helpers | Streaming helpers/resources, remaining black-box conformance, release validation, signing, registry publication, and compatibility-diff automation |
+| P1.5 Semantic and consumption layer | **Partial**               | HTTP, Workbench, MCP, EF Core, PostgreSQL wire for psql/DBeaver/Npgsql, and saved-query publication                                                                                                   | Governed metrics/semantic models, Power BI fix, supported JDBC/ODBC, and open multi-engine catalog access                                            |
+| P1.6 Enterprise operations          | **Partial**               | Maintenance, leases, telemetry, backup/restore, verified eject, bounded connector resources, connector lifecycle operations, and safe errors                                                           | Connector UI, freshness/SLO dashboards, alerting, usage/cost reporting, and release runbooks                                                          |
 
 ## Shipped scope
 
@@ -126,16 +127,96 @@ partner ecosystem is claimed.
 - [ ] Contract versions and compatibility decisions.
 - [ ] Row- and column-level security.
 
-### P1.4 semantic and consumption layer
+### P1.4 public API and client SDKs
+
+The SDKs are clients of the public HTTP API. They do not access PostgreSQL, DuckDB, DuckLake, the
+internal LINQ-planner transport, or unversioned Workbench endpoints directly. The reviewed OpenAPI
+contract is the shared source of truth; each language adds an idiomatic wrapper without copying
+LakeHold business policy into four implementations.
+
+#### Public API foundation
+
+- [x] Implement a stable `/api/v1` surface and retain the current `/api` routes only as time-bounded,
+      documented compatibility aliases.
+- [x] Publish OpenAPI in every supported environment, with stable operation identifiers, schemas,
+      examples, security requirements, and documented compatibility policy.
+- [x] Return RFC 9457 `application/problem+json` errors with stable LakeHold error codes and request
+      correlation identifiers.
+- [x] Apply cursor pagination to bounded list routes, `Idempotency-Key` to bounded retryable
+      mutations whose responses contain no one-time credential, and a durable
+      operation resource to long-running work.
+- [x] Bound coordination-state growth: retain completed idempotency responses for seven days and
+      terminal durable-operation records for 30 days, while never automatically deleting
+      in-progress or running records.
+- [ ] Replace the generic protected-offset list cursor with source-native keyset or snapshot cursors
+      where concurrent collection changes or deep materialised traversal require stable scale.
+- [x] Expose capability discovery so a client can negotiate server/API versions and optional
+      features instead of guessing from a LakeHold release number.
+- [x] Version the existing control surface for access, tenants, catalogs, tokens, schema, bounded
+      queries, saved queries, connectors and runs, dead letters, checkpoints, snapshots, CDC,
+      maintenance, backups, ejects, operations, and audit history.
+- [ ] Add the new streaming-query and expanded time-travel resources specified in `PUBLIC-API.md`;
+      versioning the current surface does not claim those future endpoints exist.
+- [x] Keep public DTOs independent of EF/control-plane entities and prevent secrets, connection
+      material, stack traces, operation implementation paths, or source rows from entering responses
+      or durable errors. Operator-supplied storage locations remain explicit provisioning inputs.
+- [x] Add frozen-contract validation, unique-operation, security, endpoint-convention, generated-SDK
+      drift, and SDK build/test gates to CI.
+- [ ] Add an automated semantic OpenAPI compatibility diff against the merge base. Breaking changes
+      require a new API major version; additive changes remain backward compatible.
+
+The detailed endpoint contract and staged migration remain in
+[`PUBLIC-API.md`](PUBLIC-API.md).
+
+#### Supported SDKs
+
+- [x] Generate and test a Java source package with typed models, Bearer authentication, and
+      synchronous/asynchronous low-level operations.
+- [x] Generate and test a Go source module with typed models, Bearer authentication, and
+      context-aware low-level operations.
+- [x] Generate and test a .NET source package with typed models, Bearer authentication, and
+      cancellable low-level async operations. This is separate from the replication-only
+      `src/Lakehold.Client` project.
+- [x] Generate and test a typed Python source package with Bearer authentication and synchronous
+      low-level operations.
+- [x] Give all SDKs the same authentication, typed problem errors, bounded retries with
+      `Retry-After`, idempotency, cursor iteration, operation polling, explicit request timeouts,
+      user-agent/version, correlation-id behavior, and additive-field tolerance. Go and .NET
+      propagate request cancellation, Java supports generated-call cancellation and interruptible
+      waits, and synchronous Python provides cooperative cancellation between retries/polls while
+      the timeout bounds an in-flight call.
+- [ ] Add streaming query and CDC consumption without materialising an unbounded response, with the
+      same cancellation and error behavior in every SDK.
+- [x] Generate transport models and low-level operations from the reviewed OpenAPI document, then
+      keep handwritten convenience layers small and language-idiomatic. Do not hand-maintain four
+      divergent copies of the wire contract.
+- [x] Add equivalent per-language conformance tests for Bearer authentication and shared response
+      deserialization.
+- [x] Run the shared language-neutral reliability fixture through all four source SDKs for typed
+      problems, pagination, retries, idempotency, operation polling, transport-appropriate cancellation, request ids,
+      timeouts, user agents, token redaction, and unknown additive fields.
+- [ ] Run the full language-neutral conformance suite against all four SDKs, including tenant isolation,
+      released-server authorization, streaming cancellation, and every public error code.
+- [ ] Publish signed packages, generated reference documentation, runnable examples, supported
+      runtime-version matrices, compatibility tables, changelogs, and coordinated release
+      automation.
+
+P1.4 remains **implemented in source**, not shipped. It is complete only when all four packages are publicly installable, pass the same conformance
+fixtures against a released LakeHold server, and no supported workflow requires an internal route.
+The existing `src/Lakehold.Client` project is useful implementation evidence, but it is not currently
+a published general-purpose SDK and must not be presented as one.
+
+### P1.5 semantic and consumption layer
 
 - [ ] Governed metric definitions and reusable semantic models.
 - [ ] Optional semantic-model generation from EF Core metadata.
 - [ ] Power BI PostgreSQL type-catalogue compatibility fix.
 - [ ] Supported JDBC/ODBC compatibility strategy.
 - [ ] Read-only Iceberg REST or equivalent open multi-engine interoperability.
-- [ ] Versioned client SDK experience beyond raw HTTP contracts.
+- [ ] Integrate governed semantic models with the P1.4 public API and SDKs without inventing a
+      separate authorization or identity model.
 
-### P1.5 enterprise operations
+### P1.6 enterprise operations
 
 - [ ] Workbench connector administration and run-history experience.
 - [x] Operator retry, pause, resume, dead-letter listing, and checkpoint inspection over the owner API.
@@ -154,16 +235,28 @@ Priority 1 is complete only when all of these are demonstrable:
   node failure; large reads remain bounded and observable.
 - **Govern:** every managed asset has stable identity, owner, description, classification, contract,
   freshness, quality, audit, and navigable upstream/downstream lineage.
-- **Serve:** SQL, REST/client, Power BI, and at least one open multi-engine path consume the same
-  governed assets and authorization decisions.
+- **Serve:** SQL, the versioned public API and all four supported SDKs, Power BI, and at least one
+  open multi-engine path consume the same governed assets and authorization decisions.
 - **Operate:** operators inspect schedules, retries, leases, resource usage, alerts, and objectives
   without querying raw control-plane tables.
 - **Secure:** credentials use an external secret provider, egress stays allowlisted and DNS-pinned,
-  tenant boundaries are structural, and no secret or source row appears in logs or durable errors.
+  tenant boundaries are structural, and no source credential or source row appears in logs or
+  durable errors. The first-start instance bootstrap token remains the documented one-time operator
+  log exception unless it is injected through `Lakehold__BootstrapToken`.
 
 ## Next implementation
 
-Move to P1.3: give every governed asset a stable identity, searchable metadata, classifications,
-freshness objectives, contract versions, and navigable upstream/downstream lineage. In parallel,
-capture post-release migration and real connector-refresh evidence from a deployed v1.3.0
-environment; the shipped status does not imply that operational proof.
+The P1.4 source foundation and non-streaming SDK reliability phase are now implemented. Continue in
+this order:
+
+1. Add streaming query/CDC helpers and the remaining expanded v1 resources, then run the complete
+   suite against an authenticated released server.
+2. Add semantic OpenAPI compatibility comparison against the merge base and publish supported
+   runtime/version matrices, examples, changelogs, and provenance.
+3. After explicit release approval, publish signed Java, Go, .NET, and Python packages and prove a
+   clean install from each public registry. Only then mark P1.4 shipped.
+
+P1.3 governance proceeds through the same contract: stable governed asset identifiers must land
+before SDK models for assets and lineage are frozen. In parallel, capture post-release migration and
+real connector-refresh evidence from a deployed v1.3.0 environment; the shipped status does not
+imply that operational proof.
