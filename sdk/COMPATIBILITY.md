@@ -4,6 +4,12 @@ This matrix is the supported source and runtime boundary for the LakeHold v1 SDK
 lowest language level declared by each package and the current stable runtime listed here; a runtime
 outside the table may work but is not a release claim.
 
+Every target below is deliberately older than the runtime LakeHold itself uses. The server builds on
+.NET 10, while the .NET SDK targets `net8.0`; Java targets 8 bytecode and Python 3.9 on the same
+reasoning. A client library is installed into someone else's application, so its floor is set by the
+oldest runtime a consumer is likely to be on, not by the newest the platform can build against.
+Raising a floor is a breaking change for consumers and needs the same care as a wire change.
+
 | SDK | Package target | Supported runtimes | CI release runtime |
 |---|---|---|---|
 | Java | Java 8 bytecode | Temurin/OpenJDK 17 and 21 | 17 and 21 |

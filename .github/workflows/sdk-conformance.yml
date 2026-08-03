@@ -8,13 +8,18 @@ on:
         required: true
         default: 1.4.0
         type: string
+  # Manual-only evidence goes stale silently: nothing re-runs it when the server changes, so a
+  # green result records a past image rather than a standing guarantee. The weekly run keeps the
+  # roadmap's released-image conformance claim honest between releases.
+  schedule:
+    - cron: "0 5 * * 1"
 
 permissions:
   contents: read
   packages: read
 
 concurrency:
-  group: sdk-conformance-${{ inputs.server_image_tag }}
+  group: sdk-conformance-${{ inputs.server_image_tag || 'latest-release' }}
   cancel-in-progress: false
 
 jobs:
@@ -34,10 +39,18 @@ jobs:
       - name: Start an isolated released server
         env:
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SERVER_IMAGE_TAG: ${{ inputs.server_image_tag }}
         shell: bash
         run: |
           set -euo pipefail
+          # A scheduled run carries no inputs. Resolve the newest release rather than defaulting to a
+          # literal version: a hard-coded fallback silently keeps testing an old image once the next
+          # release ships, which is the staleness this schedule exists to prevent.
+          if [[ -z "$SERVER_IMAGE_TAG" ]]; then
+            SERVER_IMAGE_TAG=$(gh release view --repo "${{ github.repository }}" --json tagName --jq '.tagName' | sed 's/^v//')
+            echo "Resolved latest release tag: $SERVER_IMAGE_TAG"
+          fi
           [[ "$SERVER_IMAGE_TAG" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]
           registry_owner=$(printf '%s' "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
           server_image="ghcr.io/$registry_owner/lakehold-api:$SERVER_IMAGE_TAG"
