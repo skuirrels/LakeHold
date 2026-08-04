@@ -507,6 +507,25 @@ public sealed record ApiTokenDto(
     DateTimeOffset? RevokedUtc,
     DateTimeOffset? LastUsedUtc);
 
+/// <summary>A person's membership of a workspace, as returned by the API.</summary>
+/// <param name="Subject">
+///     The identity provider's stable identifier. Shown so an administrator approving a stranger can
+///     match them against the provider; it is not a secret, and it is the only thing that reliably
+///     identifies someone when display names collide.
+/// </param>
+public sealed record TenantMemberDto(
+    int Id,
+    string Subject,
+    string? DisplayName,
+    string? Email,
+    string Role,
+    string Status,
+    DateTimeOffset CreatedUtc,
+    DateTimeOffset? LastSeenUtc);
+
+/// <summary>Changes what a membership grants. Absent fields are left as they are.</summary>
+public sealed record UpdateTenantMemberRequest(string? Role, string? Status);
+
 /// <summary>A catalog, as returned by the API.</summary>
 /// <remarks>
 ///     Deliberately omits <c>MetadataSource</c> and <c>StorageSecretName</c>. The former can be a
