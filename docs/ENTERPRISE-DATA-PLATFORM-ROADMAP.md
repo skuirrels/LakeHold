@@ -23,7 +23,7 @@ Platform (EDP), not merely a SQL endpoint over open storage.
 | ----------------------------------- | ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
 | P1.1 Managed ingestion foundation   | **Shipped**               | v1.3.0 includes REST JSON-array/NDJSON and gRPC full snapshots, durable definitions/runs, schedules, fencing, target ownership, quality, egress, scratch controls, telemetry, API outcomes, and production-path tests | Post-release migration and real connector-refresh deployment evidence                                                                                 |
 | P1.2 Connector platform             | **Shipped**               | v1.3.0 includes the versioned adapter SDK/manifest, commit-fenced checkpoints, replay-safe keyed upsert, retry/dead-letter lifecycle, mappings, schema policy, external secrets, approved auth, PostgreSQL, and HubSpot | Deployment evidence and a broader production-certified adapter catalogue                                                                              |
-| P1.3 Catalog and governance         | **Partial**               | Owners, descriptions, tags, quality policy, audit, and connector run lineage exist on initial surfaces                                                                                                | Stable identity for every asset, search, classification, freshness, policy administration, and end-to-end lineage graph                              |
+| P1.3 Catalog and governance         | **Partial**               | Owners, descriptions, tags, quality policy, audit, and connector run lineage exist on initial surfaces                                                                                                | Stable identity for every asset, search, classification, freshness, policy administration, end-to-end lineage graph, and row/column-level security    |
 | P1.4 Public API and client SDKs     | **Partial**               | v1.4.0 public API images; canonical `/api/v1`, NDJSON query/CDC streams, snapshot detail/keysets, production OpenAPI, semantic compatibility gate, generated/tested Java, Go, .NET, and Python clients, released-image authentication/query/isolation/cancellation conformance, documentation, examples, matrices, and a successful 0.1.0 non-publishing package/provenance dry run | Complete exhaustive public-error conformance; sign, publish, index, and clean-install all four public packages |
 | P1.5 Semantic and consumption layer | **Partial**               | HTTP, Workbench, MCP, EF Core, PostgreSQL wire for psql/DBeaver/Npgsql, and saved-query publication                                                                                                   | Governed metrics/semantic models, Power BI fix, supported JDBC/ODBC, and open multi-engine catalog access                                            |
 | P1.6 Enterprise operations          | **Partial**               | Maintenance, leases, telemetry, backup/restore, verified eject, bounded connector resources, connector lifecycle operations, and safe errors                                                           | Connector UI, freshness/SLO dashboards, alerting, usage/cost reporting, and release runbooks                                                          |
@@ -125,7 +125,49 @@ partner ecosystem is claimed.
 - [ ] Freshness objectives and visible current quality/freshness status.
 - [ ] Navigable upstream/downstream lineage graph.
 - [ ] Contract versions and compatibility decisions.
-- [ ] Row- and column-level security.
+- [ ] Row- and column-level security — see below; it is not a checkbox.
+
+#### Row- and column-level security
+
+The most-requested governance gap, and the only P1.3 item that does not fit the architecture as it
+stands. It is listed here rather than scheduled, because the design question below has to be settled
+before any of it can be estimated honestly.
+
+**The problem.** Invariants 4 and 20 say capability is expressed as *attachment*: a reader gets a
+read-only catalog handle, so a write fails in the engine rather than in a policy check that clever
+SQL might route around. Parsing, filtering, or rewriting submitted SQL is explicitly not the
+security boundary. But a row is not attachable, and DuckDB has no native row policies and no in-process user
+system to hang them on. So row-level security cannot be expressed the way every other capability in
+LakeHold is — which is precisely why it has stayed unbuilt, and why "add a predicate to the query"
+is the wrong first move.
+
+**Candidate approaches**, none yet chosen:
+
+- **Policy-bearing views, reachable by attachment.** Base tables live where the policy-bound
+  credential cannot attach; it attaches only a catalog of views carrying the predicate. This is the
+  one option that keeps the boundary at attachment. It requires the catalog topology to change, and
+  the cross-catalog view resolution to be proven against DuckLake rather than assumed.
+- **Filtering in a serving layer** above the engine. Viable only if raw SQL and the PostgreSQL wire
+  endpoint are closed to policy-bound principals — otherwise the policy is advisory, and an advisory
+  security control is worse than a declared absence.
+- **Per-principal materialised subsets.** Correct and simple, but stale by construction, multiplies
+  storage, and has no coherent answer for time travel.
+- **Wait for upstream.** DuckDB or DuckLake may grow a primitive that makes this expressible. Worth
+  tracking in `COMPETITIVE-RESEARCH.md` rather than designing around its absence twice.
+
+**Acceptance gates**, whichever approach wins:
+
+- [ ] A policy is enforced for a credential that can submit arbitrary SQL, including through the
+      PostgreSQL wire endpoint and MCP — or those surfaces are provably closed to policy-bound
+      principals, and say so.
+- [ ] Enforcement survives a query that names the base table directly, a view over it, a join, a
+      subquery, and a time-travel read at an older snapshot.
+- [ ] The mechanism is stated in `ARCHITECTURE.md` as an invariant, or invariant 4 is amended
+      explicitly. Shipping something that quietly contradicts it is the failure mode to avoid.
+- [ ] `/compare`, the landing page, and `ARCHITECTURE.md` stop saying "no row policies" in the same
+      change. All three assert it today, and the capability contract in
+      `web/lakehold-ui/e2e/support/compare-capabilities.ts` will fail until the claim and its
+      evidence move together.
 
 ### P1.4 public API and client SDKs
 

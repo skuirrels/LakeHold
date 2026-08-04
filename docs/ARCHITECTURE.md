@@ -351,7 +351,7 @@ readable by Spark, Trino, or Snowflake.
 | Managed ingestion connectors | ✅ Flights | ✅ | ✅ | ⚠️ | ❌ | ⚠️ REST/gRPC + PostgreSQL/HubSpot incremental |
 | AI / MCP / assistant | ✅ | ✅ Genie | ✅ Cortex | ✅ MCP server | ❌ | ✅ MCP server, read-only |
 | Semantic layer / governed metrics for agents | ❌ | ✅ Metric Views | ✅ Semantic Views | ✅ | ⚠️ dbt/Cube | 🛠️ from EF model |
-| Row / column-level security | ❌ by design | ✅ | ✅ | ✅ | ⚠️ | 🛠️ later |
+| Row / column-level security | ❌ by design | ✅ | ✅ | ✅ | ⚠️ | 🛠️ specified, unscheduled |
 | Dual local↔cloud hybrid execution | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | .NET / EF Core model integration | ❌ | ❌ | ⚠️ connector only | ❌ | ❌ | ✅ **unique** |
 | Shipped .NET client package | ⚠️ DuckDB.NET | ⚠️ ODBC/JDBC | ✅ official | ❌ | ❌ | 🛠️ USP 6 |
