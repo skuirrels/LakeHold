@@ -62,6 +62,11 @@ public static class BrowserAuthentication
                 options.Authority = oidc.Authority;
                 options.RequireHttpsMetadata = oidc.RequireHttpsMetadata;
                 options.MapInboundClaims = false;
+                if (oidc.MetadataAddress.Length > 0)
+                {
+                    options.MetadataAddress = oidc.MetadataAddress;
+                }
+
                 ConfigureAudience(options, oidc.Audience);
             });
 
@@ -73,6 +78,11 @@ public static class BrowserAuthentication
                 options.ClientId = oidc.ClientId;
                 options.ClientSecret = oidc.ClientSecret;
                 options.RequireHttpsMetadata = oidc.RequireHttpsMetadata;
+                if (oidc.MetadataAddress.Length > 0)
+                {
+                    options.MetadataAddress = oidc.MetadataAddress;
+                }
+
                 options.ResponseType = OpenIdConnectResponseType.Code;
                 options.UsePkce = true;
                 options.SignInScheme = CookieScheme;

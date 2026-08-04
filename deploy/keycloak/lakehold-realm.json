@@ -1,0 +1,146 @@
+{
+  "realm": "lakehold",
+  "displayName": "LakeHold (development)",
+  "enabled": true,
+  "sslRequired": "none",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": false,
+  "editUsernameAllowed": false,
+  "groups": [
+    {
+      "name": "lakehold-administrators",
+      "path": "/lakehold-administrators",
+      "attributes": {}
+    }
+  ],
+  "clients": [
+    {
+      "clientId": "lakehold-workbench",
+      "name": "LakeHold Workbench",
+      "description": "Browser sign-in for the LakeHold Workbench. Confidential: LakeHold exchanges the authorization code server-side and the browser never receives an identity-provider token.",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "bearerOnly": false,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "secret": "lakehold-development-client-secret",
+      "redirectUris": [
+        "http://localhost:5399/auth/callback",
+        "http://127.0.0.1:5399/auth/callback",
+        "http://localhost:8080/auth/callback"
+      ],
+      "webOrigins": [
+        "http://localhost:5399",
+        "http://127.0.0.1:5399",
+        "http://localhost:8080"
+      ],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "http://localhost:5399/workbench##http://127.0.0.1:5399/workbench##http://localhost:8080/workbench"
+      },
+      "protocolMappers": [
+        {
+          "name": "lakehold-tenant",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.attribute": "tenant",
+            "claim.name": "tenant",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        },
+        {
+          "name": "lakehold-role",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.attribute": "lakehold_role",
+            "claim.name": "role",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        },
+        {
+          "name": "lakehold-groups",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-group-membership-mapper",
+          "consentRequired": false,
+          "config": {
+            "claim.name": "groups",
+            "full.path": "false",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        },
+        {
+          "name": "lakehold-audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.client.audience": "lakehold-workbench",
+            "id.token.claim": "false",
+            "access.token.claim": "true"
+          }
+        }
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "admin",
+      "email": "admin@lakehold.test",
+      "firstName": "Ada",
+      "lastName": "Administrator",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "lakehold",
+          "temporary": false
+        }
+      ],
+      "groups": [
+        "/lakehold-administrators"
+      ],
+      "attributes": {}
+    },
+    {
+      "username": "analyst",
+      "email": "analyst@lakehold.test",
+      "firstName": "Owen",
+      "lastName": "Owner",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "lakehold",
+          "temporary": false
+        }
+      ],
+      "attributes": {
+        "tenant": [
+          "demo"
+        ],
+        "lakehold_role": [
+          "owner"
+        ]
+      }
+    }
+  ]
+}

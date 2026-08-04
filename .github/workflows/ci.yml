@@ -216,6 +216,9 @@ jobs:
         run: |
           docker compose --profile linq up -d
           timeout 240 bash -c 'until curl -fsS http://localhost:5399/workbench >/dev/null; do sleep 3; done'
+          # The identity suite signs in through the bundled provider, so wait for it to import its
+          # realm as well; a login attempted before that is a redirect into a 404.
+          timeout 240 bash -c 'until curl -fsS http://localhost:5401/realms/lakehold/.well-known/openid-configuration >/dev/null; do sleep 3; done'
 
       - name: Run browser journeys
         working-directory: web/lakehold-ui
