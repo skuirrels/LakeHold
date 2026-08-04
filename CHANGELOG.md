@@ -7,6 +7,8 @@ and LakeHold follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-08-04
+
 ### Added
 
 - Tenant membership: a `TenantMember` record decides what a signed-in identity reaches, and an
@@ -39,6 +41,8 @@ and LakeHold follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Races in token administration.
 - The brand casing check reported success without running wherever ripgrep was absent — including
   on every CI run, so the spelling rule had never actually been enforced.
+- Documentation, runbooks, and website copy that still described authentication as opt-in, including
+  a README instruction and an incident-response step naming a setting that no longer exists.
 - GitHub Actions runtime warnings.
 
 ### Upgrade notes
@@ -161,7 +165,8 @@ and LakeHold follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Production API and web container images for Linux amd64 and arm64, Compose deployment, health
   checks, telemetry, and a reproducible end-to-end test suite.
 
-[Unreleased]: https://github.com/skuirrels/LakeHold/compare/v1.4.0...HEAD
+[Unreleased]: https://github.com/skuirrels/LakeHold/compare/v1.5.0...HEAD
+[1.5.0]: https://github.com/skuirrels/LakeHold/compare/v1.4.0...v1.5.0
 [1.4.0]: https://github.com/skuirrels/LakeHold/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/skuirrels/LakeHold/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/skuirrels/LakeHold/compare/v1.1.0...v1.2.0
