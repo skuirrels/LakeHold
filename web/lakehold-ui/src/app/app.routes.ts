@@ -5,9 +5,15 @@ import { Routes } from '@angular/router';
  * other one is dead weight in the initial bundle, and the comparison page in particular is only
  * read once.
  *
- * `data.seo` carries the description and indexing rules each route needs; `SeoService` applies them
- * on navigation and the prerenderer bakes them into the emitted HTML. Keep a description under
- * about 160 characters — a search result snippet is truncated past roughly that.
+ * `data.seo` carries the description, indexing rules, and JSON-LD shape each route needs;
+ * `SeoService` applies them on navigation and the prerenderer bakes them into the emitted HTML.
+ * Keep a description under about 160 characters — a search result snippet is truncated past
+ * roughly that.
+ *
+ * Every indexable route except the home page declares a `documentType` and a `breadcrumb`. That is
+ * what makes the home page the site's answer to a search for "lakehold": those pages publish
+ * themselves as articles *about* the product, and name the home page as where the product itself
+ * lives. Omitting them on a new page silently enters it into that competition.
  */
 export const routes: Routes = [
   {
@@ -28,6 +34,8 @@ export const routes: Routes = [
       seo: {
         description:
           'How LakeHold is becoming a private Enterprise Data Platform: governed ingestion, open lakehouse storage, consumption, operations, and an honest capability roadmap.',
+        documentType: 'WebPage',
+        breadcrumb: 'Enterprise Data Platform',
       },
     },
     loadComponent: () =>
@@ -40,6 +48,8 @@ export const routes: Routes = [
       seo: {
         description:
           'How LakeHold compares with MotherDuck, ClickHouse, Snowflake, and Databricks on data ownership, open storage, self-hosting, and cost — including where it loses.',
+        documentType: 'WebPage',
+        breadcrumb: 'Comparison',
       },
     },
     loadComponent: () => import('./comparison.component').then((m) => m.ComparisonComponent),
@@ -51,6 +61,8 @@ export const routes: Routes = [
       seo: {
         description:
           'Run LakeHold with Docker Compose, query a catalog from the workbench, travel through snapshots, and use eject, backup, CDC, and the PostgreSQL wire endpoint.',
+        documentType: 'TechArticle',
+        breadcrumb: 'Documentation',
       },
     },
     loadComponent: () => import('./docs.component').then((m) => m.DocsComponent),
@@ -62,6 +74,8 @@ export const routes: Routes = [
       seo: {
         description:
           'Write C# LINQ in the LakeHold Workbench with an isolated DuckDB.EFCoreProvider planner, generated SQL, diagnostics, saved queries, and safe deployment.',
+        documentType: 'TechArticle',
+        breadcrumb: 'C# LINQ Workbench',
       },
     },
     loadComponent: () =>
@@ -74,6 +88,8 @@ export const routes: Routes = [
       seo: {
         description:
           'Configure LakeHold REST/gRPC snapshots and PostgreSQL/HubSpot incremental connectors with checkpoints, retries, schema contracts, secrets, and lineage.',
+        documentType: 'TechArticle',
+        breadcrumb: 'Managed data connectors',
       },
     },
     loadComponent: () =>
@@ -86,6 +102,8 @@ export const routes: Routes = [
       seo: {
         description:
           'LakeHold Enterprise Data Platform delivery status: what is implemented, partial, unreleased, not started, and required for Priority 1 completion.',
+        documentType: 'TechArticle',
+        breadcrumb: 'Enterprise Data Platform delivery plan',
       },
     },
     loadComponent: () =>
@@ -100,6 +118,8 @@ export const routes: Routes = [
       seo: {
         description:
           'Operate LakeHold in production with ownership, readiness gates, routine checks, safe deployment, rollback, and evidence-handling guidance.',
+        documentType: 'TechArticle',
+        breadcrumb: 'Operations',
       },
     },
     loadComponent: () => import('./operations.component').then((m) => m.OperationsComponent),
@@ -111,6 +131,8 @@ export const routes: Routes = [
       seo: {
         description:
           'Respond to LakeHold incidents with severity levels, first-response checks, diagnosis, containment, recovery, communication, and review procedures.',
+        documentType: 'TechArticle',
+        breadcrumb: 'Incident response',
       },
     },
     loadComponent: () =>
@@ -123,6 +145,8 @@ export const routes: Routes = [
       seo: {
         description:
           'Recover LakeHold state with explicit protection boundaries, RPO and RTO guidance, full-node and catalog procedures, validation, and restore drills.',
+        documentType: 'TechArticle',
+        breadcrumb: 'Disaster recovery',
       },
     },
     loadComponent: () =>
@@ -135,6 +159,8 @@ export const routes: Routes = [
       seo: {
         description:
           'Monitor LakeHold health, OpenTelemetry signals, maintenance, backups, capacity, security, and CDC with actionable alerts and validation drills.',
+        documentType: 'TechArticle',
+        breadcrumb: 'Monitoring and alerting',
       },
     },
     loadComponent: () => import('./monitoring.component').then((m) => m.MonitoringComponent),
@@ -146,6 +172,8 @@ export const routes: Routes = [
       seo: {
         description:
           'The EF Core 10 provider LakeHold runs on: LINQ, writes, non-executing command plans, DuckLake time travel, and Parquet tiers on S3, GCS, or Azure.',
+        documentType: 'WebPage',
+        breadcrumb: 'DuckDB.EFCoreProvider',
       },
     },
     loadComponent: () => import('./provider.component').then((m) => m.ProviderComponent),
@@ -157,6 +185,8 @@ export const routes: Routes = [
       seo: {
         description:
           'DuckDB.EFCoreProvider reference: configure EF Core, translate LINQ, capture command plans, query Parquet, and run DuckLake and tiered storage.',
+        documentType: 'TechArticle',
+        breadcrumb: 'DuckDB.EFCoreProvider documentation',
       },
     },
     loadComponent: () => import('./provider-docs.component').then((m) => m.ProviderDocsComponent),

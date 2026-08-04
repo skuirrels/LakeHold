@@ -46,8 +46,14 @@ import { BrandMarkComponent } from './brand-mark.component';
 
       <section class="hero">
         <span class="eyebrow">Open-source lakehouse · DuckDB + DuckLake · .NET</span>
-        <h1>A feature-rich lakehouse.<br />You host it yourself.</h1>
+        <!--
+          The product name belongs in the heading and in the sentence below it. Without it the only
+          page on the site that *states* what LakeHold is was the documentation, which is how a
+          getting-started guide comes to answer a search for the product's own name.
+        -->
+        <h1>LakeHold: a feature-rich lakehouse.<br />You host it yourself.</h1>
         <p class="lede">
+          LakeHold is a self-hostable, tenant-aware lakehouse built on DuckDB and DuckLake:
           PostgreSQL control and metadata, in-process DuckDB compute, and open Parquet on local
           files, S3, GCS, or Azure — all on <em>your</em> infrastructure.
         </p>
