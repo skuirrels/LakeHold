@@ -9,7 +9,7 @@
     <!-- Lakehouse engine + control plane persistence.
 
          The ADO.NET layer is the Skuirrels fork of DuckDB.NET, which is what DuckDB.EFCoreProvider
-         1.14.1 and later depend on. Package 1.5.5.3 carries DuckDB engine v1.5.5 — the two version
+         1.14.1 and later depend on. Package 1.5.5.4 carries DuckDB engine v1.5.5 — the two version
          lines are separate, so verify the engine version with `SELECT version()`, not by deriving
          it from the package version.
 
@@ -18,9 +18,9 @@
          to whatever the provider happens to resolve. The upstream `DuckDB.NET.*` packages are
          deliberately absent: the provider no longer uses them, and a pin on an unreferenced package
          id silently constrains nothing while still reading like a guarantee. -->
-    <PackageVersion Include="Skuirrels.DuckDB.NET.Data.Full" Version="1.5.5.3" />
-    <PackageVersion Include="Skuirrels.DuckDB.NET.Bindings.Full" Version="1.5.5.3" />
-    <PackageVersion Include="DuckDB.EFCoreProvider" Version="1.17.0" />
+    <PackageVersion Include="Skuirrels.DuckDB.NET.Data.Full" Version="1.5.5.4" />
+    <PackageVersion Include="Skuirrels.DuckDB.NET.Bindings.Full" Version="1.5.5.4" />
+    <PackageVersion Include="DuckDB.EFCoreProvider" Version="1.17.1" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="10.0.10" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.10" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.10" />
@@ -85,14 +85,13 @@
 
   <ItemGroup>
     <!-- Shared extensions -->
-    <!-- Keep Roslyn aligned with EF Core Design's exact Workspaces dependency.
-
-         Held at 5.0.0 deliberately, and not an oversight when a newer line exists: EF Core Design
-         10.0.10 pulls Microsoft.CodeAnalysis.CSharp.Workspaces 5.0.0, which constrains
-         Microsoft.CodeAnalysis.CSharp to `= 5.0.0` exactly. Moving this to 5.6.0 fails restore with
-         NU1608 and NU1107 (Microsoft.CodeAnalysis.Common resolving to both 5.6.0 and 5.0.0), so the
-         whole Roslyn family has to move together when EF Core Design ships against a newer one. -->
-    <PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="5.0.0" />
+    <!-- Keep Roslyn on one release line. EF Core Design permits Workspaces 5.0.0 or newer, but
+         NuGet otherwise selects the minimum while the Roslyn packages constrain one another to an
+         exact version. Pin the three roots together so the transitive Common, Workspaces.Common,
+         and MSBuild.Contracts packages all resolve consistently. -->
+    <PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="5.6.0" />
+    <PackageVersion Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="5.6.0" />
+    <PackageVersion Include="Microsoft.CodeAnalysis.Workspaces.MSBuild" Version="5.6.0" />
     <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.10" />
     <PackageVersion Include="Microsoft.Extensions.Options" Version="10.0.10" />
     <PackageVersion Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.10" />

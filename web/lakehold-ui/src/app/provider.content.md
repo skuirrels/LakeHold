@@ -3,7 +3,7 @@
 A practical guide to native DuckDB persistence, DuckLake catalogs, high-throughput writes,
 open-format analytics, and managed hot-to-cold data lifecycles — for EF Core 10 on .NET 10.
 
-This page documents provider **1.17.0**.
+This page documents provider **1.17.1**.
 
 This is the provider LakeHold's own data plane runs on. What LakeHold's engine exercises in
 production is documented here as the public contract.
