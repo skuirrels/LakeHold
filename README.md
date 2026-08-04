@@ -33,7 +33,7 @@ simpler story than the product site.
 |---|---|---|---|---|
 | Deployment | Self-hosted anywhere, incl. air-gapped | Hosted catalog; local or cloud compute | Self-hosted or ClickHouse Cloud | Hosted service only |
 | Where your data lives | Your disk or object store, under your control | Managed storage or your own bucket | Your disks, or their cloud | Their account, or external tables |
-| Accounts, SSO, permissions | OIDC browser login, scoped API tokens, three roles, and client-token administration; no row policies | Accounts, SSO, org roles | Users, roles, row policies | Mature RBAC, SSO, lineage |
+| Accounts, SSO, permissions | OIDC browser sign-in, scoped API tokens, three roles, in-product member and token administration; no row policies | Accounts, SSO, org roles | Users, roles, row policies | Mature RBAC, SSO, lineage |
 | Table format | DuckLake — plain Parquet + SQL catalog | DuckLake — same open format | MergeTree, proprietary on disk | Delta / Iceberg, now genuinely open |
 | Read data without the product | Yes — tested, see exit path | Yes, DuckLake is open | Export required | Yes, via Iceberg / Delta readers |
 | Other engines read it live | Eject or export today; Iceberg REST planned | Direct with BYO compute; catalog remains hosted | Its own protocols; export for others | Yes — via their catalog endpoints |
