@@ -54,10 +54,14 @@ integration.
   `Lakehold:Auth:RequireAuthentication` still defaults to **false**, so a token-less request falls
   back to trusting the route until an operator turns it on. Read it before adding any surface that
   resolves a tenant.
-- `docs/IDENTITY-PROVIDER-SETUP.md`: the operational companion to the above — how a human actually
-  signs in, and how to put Keycloak or another provider behind the Workbench. Covers the bootstrap
-  token, first-workspace provisioning, the claim mappers LakeHold reads (`tenant`, `role`,
-  system-admin), and why an empty `Lakehold:Oidc:Audience` accepts every token that issuer minted.
+- `docs/IDENTITY-PROVIDER-SETUP.md`: the operational companion to the above — first-run production
+  setup, adding people, swapping the identity provider, and connecting clients and agents. LakeHold
+  federates authentication and owns authorization: identity comes from the provider, but what an
+  identity reaches is a `TenantMember` row administered under **People**. A `tenant` claim is
+  honoured only once, to admit a first arrival; after that the row wins, so a provider re-asserting
+  a stale role cannot undo a decision made here. Instance administration stays a provider claim by
+  design, so a workspace owner cannot promote themselves. Note that an empty `Lakehold:Oidc:Audience`
+  accepts every token that issuer minted.
 - `docs/PUBLIC-API.md`: the phased spec for the public HTTP control API and first-party Java, Go,
   .NET, and Python SDKs — time travel and the whole lakehouse. Builds on `docs/AUTHENTICATION.md`
   (auth is its gate); the cross-cutting API conventions (versioning, `problem+json`, pagination,
