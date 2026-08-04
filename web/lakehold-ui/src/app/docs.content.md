@@ -35,12 +35,15 @@ cp .env.example .env
 
 ### 2. Choose how to run it
 
-**Everything in Docker.** One command brings up the backing services, the API, and the dev server.
-The website is served at http://localhost:5399; the API is on `:5200`.
+**Everything in Docker.** One command brings up the backing services, the identity provider, the
+API, and the dev server. The website is served at http://localhost:5399; the API is on `:5200`.
 
 ```bash
-docker compose up
+make dev
 ```
+
+`make dev` is `docker compose up` plus a banner listing the URLs and the seeded sign-in details you
+need in step 3. Plain `docker compose up` does the same thing without the reminder.
 
 SQL is always available. Add the isolated C# LINQ planner with a Compose profile:
 
@@ -66,11 +69,41 @@ npm start --prefix web/lakehold-ui                         # UI on :5399
 Same URLs either way. The dev server proxies `/api`, `/mcp`, and MCP authorization metadata to
 `NG_API_URL`, which falls back to `localhost:5200` when nothing sets it.
 
-### 3. Open the workbench
+### 3. Sign in
 
-Visit http://localhost:5399 and click **Open the workbench**. In development it ships with a seeded
-demo catalog — a `demo` workspace with an `analytics` catalog of 250,000 events and 5,000 customers —
-so there is something to run against before you load any data of your own.
+**Authentication is required, including locally.** There is no configuration in which it is not, so
+the workbench asks who you are before it shows you anything.
+
+The development stack bundles an identity provider (Keycloak) and enables it by default, with a
+realm already seeded. `make dev` prints everything below as it starts:
+
+| | |
+|---|---|
+| Website | http://localhost:5399 |
+| API | http://localhost:5200 |
+| Identity provider | http://localhost:5401 — Keycloak console is `admin` / `admin` |
+
+Visit http://localhost:5399, click **Open the workbench**, then **Continue with your identity
+provider**. Two users are seeded, both with the password `lakehold`:
+
+| Sign in as | You get |
+|---|---|
+| `analyst` | Owner of the `demo` workspace — query, write, maintenance, backup, and eject |
+| `admin` | Instance administration — provision workspaces, catalogs, and credentials, and administer people in any workspace |
+
+Either way you land on a seeded catalog: a `demo` workspace with an `analytics` catalog of 250,000
+events and 5,000 customers, so there is something to run against before you load data of your own.
+
+> **Switching between the two users needs a private window.** Signing out of LakeHold clears
+> LakeHold's session, not the identity provider's — so the provider recognises you and signs you
+> straight back in as the same person. This surprises everyone once. Use a private window per user,
+> or sign out of Keycloak at http://localhost:5401 as well.
+
+**Machines, scripts, and agents use API tokens instead**, not browser sign-in. Paste one into the
+same dialog under **or use an API token**, or send it as `Authorization: Bearer lkh_…`. Issue tokens
+under **System Settings → API tokens**. Full detail — production first-run, adding people, swapping
+Keycloak for your own provider, and connecting clients and agents — is in the
+[identity provider setup guide](https://github.com/skuirrels/LakeHold/blob/main/docs/IDENTITY-PROVIDER-SETUP.md).
 
 ### Build and test
 
