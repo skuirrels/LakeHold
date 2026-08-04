@@ -1,4 +1,5 @@
 import { existsSync, readFileSync } from 'node:fs';
+import { signIn } from './credential';
 import { resolve } from 'node:path';
 import { expect, test } from '@playwright/test';
 import { compareCapabilities } from './support/compare-capabilities';
@@ -115,7 +116,11 @@ test.describe('@website /compare capability contract', () => {
 
   test('decision guidance, limitations, objection, and workbench handoff stay usable', async ({
     page,
+    request,
   }) => {
+    // The handoff lands on the Workbench, which requires a credential like every other surface.
+    // Without one this asserts the sign-in panel rather than the editor it is here to check.
+    await signIn(page, request);
     await page.goto('/compare');
 
     for (const competitor of ['MotherDuck', 'ClickHouse', 'Snowflake / Databricks']) {
