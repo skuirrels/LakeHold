@@ -1,8 +1,8 @@
 # Demo deployment overlay used by lakehold.dev and the E2E suite.
 #
-# Authentication stays enabled. Credential-less visitors receive only the synthetic reader scoped
-# to demo/analytics; this is intentionally different from setting LAKEHOLD_REQUIRE_AUTH=false,
-# which would trust every tenant and catalog named in a URL.
+# Authentication is required, here as everywhere. Credential-less visitors receive only the
+# synthetic reader scoped to demo/analytics — a real identity that can read one catalog, which is
+# the only supported way to publish anything without a credential.
 #
 #   make demo  # builds and starts the isolated C# LINQ planner automatically
 #

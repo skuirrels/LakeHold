@@ -11,7 +11,6 @@ services:
       - "${LAKEHOLD_PHASE2_PGWIRE_PORT:-65433}:5433"
     environment:
       Lakehold__SeedDemoData: "false"
-      Lakehold__Auth__RequireAuthentication: "true"
       # A deliberately public test credential. It is valid only inside the disposable state volume.
       Lakehold__BootstrapToken: "lkh_admin_phase2bootstrapcredential0000000000000000000"
       Lakehold__Cdc__Enabled: "true"

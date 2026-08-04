@@ -221,11 +221,12 @@ The gap is depth, not quality:
   `COMPETITIVE-RESEARCH.md` §3 found MotherDuck has *deliberately declined* to build it — but
   Databricks, Snowflake, and Dremio all ship it, and those are the competitors an upmarket move
   selects.
-- **`Lakehold:Auth:RequireAuthentication` defaults to `false`.** For a self-hosted tool whose
-  production Compose file sets it true, that is a defensible development convenience, and both
-  `README.md` and the feature matrix disclose it. For anything claiming enterprise grade, an
-  authentication switch that defaults open is indefensible. Roadmap Phase 2 treats it as a release
-  blocker and it is open.
+- **~~`Lakehold:Auth:RequireAuthentication` defaults to `false`.~~** *Resolved 4 August 2026:* the
+  switch has been removed rather than re-defaulted, so authentication is unconditional on every
+  surface. The finding stood — an authentication switch that defaults open is indefensible for
+  anything claiming enterprise grade — and this was the release blocker Roadmap Phase 2 named. What
+  replaces it is a bounded, named exposure: `DemoTenant` plus `DemoCatalog` publishes one catalog to
+  anonymous readers and fails closed if either is empty.
 - **Lineage is partial and audit is not tamper-evident.** *Corrected 3 August 2026:* the connector
   platform records a durable source-to-table edge and per-refresh run lineage with quality evidence,
   so the original "no lineage" reading is wrong. What is still absent is table-to-table and

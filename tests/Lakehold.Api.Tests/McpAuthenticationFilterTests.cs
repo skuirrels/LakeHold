@@ -12,9 +12,9 @@ using Xunit;
 namespace Lakehold.Api.Tests;
 
 /// <summary>
-///     The divergence that makes the MCP surface safe to expose: it demands a credential
-///     unconditionally, where every other surface still falls back to trusting the route while
-///     <see cref="LakeholdAuthOptions.RequireAuthentication"/> is false (invariant 21).
+///     The divergence that makes the MCP surface safe to expose: it demands a real credential
+///     unconditionally, where every other surface admits the scoped demo reader configured by
+///     <see cref="LakeholdAuthOptions"/> (invariant 21).
 /// </summary>
 public sealed class McpAuthenticationFilterTests : IAsyncLifetime
 {
@@ -38,6 +38,16 @@ public sealed class McpAuthenticationFilterTests : IAsyncLifetime
         services.AddSingleton(TimeProvider.System);
         services.Configure<McpOptions>(options => options.Enabled = true);
         services.Configure<LakeholdOidcOptions>(_ => { });
+
+        // Demo access is configured deliberately. It is the one remaining way an HTTP route serves a
+        // request carrying no credential, so it is the configuration under which invariant 21 has
+        // something to say — without it, "MCP refuses a credential-less call" is not a divergence
+        // from anything.
+        services.Configure<LakeholdAuthOptions>(options =>
+        {
+            options.DemoTenant = "demo";
+            options.DemoCatalog = "analytics";
+        });
         _services = services.BuildServiceProvider();
 
         await using var scope = _services.CreateAsyncScope();
@@ -75,10 +85,11 @@ public sealed class McpAuthenticationFilterTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task No_credential_is_refused_even_though_authentication_is_not_required()
+    public async Task No_credential_is_refused_even_where_demo_access_would_serve_it()
     {
-        // The same request against an HTTP data route is allowed today. This is invariant 21, and it
-        // is the one behaviour that must not regress when the surrounding default changes.
+        // With DemoTenant and DemoCatalog set, the same credential-less request against an HTTP data
+        // route is served as the scoped demo reader. This surface refuses it anyway: invariant 21,
+        // and the one behaviour that must not regress when the surrounding configuration opens up.
         var (status, passed, _) = await RunAsync(bearer: null);
 
         Assert.False(passed);

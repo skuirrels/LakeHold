@@ -331,9 +331,9 @@ readable by Spark, Trino, or Snowflake.
 | Readable live by Spark / Trino / Snowflake (no export) | ⚠️ | ⚠️ via Unity | ⚠️ via Polaris | ✅ | ✅ | 🛠️ USP 5, Iceberg REST |
 | Serverless-feel / auto-suspend compute | ✅ | ✅ | ✅ | ⚠️ | ❌ | ✅ Ducklings idle-evict |
 | Elastic scale-out (multi-node) | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ single-writer node |
-| Per-tenant isolation as a product primitive | ✅ hypertenancy | ✅ | ✅ | ⚠️ projects | ❌ DIY | ⚠️ engine-level + credential, see below |
-| Authentication / tenant identity | ✅ | ✅ | ✅ | ✅ | ⚠️ DIY | ⚠️ shipped, enforcement opt-in |
-| SSO / OIDC | ✅ | ✅ | ✅ | ✅ | ⚠️ | ✅ browser login + tenant/admin claims |
+| Per-tenant isolation as a product primitive | ✅ hypertenancy | ✅ | ✅ | ⚠️ projects | ❌ DIY | ✅ engine-level + credential, see below |
+| Authentication / tenant identity | ✅ | ✅ | ✅ | ✅ | ⚠️ DIY | ✅ required on every surface |
+| SSO / OIDC | ✅ | ✅ | ✅ | ✅ | ⚠️ | ✅ browser sign-in + in-product membership |
 | RBAC beyond tenancy | ✅ | ✅ | ✅ | ✅ | ⚠️ | ⚠️ owner/editor/reader per token |
 | Web query IDE | ✅ mature | ✅ | ✅ | ✅ | ❌ add Superset | ✅ CodeMirror, SQL + optional LINQ |
 | Catalog explorer | ✅ | ✅ | ✅ | ✅ | ⚠️ | ✅ |
@@ -371,11 +371,13 @@ validated against it.
 
 Those are two different claims and the matrix previously ran them together. The engine-level boundary
 was always real; the product-level guarantee a security review asks about now exists as well. Both
-that row and the authentication row stay ⚠️ rather than ✅ for one reason:
-`Lakehold:Auth:RequireAuthentication` defaults to **false**, so a deployment that does not set it
-still accepts token-less requests and trusts the route. Enforcement is available and tested; making
-it mandatory is the operator's switch to throw, and until a deployment throws it the honest reading
-of the row is "partial".
+rows read ⚠️ until recently for one reason: `Lakehold:Auth:RequireAuthentication` defaulted to
+false, so a deployment that did not set it accepted token-less requests and trusted the route. That
+switch
+has been removed — enforcement is unconditional — and the rows are ✅ accordingly.
+
+What is still ⚠️ is the row below them: authorization granularity stops at a role and optionally one
+catalog. There are no row or column policies, so a reader who can reach a table reads all of it.
 
 **On the storage row.** The workbench reads the physical layer — per-table sizes, Parquet file counts,
 delete-file overhead, and a per-file list with an as-of snapshot selector — from DuckLake's own
@@ -595,9 +597,10 @@ Invariant 4 was never violated by the earlier gap: isolation between attached ca
 and always held. What was missing was the layer deciding *which* tenant a caller is, and it now
 exists, with the credential naming the tenant and the route validated against it.
 
-The one caveat for anything built on top: `RequireAuthentication` still defaults to false, so a new
-externally reachable surface must not assume every request arrives authenticated. Such a surface
-should either require its own credential or ship alongside guidance to enable enforcement.
+The one caveat for anything built on top: a deployment may configure demo access, so a new
+externally reachable surface must not assume every request carries a *named* credential. It may be
+the read-only demo identity. A surface that would be unsafe in those hands should require its own
+credential, as the MCP endpoint does.
 
 ## Roadmap
 
@@ -612,8 +615,8 @@ differentiation, as the matrix says; `psql`, DBeaver, and Npgsql work, while Pow
 type-catalogue shim — and **authentication and tenant identity** (`docs/AUTHENTICATION.md`): API
 tokens, provisioning, read-only capability by attachment, audit, wire convergence, OIDC, and roles.
 The authenticated MCP server (`docs/MCP.md`) is also shipped, with read tools/resources and
-operator-gated writes. HTTP API enforcement is opt-in per deployment
-(`Lakehold:Auth:RequireAuthentication`); MCP always requires a credential.
+operator-gated writes. Every surface requires a credential; MCP additionally refuses the demo
+identity, so it can never be reached anonymously.
 
 **Next** — complete and release the Java, Go, .NET, and Python SDK programme (USP 6), add an Iceberg
 REST Catalog endpoint (USP 5), and add read-only share links.

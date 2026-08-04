@@ -50,10 +50,12 @@ integration.
 - `docs/AUTHENTICATION.md`: the phased plan for API authentication, now fully implemented — API
   tokens, provisioning, read-only-by-attachment, audit, wire convergence, OIDC browser sessions,
   system-administrator claims, and roles. Browser cookie keys are shared through PostgreSQL. A route
-  declares a `Capability` and `LakeholdAuthorizationFilter` enforces it in one place. Note that
-  `Lakehold:Auth:RequireAuthentication` still defaults to **false**, so a token-less request falls
-  back to trusting the route until an operator turns it on. Read it before adding any surface that
-  resolves a tenant.
+  declares a `Capability` and `LakeholdAuthorizationFilter` enforces it in one place. Authentication
+  is unconditional — the `Lakehold:Auth:RequireAuthentication` switch has been removed, because
+  defaulting it to off left the whole layer inert in the configuration developers ran. The only way
+  a request with no credential is served is `Lakehold:Auth:DemoTenant` plus `DemoCatalog`, a reader
+  identity scoped to one catalog that fails closed if either is empty. Read it before adding any
+  surface that resolves a tenant.
 - `docs/IDENTITY-PROVIDER-SETUP.md`: the operational companion to the above — first-run production
   setup, adding people, swapping the identity provider, and connecting clients and agents. LakeHold
   federates authentication and owns authorization: identity comes from the provider, but what an
@@ -194,8 +196,8 @@ Preserve these unless the task explicitly changes the architecture and updates i
     An MCP tool names a `Capability` and the *same* policy that guards the HTTP route enforces
     it — the rules live in one transport-neutral place, never copied into a second dispatch, or the
     404-not-403 reasoning in invariant 19 drifts between them. Unlike every other surface, MCP refuses
-    a token-less call even while `Lakehold:Auth:RequireAuthentication` is false: a surface whose
-    purpose is letting an autonomous agent run SQL cannot also trust the route. See `docs/MCP.md`.
+    a credential-less call even where demo access is configured: a surface whose purpose is letting
+    an autonomous agent run SQL is not one to publish anonymously. See `docs/MCP.md`.
 22. A table-data restore preserves the current table definition. Never implement it as
     `CREATE OR REPLACE TABLE AS SELECT … AT (…)`, which drops current defaults and nullability, or as
     `DELETE` followed by a direct historical read, which can resolve through the pending delete.

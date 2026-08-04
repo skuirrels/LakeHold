@@ -95,8 +95,11 @@ traffic, verify all of the following:
 - A release is pinned with `LAKEHOLD_TAG`; production does not track `latest`.
 - Both required PostgreSQL connection strings are supplied through the secret store, use TLS where
   traffic leaves a trusted network, and have a tested backup/PITR policy.
-- `LAKEHOLD_REQUIRE_AUTH` is true and an owner token plus an instance provisioning token are held in
-  an approved secret store. LakeHold stores only token hashes and cannot recover plaintext tokens.
+- An owner token plus an instance provisioning token are held in an approved secret store.
+  Authentication is unconditional, so there is no enforcement switch to verify — but there is one to
+  check the other way: confirm `Lakehold:Auth:DemoTenant` and `DemoCatalog` are **empty** unless
+  this node is deliberately publishing a catalog to anonymous readers. LakeHold stores only token
+  hashes and cannot recover plaintext tokens.
 - The state volume has a consistent off-host backup and checksum. A backup that remains on the same
   host or volume does not protect against loss of that host or volume.
 - Any external object store or PostgreSQL metadata service has its own versioning, backup, and

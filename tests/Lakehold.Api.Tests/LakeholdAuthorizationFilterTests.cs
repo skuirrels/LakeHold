@@ -15,7 +15,8 @@ namespace Lakehold.Api.Tests;
 ///     The step-2 gate, exercised end to end through the real filter: a token is resolved against a
 ///     real control plane, and the route is validated against it. Cross-tenant and cross-catalog
 ///     reach is refused; revoked, expired, and malformed tokens are refused; an instance token cannot
-///     reach a data route; and a token-less request still works while enforcement is not required.
+///     reach a data route; and a credential-less request is refused unless the deployment publishes a
+///     demo catalog, which admits a reader scoped to exactly that catalog and nothing else.
 /// </summary>
 public sealed class LakeholdAuthorizationFilterTests : IAsyncLifetime
 {
@@ -31,7 +32,7 @@ public sealed class LakeholdAuthorizationFilterTests : IAsyncLifetime
     public async Task InitializeAsync()
     {
         Directory.CreateDirectory(_root);
-        _services = BuildServices(requireAuthentication: false);
+        _services = BuildServices();
 
         await using var scope = _services.CreateAsyncScope();
         var context = scope.ServiceProvider.GetRequiredService<ControlPlaneContext>();
@@ -162,21 +163,9 @@ public sealed class LakeholdAuthorizationFilterTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task No_token_is_refused_when_authentication_is_required()
-    {
-        await using var services = BuildServices(requireAuthentication: true);
-
-        var (status, passed) = await RunAsync(services, bearer: null, "demo", "analytics");
-
-        Assert.False(passed);
-        Assert.Equal(StatusCodes.Status401Unauthorized, status);
-    }
-
-    [Fact]
     public async Task Demo_access_is_scoped_to_one_read_only_catalog()
     {
         await using var services = BuildServices(
-            requireAuthentication: true,
             demoTenant: "demo",
             demoCatalog: "analytics");
 
@@ -202,7 +191,6 @@ public sealed class LakeholdAuthorizationFilterTests : IAsyncLifetime
     public async Task An_incomplete_demo_configuration_fails_closed(string tenant, string catalog)
     {
         await using var services = BuildServices(
-            requireAuthentication: true,
             demoTenant: tenant,
             demoCatalog: catalog);
 
@@ -265,10 +253,7 @@ public sealed class LakeholdAuthorizationFilterTests : IAsyncLifetime
         Assert.Equal(StatusCodes.Status403Forbidden, status);
     }
 
-    private ServiceProvider BuildServices(
-        bool requireAuthentication,
-        string demoTenant = "",
-        string demoCatalog = "")
+    private ServiceProvider BuildServices(string demoTenant = "", string demoCatalog = "")
     {
         var services = new ServiceCollection();
         services.AddLogging();

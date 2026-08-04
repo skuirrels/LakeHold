@@ -10,10 +10,10 @@ namespace Lakehold.Api.Mcp;
 /// </summary>
 /// <remarks>
 ///     Deliberately <em>not</em> <see cref="LakeholdAuthorizationFilter"/>, and the difference is the
-///     point. That filter honours <see cref="LakeholdAuthOptions.RequireAuthentication"/>, so a
-///     token-less caller falls back to trusting the route while enforcement is off. This one never
-///     does: a surface whose purpose is letting an autonomous agent execute SQL cannot also trust the
-///     route, whatever the deployment's transitional setting says (invariant 21).
+///     point. That filter admits the demo reader configured by <see cref="LakeholdAuthOptions"/>, so a
+///     credential-less visitor can read one published catalog. This one never does: a surface whose
+///     purpose is letting an autonomous agent execute SQL is not a surface to publish anonymously,
+///     however narrowly the demo identity is scoped (invariant 21).
 ///
 ///     It resolves identity only. <em>Capability</em> is decided per tool by
 ///     <see cref="CapabilityPolicy"/>, because one endpoint serves every tool and the tenant arrives

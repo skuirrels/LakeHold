@@ -178,13 +178,14 @@ Interpret status codes before changing policy:
 Check a token's stored metadata through an already authorized owner or instance credential. Never
 paste the failing token into an incident channel or query its hash directly from the database.
 
-- Confirm `LAKEHOLD_REQUIRE_AUTH` was not changed.
+- Confirm `Lakehold:Auth:DemoTenant` and `DemoCatalog` were not set. Authentication itself cannot be
+  switched off, but configuring demo access publishes that one catalog to anonymous readers.
 - Confirm the token role (`owner`, `editor`, `reader`), tenant, optional catalog narrowing, expiry,
   and revocation time.
 - For a suspected leak, use an unaffected owner credential to revoke the token, rotate any adjacent
   secrets, and preserve audit and ingress evidence.
-- Do not set `LAKEHOLD_REQUIRE_AUTH=false` to make an incident disappear. In production that trusts
-  every reachable caller as every route-named tenant.
+- Do not configure demo access to make an incident disappear. It publishes a catalog to every
+  reachable caller, and an incident is the worst moment to widen exposure.
 
 ## Query degradation
 

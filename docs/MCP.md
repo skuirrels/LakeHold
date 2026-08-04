@@ -163,12 +163,13 @@ MCP tool will not use, because a tool declares its capability without an endpoin
 
 ## Authentication
 
-**The MCP endpoint always requires a credential, even when `Lakehold:Auth:RequireAuthentication` is
-false.** This is a deliberate divergence from every other surface and it is not negotiable.
+**The MCP endpoint always requires a named credential, and unlike every other surface it will not
+accept the read-only demo identity.** This divergence is deliberate and it is not negotiable.
 `ARCHITECTURE.md` already anticipates it: a new externally reachable surface must not assume every
-request arrives authenticated, and must either require its own credential or ship with guidance to
-enable enforcement. For a surface whose entire purpose is letting an autonomous agent execute SQL,
-"trusts the route by default" is not defensible. A token-less MCP call is refused, full stop.
+request carries a *named* credential, and must require its own where that matters. For a surface
+whose entire purpose is letting an autonomous agent execute SQL, "whoever can reach it" is not
+defensible however narrowly the demo identity is scoped. A credential-less MCP call is refused, full
+stop.
 
 Two credential schemes are accepted, and they coexist — the same shape `PgWire` settled on:
 
@@ -481,8 +482,8 @@ protocol-level tests, not just unit tests of its helpers.
 ### Landed
 
 **`McpAuthenticationFilterTests`** — the credential rule, exercised against the filter directly.
-- A credential-less call is refused **while `RequireAuthentication` is false**. This is invariant 21,
-  and it is pinned precisely because the surrounding default pulls the other way.
+- A credential-less call is refused **even where demo access is configured**. This is invariant 21,
+  and it is pinned precisely because the surrounding configuration pulls the other way.
 - A valid token resolves and is stashed where the tools read it.
 - Malformed, unknown, revoked, and expired credentials are each refused, with one opaque
   `WWW-Authenticate: Bearer` challenge that does not say which of those it was.
