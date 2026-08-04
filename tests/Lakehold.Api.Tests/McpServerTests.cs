@@ -52,6 +52,7 @@ public sealed class McpServerTests : IAsyncLifetime
         builder.Services.AddDbContext<ControlPlaneContext>(
             o => o.UseDuckDB($"Data Source={Path.Combine(_root, "cp.duckdb")}"));
         builder.Services.AddScoped<ApiTokenAuthenticator>();
+        builder.Services.AddScoped<MemberDirectory>();
         builder.Services.AddSingleton(TimeProvider.System);
         builder.Services.Configure<LakeholdOidcOptions>(_ => { });
         builder.Services.Configure<LakehouseOptions>(o =>

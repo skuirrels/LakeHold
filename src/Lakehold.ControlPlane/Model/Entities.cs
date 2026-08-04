@@ -1484,3 +1484,75 @@ public sealed class ApiToken
     /// <summary>Owning tenant, or null for an instance-scoped token.</summary>
     public Tenant? Tenant { get; set; }
 }
+
+/// <summary>Whether a person's membership of a tenant currently grants anything.</summary>
+public enum MemberStatus
+{
+    /// <summary>
+    ///     Known to LakeHold and granted nothing. The state a new identity lands in: signing in
+    ///     proves who someone is, not that they should reach a workspace. An owner promotes them.
+    /// </summary>
+    Pending = 0,
+
+    /// <summary>Membership is in force; <see cref="TenantMember.Role"/> says what it grants.</summary>
+    Active = 1,
+
+    /// <summary>
+    ///     Retained but granting nothing. Distinct from deletion so the audit trail keeps the person
+    ///     who ran past queries, and so re-admitting someone is not indistinguishable from a new
+    ///     arrival.
+    /// </summary>
+    Suspended = 2,
+}
+
+/// <summary>
+///     A person's membership of one tenant.
+/// </summary>
+/// <remarks>
+///     LakeHold federates <em>authentication</em> and owns <em>authorization</em>. It never stores a
+///     password: the identity provider proves who someone is, and this record says what that
+///     identity may reach. Before it existed, the answer came from a claim, which meant access could
+///     only be granted by persuading the provider to emit something — invisible from inside the
+///     product, impossible to list, and impossible to revoke here.
+///     <para>
+///         Keyed on issuer and subject rather than on an email address or username. Those are
+///         mutable, and a re-used address would silently inherit the previous holder's access;
+///         <c>sub</c> is stable and opaque for exactly this reason.
+///     </para>
+/// </remarks>
+public sealed class TenantMember
+{
+    public int Id { get; set; }
+
+    public int TenantId { get; set; }
+
+    /// <summary>The <c>iss</c> that vouched for this person. Part of the identity, not decoration.</summary>
+    /// <remarks>
+    ///     Two providers can mint the same subject, so a membership is only meaningful paired with
+    ///     the issuer that asserted it. Repointing a deployment at a new provider therefore leaves
+    ///     the old memberships inert rather than silently transferring them to whoever now holds
+    ///     that subject.
+    /// </remarks>
+    public required string Issuer { get; set; }
+
+    /// <summary>The provider's stable subject identifier for this person.</summary>
+    public required string Subject { get; set; }
+
+    /// <summary>Last display name seen, for the members list. Never used to identify anyone.</summary>
+    public string? DisplayName { get; set; }
+
+    /// <summary>Last email seen, for the members list. Never used to identify anyone.</summary>
+    public string? Email { get; set; }
+
+    /// <summary>What an <see cref="MemberStatus.Active"/> membership grants within the tenant.</summary>
+    public TokenRole Role { get; set; } = TokenRole.Reader;
+
+    public MemberStatus Status { get; set; } = MemberStatus.Pending;
+
+    public DateTimeOffset CreatedUtc { get; set; }
+
+    /// <summary>When this identity last authenticated. Null until they first sign in.</summary>
+    public DateTimeOffset? LastSeenUtc { get; set; }
+
+    public Tenant? Tenant { get; set; }
+}

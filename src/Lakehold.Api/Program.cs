@@ -311,6 +311,7 @@ builder.Services.AddScoped<QueryExecutionCoordinator>();
 builder.Services.Configure<LakeholdAuthOptions>(builder.Configuration.GetSection(LakeholdAuthOptions.Section));
 builder.Services.TryAddSingleton(TimeProvider.System);
 builder.Services.AddScoped<ApiTokenAuthenticator>();
+builder.Services.AddScoped<MemberDirectory>();
 
 // OIDC for humans, tokens for machines, one principal behind both. Configuring an authority is what
 // turns this on: absent one the whole path stays off, so an air-gapped install never acquires a

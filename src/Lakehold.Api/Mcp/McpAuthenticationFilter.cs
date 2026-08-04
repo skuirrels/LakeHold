@@ -59,9 +59,11 @@ public sealed class McpAuthenticationFilter : IEndpointFilter
                 principal = result.Principal;
             }
         }
-        else if (OidcPrincipal.TryResolve(http.User, oidc) is { } fromJwt)
+        else if (await services.GetRequiredService<MemberDirectory>()
+            .ResolveAsync(http.User, OidcPrincipal.ContractFor(oidc), http.RequestAborted)
+            .ConfigureAwait(false) is { } member)
         {
-            principal = fromJwt;
+            principal = member;
         }
 
         if (principal is null)

@@ -274,6 +274,7 @@ public sealed class LakeholdAuthorizationFilterTests : IAsyncLifetime
         services.AddLogging();
         services.AddDbContext<ControlPlaneContext>(o => o.UseDuckDB($"Data Source={Path.Combine(_root, "cp.duckdb")}"));
         services.AddScoped<ApiTokenAuthenticator>();
+        services.AddScoped<MemberDirectory>();
         services.AddSingleton(TimeProvider.System);
         services.Configure<LakeholdAuthOptions>(o =>
         {

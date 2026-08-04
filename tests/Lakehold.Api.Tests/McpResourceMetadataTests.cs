@@ -4,6 +4,7 @@ using DuckDB.EFCoreProvider.Extensions;
 using Lakehold.Api.Auth;
 using Lakehold.Api.Mcp;
 using Lakehold.ControlPlane.Data;
+using Lakehold.ControlPlane.Security;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
@@ -170,6 +171,7 @@ public sealed class McpResourceMetadataTests
         builder.Services.AddSingleton(TimeProvider.System);
         builder.Services.AddDbContext<ControlPlaneContext>(options =>
             options.UseDuckDB($"Data Source={controlPlanePath}"));
+        builder.Services.AddScoped<MemberDirectory>();
         builder.AddLakeholdMcp();
 
         var app = builder.Build();

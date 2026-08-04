@@ -33,6 +33,7 @@ public sealed class McpAuthenticationFilterTests : IAsyncLifetime
         services.AddLogging();
         services.AddDbContext<ControlPlaneContext>(o => o.UseDuckDB($"Data Source={Path.Combine(_root, "cp.duckdb")}"));
         services.AddScoped<ApiTokenAuthenticator>();
+        services.AddScoped<MemberDirectory>();
         services.AddScoped<McpRuntimeSettingsStore>();
         services.AddSingleton(TimeProvider.System);
         services.Configure<McpOptions>(options => options.Enabled = true);

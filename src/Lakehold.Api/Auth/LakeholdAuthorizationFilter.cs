@@ -50,10 +50,17 @@ public sealed class LakeholdAuthorizationFilter : IEndpointFilter
 
             principal = result.Principal!;
         }
-        else if (OidcPrincipal.TryResolve(http.User, services.GetRequiredService<IOptions<LakeholdOidcOptions>>().Value) is { } oidc)
+        else if (await services.GetRequiredService<MemberDirectory>()
+            .ResolveAsync(
+                http.User,
+                OidcPrincipal.ContractFor(services.GetRequiredService<IOptions<LakeholdOidcOptions>>().Value),
+                http.RequestAborted)
+            .ConfigureAwait(false) is { } member)
         {
-            // A JWT bearer (or any scheme that populated http.User) the middleware already validated.
-            principal = oidc;
+            // A validated identity the membership directory recognises. Note what is *not* here:
+            // the tenant no longer comes from a claim, so revoking someone in LakeHold takes effect
+            // on their next request rather than waiting for a provider to stop asserting them.
+            principal = member;
         }
         else if (http.User.Identity?.IsAuthenticated == true || bearer is not null)
         {

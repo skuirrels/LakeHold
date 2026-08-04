@@ -125,11 +125,17 @@ public sealed record AccessDto(string Mode, string Role, bool ReadOnly, bool Sys
 /// <param name="Authenticated">Whether this browser holds a signed-in session.</param>
 /// <param name="DisplayName">Who is signed in, when anyone is.</param>
 /// <param name="SystemAdmin">Whether that identity administers the instance.</param>
+/// <param name="HasAccess">
+///     Whether the signed-in identity currently reaches anything. False for a first arrival awaiting
+///     approval and for a suspended member: both are authenticated and neither can do anything, and
+///     telling them apart in a response would disclose which subjects this deployment knows.
+/// </param>
 public sealed record BrowserSessionDto(
     bool OidcEnabled,
     bool Authenticated,
     string? DisplayName,
-    bool SystemAdmin);
+    bool SystemAdmin,
+    bool HasAccess);
 
 /// <summary>Instance-wide settings currently effective for MCP requests.</summary>
 public sealed record SystemSettingsDto(
