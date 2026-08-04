@@ -53,6 +53,9 @@ ARCHIVE      ?= lakehold-state-$(STAMP).tar.gz
 # start-period is 45s and a cold DuckDB open lands on top of that, so this leaves real headroom.
 WAIT_TIMEOUT ?= 180
 
+# Published port for the bundled development identity provider.
+KEYCLOAK_PORT ?= 5401
+
 .DEFAULT_GOAL := help
 
 .PHONY: help test dev demo deploy production check-tree pull build build-demo up status logs stop backup-state prune-worktrees
@@ -87,9 +90,15 @@ test:
 # default compose.yaml here, which bind-mounts the source and runs the API and UI file watchers.
 dev:
 	@echo "==> starting local development stack"
-	@echo "==> website: http://localhost:5399"
-	@echo "==> API:     http://localhost:5200"
-	@echo "==> MCP:     http://localhost:5200/mcp"
+	@echo "==> website:  http://localhost:5399"
+	@echo "==> API:      http://localhost:5200"
+	@echo "==> MCP:      http://localhost:5200/mcp"
+	@echo "==> identity: http://localhost:$(KEYCLOAK_PORT) (Keycloak console: admin / admin)"
+	@echo ""
+	@echo "    Sign in at the website with either seeded user, password 'lakehold':"
+	@echo "      analyst  owns the demo workspace  (queries, writes, maintenance)"
+	@echo "      admin    administers the instance (provisions tenants and credentials)"
+	@echo "    Machines and agents use API tokens instead; see docs/IDENTITY-PROVIDER-SETUP.md."
 	$(COMPOSE_DEV) up
 
 # Demo is deliberately a separate opt-in overlay; it is the only target that enables the public

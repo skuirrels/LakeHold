@@ -19,6 +19,22 @@ public sealed class LakeholdOidcOptions
     /// <summary>The audience a token must carry to be accepted. Empty skips audience validation.</summary>
     public string Audience { get; set; } = string.Empty;
 
+    /// <summary>
+    ///     Where to fetch the discovery document, when that differs from <see cref="Authority"/>.
+    /// </summary>
+    /// <remarks>
+    ///     The browser and the server frequently reach an identity provider by different names — a
+    ///     container network versus a published port, an internal service name versus a public
+    ///     hostname. The issuer is baked into every token and must stay the name the browser used,
+    ///     so it cannot simply be changed to whichever address the server can reach. This resolves
+    ///     that: the authority remains the public issuer, and metadata is fetched from here.
+    ///     <para>
+    ///         Empty derives it from <see cref="Authority"/>, which is correct whenever both sides
+    ///         reach the provider at the same address.
+    ///     </para>
+    /// </remarks>
+    public string MetadataAddress { get; set; } = string.Empty;
+
     /// <summary>Public client identifier used by the Workbench authorization-code flow.</summary>
     public string ClientId { get; set; } = string.Empty;
 

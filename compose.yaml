@@ -54,15 +54,24 @@ services:
       # shared PostgreSQL row wins and changes apply without restarting this container.
       Lakehold__Mcp__Enabled: "true"
       Lakehold__BootstrapToken: ${LAKEHOLD_BOOTSTRAP_TOKEN:-}
-      Lakehold__Oidc__Authority: ${LAKEHOLD_OIDC_AUTHORITY:-}
-      Lakehold__Oidc__Audience: ${LAKEHOLD_OIDC_AUDIENCE:-}
-      Lakehold__Oidc__ClientId: ${LAKEHOLD_OIDC_CLIENT_ID:-}
-      Lakehold__Oidc__ClientSecret: ${LAKEHOLD_OIDC_CLIENT_SECRET:-}
-      Lakehold__Oidc__RequireHttpsMetadata: ${LAKEHOLD_OIDC_REQUIRE_HTTPS_METADATA:-true}
+      # Development points at the bundled Keycloak by default, so browser sign-in is exercised by
+      # whoever runs the stack rather than being the one surface nobody tries. Every value is still
+      # an override: point them at your own provider, or clear the authority to turn OIDC off and
+      # fall back to API tokens. See deploy/keycloak/README.md.
+      #
+      # The browser reaches Keycloak on a published port; the API reaches it over the compose
+      # network. The issuer is baked into every token and must stay the name the browser used, so
+      # the authority is the published one and metadata is fetched from the internal name instead.
+      Lakehold__Oidc__Authority: ${LAKEHOLD_OIDC_AUTHORITY:-http://localhost:${KEYCLOAK_PORT:-5401}/realms/lakehold}
+      Lakehold__Oidc__MetadataAddress: ${LAKEHOLD_OIDC_METADATA_ADDRESS:-http://keycloak:${KEYCLOAK_PORT:-5401}/realms/lakehold/.well-known/openid-configuration}
+      Lakehold__Oidc__Audience: ${LAKEHOLD_OIDC_AUDIENCE:-lakehold-workbench}
+      Lakehold__Oidc__ClientId: ${LAKEHOLD_OIDC_CLIENT_ID:-lakehold-workbench}
+      Lakehold__Oidc__ClientSecret: ${LAKEHOLD_OIDC_CLIENT_SECRET:-lakehold-development-client-secret}
+      Lakehold__Oidc__RequireHttpsMetadata: ${LAKEHOLD_OIDC_REQUIRE_HTTPS_METADATA:-false}
       Lakehold__Oidc__TenantClaim: ${LAKEHOLD_OIDC_TENANT_CLAIM:-tenant}
       Lakehold__Oidc__RoleClaim: ${LAKEHOLD_OIDC_ROLE_CLAIM:-role}
-      Lakehold__Oidc__SystemAdminClaim: ${LAKEHOLD_OIDC_SYSTEM_ADMIN_CLAIM:-lakehold_admin}
-      Lakehold__Oidc__SystemAdminValue: ${LAKEHOLD_OIDC_SYSTEM_ADMIN_VALUE:-true}
+      Lakehold__Oidc__SystemAdminClaim: ${LAKEHOLD_OIDC_SYSTEM_ADMIN_CLAIM:-groups}
+      Lakehold__Oidc__SystemAdminValue: ${LAKEHOLD_OIDC_SYSTEM_ADMIN_VALUE:-lakehold-administrators}
       ConnectionStrings__ControlPlane: Host=postgres;Port=5432;Database=${POSTGRES_DB:-lakeholdmeta};Username=${POSTGRES_USER:-lakehold};Password=${POSTGRES_PASSWORD:-lakehold}
       ConnectionStrings__DuckLakeMetadata: Host=postgres;Port=5432;Database=${POSTGRES_DB:-lakeholdmeta};Username=${POSTGRES_USER:-lakehold};Password=${POSTGRES_PASSWORD:-lakehold}
       Lakehold__Querying__Planners__0__Id: csharp-linq
@@ -79,6 +88,8 @@ services:
       - api-state:/src/src/Lakehold.Api/.lakehold
     depends_on:
       postgres:
+        condition: service_healthy
+      keycloak:
         condition: service_healthy
     networks:
       - default
@@ -118,6 +129,49 @@ services:
           pids: 128
     networks:
       - linq-internal
+
+  # Development identity provider, on by default.
+  #
+  # Browser sign-in is the path real deployments use for people, and while it was optional here it
+  # was the one surface nobody exercised. Running it by default means a broken login is a broken
+  # `docker compose up`, not a support question months later. The realm, its client, its claim
+  # mappers, and two seeded users are imported from deploy/keycloak — see the README there for how
+  # to grant either user the other capability, or to point LakeHold at your own provider instead.
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.4
+    container_name: lakehold-keycloak
+    command: start-dev --import-realm
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN:-admin}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
+      # Fixes the issuer Keycloak advertises. Without it the value follows whichever host header
+      # arrived, so a token minted through the browser would carry an issuer the API rejects.
+      KC_HOSTNAME: http://localhost:${KEYCLOAK_PORT:-5401}
+      # Front-channel URLs (where the browser is sent) use the fixed hostname above; back-channel
+      # URLs follow the request, so the API's token exchange goes to `keycloak:5401` rather than to
+      # a localhost that, inside its own container, is the API.
+      KC_HOSTNAME_BACKCHANNEL_DYNAMIC: "true"
+      KC_HTTP_ENABLED: "true"
+      KC_HEALTH_ENABLED: "true"
+      # Listens on the published port rather than 8080, so `keycloak.localhost:5401` means the same
+      # thing from the host and from inside the network. The issuer is one string in every token; if
+      # the port differed by vantage point, the API could not fetch discovery for the issuer it is
+      # required to validate.
+      KC_HTTP_PORT: "${KEYCLOAK_PORT:-5401}"
+    ports:
+      - "${KEYCLOAK_PORT:-5401}:${KEYCLOAK_PORT:-5401}"
+    volumes:
+      - ./deploy/keycloak:/opt/keycloak/data/import:ro
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "exec 3<>/dev/tcp/127.0.0.1/9000 && echo -e 'GET /health/ready HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3 && cat <&3 | grep -q '\"status\": \"UP\"'",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 40
+      start_period: 40s
 
   # The Angular dev server — this is the website.
   ui:
