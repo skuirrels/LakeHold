@@ -41,6 +41,14 @@ export class WorkbenchNavigationComponent {
   readonly open = input(true);
   readonly compact = input(false);
   readonly systemAdmin = input(false);
+
+  /**
+   * Whether this principal administers its own workspace — a tenant owner.
+   *
+   * Separate from systemAdmin because they reach different things: an instance credential
+   * provisions tenants, an owner administers the one they belong to. Both need the section.
+   */
+  readonly canAdminister = input(false);
   readonly navigate = output<WorkbenchDestination>();
 
   focusCurrentDestination(): void {

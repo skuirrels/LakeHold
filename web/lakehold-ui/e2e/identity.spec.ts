@@ -82,6 +82,48 @@ test.describe('identity provider sign-in', () => {
     await expect(page.getByText('Ada Administrator')).toBeVisible();
   });
 
+  test('lists a person who has signed in, and lets an administrator change what they reach', async ({
+    browser,
+    page,
+  }) => {
+    // A separate context so this is a genuinely different person, not the same session twice.
+    const theirs = await browser.newContext();
+    try {
+      const them = await theirs.newPage();
+      await signInWith(them, 'analyst');
+      await expect(them.getByLabel('SQL editor')).toBeVisible();
+    } finally {
+      await theirs.close();
+    }
+
+    await signInWith(page, 'admin');
+
+    // The point of the whole membership model: somebody who signed in is now a record an
+    // administrator can see and act on, rather than an invisible consequence of a claim.
+    const people = page.locator('lh-member-administration');
+    await expect(people.getByRole('heading', { name: 'People' })).toBeVisible();
+    await expect(people.getByText('Owen Owner')).toBeVisible();
+
+    const role = people.getByLabel('Role for Owen Owner');
+
+    // Deliberately not asserting the starting role: this test changes server state, so depending on
+    // what it was would make a retry fail against the value the first attempt already wrote.
+    await role.selectOption('reader');
+    await expect(role).toHaveValue('reader');
+
+    // The claim still says owner on every login. Reloading proves LakeHold's decision is the one
+    // that holds -- which is the entire reason membership exists rather than trusting the claim.
+    await page.reload();
+    await expect(people.getByLabel('Role for Owen Owner')).toHaveValue('reader');
+
+    await expect(people.getByRole('button', { name: 'Suspend' })).toBeVisible();
+    await expect(people.getByRole('button', { name: 'Remove' })).toBeVisible();
+
+    // Leave the workspace as it was found, so this suite can run twice in a row.
+    await people.getByLabel('Role for Owen Owner').selectOption('owner');
+    await expect(people.getByLabel('Role for Owen Owner')).toHaveValue('owner');
+  });
+
   test('shows an administrator how to issue credentials for clients and agents', async ({
     page,
   }) => {

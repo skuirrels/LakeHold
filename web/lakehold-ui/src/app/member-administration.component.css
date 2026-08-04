@@ -1,0 +1,185 @@
+:host {
+  display: block;
+  margin-top: 24px;
+}
+
+.panel {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+header,
+.field,
+.waiting,
+.hint,
+.muted,
+.error {
+  padding: 20px 22px;
+}
+
+header {
+  border-bottom: 1px solid var(--border);
+}
+
+h2 {
+  margin: 0 0 5px;
+  font-size: 17px;
+}
+
+header p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-faint);
+}
+
+.field {
+  display: grid;
+  gap: 6px;
+  border-bottom: 1px solid var(--border);
+}
+
+.field span {
+  font-size: 12px;
+  color: var(--text-faint);
+}
+
+select {
+  padding: 7px 9px;
+  font: inherit;
+  font-size: 13px;
+  color: var(--text);
+  background: var(--surface-2, var(--surface-1));
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+/* Loud on purpose. Somebody is blocked until an administrator looks. */
+.waiting {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  border-bottom: 1px solid var(--border);
+}
+
+.members {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.members th {
+  padding: 10px 22px;
+  font-size: 11px;
+  font-weight: 600;
+  text-align: left;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-faint);
+  border-bottom: 1px solid var(--border);
+}
+
+.members td {
+  padding: 12px 22px;
+  vertical-align: middle;
+  border-bottom: 1px solid var(--border);
+}
+
+.members tr.pending td {
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+}
+
+.name {
+  display: block;
+  font-weight: 600;
+}
+
+.secondary,
+.subject {
+  display: block;
+  font-size: 11px;
+  color: var(--text-faint);
+}
+
+.subject {
+  overflow: hidden;
+  max-width: 22ch;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.status {
+  padding: 2px 8px;
+  font-size: 11px;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+}
+
+.status-active {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.status-pending {
+  font-weight: 600;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.btn {
+  padding: 6px 11px;
+  font: inherit;
+  font-size: 12px;
+  color: var(--text);
+  background: var(--surface-3);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.btn-primary {
+  color: var(--on-accent, #1b1b1b);
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+/* Only once armed. A destructive control that looks destructive before it is armed trains people
+   to ignore the colour. */
+.remove.confirm {
+  color: var(--danger, #ff6b6b);
+  border-color: var(--danger, #ff6b6b);
+}
+
+.btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.hint,
+.muted {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-faint);
+}
+
+.error {
+  margin: 0;
+  color: var(--danger, #ff6b6b);
+}
+
+.visually-hidden {
+  position: absolute;
+  overflow: hidden;
+  clip-path: inset(50%);
+  width: 1px;
+  height: 1px;
+  white-space: nowrap;
+}

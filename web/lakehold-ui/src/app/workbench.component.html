@@ -131,6 +131,7 @@
         [open]="navigationOpen()"
         [compact]="compactViewport()"
         [systemAdmin]="access()?.systemAdmin ?? false"
+        [canAdminister]="access()?.role === 'owner' && !demoMode()"
         (navigate)="openNavigation($event)"
       />
 

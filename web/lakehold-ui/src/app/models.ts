@@ -72,6 +72,21 @@ export interface ApiToken {
   lastUsedUtc: string | null;
 }
 
+export type MemberStatus = 'pending' | 'active' | 'suspended';
+
+/** A person's membership of a workspace. Identity is federated; this is the authorization. */
+export interface TenantMember {
+  id: number;
+  /** The provider's stable identifier, shown so a stranger can be matched against the provider. */
+  subject: string;
+  displayName: string | null;
+  email: string | null;
+  role: TokenRole;
+  status: MemberStatus;
+  createdUtc: string;
+  lastSeenUtc: string | null;
+}
+
 export interface Column {
   name: string;
   /** DuckDB type name, e.g. `BigInt`, `Varchar`, `Struct`. */

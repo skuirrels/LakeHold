@@ -29,6 +29,7 @@ import {
   TableStorage,
   TabularImportResult,
   Tenant,
+  TenantMember,
 } from './models';
 
 /**
@@ -303,6 +304,20 @@ export class FakeLakehouseService {
 
   createToken(...args: unknown[]): Observable<CreatedToken> {
     return this.answer('createToken', args, () => this.createdToken);
+  }
+
+  members: TenantMember[] = [];
+
+  listMembers(...args: unknown[]): Observable<TenantMember[]> {
+    return this.answer('listMembers', args, () => this.members);
+  }
+
+  updateMember(...args: unknown[]): Observable<TenantMember> {
+    return this.answer('updateMember', args, () => this.members[0]);
+  }
+
+  removeMember(...args: unknown[]): Observable<void> {
+    return this.answer('removeMember', args, () => undefined as void);
   }
 
   listTokens(...args: unknown[]): Observable<ApiToken[]> {
