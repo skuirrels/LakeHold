@@ -6,7 +6,7 @@ catalog schema snapshot, uses `DuckDB.EFCoreProvider` to translate the expressio
 parameterized DuckDB SQL. The API alone owns catalog credentials and executes the generated plan
 through the same authorization, read-only attachment, row-limit, telemetry, and history path as SQL.
 
-**Shipped contract:** LakeHold v1.2.0 or newer with `DuckDB.EFCoreProvider` 1.17.0. No command
+**Shipped contract:** LakeHold v1.2.0 or newer with `DuckDB.EFCoreProvider` 1.17.1. No command
 interception, parameter-placeholder rewriting, or duplicate store-type map remains in LakeHold.
 
 ```mermaid
