@@ -20,6 +20,7 @@ import {
   QueryLanguage,
   QueryLanguageStarter,
   QueryResponse,
+  MemberStatus,
   QueryRun,
   RestoreResult,
   SavedQuery,
@@ -35,6 +36,8 @@ import {
   TableProfile,
   TableRestore,
   Tenant,
+  TenantMember,
+  TokenRole,
   UpdateSystemSettings,
 } from './models';
 
@@ -419,6 +422,31 @@ export class LakehouseService {
   revokeToken(tenant: string, id: number): Observable<void> {
     return this.http
       .delete<void>(`${API_BASE}/tenants/${encodeURIComponent(tenant)}/tokens/${id}`)
+      .pipe(catchError(toMessage));
+  }
+
+  listMembers(tenant: string): Observable<TenantMember[]> {
+    return this.http
+      .get<TenantMember[]>(`${API_BASE}/tenants/${encodeURIComponent(tenant)}/members`)
+      .pipe(catchError(toMessage));
+  }
+
+  updateMember(
+    tenant: string,
+    id: number,
+    change: { role?: TokenRole; status?: MemberStatus },
+  ): Observable<TenantMember> {
+    return this.http
+      .patch<TenantMember>(
+        `${API_BASE}/tenants/${encodeURIComponent(tenant)}/members/${id}`,
+        change,
+      )
+      .pipe(catchError(toMessage));
+  }
+
+  removeMember(tenant: string, id: number): Observable<void> {
+    return this.http
+      .delete<void>(`${API_BASE}/tenants/${encodeURIComponent(tenant)}/members/${id}`)
       .pipe(catchError(toMessage));
   }
 

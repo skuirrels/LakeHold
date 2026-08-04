@@ -113,7 +113,10 @@
   </button>
 </div>
 
-@if (systemAdmin()) {
+<!-- Shown to a workspace owner as well as an instance administrator. The API has always allowed an
+     owner to administer their own workspace's people and credentials; gating the navigation on
+     systemAdmin meant they could do it over HTTP and nowhere in the product. -->
+@if (systemAdmin() || canAdminister()) {
   <div class="nav-section">
     <span class="nav-section-label">Administration</span>
     <button

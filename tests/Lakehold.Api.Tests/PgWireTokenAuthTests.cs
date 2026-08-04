@@ -71,6 +71,7 @@ public sealed class PgWireTokenAuthTests : IAsyncLifetime
             o.UseDuckDB($"Data Source={Path.Combine(_root, "controlplane.duckdb")}"));
         services.AddSingleton(TimeProvider.System);
         services.AddScoped<ApiTokenAuthenticator>();
+        services.AddScoped<MemberDirectory>();
         services.AddSingleton<DucklingPool>();
         services.AddSingleton<CatalogCache>();
         services.AddScoped<LakehouseService>();

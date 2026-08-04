@@ -67,7 +67,7 @@ export const compareCapabilities: readonly CompareCapability[] = [
   {
     dimension: 'Accounts, SSO, permissions',
     claim:
-      'OIDC browser login, scoped API tokens, three roles, and client-token administration; no row policies',
+      'OIDC browser sign-in, scoped API tokens, three roles, in-product member and token administration; no row policies',
     tone: 'neutral',
     evidence: [
       {
@@ -79,16 +79,24 @@ export const compareCapabilities: readonly CompareCapability[] = [
       },
       {
         lane: 'backend',
-        path: 'tests/Lakehold.Api.Tests/OidcPrincipalTests.cs',
-        marker: 'A_tenant_claim_becomes_a_tenant_principal',
-        proves: 'OIDC tenant and role claims become the same capability-scoped principal.',
+        path: 'tests/Lakehold.Api.Tests/MemberDirectoryTests.cs',
+        marker: 'A_demotion_in_Lakehold_survives_the_provider_reasserting_the_old_role',
+        proves:
+          'Authorization is owned by the membership record, not by whatever role the provider asserts.',
+      },
+      {
+        lane: 'browser',
+        path: 'web/lakehold-ui/e2e/identity.spec.ts',
+        marker: 'lets an administrator change what they reach',
+        proves:
+          'An administrator signs in and administers a person end to end, in the product itself.',
       },
       {
         lane: 'declared-boundary',
         path: 'web/lakehold-ui/src/app/comparison.component.ts',
-        marker: 'client-token administration; no row policies',
+        marker: 'member and token administration; no row policies',
         proves:
-          'The shipped credential administration and remaining row-policy limitation are explicit.',
+          'The shipped member and credential administration and the remaining row-policy limitation are explicit.',
       },
     ],
   },

@@ -1,0 +1,133 @@
+<section class="panel">
+  <header>
+    <h2>People</h2>
+    <p>
+      Who may reach this workspace. Accounts live in your identity provider — LakeHold never holds a
+      password — but what each person reaches is decided here.
+    </p>
+  </header>
+
+  @if (error(); as message) {
+    <p class="error" role="alert">{{ message }}</p>
+  }
+
+  @if (loading()) {
+    <p class="muted">Loading…</p>
+  } @else if (tenants().length === 0) {
+    <p class="muted">
+      There are no workspaces yet. Create one first; people are admitted to a workspace, not to the
+      instance.
+    </p>
+  } @else {
+    <label class="field">
+      <span>Workspace</span>
+      <select name="tenant" [value]="tenantSlug()" (change)="selectTenant($any($event.target).value)">
+        @for (tenant of tenants(); track tenant.slug) {
+          <option [value]="tenant.slug">{{ tenant.displayName }} ({{ tenant.slug }})</option>
+        }
+      </select>
+    </label>
+
+    @if (pending().length > 0) {
+      <p class="waiting" role="status">
+        <strong>{{ pending().length }} waiting for a decision.</strong>
+        Someone who has signed in but not been admitted reaches nothing until you choose a role.
+      </p>
+    }
+
+    @if (members().length === 0) {
+      <p class="muted">
+        Nobody has signed in to this workspace yet. Send them the sign-in link; they appear here the
+        first time they authenticate, and you decide what they reach.
+      </p>
+    } @else {
+      <table class="members">
+        <thead>
+          <tr>
+            <th scope="col">Person</th>
+            <th scope="col">Role</th>
+            <th scope="col">Status</th>
+            <th scope="col">Last seen</th>
+            <th scope="col"><span class="visually-hidden">Actions</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (member of members(); track member.id) {
+            <tr [class.pending]="member.status === 'pending'">
+              <td>
+                <span class="name">{{ displayNameOf(member) }}</span>
+                @if (member.email) {
+                  <span class="secondary">{{ member.email }}</span>
+                }
+                <!-- The provider's subject: the only thing that reliably tells two people apart
+                     when display names collide, and what an administrator matches against. -->
+                <span class="subject" [title]="member.subject">{{ member.subject }}</span>
+              </td>
+              <td>
+                <select
+                  [attr.aria-label]="'Role for ' + displayNameOf(member)"
+                  [value]="member.role"
+                  [disabled]="busyId() !== null"
+                  (change)="setRole(member, $any($event.target).value)"
+                >
+                  @for (role of roles; track role) {
+                    <option [value]="role">{{ role }}</option>
+                  }
+                </select>
+              </td>
+              <td>
+                <span class="status" [class]="'status-' + member.status">{{ member.status }}</span>
+              </td>
+              <td class="muted">{{ member.lastSeenUtc ? (member.lastSeenUtc | date: 'short') : 'Never' }}</td>
+              <td class="actions">
+                @if (member.status === 'pending') {
+                  <button
+                    class="btn btn-primary"
+                    type="button"
+                    [disabled]="busyId() !== null"
+                    (click)="approve(member)"
+                  >
+                    Admit
+                  </button>
+                } @else if (member.status === 'active') {
+                  <button
+                    class="btn"
+                    type="button"
+                    [disabled]="busyId() !== null"
+                    (click)="setStatus(member, 'suspended')"
+                  >
+                    Suspend
+                  </button>
+                } @else {
+                  <button
+                    class="btn"
+                    type="button"
+                    [disabled]="busyId() !== null"
+                    (click)="setStatus(member, 'active')"
+                  >
+                    Restore
+                  </button>
+                }
+                <button
+                  class="btn remove"
+                  type="button"
+                  [class.confirm]="pendingRemovalId() === member.id"
+                  [disabled]="busyId() !== null"
+                  (click)="requestRemoval(member)"
+                >
+                  {{ pendingRemovalId() === member.id ? 'Confirm remove' : 'Remove' }}
+                </button>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+
+      <p class="hint">
+        <strong>Suspend</strong> keeps someone listed and refuses them, so past activity still has a
+        name against it. <strong>Remove</strong> discards the record; they return as a new arrival if
+        they sign in again. Changes take effect on the person's next request.
+      </p>
+    }
+  }
+</section>

@@ -46,6 +46,9 @@ public sealed class ControlPlaneContext(DbContextOptions<ControlPlaneContext> op
 
     public DbSet<ApiToken> ApiTokens => Set<ApiToken>();
 
+    /// <summary>People's memberships of tenants. Identity is federated; this is the authorization.</summary>
+    public DbSet<TenantMember> TenantMembers => Set<TenantMember>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         ArgumentNullException.ThrowIfNull(modelBuilder);
@@ -323,6 +326,31 @@ public sealed class ControlPlaneContext(DbContextOptions<ControlPlaneContext> op
             entity.HasOne(r => r.Tenant)
                 .WithMany()
                 .HasForeignKey(r => r.TenantId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<TenantMember>(entity =>
+        {
+            entity.HasKey(m => m.Id);
+            ConfigureGeneratedId(entity.Property(m => m.Id), isDuckDb);
+            entity.Property(m => m.Issuer).HasMaxLength(400);
+            entity.Property(m => m.Subject).HasMaxLength(255);
+            entity.Property(m => m.DisplayName).HasMaxLength(200);
+            entity.Property(m => m.Email).HasMaxLength(320);
+            entity.Property(m => m.Role).HasConversion<int>();
+            entity.Property(m => m.Status).HasConversion<int>();
+
+            // One membership per person per tenant. Without this a duplicate row could carry a
+            // different role, and which one won would depend on query order.
+            entity.HasIndex(m => new { m.TenantId, m.Issuer, m.Subject }).IsUnique();
+
+            // Sign-in resolves by issuer and subject before it knows the tenant, so that pair needs
+            // its own index rather than relying on the composite above.
+            entity.HasIndex(m => new { m.Issuer, m.Subject });
+
+            entity.HasOne(m => m.Tenant)
+                .WithMany()
+                .HasForeignKey(m => m.TenantId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
 

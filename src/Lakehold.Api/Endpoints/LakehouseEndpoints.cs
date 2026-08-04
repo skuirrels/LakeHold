@@ -51,6 +51,7 @@ public static class LakehouseEndpoints
 
         // Provisioning and token management share this group's authentication filter.
         tenants.MapAdminEndpoints();
+        tenants.MapMemberEndpoints();
 
         tenants.MapPost("/{tenantSlug}/catalogs/{catalogName}/query", ExecuteAsync)
             .WithSummary("Executes a statement against a tenant's catalog.");

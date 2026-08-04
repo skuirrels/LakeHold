@@ -125,11 +125,17 @@ public sealed record AccessDto(string Mode, string Role, bool ReadOnly, bool Sys
 /// <param name="Authenticated">Whether this browser holds a signed-in session.</param>
 /// <param name="DisplayName">Who is signed in, when anyone is.</param>
 /// <param name="SystemAdmin">Whether that identity administers the instance.</param>
+/// <param name="HasAccess">
+///     Whether the signed-in identity currently reaches anything. False for a first arrival awaiting
+///     approval and for a suspended member: both are authenticated and neither can do anything, and
+///     telling them apart in a response would disclose which subjects this deployment knows.
+/// </param>
 public sealed record BrowserSessionDto(
     bool OidcEnabled,
     bool Authenticated,
     string? DisplayName,
-    bool SystemAdmin);
+    bool SystemAdmin,
+    bool HasAccess);
 
 /// <summary>Instance-wide settings currently effective for MCP requests.</summary>
 public sealed record SystemSettingsDto(
@@ -500,6 +506,25 @@ public sealed record ApiTokenDto(
     DateTimeOffset? ExpiresUtc,
     DateTimeOffset? RevokedUtc,
     DateTimeOffset? LastUsedUtc);
+
+/// <summary>A person's membership of a workspace, as returned by the API.</summary>
+/// <param name="Subject">
+///     The identity provider's stable identifier. Shown so an administrator approving a stranger can
+///     match them against the provider; it is not a secret, and it is the only thing that reliably
+///     identifies someone when display names collide.
+/// </param>
+public sealed record TenantMemberDto(
+    int Id,
+    string Subject,
+    string? DisplayName,
+    string? Email,
+    string Role,
+    string Status,
+    DateTimeOffset CreatedUtc,
+    DateTimeOffset? LastSeenUtc);
+
+/// <summary>Changes what a membership grants. Absent fields are left as they are.</summary>
+public sealed record UpdateTenantMemberRequest(string? Role, string? Status);
 
 /// <summary>A catalog, as returned by the API.</summary>
 /// <remarks>
