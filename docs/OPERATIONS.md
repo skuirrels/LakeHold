@@ -200,7 +200,7 @@ Capture the current image digests and take a consistent off-host state backup be
 Then deploy a pinned release:
 
 ```bash
-LAKEHOLD_TAG=v1.0.1 make deploy
+LAKEHOLD_TAG=v2.0.0 make deploy
 ```
 
 `make deploy` pulls the images and waits for both container health checks. A failed health check is a
