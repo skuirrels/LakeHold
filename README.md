@@ -59,10 +59,9 @@ backend, integration, or deployment test suites.
 
 Catalog isolation is structural — a session can only reference the catalog attached to it — and the
 layer deciding *which* tenant a caller is now exists too: the credential names the tenant and the URL
-segment is validated against it. One caveat, and it is the whole caveat: the *application* default
-for `Lakehold:Auth:RequireAuthentication` is **false**, so a bare `dotnet run` accepts token-less
-requests and trusts the route. `compose.production.yaml` sets it to true, so the deployment path is
-closed by default and only a hand-rolled one can be left open.
+segment is validated against it. Every surface requires a credential, including a bare `dotnet run`;
+there is no switch that turns that off. The caveat that remains is granularity: authorization stops
+at a role and optionally one catalog, with no row or column policies.
 
 The trade is deliberate: **elasticity and zero-ops for control, openness, and .NET integration.**
 Full analysis, including where MotherDuck is the better choice, in
@@ -194,19 +193,19 @@ Worth knowing:
   builder's own architecture, the API cross-publishing by `TARGETARCH` and the website emitting
   static files that have no architecture at all. `LAKEHOLD_REGISTRY_NAMESPACE` repoints them at a
   fork's namespace or a mirror.
-- **Authentication is required here**, unlike the development stack: this file sets
-  `Lakehold__Auth__RequireAuthentication` to `true`. The application default stays `false` so a fresh
-  checkout runs token-lessly, but that default is wrong for anything with a published port. Set
-  `LAKEHOLD_REQUIRE_AUTH=false` to go back to trusting the route — knowing that it means anyone who
-  reaches `:8080` is every tenant.
+- **Authentication is required here, and everywhere else.** There is no switch that turns it off:
+  the one that existed defaulted to off, which made the whole authorization layer inert in the
+  configuration developers actually ran. To publish something without a credential, configure
+  `Lakehold:Auth:DemoTenant` and `Lakehold:Auth:DemoCatalog` — a read-only identity scoped to one
+  catalog rather than a bypass, and one that fails closed if either is left empty.
 - **The first credential comes out of the log.** A node with no tokens mints an instance-scoped
   bootstrap token on first start and logs it once. Open the Workbench and it asks for it, then
   trades it for a token that can actually read — provisioning and querying are deliberately different
   capabilities. [Authentication](#authentication) has the same three steps as `curl`, if you would
   rather script it.
 - **Upgrading a deployment that predates this** will find authentication suddenly enforced. That is
-  the point, but it is a breaking change for a node whose clients hold no tokens: issue them first,
-  or set `LAKEHOLD_REQUIRE_AUTH=false` for the one deploy that bridges the gap.
+  the point, but it is a breaking change for a node whose clients hold no tokens, and there is no
+  longer a flag to bridge the gap with: issue the tokens first, then upgrade.
 - **Back the state volume up with `make backup-state`, then copy it off-host.** It is the control
   plane, catalog metadata, local Parquet, backup generations, and eject bundles — everything in the
   default stack that cannot be rebuilt. The archive is a file copy, so stop the stack first when it
@@ -505,12 +504,10 @@ To get signed in for the first time, or to put Keycloak (or any OIDC provider) b
 follow [`docs/IDENTITY-PROVIDER-SETUP.md`](docs/IDENTITY-PROVIDER-SETUP.md) — it is the step-by-step
 version of this section, including the claim mappers an external provider has to emit.
 
-**The application default is off**, so a fresh checkout still runs token-lessly. The production
-compose file turns it on, and any deployment with a published port should:
-
-```jsonc
-{ "Lakehold": { "Auth": { "RequireAuthentication": true } } }
-```
+**A credential is required on every surface**, in every configuration, including a fresh checkout.
+The switch that used to make this optional has been removed rather than re-defaulted: because it
+defaulted to off, the authorization layer was inert in the one configuration developers actually
+ran.
 
 The separate `compose.demo.yaml` overlay configures `Lakehold:Auth:DemoTenant` and
 `Lakehold:Auth:DemoCatalog`. A credential-less request then receives a synthetic reader principal
@@ -804,9 +801,8 @@ OIDC, owner/editor/reader roles, and an authenticated **MCP server for AI agents
 resources, OAuth protected-resource metadata, and operator-gated writes. Development enables MCP by
 default, and the instance credential can change its live controls under **System Settings** without
 restarting the API. See
-[`docs/AUTHENTICATION.md`](docs/AUTHENTICATION.md) and [`docs/MCP.md`](docs/MCP.md); note that HTTP
-API enforcement is opt-in per deployment via `Lakehold:Auth:RequireAuthentication`, while MCP always
-requires a credential.
+[`docs/AUTHENTICATION.md`](docs/AUTHENTICATION.md) and [`docs/MCP.md`](docs/MCP.md); every surface
+requires a credential, and MCP refuses one that is missing without consulting demo access at all.
 
 Also implemented in source: a canonical `/api/v1` control surface, production OpenAPI, common
 errors/pagination/idempotency/durable-operation conventions, and generated Java, Go, .NET, and

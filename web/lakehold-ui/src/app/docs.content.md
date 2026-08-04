@@ -86,8 +86,8 @@ npm run build --prefix web/lakehold-ui
 ## The tools you'll use
 
 There are five ways into a LakeHold catalog. They resolve through the same capability and session
-boundaries, so you can mix them freely. MCP is stricter than the development HTTP API: it always
-requires a credential.
+boundaries, so you can mix them freely. All five require a credential; MCP is the strictest, because
+it will not accept the demo reader that can publish a catalog to anonymous visitors.
 
 | Tool                  | What it is                                                                                                                                                                                                                                                                            | Best for                                                              |
 | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
@@ -687,15 +687,20 @@ not yet a published general-purpose NuGet change-stream package.
 
 LakeHold authenticates with **API tokens**. A token names one tenant, may be narrowed to a single
 catalog, carries a role (`owner`, `editor`, `reader`), and can be revoked — which closes the HTTP API
-and the PostgreSQL wire endpoint together.
+and the PostgreSQL wire endpoint together. People sign in through your identity provider instead —
+see the [identity provider setup
+guide](https://github.com/skuirrels/LakeHold/blob/main/docs/IDENTITY-PROVIDER-SETUP.md).
 
-**Enforcement is opt-in, and off by default.** Until you turn it on, a request with no token still
-works and is trusted to name its own tenant — which keeps local development frictionless and is
-exactly what you must not deploy. To close the door:
+**A credential is required, in every configuration.** There is no switch that turns this off — the
+one that existed defaulted to off, which meant the authorization layer did nothing in the setup most
+people actually ran. If you want to publish a catalog to visitors who have no credential, name it:
 
 ```json
-{ "Lakehold": { "Auth": { "RequireAuthentication": true } } }
+{ "Lakehold": { "Auth": { "DemoTenant": "demo", "DemoCatalog": "analytics" } } }
 ```
+
+That is a read-only identity scoped to exactly that catalog, and it fails closed if either value is
+missing.
 
 ### Getting your first token
 

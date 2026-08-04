@@ -4,9 +4,10 @@ The plan for closing what was the largest gap in the product: the API had no aut
 kind, and tenant identity was the `{tenantSlug}` segment of a URL, so anyone who could reach the API
 was every tenant.
 
-**Every step of this plan has now landed.** What remains is one operator decision — setting
-`Lakehold:Auth:RequireAuthentication` — plus the follow-ups listed under [Status](#status). See that
-section for what each step delivered and what is still open.
+**Every step of this plan has now landed, and enforcement is no longer optional.** The
+`Lakehold:Auth:RequireAuthentication` switch this document once ended on has been removed: because
+it defaulted to off, the entire layer described here was inert in the configuration developers
+actually ran. See [Status](#status) for what each step delivered and what is still open.
 
 This document is the specification and the running record of what has landed. It was written to be
 worked one step at a time — each step independently shippable, independently testable, and leaving
@@ -30,8 +31,9 @@ trusted. Until that inverts, every other control is decoration on an open door.
 
 That inversion has landed: `LakeholdAuthorizationFilter` resolves the credential, validates the
 route's tenant and catalog against it, and refuses a mismatch as a 404. The route segment is now
-checked, not believed — for every credential that is presented. A request with **no** credential
-still falls back to trusting the route until an operator sets `RequireAuthentication`.
+checked, not believed. A request with **no** credential is refused outright, unless the deployment
+has configured demo access — which is a reader identity scoped to one named catalog, not a fallback
+to trusting whatever the URL claims.
 
 Two invariants govern how far this goes:
 
@@ -444,8 +446,7 @@ mean. It is written for someone operating a deployment rather than someone chang
 
 | Key | Default | Meaning |
 |---|---|---|
-| `Lakehold:Auth:RequireAuthentication` | `false` | Whether a request must carry a credential. False lets a token-less request fall back to trusting the route. A credential that *is* presented is always validated regardless. |
-| `Lakehold:Auth:DemoTenant` | empty | Optional tenant exposed in demo mode to credential-less visitors as a reader. Requires `DemoCatalog`; incomplete configuration fails closed. |
+| `Lakehold:Auth:DemoTenant` | empty | Optional tenant exposed in demo mode to credential-less visitors as a reader. Requires `DemoCatalog`; incomplete configuration fails closed. This is the only supported way to serve a request that carries no credential. |
 | `Lakehold:Auth:DemoCatalog` | empty | The single catalog exposed inside `DemoTenant`, attached read-only. |
 | `Lakehold:BootstrapToken` | unset | Pre-seeds the first instance token instead of minting one. Only read when the token table is empty. A secret — set it through the environment, never `appsettings.json`. |
 | `Lakehold:Oidc:Authority` | empty | OIDC issuer. **Empty disables OIDC entirely**, which is what keeps an air-gapped install free of an identity-provider dependency. |
@@ -580,14 +581,9 @@ curl -X POST localhost:5200/api/tenants/acme/tokens \
   -d '{"name":"bi","role":"reader","catalogName":"analytics"}'
 ```
 
-Then require authentication and restart:
-
-```json
-{ "Lakehold": { "Auth": { "RequireAuthentication": true } } }
-```
-
-Turn it on only once the workbench and any machine consumers hold tokens — otherwise the flip locks
-out the people who need to fix it. Verify with a request carrying no credential; it should be a 401.
+Issue those tokens *before* upgrading a node that predates enforcement. There is no longer a switch
+to defer it with, so a consumer holding no token stops working at the restart rather than at a flip
+you choose. Verify with a request carrying no credential; it should be a 401.
 
 ### Revoking
 
@@ -730,17 +726,15 @@ Route intent is declared as `Capability` metadata (`TenantData`, `TenantOwner`, 
 `Instance`, `Listing`) and enforced in one place. Subject is always checked before capability, so an
 unreachable tenant is a 404 and never a 403 that would confirm it exists.
 
-**The remaining decision is the operator's.** `LakeholdAuthOptions.RequireAuthentication` still
-defaults to **false**, so a request with no token falls back to trusting the route. Everything needed
-to turn it on now exists — tokens can be issued, the workbench can present one, and the wire endpoint
-shares the store — so a deployment closes the door by setting:
+**The decision is no longer the operator's.** `LakeholdAuthOptions.RequireAuthentication` has been
+removed. It was left defaulting to off so that turning enforcement on stayed a per-deployment choice
+rather than one inherited at upgrade — but everything it was waiting for had landed, the switch
+stayed, and the practical result was that this entire layer did nothing in the configuration
+developers actually ran. A control that is off by default is not a security posture.
 
-```json
-{ "Lakehold": { "Auth": { "RequireAuthentication": true } } }
-```
-
-The default is left open deliberately: flipping it in a release would break every existing deployment
-on upgrade, which is a decision to make per deployment rather than one to inherit.
+A deployment that needs to publish something without a credential does it with `DemoTenant` and
+`DemoCatalog`: a reader identity scoped to one named catalog, which fails closed if either is empty.
+That is a bounded exposure a reviewer can see, rather than a global fallback to trusting the URL.
 
 ### Still open
 

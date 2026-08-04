@@ -81,8 +81,8 @@ public static class McpExtensions
     /// <summary>Maps the MCP endpoint; the request filter applies the current enabled setting.</summary>
     /// <remarks>
     ///     <see cref="McpAuthenticationFilter"/> guards it rather than
-    ///     <c>LakeholdAuthorizationFilter</c>: this surface requires a credential unconditionally, and
-    ///     never falls back to trusting the route (invariant 21).
+    ///     <c>LakeholdAuthorizationFilter</c>: this surface requires a named credential and never
+    ///     accepts the demo reader that publishes a catalog anonymously (invariant 21).
     /// </remarks>
     public static IEndpointRouteBuilder MapLakeholdMcp(this IEndpointRouteBuilder app)
     {

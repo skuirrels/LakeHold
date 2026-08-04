@@ -600,8 +600,8 @@ collection. Without it the two would have raced intermittently in a way that rea
   The *data sharing* row's "no UI" caveat is still accurate and stays. Three neighbouring rows were
   stale and were corrected with it: authentication, SSO/OIDC, and RBAC all read ❌ while the prose
   three lines below said the opposite, `AUTHENTICATION.md` records every phase as landed, and the code
-  is in `src/Lakehold.Api/Auth/`. Authentication reads ⚠️ rather than ✅ for the reason the prose
-  already gives — `RequireAuthentication` still defaults to false.
+  is in `src/Lakehold.Api/Auth/`. Authentication read ⚠️ rather than ✅ while `RequireAuthentication`
+  defaulted to false; that switch has since been removed, and the row is now ✅.
 - ✅ `web/lakehold-ui/src/app/docs.content.md` gains sections for all five new panels and for the
   storage routes. It is the single source for the in-app page and the GitHub guide, so there is one
   place to edit, not two. The heading *Data operations beyond the workbench* was itself made false by

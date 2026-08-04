@@ -28,8 +28,10 @@ OpenAPI, NDJSON query/CDC streaming, snapshot keysets/detail/table preview, the 
 layer, and semantic compatibility automation ship in v1.4.0. Released-image SDK conformance covers
 authenticated query streaming, tenant isolation, and cancellation in all four languages. Exhaustive
 public-error fixtures and public package publication remain open.
-One caveat carries forward: `RequireAuthentication` defaults to false, so deployment policy still
-decides whether a particular installation requires credentials on HTTP routes.
+The caveat that used to carry forward here — `RequireAuthentication` defaulting to false — is gone
+with the switch. Every installation requires a credential on HTTP routes. A deployment may still
+configure demo access, which serves a credential-less request as a reader scoped to one named
+catalog.
 
 ## Implemented source boundary
 

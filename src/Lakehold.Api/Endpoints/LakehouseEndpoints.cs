@@ -39,7 +39,8 @@ public static class LakehouseEndpoints
 
         // Every tenant-scoped path shares one authentication check: the bearer token is resolved to a
         // principal and the route's tenant and catalog are validated against it. See
-        // docs/AUTHENTICATION.md; today the filter is permissive for token-less requests.
+        // docs/AUTHENTICATION.md. A request with no credential is refused unless the deployment has
+        // configured demo access, which admits a reader scoped to one named catalog.
         var tenants = app.MapGroup("/tenants")
             .WithTags("Lakehouse")
             .AddEndpointFilter<LakeholdAuthorizationFilter>();

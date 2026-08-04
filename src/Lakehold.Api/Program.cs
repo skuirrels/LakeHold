@@ -472,8 +472,8 @@ if (pgWire.Enabled)
 }
 
 // Model Context Protocol: lets an AI agent explore a catalog and run read-only SQL under a
-// credential that already means something. Off unless enabled, and it always demands a credential
-// even where RequireAuthentication is false. See docs/MCP.md.
+// credential that already means something. Off unless enabled, and it always demands a real
+// credential — the demo reader that publishes a catalog anonymously is not enough. See docs/MCP.md.
 builder.AddLakeholdMcp();
 
 // The Angular dev server is a separate origin; the browser will not call the API without this.

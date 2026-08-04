@@ -284,9 +284,9 @@ export class LandingComponent {
     {
       tag: 'Security',
       title: 'Authentication and tenant identity',
-      body: 'The layer deciding which tenant a caller is now exists: API tokens scoped to a tenant and optionally a single catalog, carrying an owner, editor, or reader role, with OIDC for humans. The credential names the tenant and the URL segment is validated against it rather than trusted. A reader’s catalog is attached read-only, so a write fails in the engine rather than in a check that clever SQL might route around — and revoking a token closes the HTTP API and the PostgreSQL wire endpoint together, because both resolve against the same store.',
+      body: 'Every surface requires a credential; there is no mode in which one does not. API tokens are scoped to a tenant and optionally a single catalog, carrying an owner, editor, or reader role, and people sign in through your identity provider. LakeHold federates authentication and owns authorization: what a signed-in person reaches comes from a membership record you administer in the product, so a provider re-asserting a stale role cannot undo a decision made here. The credential names the tenant and the URL segment is validated against it rather than trusted. A reader’s catalog is attached read-only, so a write fails in the engine rather than in a check that clever SQL might route around — and revoking a token closes the HTTP API and the PostgreSQL wire endpoint together, because both resolve against the same store.',
       caveat:
-        'Enforcement is opt-in: Lakehold:Auth:RequireAuthentication defaults to false, so a deployment that never sets it still accepts token-less requests and trusts the route. That keeps a fresh checkout frictionless and is exactly what you must not deploy.',
+        'Authorization stops at the catalog: a role, and optionally one catalog. There are no row or column policies, so anyone who can read a table reads all of it. Leaving Lakehold:Oidc:Audience empty disables audience validation and accepts every token that issuer minted — LakeHold warns at start-up, and you should treat it as an error.',
     },
     {
       tag: 'Portability',

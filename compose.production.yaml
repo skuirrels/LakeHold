@@ -44,11 +44,10 @@ services:
       ConnectionStrings__ControlPlane: ${LAKEHOLD_CONTROL_PLANE:-}
       ConnectionStrings__DuckLakeMetadata: ${LAKEHOLD_DUCKLAKE_METADATA:-}
 
-      # The application default is false, so that a fresh checkout runs token-lessly and local
-      # development stays frictionless. That default is wrong for anything with a published port:
-      # without it the API trusts whatever tenant a URL names, and this stack publishes :8080. The
-      # node mints a bootstrap token on first start and logs it once — see README.md — so turning it
-      # on here costs one `docker compose logs` rather than a locked-out deployment.
+      # Authentication is unconditional, so there is nothing to enable here. What this sets is the
+      # first credential: leave it empty and the node mints an instance-scoped bootstrap token on
+      # first start and logs it once — see README.md — which is the supported way in. Set it only
+      # when the deployment would rather supply that credential from its own secret store.
       Lakehold__BootstrapToken: ${LAKEHOLD_BOOTSTRAP_TOKEN:-}
       # Trust the proxy headers supplied by the colocated Workbench nginx so OIDC callback URLs use
       # the browser-facing scheme and host rather than the API container address.
