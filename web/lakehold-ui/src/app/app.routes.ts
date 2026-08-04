@@ -34,6 +34,8 @@ export const routes: Routes = [
       seo: {
         description:
           'How LakeHold is becoming a private Enterprise Data Platform: governed ingestion, open lakehouse storage, consumption, operations, and an honest capability roadmap.',
+        documentType: 'WebPage',
+        breadcrumb: 'Enterprise Data Platform',
       },
     },
     loadComponent: () =>
@@ -72,6 +74,8 @@ export const routes: Routes = [
       seo: {
         description:
           'Write C# LINQ in the LakeHold Workbench with an isolated DuckDB.EFCoreProvider planner, generated SQL, diagnostics, saved queries, and safe deployment.',
+        documentType: 'TechArticle',
+        breadcrumb: 'C# LINQ Workbench',
       },
     },
     loadComponent: () =>
@@ -84,6 +88,8 @@ export const routes: Routes = [
       seo: {
         description:
           'Configure LakeHold REST/gRPC snapshots and PostgreSQL/HubSpot incremental connectors with checkpoints, retries, schema contracts, secrets, and lineage.',
+        documentType: 'TechArticle',
+        breadcrumb: 'Managed data connectors',
       },
     },
     loadComponent: () =>
@@ -96,6 +102,8 @@ export const routes: Routes = [
       seo: {
         description:
           'LakeHold Enterprise Data Platform delivery status: what is implemented, partial, unreleased, not started, and required for Priority 1 completion.',
+        documentType: 'TechArticle',
+        breadcrumb: 'Enterprise Data Platform delivery plan',
       },
     },
     loadComponent: () =>
@@ -110,6 +118,8 @@ export const routes: Routes = [
       seo: {
         description:
           'Operate LakeHold in production with ownership, readiness gates, routine checks, safe deployment, rollback, and evidence-handling guidance.',
+        documentType: 'TechArticle',
+        breadcrumb: 'Operations',
       },
     },
     loadComponent: () => import('./operations.component').then((m) => m.OperationsComponent),
@@ -121,6 +131,8 @@ export const routes: Routes = [
       seo: {
         description:
           'Respond to LakeHold incidents with severity levels, first-response checks, diagnosis, containment, recovery, communication, and review procedures.',
+        documentType: 'TechArticle',
+        breadcrumb: 'Incident response',
       },
     },
     loadComponent: () =>
@@ -133,6 +145,8 @@ export const routes: Routes = [
       seo: {
         description:
           'Recover LakeHold state with explicit protection boundaries, RPO and RTO guidance, full-node and catalog procedures, validation, and restore drills.',
+        documentType: 'TechArticle',
+        breadcrumb: 'Disaster recovery',
       },
     },
     loadComponent: () =>
@@ -145,6 +159,8 @@ export const routes: Routes = [
       seo: {
         description:
           'Monitor LakeHold health, OpenTelemetry signals, maintenance, backups, capacity, security, and CDC with actionable alerts and validation drills.',
+        documentType: 'TechArticle',
+        breadcrumb: 'Monitoring and alerting',
       },
     },
     loadComponent: () => import('./monitoring.component').then((m) => m.MonitoringComponent),

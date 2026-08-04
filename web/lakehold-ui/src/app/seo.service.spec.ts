@@ -1,7 +1,8 @@
 import { Component } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { Router, provideRouter } from '@angular/router';
-import { SITE_ORIGIN, SeoService } from './seo.service';
+import { Route, Router, provideRouter } from '@angular/router';
+import { routes } from './app.routes';
+import { SITE_ORIGIN, SeoData, SeoService } from './seo.service';
 
 @Component({ template: '' })
 class BlankComponent {}
@@ -107,5 +108,78 @@ describe('SeoService', () => {
 
     expect(jsonLd()).toBeNull();
     expect(document.head.querySelector("link[rel='canonical']")).toBeNull();
+  });
+});
+
+/**
+ * The tests above prove the service does the right thing with the data it is handed. They cannot
+ * prove the routes hand it the right data, because they declare their own routes to do it — which
+ * is how eight pages were added carrying no `documentType` at all, each one silently republishing
+ * the product entity the split exists to keep on the home page.
+ *
+ * A route table is the wrong place for a rule that lives in a comment. This reads the real one.
+ */
+describe('app routes as SEO input', () => {
+  function indexable(): { path: string; seo: SeoData }[] {
+    const collected: { path: string; seo: SeoData }[] = [];
+
+    const walk = (children: readonly Route[], prefix: string): void => {
+      for (const route of children) {
+        // The wildcard redirect renders nothing and is never a destination.
+        if (route.path === undefined || route.path === '**') {
+          continue;
+        }
+
+        const path = [prefix, route.path].filter((part) => part.length > 0).join('/');
+        const seo = route.data?.['seo'] as SeoData | undefined;
+        if (seo !== undefined && seo.noIndex !== true) {
+          collected.push({ path, seo });
+        }
+
+        if (route.children !== undefined) {
+          walk(route.children, path);
+        }
+      }
+    };
+
+    walk(routes, '');
+    return collected;
+  }
+
+  it('finds the routes it is meant to be checking', () => {
+    // Without this the suite below passes just as well on an empty list, which is the failure mode
+    // it exists to rule out.
+    const paths = indexable().map((route) => route.path);
+    expect(paths).toContain('');
+    expect(paths).toContain('docs');
+    expect(paths).toContain('compare');
+    expect(paths.length).toBeGreaterThanOrEqual(13);
+    expect(paths).not.toContain('workbench');
+  });
+
+  it('gives every indexable page a description a search result can show', () => {
+    for (const { path, seo } of indexable()) {
+      expect(seo.description.length, `/${path} has no description`).toBeGreaterThan(0);
+      expect(seo.description.length, `/${path} description is too long to survive truncation`).
+        toBeLessThanOrEqual(170);
+    }
+  });
+
+  it('publishes every page except the home page as a document about the product', () => {
+    for (const { path, seo } of indexable()) {
+      if (path === '') {
+        // The home page is the product's own page; an article here would compete with itself.
+        expect(seo.documentType, 'the home page must not be an article').toBeUndefined();
+        expect(seo.breadcrumb, 'the home page is the breadcrumb root').toBeUndefined();
+        continue;
+      }
+
+      expect(
+        seo.documentType,
+        `/${path} declares no documentType, so it republishes the product entity`,
+      ).toBeDefined();
+      expect(seo.breadcrumb, `/${path} declares no breadcrumb`).toBeDefined();
+      expect(seo.breadcrumb?.length ?? 0).toBeGreaterThan(0);
+    }
   });
 });
