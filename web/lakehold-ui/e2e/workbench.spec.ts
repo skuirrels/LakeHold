@@ -1,5 +1,6 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { signIn } from './credential';
+import { openDetailSection } from './support/table-detail';
 
 async function openWorkbench(page: Page): Promise<void> {
   const tenants = page.waitForResponse(
@@ -201,7 +202,7 @@ test.describe('workbench user journeys', () => {
     await expect(page.getByRole('heading', { name: /events/ })).toBeVisible();
     await expect(page.getByText('Partition layout')).toBeVisible();
 
-    await page.getByRole('button', { name: 'Columns', exact: true }).click();
+    await openDetailSection(page, 'Columns');
     await expect(page.getByText(/live rows/)).toBeVisible();
     await page.locator('.profiles button.cell-link').first().click();
     await expect(page.getByRole('heading', { name: /distribution/ })).toBeVisible();

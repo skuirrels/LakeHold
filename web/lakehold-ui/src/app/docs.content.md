@@ -42,19 +42,15 @@ API, and the dev server. The website is served at http://localhost:5399; the API
 make dev
 ```
 
-`make dev` is `docker compose up` plus a banner listing the URLs and the seeded sign-in details you
-need in step 3. Plain `docker compose up` does the same thing without the reminder.
+`make dev` is `docker compose --profile linq up` plus a banner listing the URLs and the seeded
+sign-in details you need in step 3, so both query languages are available from the start. Plain
+`docker compose up` starts the same stack without the C# LINQ planner, and the language picker then
+offers SQL only.
 
-SQL is always available. Add the isolated C# LINQ planner with a Compose profile:
-
-```bash
-docker compose --profile linq up
-```
-
-Removing the profile returns the same installation to SQL-only operation. Standard private
-production deployments must supply `LAKEHOLD_LINQ_PLANNER_KEY`. The public evaluation target,
-`make demo`, activates the profile and generates its internal credential automatically, so its
-language selector includes SQL and C# LINQ without operator setup. See the
+The planner is profile-gated because a production deployment opts into it with a managed secret —
+standard private deployments must supply `LAKEHOLD_LINQ_PLANNER_KEY`. Development has a default, so
+it costs you nothing here. The public evaluation target, `make demo`, activates the profile and
+generates its internal credential automatically. See the
 [complete LINQ Workbench guide](https://lakehold.dev/docs/linq-workbench).
 
 **Or — app on the host.** Start only the backing services in Docker, then run the two app processes

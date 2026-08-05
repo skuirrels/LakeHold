@@ -19,7 +19,8 @@ flowchart LR
 
 ## Enable or remove it
 
-Development:
+Development — `make dev` already includes it, so this is the equivalent raw Compose command rather
+than an extra step:
 
 ```bash
 docker compose --profile linq up

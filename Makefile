@@ -90,18 +90,25 @@ test:
 
 # Keep the development stack attached so its logs are visible and Ctrl+C stops it. Compose uses the
 # default compose.yaml here, which bind-mounts the source and runs the API and UI file watchers.
+#
+# The C# LINQ planner is included. It is profile-gated so that production deployments opt in with a
+# managed secret, but leaving it out here meant the language picker offered SQL only and the browser
+# suite could not pass against a stack started this way — the LINQ journey failed for a missing
+# service rather than a real defect. Development has a default planner key in compose.yaml, so this
+# costs an operator nothing.
 dev:
 	@echo "==> starting local development stack"
 	@echo "==> website:  http://localhost:5399"
 	@echo "==> API:      http://localhost:5200"
 	@echo "==> MCP:      http://localhost:5200/mcp"
 	@echo "==> identity: http://localhost:$(KEYCLOAK_PORT) (Keycloak console: admin / admin)"
+	@echo "==> languages: SQL and C# LINQ"
 	@echo ""
 	@echo "    Sign in at the website with either seeded user, password 'lakehold':"
 	@echo "      analyst  owns the demo workspace  (queries, writes, maintenance)"
 	@echo "      admin    administers the instance (provisions tenants and credentials)"
 	@echo "    Machines and agents use API tokens instead; see docs/IDENTITY-PROVIDER-SETUP.md."
-	$(COMPOSE_DEV) up
+	$(COMPOSE_DEV) --profile linq up
 
 # Demo is deliberately a separate opt-in overlay; it is the only target that enables the public
 # website and starts the isolated C# LINQ compiler. The standard production configuration serves
