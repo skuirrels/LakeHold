@@ -7,6 +7,15 @@ and LakeHold follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+
+- Every deploy and recovery example in the operations guide and disaster-recovery runbook names a
+  real published tag instead of a placeholder, and a test enforces it. A placeholder cannot be run,
+  so it cannot fail — which is why a release whose documented `LAKEHOLD_TAG` did not resolve was
+  found by an operator's copy-paste rather than by the runbook. The full-state recovery procedure
+  now exports the tag once, checks it resolves before the recovery depends on it, and guards the
+  two commands that bind an image so continuing in a fresh shell cannot silently deploy `latest`.
+
 ## [2.0.1] - 2026-08-05
 
 ### Added

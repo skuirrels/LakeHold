@@ -53,6 +53,32 @@ describe('operational documentation', () => {
     expect(rendered.sections.length).toBeGreaterThan(3);
   });
 
+  // A release once published only `1.2.3` while every operator instruction quoted `v1.2.3`, so
+  // pinning a release exactly as documented answered `manifest unknown`. A placeholder such as
+  // `LAKEHOLD_TAG=<pinned-tag>` hides that class of defect permanently: nobody can run it, so
+  // nobody discovers the form is wrong. Every deploy example therefore names a real version, and
+  // the surrounding prose says which value to substitute.
+  it.each([
+    { name: 'OPERATIONS.md', content: operations },
+    { name: 'DISASTER-RECOVERY.md', content: disasterRecovery },
+    { name: 'INCIDENT-RESPONSE.md', content: incidentResponse },
+    { name: 'MONITORING-AND-ALERTING.md', content: monitoring },
+  ])('pins $name deploy examples to a runnable version, not a placeholder', ({ content }) => {
+    const assignments = [...content.matchAll(/LAKEHOLD_TAG=(\S+)/g)].map((match) => match[1]);
+
+    for (const value of assignments) {
+      expect(value, `LAKEHOLD_TAG=${value}`).toMatch(/^v?\d+\.\d+\.\d+$/);
+    }
+  });
+
+  it('has deploy examples to check in the first place', () => {
+    const documented = [operations, disasterRecovery].flatMap((content) => [
+      ...content.matchAll(/LAKEHOLD_TAG=(\S+)/g),
+    ]);
+
+    expect(documented.length).toBeGreaterThanOrEqual(4);
+  });
+
   it('publishes repository documents as titled, indexable routes', () => {
     for (const expected of repositoryDocumentationRoutes) {
       const route = routes.find((candidate) => candidate.path === expected.path);

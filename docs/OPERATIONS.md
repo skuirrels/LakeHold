@@ -212,8 +212,11 @@ failed deployment even if the containers are running.
 For an application regression, redeploy the last-known-good tag:
 
 ```bash
-LAKEHOLD_TAG=<last-known-good-tag> make deploy
+LAKEHOLD_TAG=v2.0.0 make deploy
 ```
+
+`v2.0.0` stands in for the last release known good in *this* deployment, which is whatever the
+deployment record names — not necessarily the immediate predecessor.
 
 This rolls back images, not state. The control plane still uses additive schema initialization
 rather than a versioned migration/rollback system. Do not assume an older image can safely read
