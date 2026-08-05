@@ -7,6 +7,7 @@ import { ApiError, LakehouseService } from './lakehouse.service';
 import { FakeLakehouseService, tableStorage } from './test-doubles';
 import { WorkbenchComponent } from './workbench.component';
 import { QueryEditorComponent } from './query-editor.component';
+import { WorkbenchNavigationComponent } from './workbench-navigation.component';
 
 describe('WorkbenchComponent', () => {
   let api: FakeLakehouseService;
@@ -44,6 +45,27 @@ describe('WorkbenchComponent', () => {
           dispatchEvent: () => true,
         }) satisfies MediaQueryList,
     });
+  }
+
+  /** The workspace or catalog picker, found by the label beside it. */
+  function selector(label: string): HTMLSelectElement {
+    const field = [...fixture.nativeElement.querySelectorAll('.selectors .field')].find(
+      (f) => (f as HTMLElement).querySelector('span')?.textContent?.trim() === label,
+    ) as HTMLElement;
+    return field.querySelector('select') as HTMLSelectElement;
+  }
+
+  /** What a picker actually shows — the option the browser has selected, not the bound value. */
+  function selectedLabel(select: HTMLSelectElement): string {
+    return select.options[select.selectedIndex]?.textContent?.trim() ?? '';
+  }
+
+  /** Drives the product navigation, which is how a system administrator reaches the editor. */
+  async function navigateTo(destination: string): Promise<void> {
+    const navigation = fixture.debugElement.query(By.directive(WorkbenchNavigationComponent))
+      .componentInstance as WorkbenchNavigationComponent;
+    navigation.navigate.emit(destination as never);
+    await fixture.whenStable();
   }
 
   /** Clicks a bottom-panel tab by its label. */
@@ -131,6 +153,37 @@ describe('WorkbenchComponent', () => {
 
     expect(fixture.nativeElement.querySelector('lh-system-settings')).toBeNull();
     expect(text()).toContain('No workspaces yet');
+  });
+
+  it('does not report a workspace as selected when an instance administrator has none', async () => {
+    api.access = {
+      mode: 'authenticated',
+      role: 'owner',
+      readOnly: false,
+      systemAdmin: true,
+    };
+
+    await mount();
+    await navigateTo('workbench');
+
+    // The regression: a select whose value matches no option displays its first option, so the
+    // picker read "Demo workspace" while the component held no workspace at all — and the empty
+    // catalog beside it looked like a catalog that had disappeared.
+    const workspace = selector('Workspace');
+    expect(workspace.value).toBe('');
+    expect(selectedLabel(workspace)).toBe('Administration only');
+    expect(selectedLabel(selector('Catalog'))).toBe('Administration only');
+    expect(text()).toContain('You’re signed in as an instance administrator.');
+  });
+
+  it('names the selected workspace and catalog for a tenant credential', async () => {
+    await mount();
+
+    expect(selector('Workspace').value).toBe('demo');
+    expect(selectedLabel(selector('Workspace'))).toBe('Demo workspace');
+    expect(selector('Catalog').value).toBe('analytics');
+    expect(selectedLabel(selector('Catalog'))).toBe('analytics');
+    expect(text()).not.toContain('You’re signed in as an instance administrator.');
   });
 
   it('returns to the workbench when an instance credential is replaced by a tenant credential', async () => {
