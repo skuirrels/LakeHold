@@ -471,6 +471,11 @@
   margin-right: 4px;
 }
 
+/* Same shape as the demo banner, but explaining a limit rather than an invitation. */
+.admin-banner {
+  background: color-mix(in srgb, var(--warn) 7%, var(--surface-1));
+}
+
 .read-only-label {
   color: var(--text-faint);
   font-size: 11px;
