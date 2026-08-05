@@ -75,11 +75,20 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: ${{ steps.ref.outputs.image }}
-          # A tag push gives v1.2.3 -> {1.2.3, 1.2, latest}. A manual run publishes exactly what it
-          # was asked for and nothing else, so a re-run of an old version cannot move `latest`.
+          # A tag push gives v1.2.3 -> {1.2.3, 1.2, v1.2.3, v1.2, latest}. A manual run publishes
+          # exactly what it was asked for and nothing else, so a re-run of an old version cannot
+          # move `latest`.
+          #
+          # The `v`-prefixed forms are published as well as the bare ones because the git tag is
+          # `v1.2.3` and every operator instruction quotes it that way — `LAKEHOLD_TAG=v1.2.3`.
+          # Publishing only `1.2.3` meant copying the release's own version string produced
+          # `manifest unknown`, so pinning a release as documented failed and the only tag that
+          # worked was the `latest` the same documentation tells you not to track.
           tags: |
             type=semver,pattern={{version}},enable=${{ github.event_name == 'push' }}
             type=semver,pattern={{major}}.{{minor}},enable=${{ github.event_name == 'push' }}
+            type=semver,pattern=v{{version}},enable=${{ github.event_name == 'push' }}
+            type=semver,pattern=v{{major}}.{{minor}},enable=${{ github.event_name == 'push' }}
             type=raw,value=${{ github.event.inputs.tag }},enable=${{ github.event_name == 'workflow_dispatch' }}
           # `auto` rather than `true`: it holds `latest` back from a prerelease tag. Since
           # compose.production.yaml defaults to `latest`, tagging v1.0.0-rc1 with `true` would hand
