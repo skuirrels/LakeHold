@@ -92,12 +92,19 @@ an archive into a partially populated volume.
 The safest current full-state copy stops writers while the volume is archived:
 
 ```bash
+export LAKEHOLD_TAG=v2.0.1
 ARCHIVE="lakehold-state-$(date -u +%Y%m%dT%H%M%SZ).tar.gz"
 make stop
 make backup-state ARCHIVE="$ARCHIVE"
 sha256sum "$ARCHIVE" > "$ARCHIVE.sha256"
-LAKEHOLD_TAG=<pinned-current-tag> make deploy
+make deploy
 ```
+
+`v2.0.1` stands in for the release this node was already running — read it from the deployment
+record, or from the `IMAGE` column of `make status` before stopping. Restarting on a different tag
+turns an archive into an upgrade. Every release publishes both `2.0.1` and `v2.0.1`, so either form
+of a version pins the same build, but only a tag that exists resolves: `LAKEHOLD_TAG` must be a
+released version, never a placeholder carried over from this document.
 
 Copy the archive and checksum to approved off-host storage, then verify the stored copy. The archive
 created by `make backup-state` remains in the working directory until moved; leaving it beside the
@@ -125,6 +132,18 @@ configuration.
 - Confirm external PostgreSQL and object-store dependencies are restored to a compatible point.
 - Keep the replacement node isolated from normal ingress until validation completes.
 
+Pin the recovery release once, and let the rest of this procedure inherit it:
+
+```bash
+export LAKEHOLD_TAG=v2.0.1
+docker compose -f compose.production.yaml config --images
+```
+
+`v2.0.1` stands in for the tag in the deployment record — the release the lost node was running, not
+the newest one available. `config --images` prints the references Compose will pull, which is the
+cheapest way to catch a tag that does not resolve before the recovery depends on it. Both `2.0.1`
+and `v2.0.1` are published for every release.
+
 ### 2. Verify the archive
 
 ```bash
@@ -149,8 +168,8 @@ docker volume inspect lakehold_lakehold-state
 The command must report that the volume does not exist on a fresh recovery host. Then:
 
 ```bash
-LAKEHOLD_TAG=<pinned-tag> \
-  docker compose -f compose.production.yaml create
+: "${LAKEHOLD_TAG:?export the pinned recovery tag from step 1}"
+docker compose -f compose.production.yaml create
 docker run --rm \
   -v lakehold_lakehold-state:/state \
   -v "$PWD":/archive:ro \
@@ -166,15 +185,18 @@ fail safely when the target is not empty.
 Restore secrets through the platform secret store, then:
 
 ```bash
-LAKEHOLD_TAG=<pinned-tag> \
-  docker compose -f compose.production.yaml up -d --wait --wait-timeout 180
+: "${LAKEHOLD_TAG:?export the pinned recovery tag from step 1}"
+docker compose -f compose.production.yaml up -d --wait --wait-timeout 180
 docker compose -f compose.production.yaml ps
 curl --fail --silent --show-error \
   "http://127.0.0.1:${LAKEHOLD_PORT:-8080}/health"
 ```
 
 Do not upgrade during recovery. Recover the known state on the matching release first; upgrade in a
-separate change after closure.
+separate change after closure. Both commands that bind an image open with the same guard because
+`compose.production.yaml` falls back to `${LAKEHOLD_TAG:-latest}`: a recovery continued in a fresh
+shell would otherwise upgrade silently, and `latest` is exactly the tag the deployment record does
+not name.
 
 ### 5. Validate before traffic
 
