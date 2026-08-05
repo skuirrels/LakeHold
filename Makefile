@@ -4,16 +4,20 @@
 #   make production   Update the private workbench and services from source.
 #   make status       What is running, and whether it is healthy.
 #   make logs         Follow the running stack's logs.
-#   make stop         Stop the stack. The state volume survives.
+#   make stop         Stop whichever stack is running. State volumes survive.
 #   make backup-state Archive the state volume to a tarball in the working directory.
 #   make test         Run the complete backend, frontend, integration, and browser test suite.
 #   make dev          Start the local development stack with hot reload.
 #   make demo         Pull, build, and start the public demo with C# LINQ enabled.
 #   make prune-worktrees  List finished agent worktrees; APPLY=1 removes them.
 #
-# Deployment targets drive compose.production.yaml; only `make dev` drives compose.yaml. The
-# development stack bind-mounts source and runs a file watcher, so it has no build step to redo —
-# "rebuild and restart" is not a thing you do to it, you just save a file.
+# Deployment targets drive compose.production.yaml; `make dev` drives compose.yaml, and `make stop`
+# is the one target that reaches both — it stops whichever project is actually up. The development
+# stack bind-mounts source and runs a file watcher, so it has no build step to redo — "rebuild and
+# restart" is not a thing you do to it, you just save a file.
+#
+# `make status` and `make logs` still report on the deployment project only. Use `docker compose ps`
+# and `docker compose logs -f` for the development stack.
 #
 # `make deploy` is the ordinary path and needs nothing but Docker and the compose file: images come
 # from the registry, so a deployment host does not need a checkout, a compiler, or this Makefile.
@@ -70,7 +74,7 @@ help:
 	@echo "  production    Update the private workbench and services from source"
 	@echo "  status        Show the running containers and their health"
 	@echo "  logs          Follow the stack's logs"
-	@echo "  stop          Stop the stack, keeping the state volume"
+	@echo "  stop          Stop whichever stack is running, keeping state volumes"
 	@echo "  backup-state  Archive the state volume to a tarball here"
 	@echo ""
 	@echo "  prune-worktrees  List finished agent worktrees (APPLY=1 to remove them)"
@@ -174,11 +178,34 @@ status:
 logs:
 	@$(COMPOSE) logs -f --tail 100
 
+# Stops whichever stack is actually up, because `make dev` and the deployment targets drive
+# different Compose *projects* — `lakehold-dev` from compose.yaml, `lakehold` from
+# compose.production.yaml. This used to name only the deployment project, so someone who started
+# with `make dev`, closed the terminal, and reached for the documented way to stop it got a silent
+# no-op and a stack still holding :5399, :5200, and :5401.
+#
+# Each project is checked before it is stopped rather than running `down` against both, so the
+# output says what happened instead of printing a confusing teardown for something that was never
+# running. Both are attempted, so a host running the demo alongside a dev stack is fully stopped.
+#
 # Never `down -v` here. The lakehold-state volume can hold local Parquet, backups, and eject bundles,
 # while a demo deployment's PostgreSQL metadata lives in its own persistent volume. The standard
 # production stack still keeps PostgreSQL outside Compose.
+# `--profile "*"` matters: `down` without it leaves profile-gated services running, so stopping a
+# stack that had the LINQ compiler up left one container and its network behind — and the next
+# `make stop` reported it was stopping a stack it could not actually finish.
+define stop_project
+	if [ -n "$$(docker compose --profile "*" -p $(2) ps --quiet 2>/dev/null)" ]; then \
+	  echo "==> stopping the $(3) stack ($(2))"; \
+	  $(1) --profile "*" down --remove-orphans; \
+	else \
+	  echo "==> no $(3) stack running ($(2))"; \
+	fi
+endef
+
 stop:
-	@$(COMPOSE) down --remove-orphans
+	@$(call stop_project,$(COMPOSE_DEV),lakehold-dev,development)
+	@$(call stop_project,$(COMPOSE),lakehold,deployment)
 
 # A disaster copy of node-local state: local Parquet, backup generations, and eject bundles. It does
 # not include the PostgreSQL control plane or PostgreSQL DuckLake metadata.
