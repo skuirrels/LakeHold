@@ -11,6 +11,7 @@ using Lakehold.ControlPlane.Security;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -36,6 +37,47 @@ public sealed class PublicApiContractTests
         Assert.Equal(
             problem.GetProperty("requestId").GetString(),
             response.Headers.GetValues(PublicApiCorrelationExtensions.HeaderName).Single());
+    }
+
+    [Theory]
+    [InlineData("/api/v1/revise", "revision")]
+    [InlineData("/api/v1/revise?revision=not-a-number", "revision")]
+    public async Task An_unbindable_request_is_a_client_error_not_a_server_failure(
+        string path,
+        string expectedParameter)
+    {
+        // Both of these are the caller's mistake, and both used to answer 500 — which told an SDK
+        // the server had failed and that retrying was reasonable, when no retry could ever succeed.
+        await using var application = await CreateBindingApplicationAsync();
+        using var response = await application.GetTestClient().GetAsync(path);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
+
+        var problem = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("invalid_request", problem.GetProperty("code").GetString());
+        Assert.Equal(400, problem.GetProperty("status").GetInt32());
+        Assert.Equal(path.Split('?')[0], problem.GetProperty("instance").GetString());
+        Assert.False(string.IsNullOrWhiteSpace(problem.GetProperty("requestId").GetString()));
+
+        // The detail names the parameter, because "bad request" alone leaves the caller guessing
+        // which of several a handler takes.
+        Assert.Contains(
+            expectedParameter,
+            problem.GetProperty("detail").GetString(),
+            StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task A_bound_request_still_reaches_its_handler()
+    {
+        // The guard above must not swallow requests that are fine; without this, a handler that
+        // returned 400 for everything would satisfy the theory.
+        await using var application = await CreateBindingApplicationAsync();
+        using var response = await application.GetTestClient().GetAsync("/api/v1/revise?revision=7");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("revision 7", await response.Content.ReadAsStringAsync());
     }
 
     [Fact]
@@ -581,6 +623,36 @@ public sealed class PublicApiContractTests
             IsReadOnly: false,
             TokenId: 1);
         return next(context);
+    }
+
+    /// <summary>
+    ///     A minimal app wired the way `Program` wires it — problem details plus the exception
+    ///     handler — with one route that takes a required, non-nullable query parameter. That is the
+    ///     shape every optimistic-concurrency route uses (`?revision=`), and the shape that produced
+    ///     a 500 when the parameter was missing or unparseable.
+    /// </summary>
+    private static async Task<WebApplication> CreateBindingApplicationAsync()
+    {
+        var builder = WebApplication.CreateBuilder();
+        builder.WebHost.UseTestServer();
+        builder.Services.Configure<RouteHandlerOptions>(options => options.ThrowOnBadRequest = true);
+        builder.Services.AddExceptionHandler<BadRequestExceptionHandler>();
+        builder.Services.AddProblemDetails(options =>
+        {
+            options.CustomizeProblemDetails = context =>
+                PublicApiProblems.Enrich(context.ProblemDetails, context.HttpContext);
+        });
+
+        var app = builder.Build();
+        app.UsePublicApiCorrelation();
+        app.UseExceptionHandler();
+        app.UseRouting();
+
+        app.MapGroup(PublicApiRoutes.BasePath)
+            .MapGet("/revise", (int revision) => Results.Text($"revision {revision}"));
+
+        await app.StartAsync();
+        return app;
     }
 
     private static async Task<WebApplication> CreateApplicationAsync()
