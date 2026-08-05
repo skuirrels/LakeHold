@@ -7,6 +7,8 @@ and LakeHold follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.1] - 2026-08-05
+
 ### Added
 
 - Browser coverage for three journeys that previously only asserted their panel opened: the
@@ -199,7 +201,8 @@ and LakeHold follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Production API and web container images for Linux amd64 and arm64, Compose deployment, health
   checks, telemetry, and a reproducible end-to-end test suite.
 
-[Unreleased]: https://github.com/skuirrels/LakeHold/compare/v2.0.0...HEAD
+[Unreleased]: https://github.com/skuirrels/LakeHold/compare/v2.0.1...HEAD
+[2.0.1]: https://github.com/skuirrels/LakeHold/compare/v2.0.0...v2.0.1
 [2.0.0]: https://github.com/skuirrels/LakeHold/compare/v1.4.0...v2.0.0
 [1.4.0]: https://github.com/skuirrels/LakeHold/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/skuirrels/LakeHold/compare/v1.2.0...v1.3.0
