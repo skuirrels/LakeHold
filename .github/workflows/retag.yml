@@ -1,0 +1,92 @@
+# Point another tag at an image that is already published, without rebuilding it.
+#
+#   gh workflow run retag.yml -f source=2.0.1 -f target=v2.0.1
+#
+# `imagetools create` copies the manifest list, so the new tag resolves to the *same* digest and
+# the same per-architecture images. Re-running the release workflow would also produce a working
+# tag, but from a fresh build: same source commit, different digest, and an operator comparing the
+# two names would find them unequal for no reason they could see.
+#
+# The multi-arch manifest is preserved because the source is a manifest list and it is copied whole
+# rather than resolved to the runner's own architecture.
+
+name: Retag
+
+on:
+  workflow_dispatch:
+    inputs:
+      source:
+        description: 'Existing published tag to copy (e.g. 2.0.1)'
+        required: true
+      target:
+        description: 'New tag to point at it (e.g. v2.0.1)'
+        required: true
+      allow_latest:
+        description: 'Permit targeting `latest` — it is what every fresh install pulls'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: retag-${{ github.event.inputs.target }}
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  retag:
+    runs-on: ubuntu-latest
+    steps:
+      # `latest` is what compose.production.yaml pulls when nothing pins a version, so moving it is
+      # a release decision rather than a retag. It stays possible, but never by accident.
+      - name: Refuse to move `latest` unless asked
+        if: inputs.target == 'latest' && !inputs.allow_latest
+        run: |
+          echo "::error::Targeting 'latest' requires allow_latest. It is what a fresh install pulls."
+          exit 1
+
+      - name: Log in to the registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Copy the manifest onto the new tag
+        env:
+          NAMESPACE: ${{ github.repository_owner }}
+          SOURCE: ${{ inputs.source }}
+          TARGET: ${{ inputs.target }}
+        run: |
+          set -euo pipefail
+          status=0
+          for name in lakehold-api lakehold-web lakehold-linq-compiler; do
+            image="${REGISTRY}/${NAMESPACE,,}/${name}"
+
+            # Fail on a source that does not exist rather than creating a tag pointing at nothing.
+            if ! docker buildx imagetools inspect "${image}:${SOURCE}" >/dev/null 2>&1; then
+              echo "::error::${image}:${SOURCE} does not exist"
+              status=1
+              continue
+            fi
+
+            docker buildx imagetools create --tag "${image}:${TARGET}" "${image}:${SOURCE}"
+
+            # The point of the whole workflow is that these two are the same object, so the run
+            # proves it rather than asserting it.
+            from=$(docker buildx imagetools inspect "${image}:${SOURCE}" --format '{{ .Manifest.Digest }}')
+            to=$(docker buildx imagetools inspect "${image}:${TARGET}" --format '{{ .Manifest.Digest }}')
+            if [ "$from" != "$to" ]; then
+              echo "::error::${name}: ${SOURCE} is ${from} but ${TARGET} is ${to}"
+              status=1
+              continue
+            fi
+
+            echo "${name}: ${SOURCE} and ${TARGET} both resolve to ${to}"
+          done
+
+          exit $status
