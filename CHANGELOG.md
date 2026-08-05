@@ -7,6 +7,35 @@ and LakeHold follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- Browser coverage for three journeys that previously only asserted their panel opened: the
+  saved-query publish lifecycle, importing a CSV as a table, and the instance MCP settings. Each
+  ends at evidence outside the component that produced it — a published view answering SQL, an
+  imported table queried back by row count, and a disabled MCP endpoint answering the live request.
+
+### Changed
+
+- The getting-started guide covers signing in: the seeded users and what each reaches, the identity
+  provider's URL, the API-token path for machines, and the fact that signing out of LakeHold does
+  not end the provider's session.
+- Row- and column-level security is specified in the enterprise roadmap rather than listed as a
+  checkbox, including why the current architecture cannot express it and what would have to change.
+- `make dev` starts the C# LINQ planner, so both query languages are available without a second
+  command and the browser suite can pass against the stack the guide tells you to start.
+- The web package version tracks the product release, and the deploy example in the operations
+  guide names a current tag rather than `v1.0.1`.
+
+### Fixed
+
+- A request the server could not bind — a missing or unparseable query parameter — answered `500`
+  in development and a bare `400` with no body in production. Both now answer `400` as RFC 9457
+  `problem+json` naming the parameter. The `500` was the more serious half: `5xx` is the one class
+  an SDK is entitled to retry, and retrying a malformed request cannot succeed.
+- `make stop` acted only on the deployment stack, so stopping a development stack was a silent
+  no-op that left it holding its ports. `make status` and `make logs` had the same blind spot. All
+  three now act on whichever stack is running.
+
 ## [2.0.0] - 2026-08-04
 
 ### Added
