@@ -7,14 +7,37 @@ and LakeHold follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.2] - 2026-08-05
+
+An operations release. Nothing in the application changed; what changed is that pinning a release
+works the way every instruction says it does.
+
+### Fixed
+
+- **A released version could not be pinned as documented.** Every operator instruction quotes the
+  git tag — `LAKEHOLD_TAG=v2.0.1` — but the release workflow published only the bare `2.0.1`, so
+  copying a release's own version string answered `manifest unknown` and the only tag that worked
+  was the `latest` the same documentation tells you not to track. Releases now publish `2.0.2`,
+  `2.0`, `v2.0.2`, and `v2.0`, and either form of a version pins the identical build. The 2.0.0 and
+  2.0.1 images were retagged rather than rebuilt, so their `v`-prefixed names resolve to the same
+  digests already in the registry.
+
+### Added
+
+- A retag workflow that points a new tag at an already-published manifest instead of rebuilding it.
+  A rebuild from the same commit produces a different digest, which leaves an operator comparing two
+  names for the same release and finding them unequal for no visible reason. It refuses a source
+  that does not exist, refuses to move `latest` without an explicit opt-in, and proves both tags
+  resolve to one digest before reporting success.
+
 ### Changed
 
 - Every deploy and recovery example in the operations guide and disaster-recovery runbook names a
   real published tag instead of a placeholder, and a test enforces it. A placeholder cannot be run,
-  so it cannot fail — which is why a release whose documented `LAKEHOLD_TAG` did not resolve was
-  found by an operator's copy-paste rather than by the runbook. The full-state recovery procedure
-  now exports the tag once, checks it resolves before the recovery depends on it, and guards the
-  two commands that bind an image so continuing in a fresh shell cannot silently deploy `latest`.
+  so it cannot fail — which is why the defect above was found by an operator's copy-paste rather
+  than by the runbook. Full-state recovery now exports the tag once, checks it resolves before the
+  recovery depends on it, and guards the two commands that bind an image so continuing in a fresh
+  shell cannot silently deploy `latest` during an incident.
 
 ## [2.0.1] - 2026-08-05
 
@@ -210,7 +233,8 @@ and LakeHold follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Production API and web container images for Linux amd64 and arm64, Compose deployment, health
   checks, telemetry, and a reproducible end-to-end test suite.
 
-[Unreleased]: https://github.com/skuirrels/LakeHold/compare/v2.0.1...HEAD
+[Unreleased]: https://github.com/skuirrels/LakeHold/compare/v2.0.2...HEAD
+[2.0.2]: https://github.com/skuirrels/LakeHold/compare/v2.0.1...v2.0.2
 [2.0.1]: https://github.com/skuirrels/LakeHold/compare/v2.0.0...v2.0.1
 [2.0.0]: https://github.com/skuirrels/LakeHold/compare/v1.4.0...v2.0.0
 [1.4.0]: https://github.com/skuirrels/LakeHold/compare/v1.3.0...v1.4.0
