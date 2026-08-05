@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { signIn } from './credential';
+import { openDetailSection } from './support/table-detail';
 
 test('operator simulation exercises the lakehouse control surfaces', async ({ page, request }) => {
   await signIn(page, request);
@@ -17,10 +18,10 @@ test('operator simulation exercises the lakehouse control surfaces', async ({ pa
 
     await expect(page.getByRole('heading', { name: /events/ })).toBeVisible();
     await expect(page.getByText('Partition layout')).toBeVisible();
-    await page.getByRole('button', { name: 'Files', exact: true }).click();
+    await openDetailSection(page, 'Files');
     await expect(page.locator('lh-table-detail')).toContainText(/parquet|No Parquet files/i);
 
-    await page.getByRole('button', { name: 'Columns', exact: true }).click();
+    await openDetailSection(page, 'Columns');
     await expect(page.getByText(/live rows/)).toBeVisible();
     await page.locator('.profiles button.cell-link').first().click();
     await expect(page.getByRole('heading', { name: /distribution/ })).toBeVisible();
