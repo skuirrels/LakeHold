@@ -2,7 +2,7 @@
 #
 #   make deploy       Update this deployment to the current published images.
 #   make production   Update the private workbench and services from source.
-#   make status       What is running, and whether it is healthy.
+#   make status       What is running, in either stack, and whether it is healthy.
 #   make logs         Follow the running stack's logs.
 #   make stop         Stop whichever stack is running. State volumes survive.
 #   make backup-state Archive the state volume to a tarball in the working directory.
@@ -11,13 +11,11 @@
 #   make demo         Pull, build, and start the public demo with C# LINQ enabled.
 #   make prune-worktrees  List finished agent worktrees; APPLY=1 removes them.
 #
-# Deployment targets drive compose.production.yaml; `make dev` drives compose.yaml, and `make stop`
-# is the one target that reaches both — it stops whichever project is actually up. The development
-# stack bind-mounts source and runs a file watcher, so it has no build step to redo — "rebuild and
+# Deployment targets drive compose.production.yaml and `make dev` drives compose.yaml, but the three
+# targets you reach for when something is already running — `status`, `logs`, and `stop` — act on
+# whichever project is actually up rather than on a file chosen in advance. The development stack
+# bind-mounts source and runs a file watcher, so it has no build step to redo — "rebuild and
 # restart" is not a thing you do to it, you just save a file.
-#
-# `make status` and `make logs` still report on the deployment project only. Use `docker compose ps`
-# and `docker compose logs -f` for the development stack.
 #
 # `make deploy` is the ordinary path and needs nothing but Docker and the compose file: images come
 # from the registry, so a deployment host does not need a checkout, a compiler, or this Makefile.
@@ -72,8 +70,8 @@ help:
 	@echo "  demo          Pull, build, and start the public website and demo workbench"
 	@echo "  deploy        Update this deployment to the current published images"
 	@echo "  production    Update the private workbench and services from source"
-	@echo "  status        Show the running containers and their health"
-	@echo "  logs          Follow the stack's logs"
+	@echo "  status        Show whichever stack is running, and its health"
+	@echo "  logs          Follow the running stack's logs"
 	@echo "  stop          Stop whichever stack is running, keeping state volumes"
 	@echo "  backup-state  Archive the state volume to a tarball here"
 	@echo ""
@@ -172,11 +170,44 @@ up:
 	@echo "==> restarting changed containers"
 	$(COMPOSE) up -d --remove-orphans --wait --wait-timeout $(WAIT_TIMEOUT)
 
+# Reports on whichever stacks are up, for the same reason `stop` does: naming only the deployment
+# project meant `make status` answered "nothing here" while a development stack was serving. Both
+# are shown when both run, because on a demo host that is a real state and the answer "which one is
+# this?" is the whole question being asked.
+#
+# Detection is `docker compose -p <project>`, which needs no compose file — that is what lets one
+# Makefile ask about a stack whose file it is not currently pointed at.
 status:
-	@$(COMPOSE) ps
+	@shown=0; \
+	for spec in "lakehold-dev:development" "lakehold:deployment"; do \
+	  project=$${spec%%:*}; label=$${spec##*:}; \
+	  if [ -n "$$(docker compose --profile "*" -p $$project ps --quiet 2>/dev/null)" ]; then \
+	    shown=1; \
+	    echo "==> $$label stack ($$project)"; \
+	    docker compose --profile "*" -p $$project ps; \
+	    echo ""; \
+	  fi; \
+	done; \
+	[ $$shown -eq 1 ] || echo "==> nothing running"
 
+# One stream can only follow one project, so this picks rather than merges. With both up it keeps
+# following the deployment stack — the historical behaviour, and the one a deployment host wants —
+# and says how to reach the other instead of choosing silently.
 logs:
-	@$(COMPOSE) logs -f --tail 100
+	@dev="$$(docker compose --profile "*" -p lakehold-dev ps --quiet 2>/dev/null)"; \
+	deployment="$$(docker compose --profile "*" -p lakehold ps --quiet 2>/dev/null)"; \
+	if [ -n "$$deployment" ] && [ -n "$$dev" ]; then \
+	  echo "==> both stacks are running; following the deployment stack (lakehold)"; \
+	  echo "    development stack: docker compose logs -f --tail 100"; \
+	  $(COMPOSE) --profile "*" logs -f --tail 100; \
+	elif [ -n "$$deployment" ]; then \
+	  $(COMPOSE) --profile "*" logs -f --tail 100; \
+	elif [ -n "$$dev" ]; then \
+	  echo "==> following the development stack (lakehold-dev)"; \
+	  $(COMPOSE_DEV) --profile "*" logs -f --tail 100; \
+	else \
+	  echo "==> nothing running"; \
+	fi
 
 # Stops whichever stack is actually up, because `make dev` and the deployment targets drive
 # different Compose *projects* — `lakehold-dev` from compose.yaml, `lakehold` from
