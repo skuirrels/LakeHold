@@ -51,3 +51,17 @@ export async function signIn(page: Page, request: APIRequestContext): Promise<vo
     window.localStorage.setItem('lakehold.token', value);
   }, token);
 }
+
+/**
+ * Puts the instance credential in the browser instead of a tenant one.
+ *
+ * Instance settings are deliberately unreachable with a workspace owner token — the panel says so
+ * rather than rendering controls that would fail — so a suite that administers the instance has to
+ * present the instance credential. It cannot read tenant data, which is the point: provisioning and
+ * querying are separate capabilities.
+ */
+export async function signInAsInstance(page: Page): Promise<void> {
+  await page.addInitScript((value) => {
+    window.localStorage.setItem('lakehold.token', value);
+  }, bootstrapToken);
+}
