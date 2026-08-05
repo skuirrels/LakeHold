@@ -79,7 +79,7 @@ help:
 	@echo ""
 	@echo "  Overrides:    WAIT_TIMEOUT=$(WAIT_TIMEOUT) (seconds to wait for healthy containers)"
 	@echo "                LAKEHOLD_PORT=<port> (host port; defaults to 8080)"
-	@echo "                LAKEHOLD_TAG=<version> (which published images deploy pulls)"
+	@echo "                LAKEHOLD_TAG=2.0.1 or v2.0.1 (which published images deploy pulls)"
 	@echo "                ARCHIVE=<file> (what backup-state writes, in this directory)"
 
 # The test script owns a uniquely named Compose project and removes only that project's volumes.

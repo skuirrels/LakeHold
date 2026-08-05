@@ -200,8 +200,11 @@ Capture the current image digests and take a consistent off-host state backup be
 Then deploy a pinned release:
 
 ```bash
-LAKEHOLD_TAG=v2.0.0 make deploy
+LAKEHOLD_TAG=2.0.1 make deploy
 ```
+
+Released images are published under both `2.0.1` and `v2.0.1`, so either form of a release's
+version pins the same build. `latest` moves on every release and is not a pin.
 
 `make deploy` pulls the images and waits for both container health checks. A failed health check is a
 failed deployment even if the containers are running.
