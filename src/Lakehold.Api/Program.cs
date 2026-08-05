@@ -206,6 +206,13 @@ builder.Services.AddOpenApi(options =>
         return Task.CompletedTask;
     });
 });
+// Minimal-API binding failures are handled the same way in every environment, which they are not by
+// default: `ThrowOnBadRequest` defaults to true only in Development, so the same missing parameter
+// produced a 500 with a stack trace on a developer's machine and a bare 400 with an empty body in
+// production. Neither is the documented contract. Raising it always sends both through the handler
+// below, which answers the status the framework intended as RFC 9457 problem+json.
+builder.Services.Configure<RouteHandlerOptions>(options => options.ThrowOnBadRequest = true);
+builder.Services.AddExceptionHandler<BadRequestExceptionHandler>();
 builder.Services.AddProblemDetails(options =>
 {
     options.CustomizeProblemDetails = context =>
