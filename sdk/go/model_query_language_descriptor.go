@@ -26,6 +26,8 @@ type QueryLanguageDescriptor struct {
 	StarterSource string `json:"starterSource"`
 	ReadOnly bool `json:"readOnly"`
 	SupportsSavedQueries bool `json:"supportsSavedQueries"`
+	Available *bool `json:"available,omitempty"`
+	UnavailableReason NullableString `json:"unavailableReason,omitempty"`
 	AdditionalProperties map[string]interface{}
 }
 
@@ -43,6 +45,8 @@ func NewQueryLanguageDescriptor(id string, displayName string, editorLanguage st
 	this.StarterSource = starterSource
 	this.ReadOnly = readOnly
 	this.SupportsSavedQueries = supportsSavedQueries
+	var available bool = true
+	this.Available = &available
 	return &this
 }
 
@@ -51,6 +55,8 @@ func NewQueryLanguageDescriptor(id string, displayName string, editorLanguage st
 // but it doesn't guarantee that properties required by API are set
 func NewQueryLanguageDescriptorWithDefaults() *QueryLanguageDescriptor {
 	this := QueryLanguageDescriptor{}
+	var available bool = true
+	this.Available = &available
 	return &this
 }
 
@@ -198,6 +204,80 @@ func (o *QueryLanguageDescriptor) SetSupportsSavedQueries(v bool) {
 	o.SupportsSavedQueries = v
 }
 
+// GetAvailable returns the Available field value if set, zero value otherwise.
+func (o *QueryLanguageDescriptor) GetAvailable() bool {
+	if o == nil || IsNil(o.Available) {
+		var ret bool
+		return ret
+	}
+	return *o.Available
+}
+
+// GetAvailableOk returns a tuple with the Available field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *QueryLanguageDescriptor) GetAvailableOk() (*bool, bool) {
+	if o == nil || IsNil(o.Available) {
+		return nil, false
+	}
+	return o.Available, true
+}
+
+// HasAvailable returns a boolean if a field has been set.
+func (o *QueryLanguageDescriptor) HasAvailable() bool {
+	if o != nil && !IsNil(o.Available) {
+		return true
+	}
+
+	return false
+}
+
+// SetAvailable gets a reference to the given bool and assigns it to the Available field.
+func (o *QueryLanguageDescriptor) SetAvailable(v bool) {
+	o.Available = &v
+}
+
+// GetUnavailableReason returns the UnavailableReason field value if set, zero value otherwise (both if not set or set to explicit null).
+func (o *QueryLanguageDescriptor) GetUnavailableReason() string {
+	if o == nil || IsNil(o.UnavailableReason.Get()) {
+		var ret string
+		return ret
+	}
+	return *o.UnavailableReason.Get()
+}
+
+// GetUnavailableReasonOk returns a tuple with the UnavailableReason field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+// NOTE: If the value is an explicit nil, `nil, true` will be returned
+func (o *QueryLanguageDescriptor) GetUnavailableReasonOk() (*string, bool) {
+	if o == nil {
+		return nil, false
+	}
+	return o.UnavailableReason.Get(), o.UnavailableReason.IsSet()
+}
+
+// HasUnavailableReason returns a boolean if a field has been set.
+func (o *QueryLanguageDescriptor) HasUnavailableReason() bool {
+	if o != nil && o.UnavailableReason.IsSet() {
+		return true
+	}
+
+	return false
+}
+
+// SetUnavailableReason gets a reference to the given NullableString and assigns it to the UnavailableReason field.
+func (o *QueryLanguageDescriptor) SetUnavailableReason(v string) {
+	o.UnavailableReason.Set(&v)
+}
+// SetUnavailableReasonNil sets the value for UnavailableReason to be an explicit nil
+func (o *QueryLanguageDescriptor) SetUnavailableReasonNil() {
+	o.UnavailableReason.Set(nil)
+}
+
+// UnsetUnavailableReason ensures that no value is present for UnavailableReason, not even an explicit nil
+func (o *QueryLanguageDescriptor) UnsetUnavailableReason() {
+	o.UnavailableReason.Unset()
+}
+
 func (o QueryLanguageDescriptor) MarshalJSON() ([]byte, error) {
 	toSerialize,err := o.ToMap()
 	if err != nil {
@@ -214,6 +294,12 @@ func (o QueryLanguageDescriptor) ToMap() (map[string]interface{}, error) {
 	toSerialize["starterSource"] = o.StarterSource
 	toSerialize["readOnly"] = o.ReadOnly
 	toSerialize["supportsSavedQueries"] = o.SupportsSavedQueries
+	if !IsNil(o.Available) {
+		toSerialize["available"] = o.Available
+	}
+	if o.UnavailableReason.IsSet() {
+		toSerialize["unavailableReason"] = o.UnavailableReason.Get()
+	}
 
 	for key, value := range o.AdditionalProperties {
 		toSerialize[key] = value
@@ -268,6 +354,8 @@ func (o *QueryLanguageDescriptor) UnmarshalJSON(data []byte) (err error) {
 		delete(additionalProperties, "starterSource")
 		delete(additionalProperties, "readOnly")
 		delete(additionalProperties, "supportsSavedQueries")
+		delete(additionalProperties, "available")
+		delete(additionalProperties, "unavailableReason")
 		o.AdditionalProperties = additionalProperties
 	}
 

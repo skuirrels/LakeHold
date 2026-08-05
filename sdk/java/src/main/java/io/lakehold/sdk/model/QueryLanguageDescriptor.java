@@ -21,6 +21,7 @@ import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonWriter;
 import java.io.IOException;
 import java.util.Arrays;
+import org.openapitools.jackson.nullable.JsonNullable;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -79,6 +80,16 @@ public class QueryLanguageDescriptor {
   @SerializedName(SERIALIZED_NAME_SUPPORTS_SAVED_QUERIES)
   @jakarta.annotation.Nonnull
   private Boolean supportsSavedQueries;
+
+  public static final String SERIALIZED_NAME_AVAILABLE = "available";
+  @SerializedName(SERIALIZED_NAME_AVAILABLE)
+  @jakarta.annotation.Nullable
+  private Boolean available = true;
+
+  public static final String SERIALIZED_NAME_UNAVAILABLE_REASON = "unavailableReason";
+  @SerializedName(SERIALIZED_NAME_UNAVAILABLE_REASON)
+  @jakarta.annotation.Nullable
+  private String unavailableReason;
 
   public QueryLanguageDescriptor() {
   }
@@ -196,6 +207,44 @@ public class QueryLanguageDescriptor {
     this.supportsSavedQueries = supportsSavedQueries;
   }
 
+
+  public QueryLanguageDescriptor available(@jakarta.annotation.Nullable Boolean available) {
+    this.available = available;
+    return this;
+  }
+
+  /**
+   * Get available
+   * @return available
+   */
+  @jakarta.annotation.Nullable
+  public Boolean getAvailable() {
+    return available;
+  }
+
+  public void setAvailable(@jakarta.annotation.Nullable Boolean available) {
+    this.available = available;
+  }
+
+
+  public QueryLanguageDescriptor unavailableReason(@jakarta.annotation.Nullable String unavailableReason) {
+    this.unavailableReason = unavailableReason;
+    return this;
+  }
+
+  /**
+   * Get unavailableReason
+   * @return unavailableReason
+   */
+  @jakarta.annotation.Nullable
+  public String getUnavailableReason() {
+    return unavailableReason;
+  }
+
+  public void setUnavailableReason(@jakarta.annotation.Nullable String unavailableReason) {
+    this.unavailableReason = unavailableReason;
+  }
+
   /**
    * A container for additional, undeclared properties.
    * This is a holder for any undeclared properties as specified with
@@ -256,13 +305,26 @@ public class QueryLanguageDescriptor {
         Objects.equals(this.editorLanguage, queryLanguageDescriptor.editorLanguage) &&
         Objects.equals(this.starterSource, queryLanguageDescriptor.starterSource) &&
         Objects.equals(this.readOnly, queryLanguageDescriptor.readOnly) &&
-        Objects.equals(this.supportsSavedQueries, queryLanguageDescriptor.supportsSavedQueries)&&
+        Objects.equals(this.supportsSavedQueries, queryLanguageDescriptor.supportsSavedQueries) &&
+        Objects.equals(this.available, queryLanguageDescriptor.available) &&
+        Objects.equals(this.unavailableReason, queryLanguageDescriptor.unavailableReason)&&
         Objects.equals(this.additionalProperties, queryLanguageDescriptor.additionalProperties);
+  }
+
+  private static <T> boolean equalsNullable(JsonNullable<T> a, JsonNullable<T> b) {
+    return a == b || (a != null && b != null && a.isPresent() && b.isPresent() && Objects.deepEquals(a.get(), b.get()));
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(id, displayName, editorLanguage, starterSource, readOnly, supportsSavedQueries, additionalProperties);
+    return Objects.hash(id, displayName, editorLanguage, starterSource, readOnly, supportsSavedQueries, available, unavailableReason, additionalProperties);
+  }
+
+  private static <T> int hashCodeNullable(JsonNullable<T> a) {
+    if (a == null) {
+      return 1;
+    }
+    return a.isPresent() ? Arrays.deepHashCode(new Object[]{a.get()}) : 31;
   }
 
   @Override
@@ -275,6 +337,8 @@ public class QueryLanguageDescriptor {
     sb.append("    starterSource: ").append(toIndentedString(starterSource)).append("\n");
     sb.append("    readOnly: ").append(toIndentedString(readOnly)).append("\n");
     sb.append("    supportsSavedQueries: ").append(toIndentedString(supportsSavedQueries)).append("\n");
+    sb.append("    available: ").append(toIndentedString(available)).append("\n");
+    sb.append("    unavailableReason: ").append(toIndentedString(unavailableReason)).append("\n");
     sb.append("    additionalProperties: ").append(toIndentedString(additionalProperties)).append("\n");
     sb.append("}");
     return sb.toString();
@@ -297,7 +361,7 @@ public class QueryLanguageDescriptor {
 
   static {
     // a set of all properties/fields (JSON key names)
-    openapiFields = new HashSet<String>(Arrays.asList("id", "displayName", "editorLanguage", "starterSource", "readOnly", "supportsSavedQueries"));
+    openapiFields = new HashSet<String>(Arrays.asList("id", "displayName", "editorLanguage", "starterSource", "readOnly", "supportsSavedQueries", "available", "unavailableReason"));
 
     // a set of required properties/fields (JSON key names)
     openapiRequiredFields = new HashSet<String>(Arrays.asList("id", "displayName", "editorLanguage", "starterSource", "readOnly", "supportsSavedQueries"));
@@ -334,6 +398,9 @@ public class QueryLanguageDescriptor {
       }
       if (!jsonObj.get("starterSource").isJsonPrimitive()) {
         throw new IllegalArgumentException(String.format("Expected the field `starterSource` to be a primitive type in the JSON string but got `%s`", jsonObj.get("starterSource").toString()));
+      }
+      if ((jsonObj.get("unavailableReason") != null && !jsonObj.get("unavailableReason").isJsonNull()) && !jsonObj.get("unavailableReason").isJsonPrimitive()) {
+        throw new IllegalArgumentException(String.format("Expected the field `unavailableReason` to be a primitive type in the JSON string but got `%s`", jsonObj.get("unavailableReason").toString()));
       }
   }
 

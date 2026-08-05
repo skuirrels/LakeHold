@@ -304,6 +304,7 @@ builder.Services.AddOptions<QueryPlannerOptions>()
     .ValidateOnStart();
 builder.Services.AddHttpClient(nameof(QueryPlannerRegistry), client =>
     client.Timeout = TimeSpan.FromSeconds(15));
+builder.Services.AddSingleton<QueryPlannerDescriptorCache>();
 builder.Services.AddScoped<QueryPlannerRegistry>();
 builder.Services.AddScoped<Lakehold.Querying.IQuerySourcePlanner>(
     services => services.GetRequiredService<QueryPlannerRegistry>());

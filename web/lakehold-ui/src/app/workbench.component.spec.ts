@@ -225,6 +225,41 @@ describe('WorkbenchComponent', () => {
       .toContain('SELECT');
   });
 
+  it('keeps an unhealthy planner in the selector and says why it cannot run', async () => {
+    // The API reports a configured planner that failed discovery instead of omitting it: omitting
+    // it is indistinguishable from never having installed the language.
+    api.queryLanguages.push({
+      id: 'csharp-linq',
+      displayName: 'C# LINQ',
+      editorLanguage: 'csharp',
+      starterSource: 'from row in Main.Events select row',
+      readOnly: true,
+      supportsSavedQueries: true,
+      available: false,
+      unavailableReason: 'The planner did not answer within the 1s discovery deadline.',
+    });
+    await mount();
+
+    const language = fixture.nativeElement.querySelector('.language-picker select') as HTMLSelectElement;
+    const option = [...language.options].find((candidate) => candidate.value === 'csharp-linq')!;
+    expect(option.textContent).toBe('C# LINQ (unavailable)');
+    expect(option.title).toBe('The planner did not answer within the 1s discovery deadline.');
+
+    language.value = 'csharp-linq';
+    language.dispatchEvent(new Event('change'));
+    await fixture.whenStable();
+
+    expect(text()).toContain(
+      'Planner unavailable — The planner did not answer within the 1s discovery deadline.',
+    );
+    const run = fixture.nativeElement.querySelector('.editor-toolbar .btn-primary') as HTMLButtonElement;
+    expect(run.disabled).toBe(true);
+    run.click();
+    expect(api.countOf('execute')).toBe(0);
+    // Nothing was asked of the planner that is down.
+    expect(api.countOf('getQueryStarter')).toBe(0);
+  });
+
   it('preserves source for an unavailable language without executing or resaving it as SQL', async () => {
     await mount();
 

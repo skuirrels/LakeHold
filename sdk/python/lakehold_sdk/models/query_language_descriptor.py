@@ -18,7 +18,7 @@ import re  # noqa: F401
 import json
 
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictStr
-from typing import Any, ClassVar, Dict, List
+from typing import Any, ClassVar, Dict, List, Optional
 from typing import Optional, Set
 from typing_extensions import Self
 
@@ -32,7 +32,9 @@ class QueryLanguageDescriptor(BaseModel):
     starter_source: StrictStr = Field(alias="starterSource")
     read_only: StrictBool = Field(alias="readOnly")
     supports_saved_queries: StrictBool = Field(alias="supportsSavedQueries")
-    __properties: ClassVar[List[str]] = ["id", "displayName", "editorLanguage", "starterSource", "readOnly", "supportsSavedQueries"]
+    available: Optional[StrictBool] = True
+    unavailable_reason: Optional[StrictStr] = Field(default=None, alias="unavailableReason")
+    __properties: ClassVar[List[str]] = ["id", "displayName", "editorLanguage", "starterSource", "readOnly", "supportsSavedQueries", "available", "unavailableReason"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -72,6 +74,11 @@ class QueryLanguageDescriptor(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
+        # set to None if unavailable_reason (nullable) is None
+        # and model_fields_set contains the field
+        if self.unavailable_reason is None and "unavailable_reason" in self.model_fields_set:
+            _dict['unavailableReason'] = None
+
         return _dict
 
     @classmethod
@@ -89,7 +96,9 @@ class QueryLanguageDescriptor(BaseModel):
             "editorLanguage": obj.get("editorLanguage"),
             "starterSource": obj.get("starterSource"),
             "readOnly": obj.get("readOnly"),
-            "supportsSavedQueries": obj.get("supportsSavedQueries")
+            "supportsSavedQueries": obj.get("supportsSavedQueries"),
+            "available": obj.get("available") if obj.get("available") is not None else True,
+            "unavailableReason": obj.get("unavailableReason")
         })
         return _obj
 

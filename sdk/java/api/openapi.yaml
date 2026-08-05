@@ -18434,7 +18434,9 @@ components:
     QueryLanguageDescriptor:
       example:
         starterSource: starterSource
+        unavailableReason: unavailableReason
         displayName: displayName
+        available: true
         supportsSavedQueries: true
         readOnly: true
         id: id
@@ -18452,6 +18454,12 @@ components:
           type: boolean
         supportsSavedQueries:
           type: boolean
+        available:
+          default: true
+          type: boolean
+        unavailableReason:
+          nullable: true
+          type: string
       required:
       - displayName
       - editorLanguage
