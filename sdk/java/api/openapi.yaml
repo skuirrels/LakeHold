@@ -19565,9 +19565,6 @@ components:
         status:
           nullable: true
           type: string
-      required:
-      - role
-      - status
   securitySchemes:
     bearerAuth:
       bearerFormat: LakeHold API token

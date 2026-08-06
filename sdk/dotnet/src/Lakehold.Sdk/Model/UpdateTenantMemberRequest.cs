@@ -36,26 +36,40 @@ namespace Lakehold.Sdk.Model
         /// <param name="role">role</param>
         /// <param name="status">status</param>
         [JsonConstructor]
-        public UpdateTenantMemberRequest(string? role = default, string? status = default)
+        public UpdateTenantMemberRequest(Option<string?> role = default, Option<string?> status = default)
         {
-            Role = role;
-            Status = status;
+            RoleOption = role;
+            StatusOption = status;
             OnCreated();
         }
 
         partial void OnCreated();
 
         /// <summary>
+        /// Used to track the state of Role
+        /// </summary>
+        [JsonIgnore]
+        [global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]
+        public Option<string?> RoleOption { get; private set; }
+
+        /// <summary>
         /// Gets or Sets Role
         /// </summary>
         [JsonPropertyName("role")]
-        public string? Role { get; set; }
+        public string? Role { get { return this.RoleOption; } set { this.RoleOption = new(value); } }
+
+        /// <summary>
+        /// Used to track the state of Status
+        /// </summary>
+        [JsonIgnore]
+        [global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]
+        public Option<string?> StatusOption { get; private set; }
 
         /// <summary>
         /// Gets or Sets Status
         /// </summary>
         [JsonPropertyName("status")]
-        public string? Status { get; set; }
+        public string? Status { get { return this.StatusOption; } set { this.StatusOption = new(value); } }
 
         /// <summary>
         /// Returns the string presentation of the object
@@ -134,13 +148,7 @@ namespace Lakehold.Sdk.Model
                 }
             }
 
-            if (!role.IsSet)
-                throw new ArgumentException("Property is required for class UpdateTenantMemberRequest.", nameof(role));
-
-            if (!status.IsSet)
-                throw new ArgumentException("Property is required for class UpdateTenantMemberRequest.", nameof(status));
-
-            return new UpdateTenantMemberRequest(role.Value!, status.Value!);
+            return new UpdateTenantMemberRequest(role, status);
         }
 
         /// <summary>
@@ -165,15 +173,17 @@ namespace Lakehold.Sdk.Model
         /// <param name="jsonSerializerOptions"></param>
         public void WriteProperties(Utf8JsonWriter writer, UpdateTenantMemberRequest updateTenantMemberRequest, JsonSerializerOptions jsonSerializerOptions)
         {
-            if (updateTenantMemberRequest.Role != null)
-                writer.WriteString("role", updateTenantMemberRequest.Role);
-            else
-                writer.WriteNull("role");
+            if (updateTenantMemberRequest.RoleOption.IsSet)
+                if (updateTenantMemberRequest.RoleOption.Value != null)
+                    writer.WriteString("role", updateTenantMemberRequest.Role);
+                else
+                    writer.WriteNull("role");
 
-            if (updateTenantMemberRequest.Status != null)
-                writer.WriteString("status", updateTenantMemberRequest.Status);
-            else
-                writer.WriteNull("status");
+            if (updateTenantMemberRequest.StatusOption.IsSet)
+                if (updateTenantMemberRequest.StatusOption.Value != null)
+                    writer.WriteString("status", updateTenantMemberRequest.Status);
+                else
+                    writer.WriteNull("status");
         }
     }
 }

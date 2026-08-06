@@ -524,7 +524,12 @@ public sealed record TenantMemberDto(
     DateTimeOffset? LastSeenUtc);
 
 /// <summary>Changes what a membership grants. Absent fields are left as they are.</summary>
-public sealed record UpdateTenantMemberRequest(string? Role, string? Status);
+/// <remarks>
+///     Both parameters carry defaults so the exported contract marks them optional. A positional
+///     record parameter without one is emitted as <c>required</c>, which would oblige a caller
+///     changing only a role to send an explicit null status.
+/// </remarks>
+public sealed record UpdateTenantMemberRequest(string? Role = null, string? Status = null);
 
 /// <summary>A catalog, as returned by the API.</summary>
 /// <remarks>
