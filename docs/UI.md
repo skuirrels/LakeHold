@@ -37,6 +37,11 @@ choose its role and expiry, and copy the plaintext once. Existing client credent
 and revoked from the same card. Membership and tokens sat under System Settings until the two were
 separated; one page meant an owner opened a surface whose first card their credential is refused.
 
+The **page** owns the workspace list and the selection; its two cards take both as inputs. Each card
+used to load and choose for itself, which meant they could disagree — the member list showing one
+workspace while the token form minted a credential for another, under a heading that named neither —
+and it cost two identical `listTenants` requests to render one page.
+
 Whether People is offered is **not** derived in the browser from the role. `/access` carries a
 `tenantAdmin` flag that the API computes from `CapabilityPolicy` against the caller's own workspace, and
 the rail reads that. An owner token that is read-only or narrowed to one catalog is least privilege by

@@ -13,21 +13,7 @@
 
   @if (loading()) {
     <p class="muted">Loading…</p>
-  } @else if (tenants().length === 0) {
-    <p class="muted">
-      There are no workspaces yet. Create one first; people are admitted to a workspace, not to the
-      instance.
-    </p>
   } @else {
-    <label class="field">
-      <span>Workspace</span>
-      <select name="tenant" [value]="tenantSlug()" (change)="selectTenant($any($event.target).value)">
-        @for (tenant of tenants(); track tenant.slug) {
-          <option [value]="tenant.slug">{{ tenant.displayName }} ({{ tenant.slug }})</option>
-        }
-      </select>
-    </label>
-
     @if (pending().length > 0) {
       <p class="waiting" role="status">
         <strong>{{ pending().length }} waiting for a decision.</strong>
