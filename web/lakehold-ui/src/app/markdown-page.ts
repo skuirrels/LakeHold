@@ -227,10 +227,28 @@ export abstract class MarkdownPage {
     const target = host.querySelector(`#${CSS.escape(id)}`);
     if (target) {
       const top =
-        host.scrollTop + target.getBoundingClientRect().top - host.getBoundingClientRect().top - 16;
+        host.scrollTop +
+        target.getBoundingClientRect().top -
+        host.getBoundingClientRect().top -
+        16 -
+        this.stickyHeaderHeight();
       host.scrollTo({ top, behavior: 'auto' });
     }
     this.activeId.set(id);
+  }
+
+  /**
+   * How much of the scroll port the site header covers, so a jumped-to heading lands below the bar
+   * instead of behind it. Measured rather than read from `--site-header-height`, because the header
+   * stops being sticky at a narrow width and can wrap to a second row; both change the answer, and a
+   * heading hidden under the bar reads as a link that went to the wrong place.
+   */
+  private stickyHeaderHeight(): number {
+    const header = this.host.nativeElement.querySelector<HTMLElement>('.nav');
+    if (!header || getComputedStyle(header).position !== 'sticky') {
+      return 0;
+    }
+    return header.offsetHeight;
   }
 
   /**

@@ -17,7 +17,7 @@ import content from './provider.content.md';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [BrandMarkComponent, RouterLink],
   templateUrl: './provider-docs.component.html',
-  styleUrls: ['./markdown-page.css', './provider-docs.component.css'],
+  styleUrls: ['./markdown-page.css', './site-header.css', './provider-docs.component.css'],
 })
 export class ProviderDocsComponent extends MarkdownPage {
   constructor() {

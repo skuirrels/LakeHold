@@ -8,8 +8,13 @@ import { BrandMarkComponent } from './brand-mark.component';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [BrandMarkComponent, RouterLink],
   template: `
-    <div class="landing">
-      <header class="nav">
+    <!--
+      The header sits outside \`.landing\` so the sticky bar's surface reaches the viewport edges.
+      Inside the padded, max-width column it would have stopped short of them and read as a floating
+      panel rather than page chrome; \`.nav-inner\` re-applies that column to the links themselves.
+    -->
+    <header class="nav">
+      <div class="nav-inner">
         <div class="brand">
           <lh-brand-mark class="mark" />
           LakeHold
@@ -42,8 +47,10 @@ import { BrandMarkComponent } from './brand-mark.component';
           </a>
           <a class="btn btn-primary nav-workbench" routerLink="/workbench">Open workbench →</a>
         </nav>
-      </header>
+      </div>
+    </header>
 
+    <div class="landing">
       <section class="hero">
         <span class="eyebrow">Open-source lakehouse · DuckDB + DuckLake · .NET</span>
         <!--
@@ -218,7 +225,7 @@ import { BrandMarkComponent } from './brand-mark.component';
       </footer>
     </div>
   `,
-  styleUrl: './landing.component.css',
+  styleUrls: ['./site-header.css', './landing.component.css'],
 })
 export class LandingComponent {
   protected readonly edpCapabilities = [
