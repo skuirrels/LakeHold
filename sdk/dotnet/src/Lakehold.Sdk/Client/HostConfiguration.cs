@@ -124,10 +124,12 @@ namespace Lakehold.Sdk.Client
             _jsonOptions.Converters.Add(new TabularImportDtoJsonConverter());
             _jsonOptions.Converters.Add(new TabularImportedColumnDtoJsonConverter());
             _jsonOptions.Converters.Add(new TenantDtoJsonConverter());
+            _jsonOptions.Converters.Add(new TenantMemberDtoJsonConverter());
             _jsonOptions.Converters.Add(new UpdateDataConnectorRequestJsonConverter());
             _jsonOptions.Converters.Add(new UpdateSavedQueryRequestJsonConverter());
             _jsonOptions.Converters.Add(new UpdateSubscriptionRequestJsonConverter());
             _jsonOptions.Converters.Add(new UpdateSystemSettingsRequestJsonConverter());
+            _jsonOptions.Converters.Add(new UpdateTenantMemberRequestJsonConverter());
             JsonSerializerOptionsProvider jsonSerializerOptionsProvider = new(_jsonOptions);
             _services.AddSingleton(jsonSerializerOptionsProvider);
             _services.AddSingleton<IApiFactory, ApiFactory>();

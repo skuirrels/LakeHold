@@ -112,10 +112,12 @@ __all__ = [
     "TabularImportDto",
     "TabularImportedColumnDto",
     "TenantDto",
+    "TenantMemberDto",
     "UpdateDataConnectorRequest",
     "UpdateSavedQueryRequest",
     "UpdateSubscriptionRequest",
     "UpdateSystemSettingsRequest",
+    "UpdateTenantMemberRequest",
 ]
 
 # import apis into sdk package
@@ -217,7 +219,9 @@ from lakehold_sdk.models.table_storage_dto import TableStorageDto as TableStorag
 from lakehold_sdk.models.tabular_import_dto import TabularImportDto as TabularImportDto
 from lakehold_sdk.models.tabular_imported_column_dto import TabularImportedColumnDto as TabularImportedColumnDto
 from lakehold_sdk.models.tenant_dto import TenantDto as TenantDto
+from lakehold_sdk.models.tenant_member_dto import TenantMemberDto as TenantMemberDto
 from lakehold_sdk.models.update_data_connector_request import UpdateDataConnectorRequest as UpdateDataConnectorRequest
 from lakehold_sdk.models.update_saved_query_request import UpdateSavedQueryRequest as UpdateSavedQueryRequest
 from lakehold_sdk.models.update_subscription_request import UpdateSubscriptionRequest as UpdateSubscriptionRequest
 from lakehold_sdk.models.update_system_settings_request import UpdateSystemSettingsRequest as UpdateSystemSettingsRequest
+from lakehold_sdk.models.update_tenant_member_request import UpdateTenantMemberRequest as UpdateTenantMemberRequest

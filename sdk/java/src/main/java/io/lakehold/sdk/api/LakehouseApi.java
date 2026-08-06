@@ -79,9 +79,11 @@ import io.lakehold.sdk.model.TableProfileDto;
 import io.lakehold.sdk.model.TableRestoreDto;
 import io.lakehold.sdk.model.TabularImportDto;
 import io.lakehold.sdk.model.TenantDto;
+import io.lakehold.sdk.model.TenantMemberDto;
 import io.lakehold.sdk.model.UpdateDataConnectorRequest;
 import io.lakehold.sdk.model.UpdateSavedQueryRequest;
 import io.lakehold.sdk.model.UpdateSubscriptionRequest;
+import io.lakehold.sdk.model.UpdateTenantMemberRequest;
 
 import java.lang.reflect.Type;
 import java.util.ArrayList;
@@ -1572,6 +1574,240 @@ public class LakehouseApi {
      */
     public APIdeleteApiV1TenantsTenantSlugCatalogsCatalogNameSubscriptionsIdIntRequest deleteApiV1TenantsTenantSlugCatalogsCatalogNameSubscriptionsIdInt(@jakarta.annotation.Nonnull String tenantSlug, @jakarta.annotation.Nonnull String catalogName, @jakarta.annotation.Nonnull Integer id) {
         return new APIdeleteApiV1TenantsTenantSlugCatalogsCatalogNameSubscriptionsIdIntRequest(tenantSlug, catalogName, id);
+    }
+    private okhttp3.Call deleteApiV1TenantsTenantSlugMembersIdIntCall(@jakarta.annotation.Nonnull String tenantSlug, @jakarta.annotation.Nonnull Integer id, final ApiCallback _callback) throws ApiException {
+        String basePath = null;
+        // Operation Servers
+        String[] localBasePaths = new String[] {  };
+
+        // Determine Base Path to Use
+        if (localCustomBaseUrl != null){
+            basePath = localCustomBaseUrl;
+        } else if ( localBasePaths.length > 0 ) {
+            basePath = localBasePaths[localHostIndex];
+        } else {
+            basePath = null;
+        }
+
+        Object localVarPostBody = null;
+
+        // create path and map variables
+        String localVarPath = "/api/v1/tenants/{tenantSlug}/members/{id}"
+            .replace("{" + "tenantSlug" + "}", localVarApiClient.escapeString(tenantSlug.toString()))
+            .replace("{" + "id" + "}", localVarApiClient.escapeString(id.toString()));
+
+        List<Pair> localVarQueryParams = new ArrayList<Pair>();
+        List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
+        Map<String, String> localVarHeaderParams = new HashMap<String, String>();
+        Map<String, String> localVarCookieParams = new HashMap<String, String>();
+        Map<String, Object> localVarFormParams = new HashMap<String, Object>();
+
+        final String[] localVarAccepts = {
+            "application/problem+json"
+        };
+        final String localVarAccept = localVarApiClient.selectHeaderAccept(localVarAccepts);
+        if (localVarAccept != null) {
+            localVarHeaderParams.put("Accept", localVarAccept);
+        }
+
+        final String[] localVarContentTypes = {
+        };
+        final String localVarContentType = localVarApiClient.selectHeaderContentType(localVarContentTypes);
+        if (localVarContentType != null) {
+            localVarHeaderParams.put("Content-Type", localVarContentType);
+        }
+
+        String[] localVarAuthNames = new String[] { "bearerAuth" };
+        return localVarApiClient.buildCall(basePath, localVarPath, "DELETE", localVarQueryParams, localVarCollectionQueryParams, localVarPostBody, localVarHeaderParams, localVarCookieParams, localVarFormParams, localVarAuthNames, _callback);
+    }
+
+    @SuppressWarnings("rawtypes")
+    private okhttp3.Call deleteApiV1TenantsTenantSlugMembersIdIntValidateBeforeCall(@jakarta.annotation.Nonnull String tenantSlug, @jakarta.annotation.Nonnull Integer id, final ApiCallback _callback) throws ApiException {
+        // verify the required parameter 'tenantSlug' is set
+        if (tenantSlug == null) {
+            throw new ApiException("Missing the required parameter 'tenantSlug' when calling deleteApiV1TenantsTenantSlugMembersIdInt(Async)");
+        }
+
+        // verify the required parameter 'id' is set
+        if (id == null) {
+            throw new ApiException("Missing the required parameter 'id' when calling deleteApiV1TenantsTenantSlugMembersIdInt(Async)");
+        }
+
+        return deleteApiV1TenantsTenantSlugMembersIdIntCall(tenantSlug, id, _callback);
+
+    }
+
+
+    private ApiResponse<Void> deleteApiV1TenantsTenantSlugMembersIdIntWithHttpInfo(@jakarta.annotation.Nonnull String tenantSlug, @jakarta.annotation.Nonnull Integer id) throws ApiException {
+        okhttp3.Call localVarCall = deleteApiV1TenantsTenantSlugMembersIdIntValidateBeforeCall(tenantSlug, id, null);
+        return localVarApiClient.execute(localVarCall);
+    }
+
+    private okhttp3.Call deleteApiV1TenantsTenantSlugMembersIdIntAsync(@jakarta.annotation.Nonnull String tenantSlug, @jakarta.annotation.Nonnull Integer id, final ApiCallback<Void> _callback) throws ApiException {
+
+        okhttp3.Call localVarCall = deleteApiV1TenantsTenantSlugMembersIdIntValidateBeforeCall(tenantSlug, id, _callback);
+        localVarApiClient.executeAsync(localVarCall, _callback);
+        return localVarCall;
+    }
+
+    public class APIdeleteApiV1TenantsTenantSlugMembersIdIntRequest {
+        @jakarta.annotation.Nonnull
+        private final String tenantSlug;
+        @jakarta.annotation.Nonnull
+        private final Integer id;
+
+        private APIdeleteApiV1TenantsTenantSlugMembersIdIntRequest(@jakarta.annotation.Nonnull String tenantSlug, @jakarta.annotation.Nonnull Integer id) {
+            this.tenantSlug = tenantSlug;
+            this.id = id;
+        }
+
+        /**
+         * Build call for deleteApiV1TenantsTenantSlugMembersIdInt
+         * @param _callback ApiCallback API callback
+         * @return Call to execute
+         * @throws ApiException If fail to serialize the request body object
+         * @http.response.details
+         <table border="1">
+       <caption>Response Details</caption>
+            <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+            <tr><td> 400 </td><td> Bad Request </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 401 </td><td> Unauthorized </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 403 </td><td> Forbidden </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 404 </td><td> Not Found </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 408 </td><td> Request Timeout </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 409 </td><td> Conflict </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 412 </td><td> Precondition Failed </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 413 </td><td> Payload Too Large </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 422 </td><td> Unprocessable Entity </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 429 </td><td> Too Many Requests </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 500 </td><td> Internal Server Error </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 502 </td><td> Bad Gateway </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 503 </td><td> Service Unavailable </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 504 </td><td> Gateway Timeout </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 204 </td><td> No Content </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+         </table>
+         */
+        public okhttp3.Call buildCall(final ApiCallback _callback) throws ApiException {
+            return deleteApiV1TenantsTenantSlugMembersIdIntCall(tenantSlug, id, _callback);
+        }
+
+        /**
+         * Execute deleteApiV1TenantsTenantSlugMembersIdInt request
+         * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+         * @http.response.details
+         <table border="1">
+       <caption>Response Details</caption>
+            <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+            <tr><td> 400 </td><td> Bad Request </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 401 </td><td> Unauthorized </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 403 </td><td> Forbidden </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 404 </td><td> Not Found </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 408 </td><td> Request Timeout </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 409 </td><td> Conflict </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 412 </td><td> Precondition Failed </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 413 </td><td> Payload Too Large </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 422 </td><td> Unprocessable Entity </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 429 </td><td> Too Many Requests </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 500 </td><td> Internal Server Error </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 502 </td><td> Bad Gateway </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 503 </td><td> Service Unavailable </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 504 </td><td> Gateway Timeout </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 204 </td><td> No Content </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+         </table>
+         */
+        public void execute() throws ApiException {
+            deleteApiV1TenantsTenantSlugMembersIdIntWithHttpInfo(tenantSlug, id);
+        }
+
+        /**
+         * Execute deleteApiV1TenantsTenantSlugMembersIdInt request with HTTP info returned
+         * @return ApiResponse&lt;Void&gt;
+         * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+         * @http.response.details
+         <table border="1">
+       <caption>Response Details</caption>
+            <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+            <tr><td> 400 </td><td> Bad Request </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 401 </td><td> Unauthorized </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 403 </td><td> Forbidden </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 404 </td><td> Not Found </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 408 </td><td> Request Timeout </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 409 </td><td> Conflict </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 412 </td><td> Precondition Failed </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 413 </td><td> Payload Too Large </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 422 </td><td> Unprocessable Entity </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 429 </td><td> Too Many Requests </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 500 </td><td> Internal Server Error </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 502 </td><td> Bad Gateway </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 503 </td><td> Service Unavailable </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 504 </td><td> Gateway Timeout </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 204 </td><td> No Content </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+         </table>
+         */
+        public ApiResponse<Void> executeWithHttpInfo() throws ApiException {
+            return deleteApiV1TenantsTenantSlugMembersIdIntWithHttpInfo(tenantSlug, id);
+        }
+
+        /**
+         * Execute deleteApiV1TenantsTenantSlugMembersIdInt request (asynchronously)
+         * @param _callback The callback to be executed when the API call finishes
+         * @return The request call
+         * @throws ApiException If fail to process the API call, e.g. serializing the request body object
+         * @http.response.details
+         <table border="1">
+       <caption>Response Details</caption>
+            <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+            <tr><td> 400 </td><td> Bad Request </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 401 </td><td> Unauthorized </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 403 </td><td> Forbidden </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 404 </td><td> Not Found </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 408 </td><td> Request Timeout </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 409 </td><td> Conflict </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 412 </td><td> Precondition Failed </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 413 </td><td> Payload Too Large </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 422 </td><td> Unprocessable Entity </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 429 </td><td> Too Many Requests </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 500 </td><td> Internal Server Error </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 502 </td><td> Bad Gateway </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 503 </td><td> Service Unavailable </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 504 </td><td> Gateway Timeout </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 204 </td><td> No Content </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+         </table>
+         */
+        public okhttp3.Call executeAsync(final ApiCallback<Void> _callback) throws ApiException {
+            return deleteApiV1TenantsTenantSlugMembersIdIntAsync(tenantSlug, id, _callback);
+        }
+    }
+
+    /**
+     * Removes a membership entirely; the person may return as a new arrival.
+     *
+     * @param tenantSlug  (required)
+     * @param id  (required)
+     * @return APIdeleteApiV1TenantsTenantSlugMembersIdIntRequest
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+        <tr><td> 401 </td><td> Unauthorized </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+        <tr><td> 403 </td><td> Forbidden </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+        <tr><td> 404 </td><td> Not Found </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+        <tr><td> 408 </td><td> Request Timeout </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+        <tr><td> 409 </td><td> Conflict </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+        <tr><td> 412 </td><td> Precondition Failed </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+        <tr><td> 413 </td><td> Payload Too Large </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+        <tr><td> 422 </td><td> Unprocessable Entity </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+        <tr><td> 429 </td><td> Too Many Requests </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+        <tr><td> 500 </td><td> Internal Server Error </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+        <tr><td> 502 </td><td> Bad Gateway </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+        <tr><td> 503 </td><td> Service Unavailable </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+        <tr><td> 504 </td><td> Gateway Timeout </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+        <tr><td> 204 </td><td> No Content </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+     </table>
+     */
+    public APIdeleteApiV1TenantsTenantSlugMembersIdIntRequest deleteApiV1TenantsTenantSlugMembersIdInt(@jakarta.annotation.Nonnull String tenantSlug, @jakarta.annotation.Nonnull Integer id) {
+        return new APIdeleteApiV1TenantsTenantSlugMembersIdIntRequest(tenantSlug, id);
     }
     private okhttp3.Call deleteApiV1TenantsTenantSlugTokensIdIntCall(@jakarta.annotation.Nonnull String tenantSlug, @jakarta.annotation.Nonnull Integer id, final ApiCallback _callback) throws ApiException {
         String basePath = null;
@@ -8528,6 +8764,235 @@ public class LakehouseApi {
     public APIgetApiV1TenantsTenantSlugHistoryRequest getApiV1TenantsTenantSlugHistory(@jakarta.annotation.Nonnull String tenantSlug) {
         return new APIgetApiV1TenantsTenantSlugHistoryRequest(tenantSlug);
     }
+    private okhttp3.Call getApiV1TenantsTenantSlugMembersCall(@jakarta.annotation.Nonnull String tenantSlug, final ApiCallback _callback) throws ApiException {
+        String basePath = null;
+        // Operation Servers
+        String[] localBasePaths = new String[] {  };
+
+        // Determine Base Path to Use
+        if (localCustomBaseUrl != null){
+            basePath = localCustomBaseUrl;
+        } else if ( localBasePaths.length > 0 ) {
+            basePath = localBasePaths[localHostIndex];
+        } else {
+            basePath = null;
+        }
+
+        Object localVarPostBody = null;
+
+        // create path and map variables
+        String localVarPath = "/api/v1/tenants/{tenantSlug}/members"
+            .replace("{" + "tenantSlug" + "}", localVarApiClient.escapeString(tenantSlug.toString()));
+
+        List<Pair> localVarQueryParams = new ArrayList<Pair>();
+        List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
+        Map<String, String> localVarHeaderParams = new HashMap<String, String>();
+        Map<String, String> localVarCookieParams = new HashMap<String, String>();
+        Map<String, Object> localVarFormParams = new HashMap<String, Object>();
+
+        final String[] localVarAccepts = {
+            "application/problem+json",
+            "application/json"
+        };
+        final String localVarAccept = localVarApiClient.selectHeaderAccept(localVarAccepts);
+        if (localVarAccept != null) {
+            localVarHeaderParams.put("Accept", localVarAccept);
+        }
+
+        final String[] localVarContentTypes = {
+        };
+        final String localVarContentType = localVarApiClient.selectHeaderContentType(localVarContentTypes);
+        if (localVarContentType != null) {
+            localVarHeaderParams.put("Content-Type", localVarContentType);
+        }
+
+        String[] localVarAuthNames = new String[] { "bearerAuth" };
+        return localVarApiClient.buildCall(basePath, localVarPath, "GET", localVarQueryParams, localVarCollectionQueryParams, localVarPostBody, localVarHeaderParams, localVarCookieParams, localVarFormParams, localVarAuthNames, _callback);
+    }
+
+    @SuppressWarnings("rawtypes")
+    private okhttp3.Call getApiV1TenantsTenantSlugMembersValidateBeforeCall(@jakarta.annotation.Nonnull String tenantSlug, final ApiCallback _callback) throws ApiException {
+        // verify the required parameter 'tenantSlug' is set
+        if (tenantSlug == null) {
+            throw new ApiException("Missing the required parameter 'tenantSlug' when calling getApiV1TenantsTenantSlugMembers(Async)");
+        }
+
+        return getApiV1TenantsTenantSlugMembersCall(tenantSlug, _callback);
+
+    }
+
+
+    private ApiResponse<List<TenantMemberDto>> getApiV1TenantsTenantSlugMembersWithHttpInfo(@jakarta.annotation.Nonnull String tenantSlug) throws ApiException {
+        okhttp3.Call localVarCall = getApiV1TenantsTenantSlugMembersValidateBeforeCall(tenantSlug, null);
+        Type localVarReturnType = new TypeToken<List<TenantMemberDto>>(){}.getType();
+        return localVarApiClient.execute(localVarCall, localVarReturnType);
+    }
+
+    private okhttp3.Call getApiV1TenantsTenantSlugMembersAsync(@jakarta.annotation.Nonnull String tenantSlug, final ApiCallback<List<TenantMemberDto>> _callback) throws ApiException {
+
+        okhttp3.Call localVarCall = getApiV1TenantsTenantSlugMembersValidateBeforeCall(tenantSlug, _callback);
+        Type localVarReturnType = new TypeToken<List<TenantMemberDto>>(){}.getType();
+        localVarApiClient.executeAsync(localVarCall, localVarReturnType, _callback);
+        return localVarCall;
+    }
+
+    public class APIgetApiV1TenantsTenantSlugMembersRequest {
+        @jakarta.annotation.Nonnull
+        private final String tenantSlug;
+
+        private APIgetApiV1TenantsTenantSlugMembersRequest(@jakarta.annotation.Nonnull String tenantSlug) {
+            this.tenantSlug = tenantSlug;
+        }
+
+        /**
+         * Build call for getApiV1TenantsTenantSlugMembers
+         * @param _callback ApiCallback API callback
+         * @return Call to execute
+         * @throws ApiException If fail to serialize the request body object
+         * @http.response.details
+         <table border="1">
+       <caption>Response Details</caption>
+            <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+            <tr><td> 400 </td><td> Bad Request </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 401 </td><td> Unauthorized </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 403 </td><td> Forbidden </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 404 </td><td> Not Found </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 408 </td><td> Request Timeout </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 409 </td><td> Conflict </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 412 </td><td> Precondition Failed </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 413 </td><td> Payload Too Large </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 422 </td><td> Unprocessable Entity </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 429 </td><td> Too Many Requests </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 500 </td><td> Internal Server Error </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 502 </td><td> Bad Gateway </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 503 </td><td> Service Unavailable </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 504 </td><td> Gateway Timeout </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 200 </td><td> OK </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+         </table>
+         */
+        public okhttp3.Call buildCall(final ApiCallback _callback) throws ApiException {
+            return getApiV1TenantsTenantSlugMembersCall(tenantSlug, _callback);
+        }
+
+        /**
+         * Execute getApiV1TenantsTenantSlugMembers request
+         * @return List&lt;TenantMemberDto&gt;
+         * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+         * @http.response.details
+         <table border="1">
+       <caption>Response Details</caption>
+            <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+            <tr><td> 400 </td><td> Bad Request </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 401 </td><td> Unauthorized </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 403 </td><td> Forbidden </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 404 </td><td> Not Found </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 408 </td><td> Request Timeout </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 409 </td><td> Conflict </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 412 </td><td> Precondition Failed </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 413 </td><td> Payload Too Large </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 422 </td><td> Unprocessable Entity </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 429 </td><td> Too Many Requests </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 500 </td><td> Internal Server Error </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 502 </td><td> Bad Gateway </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 503 </td><td> Service Unavailable </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 504 </td><td> Gateway Timeout </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 200 </td><td> OK </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+         </table>
+         */
+        public List<TenantMemberDto> execute() throws ApiException {
+            ApiResponse<List<TenantMemberDto>> localVarResp = getApiV1TenantsTenantSlugMembersWithHttpInfo(tenantSlug);
+            return localVarResp.getData();
+        }
+
+        /**
+         * Execute getApiV1TenantsTenantSlugMembers request with HTTP info returned
+         * @return ApiResponse&lt;List&lt;TenantMemberDto&gt;&gt;
+         * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+         * @http.response.details
+         <table border="1">
+       <caption>Response Details</caption>
+            <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+            <tr><td> 400 </td><td> Bad Request </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 401 </td><td> Unauthorized </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 403 </td><td> Forbidden </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 404 </td><td> Not Found </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 408 </td><td> Request Timeout </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 409 </td><td> Conflict </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 412 </td><td> Precondition Failed </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 413 </td><td> Payload Too Large </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 422 </td><td> Unprocessable Entity </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 429 </td><td> Too Many Requests </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 500 </td><td> Internal Server Error </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 502 </td><td> Bad Gateway </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 503 </td><td> Service Unavailable </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 504 </td><td> Gateway Timeout </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 200 </td><td> OK </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+         </table>
+         */
+        public ApiResponse<List<TenantMemberDto>> executeWithHttpInfo() throws ApiException {
+            return getApiV1TenantsTenantSlugMembersWithHttpInfo(tenantSlug);
+        }
+
+        /**
+         * Execute getApiV1TenantsTenantSlugMembers request (asynchronously)
+         * @param _callback The callback to be executed when the API call finishes
+         * @return The request call
+         * @throws ApiException If fail to process the API call, e.g. serializing the request body object
+         * @http.response.details
+         <table border="1">
+       <caption>Response Details</caption>
+            <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+            <tr><td> 400 </td><td> Bad Request </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 401 </td><td> Unauthorized </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 403 </td><td> Forbidden </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 404 </td><td> Not Found </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 408 </td><td> Request Timeout </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 409 </td><td> Conflict </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 412 </td><td> Precondition Failed </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 413 </td><td> Payload Too Large </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 422 </td><td> Unprocessable Entity </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 429 </td><td> Too Many Requests </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 500 </td><td> Internal Server Error </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 502 </td><td> Bad Gateway </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 503 </td><td> Service Unavailable </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 504 </td><td> Gateway Timeout </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 200 </td><td> OK </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+         </table>
+         */
+        public okhttp3.Call executeAsync(final ApiCallback<List<TenantMemberDto>> _callback) throws ApiException {
+            return getApiV1TenantsTenantSlugMembersAsync(tenantSlug, _callback);
+        }
+    }
+
+    /**
+     * Lists the people who may reach this workspace, including those awaiting approval.
+     *
+     * @param tenantSlug  (required)
+     * @return APIgetApiV1TenantsTenantSlugMembersRequest
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+        <tr><td> 401 </td><td> Unauthorized </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+        <tr><td> 403 </td><td> Forbidden </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+        <tr><td> 404 </td><td> Not Found </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+        <tr><td> 408 </td><td> Request Timeout </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+        <tr><td> 409 </td><td> Conflict </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+        <tr><td> 412 </td><td> Precondition Failed </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+        <tr><td> 413 </td><td> Payload Too Large </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+        <tr><td> 422 </td><td> Unprocessable Entity </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+        <tr><td> 429 </td><td> Too Many Requests </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+        <tr><td> 500 </td><td> Internal Server Error </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+        <tr><td> 502 </td><td> Bad Gateway </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+        <tr><td> 503 </td><td> Service Unavailable </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+        <tr><td> 504 </td><td> Gateway Timeout </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+        <tr><td> 200 </td><td> OK </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+     </table>
+     */
+    public APIgetApiV1TenantsTenantSlugMembersRequest getApiV1TenantsTenantSlugMembers(@jakarta.annotation.Nonnull String tenantSlug) {
+        return new APIgetApiV1TenantsTenantSlugMembersRequest(tenantSlug);
+    }
     private okhttp3.Call getApiV1TenantsTenantSlugTokensCall(@jakarta.annotation.Nonnull String tenantSlug, @jakarta.annotation.Nullable Integer limit, @jakarta.annotation.Nullable String cursor, final ApiCallback _callback) throws ApiException {
         String basePath = null;
         // Operation Servers
@@ -9331,6 +9796,255 @@ public class LakehouseApi {
      */
     public APIgetSnapshotTableRequest getSnapshotTable(@jakarta.annotation.Nonnull String tenantSlug, @jakarta.annotation.Nonnull String catalogName, @jakarta.annotation.Nonnull Long snapshotId, @jakarta.annotation.Nonnull String table) {
         return new APIgetSnapshotTableRequest(tenantSlug, catalogName, snapshotId, table);
+    }
+    private okhttp3.Call patchApiV1TenantsTenantSlugMembersIdIntCall(@jakarta.annotation.Nonnull String tenantSlug, @jakarta.annotation.Nonnull Integer id, @jakarta.annotation.Nonnull UpdateTenantMemberRequest updateTenantMemberRequest, final ApiCallback _callback) throws ApiException {
+        String basePath = null;
+        // Operation Servers
+        String[] localBasePaths = new String[] {  };
+
+        // Determine Base Path to Use
+        if (localCustomBaseUrl != null){
+            basePath = localCustomBaseUrl;
+        } else if ( localBasePaths.length > 0 ) {
+            basePath = localBasePaths[localHostIndex];
+        } else {
+            basePath = null;
+        }
+
+        Object localVarPostBody = updateTenantMemberRequest;
+
+        // create path and map variables
+        String localVarPath = "/api/v1/tenants/{tenantSlug}/members/{id}"
+            .replace("{" + "tenantSlug" + "}", localVarApiClient.escapeString(tenantSlug.toString()))
+            .replace("{" + "id" + "}", localVarApiClient.escapeString(id.toString()));
+
+        List<Pair> localVarQueryParams = new ArrayList<Pair>();
+        List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
+        Map<String, String> localVarHeaderParams = new HashMap<String, String>();
+        Map<String, String> localVarCookieParams = new HashMap<String, String>();
+        Map<String, Object> localVarFormParams = new HashMap<String, Object>();
+
+        final String[] localVarAccepts = {
+            "application/problem+json",
+            "application/json"
+        };
+        final String localVarAccept = localVarApiClient.selectHeaderAccept(localVarAccepts);
+        if (localVarAccept != null) {
+            localVarHeaderParams.put("Accept", localVarAccept);
+        }
+
+        final String[] localVarContentTypes = {
+            "application/json"
+        };
+        final String localVarContentType = localVarApiClient.selectHeaderContentType(localVarContentTypes);
+        if (localVarContentType != null) {
+            localVarHeaderParams.put("Content-Type", localVarContentType);
+        }
+
+        String[] localVarAuthNames = new String[] { "bearerAuth" };
+        return localVarApiClient.buildCall(basePath, localVarPath, "PATCH", localVarQueryParams, localVarCollectionQueryParams, localVarPostBody, localVarHeaderParams, localVarCookieParams, localVarFormParams, localVarAuthNames, _callback);
+    }
+
+    @SuppressWarnings("rawtypes")
+    private okhttp3.Call patchApiV1TenantsTenantSlugMembersIdIntValidateBeforeCall(@jakarta.annotation.Nonnull String tenantSlug, @jakarta.annotation.Nonnull Integer id, @jakarta.annotation.Nonnull UpdateTenantMemberRequest updateTenantMemberRequest, final ApiCallback _callback) throws ApiException {
+        // verify the required parameter 'tenantSlug' is set
+        if (tenantSlug == null) {
+            throw new ApiException("Missing the required parameter 'tenantSlug' when calling patchApiV1TenantsTenantSlugMembersIdInt(Async)");
+        }
+
+        // verify the required parameter 'id' is set
+        if (id == null) {
+            throw new ApiException("Missing the required parameter 'id' when calling patchApiV1TenantsTenantSlugMembersIdInt(Async)");
+        }
+
+        // verify the required parameter 'updateTenantMemberRequest' is set
+        if (updateTenantMemberRequest == null) {
+            throw new ApiException("Missing the required parameter 'updateTenantMemberRequest' when calling patchApiV1TenantsTenantSlugMembersIdInt(Async)");
+        }
+
+        return patchApiV1TenantsTenantSlugMembersIdIntCall(tenantSlug, id, updateTenantMemberRequest, _callback);
+
+    }
+
+
+    private ApiResponse<TenantMemberDto> patchApiV1TenantsTenantSlugMembersIdIntWithHttpInfo(@jakarta.annotation.Nonnull String tenantSlug, @jakarta.annotation.Nonnull Integer id, @jakarta.annotation.Nonnull UpdateTenantMemberRequest updateTenantMemberRequest) throws ApiException {
+        okhttp3.Call localVarCall = patchApiV1TenantsTenantSlugMembersIdIntValidateBeforeCall(tenantSlug, id, updateTenantMemberRequest, null);
+        Type localVarReturnType = new TypeToken<TenantMemberDto>(){}.getType();
+        return localVarApiClient.execute(localVarCall, localVarReturnType);
+    }
+
+    private okhttp3.Call patchApiV1TenantsTenantSlugMembersIdIntAsync(@jakarta.annotation.Nonnull String tenantSlug, @jakarta.annotation.Nonnull Integer id, @jakarta.annotation.Nonnull UpdateTenantMemberRequest updateTenantMemberRequest, final ApiCallback<TenantMemberDto> _callback) throws ApiException {
+
+        okhttp3.Call localVarCall = patchApiV1TenantsTenantSlugMembersIdIntValidateBeforeCall(tenantSlug, id, updateTenantMemberRequest, _callback);
+        Type localVarReturnType = new TypeToken<TenantMemberDto>(){}.getType();
+        localVarApiClient.executeAsync(localVarCall, localVarReturnType, _callback);
+        return localVarCall;
+    }
+
+    public class APIpatchApiV1TenantsTenantSlugMembersIdIntRequest {
+        @jakarta.annotation.Nonnull
+        private final String tenantSlug;
+        @jakarta.annotation.Nonnull
+        private final Integer id;
+        @jakarta.annotation.Nonnull
+        private final UpdateTenantMemberRequest updateTenantMemberRequest;
+
+        private APIpatchApiV1TenantsTenantSlugMembersIdIntRequest(@jakarta.annotation.Nonnull String tenantSlug, @jakarta.annotation.Nonnull Integer id, @jakarta.annotation.Nonnull UpdateTenantMemberRequest updateTenantMemberRequest) {
+            this.tenantSlug = tenantSlug;
+            this.id = id;
+            this.updateTenantMemberRequest = updateTenantMemberRequest;
+        }
+
+        /**
+         * Build call for patchApiV1TenantsTenantSlugMembersIdInt
+         * @param _callback ApiCallback API callback
+         * @return Call to execute
+         * @throws ApiException If fail to serialize the request body object
+         * @http.response.details
+         <table border="1">
+       <caption>Response Details</caption>
+            <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+            <tr><td> 400 </td><td> Bad Request </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 401 </td><td> Unauthorized </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 403 </td><td> Forbidden </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 404 </td><td> Not Found </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 408 </td><td> Request Timeout </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 409 </td><td> Conflict </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 412 </td><td> Precondition Failed </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 413 </td><td> Payload Too Large </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 422 </td><td> Unprocessable Entity </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 429 </td><td> Too Many Requests </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 500 </td><td> Internal Server Error </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 502 </td><td> Bad Gateway </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 503 </td><td> Service Unavailable </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 504 </td><td> Gateway Timeout </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 200 </td><td> OK </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+         </table>
+         */
+        public okhttp3.Call buildCall(final ApiCallback _callback) throws ApiException {
+            return patchApiV1TenantsTenantSlugMembersIdIntCall(tenantSlug, id, updateTenantMemberRequest, _callback);
+        }
+
+        /**
+         * Execute patchApiV1TenantsTenantSlugMembersIdInt request
+         * @return TenantMemberDto
+         * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+         * @http.response.details
+         <table border="1">
+       <caption>Response Details</caption>
+            <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+            <tr><td> 400 </td><td> Bad Request </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 401 </td><td> Unauthorized </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 403 </td><td> Forbidden </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 404 </td><td> Not Found </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 408 </td><td> Request Timeout </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 409 </td><td> Conflict </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 412 </td><td> Precondition Failed </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 413 </td><td> Payload Too Large </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 422 </td><td> Unprocessable Entity </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 429 </td><td> Too Many Requests </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 500 </td><td> Internal Server Error </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 502 </td><td> Bad Gateway </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 503 </td><td> Service Unavailable </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 504 </td><td> Gateway Timeout </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 200 </td><td> OK </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+         </table>
+         */
+        public TenantMemberDto execute() throws ApiException {
+            ApiResponse<TenantMemberDto> localVarResp = patchApiV1TenantsTenantSlugMembersIdIntWithHttpInfo(tenantSlug, id, updateTenantMemberRequest);
+            return localVarResp.getData();
+        }
+
+        /**
+         * Execute patchApiV1TenantsTenantSlugMembersIdInt request with HTTP info returned
+         * @return ApiResponse&lt;TenantMemberDto&gt;
+         * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+         * @http.response.details
+         <table border="1">
+       <caption>Response Details</caption>
+            <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+            <tr><td> 400 </td><td> Bad Request </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 401 </td><td> Unauthorized </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 403 </td><td> Forbidden </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 404 </td><td> Not Found </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 408 </td><td> Request Timeout </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 409 </td><td> Conflict </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 412 </td><td> Precondition Failed </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 413 </td><td> Payload Too Large </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 422 </td><td> Unprocessable Entity </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 429 </td><td> Too Many Requests </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 500 </td><td> Internal Server Error </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 502 </td><td> Bad Gateway </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 503 </td><td> Service Unavailable </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 504 </td><td> Gateway Timeout </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 200 </td><td> OK </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+         </table>
+         */
+        public ApiResponse<TenantMemberDto> executeWithHttpInfo() throws ApiException {
+            return patchApiV1TenantsTenantSlugMembersIdIntWithHttpInfo(tenantSlug, id, updateTenantMemberRequest);
+        }
+
+        /**
+         * Execute patchApiV1TenantsTenantSlugMembersIdInt request (asynchronously)
+         * @param _callback The callback to be executed when the API call finishes
+         * @return The request call
+         * @throws ApiException If fail to process the API call, e.g. serializing the request body object
+         * @http.response.details
+         <table border="1">
+       <caption>Response Details</caption>
+            <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+            <tr><td> 400 </td><td> Bad Request </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 401 </td><td> Unauthorized </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 403 </td><td> Forbidden </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 404 </td><td> Not Found </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 408 </td><td> Request Timeout </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 409 </td><td> Conflict </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 412 </td><td> Precondition Failed </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 413 </td><td> Payload Too Large </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 422 </td><td> Unprocessable Entity </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 429 </td><td> Too Many Requests </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 500 </td><td> Internal Server Error </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 502 </td><td> Bad Gateway </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 503 </td><td> Service Unavailable </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 504 </td><td> Gateway Timeout </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 200 </td><td> OK </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+         </table>
+         */
+        public okhttp3.Call executeAsync(final ApiCallback<TenantMemberDto> _callback) throws ApiException {
+            return patchApiV1TenantsTenantSlugMembersIdIntAsync(tenantSlug, id, updateTenantMemberRequest, _callback);
+        }
+    }
+
+    /**
+     * Changes a member&#39;s role or status.
+     *
+     * @param tenantSlug  (required)
+     * @param id  (required)
+     * @param updateTenantMemberRequest  (required)
+     * @return APIpatchApiV1TenantsTenantSlugMembersIdIntRequest
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+        <tr><td> 401 </td><td> Unauthorized </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+        <tr><td> 403 </td><td> Forbidden </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+        <tr><td> 404 </td><td> Not Found </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+        <tr><td> 408 </td><td> Request Timeout </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+        <tr><td> 409 </td><td> Conflict </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+        <tr><td> 412 </td><td> Precondition Failed </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+        <tr><td> 413 </td><td> Payload Too Large </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+        <tr><td> 422 </td><td> Unprocessable Entity </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+        <tr><td> 429 </td><td> Too Many Requests </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+        <tr><td> 500 </td><td> Internal Server Error </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+        <tr><td> 502 </td><td> Bad Gateway </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+        <tr><td> 503 </td><td> Service Unavailable </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+        <tr><td> 504 </td><td> Gateway Timeout </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+        <tr><td> 200 </td><td> OK </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+     </table>
+     */
+    public APIpatchApiV1TenantsTenantSlugMembersIdIntRequest patchApiV1TenantsTenantSlugMembersIdInt(@jakarta.annotation.Nonnull String tenantSlug, @jakarta.annotation.Nonnull Integer id, @jakarta.annotation.Nonnull UpdateTenantMemberRequest updateTenantMemberRequest) {
+        return new APIpatchApiV1TenantsTenantSlugMembersIdIntRequest(tenantSlug, id, updateTenantMemberRequest);
     }
     private okhttp3.Call postApiV1TenantsCall(@jakarta.annotation.Nonnull CreateTenantRequest createTenantRequest, @jakarta.annotation.Nullable String idempotencyKey, final ApiCallback _callback) throws ApiException {
         String basePath = null;

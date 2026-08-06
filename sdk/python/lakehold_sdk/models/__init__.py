@@ -95,7 +95,9 @@ from lakehold_sdk.models.table_storage_dto import TableStorageDto
 from lakehold_sdk.models.tabular_import_dto import TabularImportDto
 from lakehold_sdk.models.tabular_imported_column_dto import TabularImportedColumnDto
 from lakehold_sdk.models.tenant_dto import TenantDto
+from lakehold_sdk.models.tenant_member_dto import TenantMemberDto
 from lakehold_sdk.models.update_data_connector_request import UpdateDataConnectorRequest
 from lakehold_sdk.models.update_saved_query_request import UpdateSavedQueryRequest
 from lakehold_sdk.models.update_subscription_request import UpdateSubscriptionRequest
 from lakehold_sdk.models.update_system_settings_request import UpdateSystemSettingsRequest
+from lakehold_sdk.models.update_tenant_member_request import UpdateTenantMemberRequest

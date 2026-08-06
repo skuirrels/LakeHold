@@ -7,6 +7,14 @@
 # The fast backend job needs no services. A separate integration job opts into PostgreSQL and MinIO
 # explicitly, so a green pull request means both the isolated suite and the real storage contracts
 # ran. Browser tests use the complete Compose stack and exercise the product through Chromium.
+#
+# The public API is checked by two jobs, kept apart on purpose. public-api-sdks needs no services
+# and proves the committed clients are reproducible from the committed contract. public-api-contract
+# starts PostgreSQL and the API to prove the committed contract still describes what is actually
+# served. Only the pair is a guarantee: without the second, an endpoint that never reached the
+# contract is invisible to the first, because clients generated from a stale contract are perfectly
+# reproducible. Folding them together would put a database on the critical path of the four-language
+# job for a check that runs in a fraction of its time.
 
 name: CI
 
@@ -146,6 +154,64 @@ jobs:
 
       - name: Compile Python example
         run: python -m py_compile sdk/examples/python/stream_query.py
+
+  public-api-contract:
+    name: Prove the contract still matches the running API
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Configure the control-plane database
+        run: cp .env.example .env
+
+      - name: Start PostgreSQL
+        # The control plane is modelled EF Core state on Npgsql, so the API cannot start without it.
+        # Nothing else is needed: a host run configures no OIDC authority and writes lakehouse state
+        # to a local .lakehold directory, so neither Keycloak nor MinIO is involved.
+        run: docker compose up -d postgres
+
+      - name: Build the API
+        run: dotnet build src/Lakehold.Api/Lakehold.Api.csproj
+
+      - name: Re-export the contract from the running API
+        # Serving and exporting share one step deliberately: a server backgrounded in an earlier
+        # step is at the mercy of the runner's process cleanup, and the failure that produces looks
+        # like a connection refused rather than a workflow bug.
+        run: |
+          set -euo pipefail
+          ASPNETCORE_URLS=http://127.0.0.1:5200 \
+            dotnet run --project src/Lakehold.Api --no-build >api.log 2>&1 &
+          api_pid=$!
+          trap 'kill "${api_pid}" 2>/dev/null || true' EXIT
+          timeout 180 bash -c \
+            'until curl -fsS http://127.0.0.1:5200/health >/dev/null 2>&1; do sleep 2; done'
+          ./scripts/export-openapi.sh
+
+      - name: Fail when the committed contract is stale
+        # This is the gate the SDK job cannot provide. That job proves the committed clients are
+        # reproducible *from the committed contract*; nothing there notices when the contract itself
+        # no longer describes what the API serves, so a new endpoint reaches neither. Exporting by
+        # hand is how that drift went unseen, so CI does the export instead of trusting the habit.
+        run: |
+          if ! git diff --exit-code -- openapi/lakehold-v1.json; then
+            echo "::error file=openapi/lakehold-v1.json::The frozen contract no longer matches what" \
+              "src/Lakehold.Api serves. Re-export and regenerate the clients:" \
+              "start the API, run ./scripts/export-openapi.sh, then ./scripts/generate-sdks.sh," \
+              "and commit openapi/ together with sdk/."
+            exit 1
+          fi
+
+      - name: Show API logs after a failure
+        if: failure()
+        run: cat api.log
+
+      - name: Stop PostgreSQL
+        if: always()
+        run: docker compose down -v
 
   backend-integration:
     name: Test PostgreSQL and S3 integrations
