@@ -28,6 +28,12 @@ async function signInWith(page: Page, username: string): Promise<void> {
   await page.waitForURL(/\/workbench/);
 }
 
+/** Opens the People destination, where workspace membership and client tokens are administered. */
+async function openPeople(page: Page): Promise<void> {
+  await page.getByRole('button', { name: 'People' }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'People' })).toBeVisible();
+}
+
 /** Reads the session the API reports for this browser. */
 async function session(page: Page): Promise<{
   oidcEnabled: boolean;
@@ -97,11 +103,12 @@ test.describe('identity provider sign-in', () => {
     }
 
     await signInWith(page, 'admin');
+    await openPeople(page);
 
     // The point of the whole membership model: somebody who signed in is now a record an
     // administrator can see and act on, rather than an invisible consequence of a claim.
     const people = page.locator('lh-member-administration');
-    await expect(people.getByRole('heading', { name: 'People' })).toBeVisible();
+    await expect(people.getByRole('heading', { name: 'Everyone who has signed in' })).toBeVisible();
     await expect(people.getByText('Owen Owner')).toBeVisible();
 
     const role = people.getByLabel('Role for Owen Owner');
@@ -113,7 +120,9 @@ test.describe('identity provider sign-in', () => {
 
     // The claim still says owner on every login. Reloading proves LakeHold's decision is the one
     // that holds -- which is the entire reason membership exists rather than trusting the claim.
+    // An instance credential lands on System Settings, so the page has to be reopened first.
     await page.reload();
+    await openPeople(page);
     await expect(people.getByLabel('Role for Owen Owner')).toHaveValue('reader');
 
     await expect(people.getByRole('button', { name: 'Suspend' })).toBeVisible();
@@ -128,6 +137,7 @@ test.describe('identity provider sign-in', () => {
     page,
   }) => {
     await signInWith(page, 'admin');
+    await openPeople(page);
 
     // An administrator arriving for the first time has to be able to find this without being told.
     // If the panel or its controls disappear, that is a confused administrator, so it fails here.

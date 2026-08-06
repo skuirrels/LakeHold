@@ -4,14 +4,12 @@
       <h2>API tokens</h2>
       <p>Issue a scoped credential for Codex, Claude, scripts, or another client.</p>
     </div>
-    <button class="refresh" type="button" [disabled]="loading()" (click)="loadTenants()">
+    <button class="refresh" type="button" [disabled]="tokensLoading()" (click)="loadTokens()">
       Refresh
     </button>
   </header>
 
-  @if (loading()) {
-    <p class="state">Loading workspaces…</p>
-  } @else if (tenants().length === 0) {
+  @if (!workspace()) {
     <p class="state">Create a workspace and catalog before issuing a client token.</p>
   } @else {
     <form (submit)="$event.preventDefault(); create()">
@@ -32,19 +30,6 @@
         </label>
 
         <label>
-          <span>Workspace</span>
-          <select
-            name="tenant"
-            [value]="tenantSlug()"
-            (change)="selectTenant($any($event.target).value)"
-          >
-            @for (tenant of tenants(); track tenant.slug) {
-              <option [value]="tenant.slug">{{ tenant.displayName }} ({{ tenant.slug }})</option>
-            }
-          </select>
-        </label>
-
-        <label>
           <span>Catalog scope</span>
           <select
             name="catalog"
@@ -54,7 +39,7 @@
             <option value="" [selected]="catalogName() === ''">
               All catalogs in this workspace
             </option>
-            @for (catalog of selectedTenant()?.catalogs ?? []; track catalog.name) {
+            @for (catalog of workspace()?.catalogs ?? []; track catalog.name) {
               <option [value]="catalog.name" [selected]="catalogName() === catalog.name">
                 {{ catalog.name }}
               </option>
@@ -132,14 +117,14 @@
     </div>
   }
 
-  @if (!loading() && tenants().length > 0) {
+  @if (workspace()) {
     <section class="token-list" aria-labelledby="client-token-heading">
       <div class="list-heading">
         <div>
           <h3 id="client-token-heading">Issued client credentials</h3>
           <p>Revoke a credential to close its HTTP, MCP, and token-authenticated wire access.</p>
         </div>
-        <button type="button" [disabled]="tokensLoading()" (click)="loadTenants()">
+        <button type="button" [disabled]="tokensLoading()" (click)="loadTokens()">
           {{ tokensLoading() ? 'Refreshing…' : 'Refresh list' }}
         </button>
       </div>

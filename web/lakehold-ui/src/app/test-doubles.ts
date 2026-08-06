@@ -211,7 +211,13 @@ export class FakeLakehouseService {
 
   // ---- Surfaces the workbench itself uses --------------------------------------------------
 
-  access: AccessContext = { mode: 'open', role: 'owner', readOnly: false, systemAdmin: false };
+  access: AccessContext = {
+    mode: 'open',
+    role: 'owner',
+    readOnly: false,
+    systemAdmin: false,
+    tenantAdmin: true,
+  };
   browserSession: BrowserSession = {
     oidcEnabled: false,
     authenticated: false,

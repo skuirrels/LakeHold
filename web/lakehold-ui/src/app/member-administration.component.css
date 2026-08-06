@@ -1,6 +1,5 @@
 :host {
   display: block;
-  margin-top: 24px;
 }
 
 .panel {
@@ -127,10 +126,15 @@ select {
   font-weight: 600;
 }
 
+/* Right-aligned without `display: flex`, which on a `td` takes the cell out of table layout — the
+   browser then wraps it in an anonymous cell and draws its bottom border above the row's own. */
 .actions {
-  display: flex;
-  gap: 8px;
-  justify-content: flex-end;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.actions .btn + .btn {
+  margin-left: 8px;
 }
 
 .btn {

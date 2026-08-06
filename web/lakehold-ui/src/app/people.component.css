@@ -1,0 +1,68 @@
+/* The page frame — host, width, and header — comes from `admin-page.css`. */
+
+/* The page's own control, above the two cards it drives, rather than inside either of them. */
+.workspace {
+  display: grid;
+  gap: 6px;
+  padding: 18px 22px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.workspace > span {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.workspace select {
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+}
+
+small {
+  color: var(--text-faint);
+  font-size: 12px;
+}
+
+.state {
+  padding: 24px;
+  color: var(--text-dim);
+}
+
+.load-error {
+  display: grid;
+  justify-items: start;
+  gap: 12px;
+  padding: 0;
+}
+
+.failed {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+  color: var(--danger);
+  font-size: 12px;
+}
+
+.retry {
+  padding: 8px 14px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+lh-member-administration {
+  display: block;
+  margin-top: 24px;
+}

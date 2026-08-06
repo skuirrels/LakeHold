@@ -21,15 +21,37 @@ groups those existing surfaces into Workbench, Data, and Operations; its hamburg
 rail without destroying editor or explorer state. On compact screens the same rail is a
 keyboard-dismissible drawer rather than permanently hiding navigation.
 
-An instance-scoped credential gets one additional destination: **System Settings**. It owns the
-runtime MCP controls (enabled, writes, row ceiling, and public base URL). Saving persists one
-optimistically versioned PostgreSQL row, and the API reads that shared state for the next MCP request,
-so the change applies across nodes without restarting the process. The same destination includes
-**API tokens**: an administrator can issue a tenant token, optionally narrow it to one catalog, choose
-its role and expiry, and copy the plaintext once. Existing client credentials can be reviewed and
-revoked from the same card. A human system administrator reaches this surface through the configured
-OIDC provider; the browser receives an HttpOnly LakeHold session rather than an identity-provider
-token. The browser calls the existing public token endpoints and never persists generated secrets.
+Administration is two destinations, split by the credential each answers to.
+
+**System Settings** is instance-scoped. It owns the runtime MCP controls (enabled, writes, row ceiling,
+and public base URL). Saving persists one optimistically versioned PostgreSQL row, and the API reads
+that shared state for the next MCP request, so the change applies across nodes without restarting the
+process. Only an instance credential is offered the destination, because every control on it is
+`Capability.Instance`.
+
+**People** is workspace-scoped, and a workspace owner reaches it as well as an instance
+administrator — both hold `Capability.TenantAdmin` over a workspace. It lists the people the identity
+provider has authenticated, what each of them reaches, and who is still waiting on a decision, and it
+carries **API tokens**: an administrator can issue a tenant token, optionally narrow it to one catalog,
+choose its role and expiry, and copy the plaintext once. Existing client credentials can be reviewed
+and revoked from the same card. Membership and tokens sat under System Settings until the two were
+separated; one page meant an owner opened a surface whose first card their credential is refused.
+
+The **page** owns the workspace list and the selection; its two cards take both as inputs. Each card
+used to load and choose for itself, which meant they could disagree — the member list showing one
+workspace while the token form minted a credential for another, under a heading that named neither —
+and it cost two identical `listTenants` requests to render one page.
+
+Whether People is offered is **not** derived in the browser from the role. `/access` carries a
+`tenantAdmin` flag that the API computes from `CapabilityPolicy` against the caller's own workspace, and
+the rail reads that. An owner token that is read-only or narrowed to one catalog is least privilege by
+design and holds the role without the capability — deriving the offer from `role === 'owner'` put all
+three in a menu the API refuses, which is the same "one place decides" reasoning as the transport-neutral
+policy itself.
+
+A human administrator reaches either surface through the configured OIDC provider; the browser receives
+an HttpOnly LakeHold session rather than an identity-provider token. The browser calls the existing
+public token endpoints and never persists generated secrets.
 
 Everything the original specification left open has since been **measured against DuckLake on DuckDB
 1.5.5** rather than reasoned about. Two of those measurements changed the design, and are called out
@@ -317,7 +339,7 @@ In the spirit of `POSTGRES-WIRE.md`'s equivalent section.
 |---|---|
 | Lineage graph | Unity Catalog's governance moat. It needs a query graph LakeHold does not collect, and it is not why a self-hoster chooses this product |
 | Usage insights — top readers, query patterns | Same. Query history already answers the narrow version |
-| Grants / permissions editor | System Settings now mints scoped API tokens, but listing, revocation, role assignment to people, and a general grants editor remain deliberately out of scope |
+| Grants / permissions editor | People now mints, lists, and revokes scoped API tokens and assigns a role to each person, but a general grants editor remains deliberately out of scope |
 | Notebook / multi-cell interface | The IDE is deliberately focused. A notebook is a different product decision |
 | A raw object browser | [Above](#why-not-a-file-browser) |
 

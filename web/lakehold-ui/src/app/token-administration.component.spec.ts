@@ -2,7 +2,7 @@ import { provideZonelessChangeDetection } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Observable, Subject } from 'rxjs';
 import { LakehouseService } from './lakehouse.service';
-import { ApiToken } from './models';
+import { ApiToken, Tenant } from './models';
 import { FakeLakehouseService } from './test-doubles';
 import { TokenAdministrationComponent } from './token-administration.component';
 
@@ -34,18 +34,35 @@ describe('TokenAdministrationComponent', () => {
     });
   });
 
-  async function mount(): Promise<void> {
+  /** A workspace as the page hands it down, with one catalog to narrow a credential to. */
+  function workspace(slug = 'demo', catalog = 'analytics'): Tenant {
+    return {
+      slug,
+      displayName: slug,
+      catalogs: [{ name: catalog, dataPath: '/d', isReadOnly: false }],
+    };
+  }
+
+  async function mount(selected: Tenant | null = workspace()): Promise<void> {
     fixture = TestBed.createComponent(TokenAdministrationComponent);
+    // The workspace is the page's decision, so every test states it the way the page would.
+    fixture.componentRef.setInput('workspace', selected);
     await fixture.whenStable();
   }
 
-  it('loads workspace and catalog choices with reader as the safe default', async () => {
+  /** Points the card at another workspace, as switching the page's picker does. */
+  async function show(selected: Tenant): Promise<void> {
+    fixture.componentRef.setInput('workspace', selected);
+    await fixture.whenStable();
+  }
+
+  it('takes its workspace from the page and offers that workspace"s catalogs', async () => {
     await mount();
 
-    expect(api.countOf('listTenants')).toBe(1);
-    expect(
-      (fixture.nativeElement.querySelector('select[name="tenant"]') as HTMLSelectElement).value,
-    ).toBe('demo');
+    // It must not go looking for workspaces of its own: the page owns that list and the selection,
+    // and a card that chose for itself could mint a credential for a workspace nobody was looking at.
+    expect(api.countOf('listTenants')).toBe(0);
+    expect(fixture.nativeElement.querySelector('select[name="tenant"]')).toBeNull();
     expect(
       (fixture.nativeElement.querySelector('select[name="catalog"]') as HTMLSelectElement).options,
     ).toHaveLength(2);
@@ -124,8 +141,7 @@ describe('TokenAdministrationComponent', () => {
   });
 
   it('explains why issuance is unavailable before a workspace exists', async () => {
-    api.tenants = [];
-    await mount();
+    await mount(null);
 
     expect(fixture.nativeElement.textContent).toContain(
       'Create a workspace and catalog before issuing a client token.',
@@ -167,19 +183,7 @@ describe('TokenAdministrationComponent', () => {
   });
 
   it('ignores a credential listing that arrives after the workspace changed', async () => {
-    api.tenants = [
-      {
-        slug: 'alpha',
-        displayName: 'Alpha',
-        catalogs: [{ name: 'a', dataPath: '/a', isReadOnly: false }],
-      },
-      {
-        slug: 'beta',
-        displayName: 'Beta',
-        catalogs: [{ name: 'b', dataPath: '/b', isReadOnly: false }],
-      },
-    ];
-    await mount();
+    await mount(workspace('alpha', 'a'));
 
     // Take listing over so both replies can be held open at once, which is what lets the slower
     // one land last.
@@ -190,16 +194,8 @@ describe('TokenAdministrationComponent', () => {
       return reply.asObservable();
     };
 
-    const tenant = fixture.nativeElement.querySelector(
-      'select[name="tenant"]',
-    ) as HTMLSelectElement;
-    tenant.value = 'beta';
-    tenant.dispatchEvent(new Event('change'));
-    await fixture.whenStable();
-
-    tenant.value = 'alpha';
-    tenant.dispatchEvent(new Event('change'));
-    await fixture.whenStable();
+    await show(workspace('beta', 'b'));
+    await show(workspace('alpha', 'a'));
 
     // Alpha's listing resolves first and beta's — the one now stale — lands last. Order matters:
     // if the stale reply arrived first the final state would be correct with or without the guard,

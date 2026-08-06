@@ -40,6 +40,7 @@ import {
   TabularImportResult,
   Tenant,
 } from './models';
+import { PeopleComponent } from './people.component';
 import { ResultGridComponent } from './result-grid.component';
 import { QueryEditorComponent } from './query-editor.component';
 import { SavedQueriesPanelComponent } from './saved-queries-panel.component';
@@ -92,6 +93,7 @@ type BottomTab =
     DataHistoryPanelComponent,
     EjectPanelComponent,
     FirstRunComponent,
+    PeopleComponent,
     QueryEditorComponent,
     ResultGridComponent,
     RouterLink,
@@ -236,8 +238,53 @@ export class WorkbenchComponent {
   protected readonly ready = computed(
     () => this.tenantSlug() !== null && this.catalogName() !== null,
   );
+
+  /**
+   * An instance credential on the workbench: it administers the node, holds no workspace, and so
+   * has nothing to select. `loadTenants` sends it to settings, but the workbench stays reachable
+   * from the navigation, and arriving at a blank editor with no explanation is the state this
+   * banner exists to end.
+   */
+  protected readonly instanceAdminWithoutData = computed(
+    () => (this.access()?.systemAdmin ?? false) && this.tenantSlug() === null,
+  );
+
+  /**
+   * What an empty picker should say. "Select a workspace" is an instruction, and giving it to
+   * someone who cannot follow it is worse than saying nothing — so the reason wins where there is
+   * one.
+   */
+  protected readonly workspacePlaceholder = computed(() => {
+    if (this.instanceAdminWithoutData()) {
+      return 'Administration only';
+    }
+
+    return this.tenants().length > 0 ? 'Select a workspace' : 'No workspace';
+  });
+
+  protected readonly catalogPlaceholder = computed(() => {
+    if (this.instanceAdminWithoutData()) {
+      return 'Administration only';
+    }
+
+    if (this.tenantSlug() === null) {
+      return 'Select a workspace first';
+    }
+
+    return this.catalogs().length > 0 ? 'Select a catalog' : 'No catalog in this workspace';
+  });
   protected readonly readOnlyAccess = computed(() => this.access()?.readOnly ?? false);
   protected readonly demoMode = computed(() => this.access()?.mode === 'demo');
+
+  /**
+   * Whether this principal administers the workspace it belongs to, and so reaches People.
+   *
+   * Taken from the API rather than derived from the role here. An owner token that is read-only or
+   * narrowed to one catalog is least privilege by design — it must not be able to mint a broader
+   * credential — so it holds the role without the capability, and a rail deciding this from
+   * `role === 'owner'` offered it a page every request on which is refused.
+   */
+  protected readonly canAdminister = computed(() => this.access()?.tenantAdmin ?? false);
 
   /** Whether an identity provider is configured, so "Sign in" can mean an actual login. */
   protected readonly ssoAvailable = computed(() => this.browserSession()?.oidcEnabled ?? false);
@@ -404,9 +451,14 @@ export class WorkbenchComponent {
             return;
           }
 
-          // A credential can be replaced while the settings page is open. Tenant credentials cannot
-          // use that instance-only destination, so return to a surface the new principal owns.
-          if (this.navigationDestination() === 'settings') {
+          // A credential can be replaced while an administration page is open, and the new one may
+          // not reach it: System Settings is instance-only, and People needs a workspace owner. Send
+          // such a principal back to a surface it owns rather than leaving it on a refusal.
+          const destination = this.navigationDestination();
+          if (
+            destination === 'settings'
+            || (destination === 'people' && !this.canAdminister())
+          ) {
             this.navigationDestination.set('workbench');
           }
 
@@ -724,7 +776,9 @@ export class WorkbenchComponent {
       case 'queries':
         this.showSidebar('queries');
         break;
+      case 'people':
       case 'settings':
+        // Full-width administration pages: the catalog panel has nothing to say beside them.
         this.contextPanelOpen.set(false);
         break;
       default:

@@ -1,0 +1,45 @@
+<section class="admin-page">
+  <header>
+    <span class="eyebrow">Workspace administration</span>
+    <h1>People</h1>
+    <p>
+      Who may reach this workspace. People arrive from your identity provider — LakeHold never holds
+      a password — and clients and agents arrive with a token you issue here. What either one
+      reaches is decided in this product, not in the provider.
+    </p>
+  </header>
+
+  @if (loading()) {
+    <p class="state">Loading workspaces…</p>
+  } @else if (error(); as message) {
+    <div class="state load-error">
+      <p class="failed">{{ message }}</p>
+      <button class="retry" type="button" (click)="load()">Retry</button>
+    </div>
+  } @else if (tenants().length === 0) {
+    <p class="state">
+      There are no workspaces yet. Create one first; people are admitted to a workspace, not to the
+      instance.
+    </p>
+  } @else {
+    <!--
+      One picker for the page, because both cards below administer the same workspace. Selectedness
+      is bound per option, as the workbench pickers are: this page always selects a workspace it has,
+      so [value] alone would work here, but the two pickers should not differ in how they say so.
+    -->
+    <label class="workspace">
+      <span>Workspace</span>
+      <select name="workspace" (change)="select($any($event.target).value)">
+        @for (tenant of tenants(); track tenant.slug) {
+          <option [value]="tenant.slug" [selected]="tenant.slug === selectedSlug()">
+            {{ tenant.displayName }} ({{ tenant.slug }})
+          </option>
+        }
+      </select>
+      <small>The people and the tokens below both belong to this workspace.</small>
+    </label>
+
+    <lh-member-administration [workspace]="workspace()" />
+    <lh-token-administration [workspace]="workspace()" />
+  }
+</section>
