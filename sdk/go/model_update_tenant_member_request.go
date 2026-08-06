@@ -12,7 +12,6 @@ package lakehold
 
 import (
 	"encoding/json"
-	"fmt"
 )
 
 // checks if the UpdateTenantMemberRequest type satisfies the MappedNullable interface at compile time
@@ -20,8 +19,8 @@ var _ MappedNullable = &UpdateTenantMemberRequest{}
 
 // UpdateTenantMemberRequest struct for UpdateTenantMemberRequest
 type UpdateTenantMemberRequest struct {
-	Role NullableString `json:"role"`
-	Status NullableString `json:"status"`
+	Role NullableString `json:"role,omitempty"`
+	Status NullableString `json:"status,omitempty"`
 	AdditionalProperties map[string]interface{}
 }
 
@@ -31,10 +30,8 @@ type _UpdateTenantMemberRequest UpdateTenantMemberRequest
 // This constructor will assign default values to properties that have it defined,
 // and makes sure properties required by API are set, but the set of arguments
 // will change when the set of required properties is changed
-func NewUpdateTenantMemberRequest(role NullableString, status NullableString) *UpdateTenantMemberRequest {
+func NewUpdateTenantMemberRequest() *UpdateTenantMemberRequest {
 	this := UpdateTenantMemberRequest{}
-	this.Role = role
-	this.Status = status
 	return &this
 }
 
@@ -46,18 +43,16 @@ func NewUpdateTenantMemberRequestWithDefaults() *UpdateTenantMemberRequest {
 	return &this
 }
 
-// GetRole returns the Role field value
-// If the value is explicit nil, the zero value for string will be returned
+// GetRole returns the Role field value if set, zero value otherwise (both if not set or set to explicit null).
 func (o *UpdateTenantMemberRequest) GetRole() string {
-	if o == nil || o.Role.Get() == nil {
+	if o == nil || IsNil(o.Role.Get()) {
 		var ret string
 		return ret
 	}
-
 	return *o.Role.Get()
 }
 
-// GetRoleOk returns a tuple with the Role field value
+// GetRoleOk returns a tuple with the Role field value if set, nil otherwise
 // and a boolean to check if the value has been set.
 // NOTE: If the value is an explicit nil, `nil, true` will be returned
 func (o *UpdateTenantMemberRequest) GetRoleOk() (*string, bool) {
@@ -67,23 +62,39 @@ func (o *UpdateTenantMemberRequest) GetRoleOk() (*string, bool) {
 	return o.Role.Get(), o.Role.IsSet()
 }
 
-// SetRole sets field value
+// HasRole returns a boolean if a field has been set.
+func (o *UpdateTenantMemberRequest) HasRole() bool {
+	if o != nil && o.Role.IsSet() {
+		return true
+	}
+
+	return false
+}
+
+// SetRole gets a reference to the given NullableString and assigns it to the Role field.
 func (o *UpdateTenantMemberRequest) SetRole(v string) {
 	o.Role.Set(&v)
 }
+// SetRoleNil sets the value for Role to be an explicit nil
+func (o *UpdateTenantMemberRequest) SetRoleNil() {
+	o.Role.Set(nil)
+}
 
-// GetStatus returns the Status field value
-// If the value is explicit nil, the zero value for string will be returned
+// UnsetRole ensures that no value is present for Role, not even an explicit nil
+func (o *UpdateTenantMemberRequest) UnsetRole() {
+	o.Role.Unset()
+}
+
+// GetStatus returns the Status field value if set, zero value otherwise (both if not set or set to explicit null).
 func (o *UpdateTenantMemberRequest) GetStatus() string {
-	if o == nil || o.Status.Get() == nil {
+	if o == nil || IsNil(o.Status.Get()) {
 		var ret string
 		return ret
 	}
-
 	return *o.Status.Get()
 }
 
-// GetStatusOk returns a tuple with the Status field value
+// GetStatusOk returns a tuple with the Status field value if set, nil otherwise
 // and a boolean to check if the value has been set.
 // NOTE: If the value is an explicit nil, `nil, true` will be returned
 func (o *UpdateTenantMemberRequest) GetStatusOk() (*string, bool) {
@@ -93,9 +104,27 @@ func (o *UpdateTenantMemberRequest) GetStatusOk() (*string, bool) {
 	return o.Status.Get(), o.Status.IsSet()
 }
 
-// SetStatus sets field value
+// HasStatus returns a boolean if a field has been set.
+func (o *UpdateTenantMemberRequest) HasStatus() bool {
+	if o != nil && o.Status.IsSet() {
+		return true
+	}
+
+	return false
+}
+
+// SetStatus gets a reference to the given NullableString and assigns it to the Status field.
 func (o *UpdateTenantMemberRequest) SetStatus(v string) {
 	o.Status.Set(&v)
+}
+// SetStatusNil sets the value for Status to be an explicit nil
+func (o *UpdateTenantMemberRequest) SetStatusNil() {
+	o.Status.Set(nil)
+}
+
+// UnsetStatus ensures that no value is present for Status, not even an explicit nil
+func (o *UpdateTenantMemberRequest) UnsetStatus() {
+	o.Status.Unset()
 }
 
 func (o UpdateTenantMemberRequest) MarshalJSON() ([]byte, error) {
@@ -108,8 +137,12 @@ func (o UpdateTenantMemberRequest) MarshalJSON() ([]byte, error) {
 
 func (o UpdateTenantMemberRequest) ToMap() (map[string]interface{}, error) {
 	toSerialize := map[string]interface{}{}
-	toSerialize["role"] = o.Role.Get()
-	toSerialize["status"] = o.Status.Get()
+	if o.Role.IsSet() {
+		toSerialize["role"] = o.Role.Get()
+	}
+	if o.Status.IsSet() {
+		toSerialize["status"] = o.Status.Get()
+	}
 
 	for key, value := range o.AdditionalProperties {
 		toSerialize[key] = value
@@ -119,28 +152,6 @@ func (o UpdateTenantMemberRequest) ToMap() (map[string]interface{}, error) {
 }
 
 func (o *UpdateTenantMemberRequest) UnmarshalJSON(data []byte) (err error) {
-	// This validates that all required properties are included in the JSON object
-	// by unmarshalling the object into a generic map with string keys and checking
-	// that every required field exists as a key in the generic map.
-	requiredProperties := []string{
-		"role",
-		"status",
-	}
-
-	allProperties := make(map[string]interface{})
-
-	err = json.Unmarshal(data, &allProperties)
-
-	if err != nil {
-		return err;
-	}
-
-	for _, requiredProperty := range(requiredProperties) {
-		if _, exists := allProperties[requiredProperty]; !exists {
-			return fmt.Errorf("no value given for required property %v", requiredProperty)
-		}
-	}
-
 	varUpdateTenantMemberRequest := _UpdateTenantMemberRequest{}
 
 	err = json.Unmarshal(data, &varUpdateTenantMemberRequest)

@@ -25145,10 +25145,6 @@
         }
       },
       "UpdateTenantMemberRequest": {
-        "required": [
-          "role",
-          "status"
-        ],
         "type": "object",
         "properties": {
           "role": {

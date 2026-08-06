@@ -26,8 +26,8 @@ class UpdateTenantMemberRequest(BaseModel):
     """
     UpdateTenantMemberRequest
     """ # noqa: E501
-    role: Optional[StrictStr]
-    status: Optional[StrictStr]
+    role: Optional[StrictStr] = None
+    status: Optional[StrictStr] = None
     __properties: ClassVar[List[str]] = ["role", "status"]
 
     model_config = ConfigDict(
