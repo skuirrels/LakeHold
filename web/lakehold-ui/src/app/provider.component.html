@@ -1,11 +1,11 @@
-<div class="page">
-  <header class="nav">
+<header class="nav">
+  <div class="nav-inner">
     <a class="brand" routerLink="/">
       <lh-brand-mark class="mark" />
       LakeHold
     </a>
     <!-- "Docs" alone is ambiguous here: this page documents the provider, the rest of the site
-         documents LakeHold. Both destinations are therefore named. -->
+           documents LakeHold. Both destinations are therefore named. -->
     <nav class="nav-links">
       <a routerLink="/">Home</a>
       <a class="provider" routerLink="/provider/docs">Provider docs</a>
@@ -20,12 +20,21 @@
         aria-label="DuckDB.EFCoreProvider on GitHub"
         title="DuckDB.EFCoreProvider on GitHub"
       >
-        <svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
-          <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.42 7.42 0 0 1 2-.27c.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z" />
+        <svg
+          width="20"
+          height="20"
+          viewBox="0 0 16 16"
+          fill="currentColor"
+          aria-hidden="true"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.42 7.42 0 0 1 2-.27c.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"
+          />
         </svg>
       </a>
       <!-- The call to action is the capability map, not the workbench: someone reading about the
-           package wants to know what it supports before they want a running lakehouse. -->
+             package wants to know what it supports before they want a running lakehouse. -->
       <a
         class="btn btn-primary"
         href="https://github.com/skuirrels/DuckDB.EFCoreProvider/blob/main/docs/CAPABILITY-MAP.md"
@@ -34,17 +43,19 @@
         >Capabilities</a
       >
     </nav>
-  </header>
+  </div>
+</header>
 
+<div class="page">
   <!-- Value proposition. Hand-authored rather than Markdown: it is a marketing surface, and the
        compiled-in prose below is the reference documentation. -->
   <section class="hero">
     <span class="eyebrow">EF Core provider · DuckDB · DuckLake · Parquet</span>
     <h1>DuckDB, DuckLake &amp; Parquet,<br /><em>Provider for .NET.</em></h1>
     <p class="lede">
-      Write LINQ, <code>SaveChanges</code>, and migrations on EF Core 10 — while your data tiers from
-      a hot DuckDB file out to hive-partitioned Parquet on S3, GCS, or Azure, or lives in a shared
-      DuckLake catalog. One analytical read model, from laptop to cloud.
+      Write LINQ, <code>SaveChanges</code>, and migrations on EF Core 10 — while your data tiers
+      from a hot DuckDB file out to hive-partitioned Parquet on S3, GCS, or Azure, or lives in a
+      shared DuckLake catalog. One analytical read model, from laptop to cloud.
     </p>
     <p class="kinship">
       This is the provider <a routerLink="/">LakeHold</a> itself runs on. Everything documented here
@@ -165,7 +176,10 @@
       </div>
       @for (bar of benchmark; track bar.name) {
         <div class="bar-row">
-          <div class="bar-label"><strong>{{ bar.name }}</strong><small>{{ bar.note }}</small></div>
+          <div class="bar-label">
+            <strong>{{ bar.name }}</strong
+            ><small>{{ bar.note }}</small>
+          </div>
           <div class="bar-track"><span [style.width]="bar.width"></span></div>
           <strong class="bar-value">{{ bar.value }}</strong>
         </div>
@@ -216,7 +230,9 @@
     </div>
     <ul class="doc-jump">
       @for (link of docLinks; track link.id) {
-        <li><a routerLink="/provider/docs" [fragment]="link.id">{{ link.label }}</a></li>
+        <li>
+          <a routerLink="/provider/docs" [fragment]="link.id">{{ link.label }}</a>
+        </li>
       }
     </ul>
   </section>
@@ -224,8 +240,8 @@
   <footer class="foot">
     <p class="domain"><a href="https://lakehold.dev">lakehold.dev</a></p>
     <p>
-      Community provider, MIT licensed. Not affiliated with DuckDB Labs or Microsoft.
-      Built on <a href="https://duckdb.org" target="_blank" rel="noopener">DuckDB</a> and
+      Community provider, MIT licensed. Not affiliated with DuckDB Labs or Microsoft. Built on
+      <a href="https://duckdb.org" target="_blank" rel="noopener">DuckDB</a> and
       <a href="https://ducklake.select" target="_blank" rel="noopener">DuckLake</a>.
     </p>
   </footer>

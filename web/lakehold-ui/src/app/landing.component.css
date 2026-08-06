@@ -1,61 +1,33 @@
+/* Page chrome and the marketing sections. The header is styled by the shared `site-header.css`,
+   listed ahead of this file in the component's `styleUrls`. */
+
 :host {
   display: block;
   height: 100vh;
   overflow-y: auto;
+
+  /* The column the page and the header contents share. */
+  --page-max: 1080px;
 }
 
 .landing {
-  max-width: 1080px;
+  max-width: var(--page-max);
   margin: 0 auto;
   padding: 0 28px 80px;
 }
 
-.nav {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 20px 0;
-}
+/* The header stays pinned only while it is a single row. Below this width the links wrap, where a
+   pinned bar would take a growing share of a shrinking screen — three rows and about 14% of a phone
+   screen at the bottom of the range; it scrolls away with the page instead. */
+@media (max-width: 800px) {
+  :host {
+    /* Nothing has to clear a header that no longer pins. */
+    --site-header-height: 0px;
+  }
 
-.brand {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-weight: 650;
-}
-
-.mark {
-  color: var(--accent);
-}
-
-.nav-links {
-  display: flex;
-  align-items: center;
-  gap: 20px;
-}
-
-.nav-links a {
-  color: var(--info);
-  text-decoration: none;
-  font-size: 14px;
-}
-
-.nav-links a:hover {
-  color: var(--text);
-}
-
-.nav-links a.icon-link {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.nav-links a.btn {
-  text-decoration: none;
-}
-
-.nav-links a.btn-primary {
-  color: #241c05;
+  .nav {
+    position: static;
+  }
 }
 
 /* The links plus the wordmark stop fitting one row well above phone width — the brand ran into the
@@ -63,11 +35,11 @@
    and centres the links beneath it, which costs no JavaScript, needs no hamburger, and absorbs a
    new link without another measurement. */
 @media (max-width: 640px) {
-  .nav {
+  .nav-inner {
     flex-wrap: wrap;
     justify-content: center;
     gap: 10px;
-    padding: 16px 0 10px;
+    padding: 12px 20px;
   }
 
   .nav-links {

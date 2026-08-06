@@ -10,7 +10,7 @@ import content from '../../../../docs/LINQ_WORKBENCH.md';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [BrandMarkComponent, RouterLink],
   templateUrl: './linq-workbench-docs.component.html',
-  styleUrls: ['./markdown-page.css', './docs.component.css'],
+  styleUrls: ['./markdown-page.css', './site-header.css', './docs.component.css'],
 })
 export class LinqWorkbenchDocsComponent extends MarkdownPage {
   constructor() {

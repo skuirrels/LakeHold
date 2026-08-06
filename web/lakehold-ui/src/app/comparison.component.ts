@@ -43,7 +43,7 @@ interface HeadToHead {
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [BrandMarkComponent, RouterLink],
   templateUrl: './comparison.component.html',
-  styleUrl: './comparison.component.css',
+  styleUrls: ['./site-header.css', './comparison.component.css'],
 })
 export class ComparisonComponent {
   protected readonly rows: Row[] = [

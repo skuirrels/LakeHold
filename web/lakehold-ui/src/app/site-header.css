@@ -1,0 +1,109 @@
+/* The public site header, shared by every marketing and documentation page.
+   Applied by listing this file in the component's `styleUrls`, the same way `markdown-page.css` is,
+   so each page still compiles its own encapsulated copy and can override anything below. It used to
+   be five hand-kept copies of these rules; making the bar sticky needed the same edit in all of
+   them, which is the point at which duplication stops being cheaper than a shared file.
+
+   The markup it expects, with the header a sibling of the page column rather than a child of it:
+
+     <header class="nav">
+       <div class="nav-inner"> brand + <nav class="nav-links"> </div>
+     </header>
+     <div class="page"> … </div> */
+
+/* The bar follows the page down. `:host` is the scroll container on these pages and the header is
+   its direct child, so it spans the full viewport width and sticks against that scroll port rather
+   than the document. Inside the padded, max-width page column its surface would have stopped short
+   of the viewport edges and read as a floating panel. */
+.nav {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+
+  /* Sticky means content now passes beneath the header, so it needs a surface of its own:
+     translucent with a blur where the browser has one, opaque where it does not, because a
+     see-through bar over scrolling text is unreadable. */
+  background: color-mix(in srgb, var(--surface-0) 78%, transparent);
+  backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--border);
+}
+
+@supports not (backdrop-filter: blur(14px)) {
+  .nav {
+    background: var(--surface-0);
+  }
+}
+
+/* Its single-row height, published for anything that has to clear it — the documentation rail and
+   the heading scroll offsets in `markdown-page.css`. Kept in step with the padding below, and set
+   back to 0 by each page inside the media query where it stops the header sticking, since nothing
+   has to clear a bar that scrolls away. The header is only ever pinned while it is a single row:
+   every page unsticks it above the width where its links wrap. */
+:host {
+  --site-header-height: 70px;
+}
+
+/* Re-applies the page's own centred column to the header contents, so the bar reaches the viewport
+   edges while its links stay aligned with the article beneath them. `--page-max` comes from the
+   page's stylesheet; the fallback is the width most of them use. */
+.nav-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 16px;
+  flex-wrap: wrap;
+  max-width: var(--page-max, 1180px);
+  margin: 0 auto;
+  padding: 16px 28px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 650;
+  color: var(--text);
+  text-decoration: none;
+}
+
+.mark {
+  color: var(--accent);
+}
+
+.nav-links {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px 20px;
+}
+
+.nav-links a {
+  color: var(--info);
+  text-decoration: none;
+  font-size: 14px;
+}
+
+/* A link into the DuckDB.EFCoreProvider surface wears the accent instead, so where a link leads is
+   readable from its colour and not only from its label. Declared before the button rules so the
+   filled call to action, which matches on the same specificity, still wins. */
+.nav-links a.provider {
+  color: var(--accent);
+}
+
+.nav-links a:hover {
+  color: var(--text);
+}
+
+.nav-links a.icon-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.nav-links a.btn {
+  text-decoration: none;
+}
+
+.nav-links a.btn-primary {
+  color: #241c05;
+}
