@@ -1,35 +1,4 @@
-:host {
-  display: block;
-  flex: 1;
-  min-height: 0;
-  overflow: auto;
-  min-height: 100%;
-  background: var(--bg);
-  color: var(--text);
-}
-
-.settings-page {
-  width: min(880px, calc(100% - 48px));
-  margin: 0 auto;
-  padding: 42px 0 64px;
-}
-
-header {
-  margin-bottom: 28px;
-}
-
-.eyebrow {
-  color: var(--accent);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-}
-
-h1 {
-  margin: 7px 0 6px;
-  font-size: 28px;
-}
+/* The page frame — host, width, and header — comes from `admin-page.css`. */
 
 h2 {
   margin: 0 0 5px;
@@ -199,11 +168,6 @@ footer {
 }
 
 @media (max-width: 700px) {
-  .settings-page {
-    width: min(100% - 28px, 880px);
-    padding-top: 24px;
-  }
-
   .field-grid {
     grid-template-columns: 1fr;
   }

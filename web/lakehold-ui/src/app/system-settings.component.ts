@@ -2,18 +2,21 @@ import { DOCUMENT } from '@angular/common';
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
 import { LakehouseService } from './lakehouse.service';
 import { SystemSettings } from './models';
-import { MemberAdministrationComponent } from './member-administration.component';
-import { TokenAdministrationComponent } from './token-administration.component';
 
 const MCP_PUBLIC_BASE_URL_MAX_LENGTH = 2048;
 
-/** Instance-wide operator settings that are applied by the API on the next MCP request. */
+/**
+ * Instance-wide operator settings that are applied by the API on the next MCP request.
+ *
+ * Everything here answers to `Capability.Instance`. People and tokens are workspace administration
+ * and live under their own destination, so an owner is never sent to a page whose contents their
+ * credential cannot read.
+ */
 @Component({
   selector: 'lh-system-settings',
-  imports: [MemberAdministrationComponent, TokenAdministrationComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './system-settings.component.html',
-  styleUrl: './system-settings.component.css',
+  styleUrls: ['./admin-page.css', './system-settings.component.css'],
 })
 export class SystemSettingsComponent implements OnInit {
   private readonly api = inject(LakehouseService);

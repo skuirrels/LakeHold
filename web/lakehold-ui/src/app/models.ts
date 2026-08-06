@@ -18,6 +18,12 @@ export interface AccessContext {
   role: 'owner' | 'editor' | 'reader';
   readOnly: boolean;
   systemAdmin: boolean;
+  /**
+   * Whether this credential administers its own workspace's people and tokens. Answered by the API's
+   * capability policy, not inferred from `role`: a read-only or catalog-narrowed owner token holds
+   * the role and not the capability.
+   */
+  tenantAdmin: boolean;
 }
 
 /** Browser OIDC availability and the current same-origin session. */

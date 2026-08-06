@@ -10,7 +10,7 @@ import {
 import { LakehouseService } from './lakehouse.service';
 import { ApiToken, CreatedToken, Tenant, TokenRole } from './models';
 
-/** Instance-administrator workflow for minting least-privilege tenant API tokens. */
+/** Minting and revoking least-privilege tenant API tokens; a workspace owner administers its own. */
 @Component({
   selector: 'lh-token-administration',
   changeDetection: ChangeDetectionStrategy.OnPush,

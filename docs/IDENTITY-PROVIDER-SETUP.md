@@ -81,7 +81,7 @@ what they reach. That ordering is deliberate: you are approving an identity your
 authenticated, rather than creating an account that then needs one.
 
 1. Send them the site URL. They click **Sign in** and authenticate.
-2. They appear under **System Settings → People**, and until you act they reach nothing.
+2. They appear under **People**, and until you act they reach nothing.
 3. Choose a role and click **Admit**.
 
 If your provider emits a `tenant` claim naming an existing workspace, a first-time arrival is
@@ -170,7 +170,7 @@ The development realm, its two seeded users, and how to give either the other ca
 
 ## Part 4 — Clients and agents
 
-Both use API tokens. Issue them under **System Settings → API tokens**, or over HTTP:
+Both use API tokens. Issue them under **People → API tokens**, or over HTTP:
 
 ```bash
 curl -X POST https://<your-host>/api/tenants/<workspace>/tokens \

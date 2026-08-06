@@ -222,16 +222,27 @@ public static class LakehouseEndpoints
         return app;
     }
 
-    private static Ok<AccessDto> GetAccess(HttpContext http)
+    internal static Ok<AccessDto> GetAccess(HttpContext http)
     {
         var principal = http.GetLakeholdPrincipal();
         var mode = principal.IsDemo ? "demo" : "authenticated";
+
+        // Asked of the same policy the member and token routes enforce, against the principal's own
+        // tenant, so the Workbench offers People exactly when those routes would answer it. A demo
+        // reader, a read-only owner, and a catalog-narrowed owner are all refused there, and a client
+        // has no business re-deriving that from the role.
+        var tenantAdmin = CapabilityPolicy.Evaluate(
+            principal,
+            Capability.TenantAdmin,
+            principal.TenantSlug,
+            catalog: null).Outcome == CapabilityOutcome.Allowed;
 
         return TypedResults.Ok(new AccessDto(
             mode,
             principal.Role.ToString().ToLowerInvariant(),
             principal.IsReadOnly,
-            principal.Scope == TokenScope.Instance));
+            principal.Scope == TokenScope.Instance,
+            tenantAdmin));
     }
 
     private static async Task<Ok<IReadOnlyList<TenantDto>>> ListTenantsAsync(

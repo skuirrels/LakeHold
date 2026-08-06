@@ -97,7 +97,7 @@ events and 5,000 customers, so there is something to run against before you load
 
 **Machines, scripts, and agents use API tokens instead**, not browser sign-in. Paste one into the
 same dialog under **or use an API token**, or send it as `Authorization: Bearer lkh_…`. Issue tokens
-under **System Settings → API tokens**. Full detail — production first-run, adding people, swapping
+under **People → API tokens**. Full detail — production first-run, adding people, swapping
 Keycloak for your own provider, and connecting clients and agents — is in the
 [identity provider setup guide](https://github.com/skuirrels/LakeHold/blob/main/docs/IDENTITY-PROVIDER-SETUP.md).
 
@@ -806,8 +806,9 @@ un-revoke — issue a new token.
 
 Where OIDC is configured, **Continue with your identity provider** starts an authorization-code +
 PKCE login. The API returns an HttpOnly session cookie; provider tokens never enter browser
-JavaScript. A person carrying the configured system-admin claim opens System Settings and can change
-MCP controls and issue, review, or revoke client credentials.
+JavaScript. A person carrying the configured system-admin claim changes MCP controls under System
+Settings; they, and the owner of a workspace, admit people and issue, review, or revoke that
+workspace's client credentials under People.
 
 The token field remains the machine and break-glass path. A pasted token is held for that browser
 session only and sent as a bearer token on API calls. With neither OIDC nor a token, the workbench

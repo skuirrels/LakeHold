@@ -131,7 +131,7 @@
         [open]="navigationOpen()"
         [compact]="compactViewport()"
         [systemAdmin]="access()?.systemAdmin ?? false"
-        [canAdminister]="access()?.role === 'owner' && !demoMode()"
+        [canAdminister]="canAdminister()"
         (navigate)="openNavigation($event)"
       />
 
@@ -147,13 +147,17 @@
         (click)="closeNavigationOverlays()"
       ></button>
 
-      @if (navigationDestination() === 'settings') {
+      @if (navigationDestination() === 'settings' || navigationDestination() === 'people') {
         <main
-          class="main settings-main"
+          class="main admin-main"
           [attr.aria-hidden]="navigationOverlayOpen() ? 'true' : null"
           [attr.inert]="navigationOverlayOpen() ? '' : null"
         >
-          <lh-system-settings />
+          @if (navigationDestination() === 'settings') {
+            <lh-system-settings />
+          } @else {
+            <lh-people />
+          }
         </main>
       } @else {
         <aside

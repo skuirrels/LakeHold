@@ -104,6 +104,7 @@ describe('WorkbenchComponent', () => {
       role: 'owner',
       readOnly: false,
       systemAdmin: true,
+      tenantAdmin: true,
     };
 
     await mount();
@@ -111,6 +112,86 @@ describe('WorkbenchComponent', () => {
     expect(text()).toContain('System Settings');
     expect(fixture.nativeElement.querySelector('lh-system-settings')).toBeTruthy();
     expect(api.countOf('getSchemas')).toBe(0);
+  });
+
+  it('administers people from their own destination, not from System Settings', async () => {
+    api.access = {
+      mode: 'authenticated',
+      role: 'owner',
+      readOnly: false,
+      systemAdmin: true,
+      tenantAdmin: true,
+    };
+
+    await mount();
+
+    // People and tokens answer to a workspace credential and settings to an instance one. Sharing a
+    // page put a card an owner is refused above the two they administer.
+    expect(fixture.nativeElement.querySelector('lh-system-settings')).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('lh-member-administration')).toBeNull();
+    expect(fixture.nativeElement.querySelector('lh-token-administration')).toBeNull();
+
+    await navigateTo('people');
+
+    expect(fixture.nativeElement.querySelector('lh-system-settings')).toBeNull();
+    expect(fixture.nativeElement.querySelector('lh-member-administration')).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('lh-token-administration')).toBeTruthy();
+  });
+
+  it('offers a workspace owner People but not the instance-only settings page', async () => {
+    api.access = {
+      mode: 'authenticated',
+      role: 'owner',
+      readOnly: false,
+      systemAdmin: false,
+      tenantAdmin: true,
+    };
+
+    await mount();
+
+    const labels = [...fixture.nativeElement.querySelectorAll('lh-workbench-navigation .nav-item')]
+      .map((item) => (item as HTMLElement).getAttribute('aria-label'));
+    // Every control on System Settings requires Capability.Instance, so offering the destination to
+    // an owner offers a page whose one card returns an error.
+    expect(labels).toContain('People');
+    expect(labels).not.toContain('System Settings');
+  });
+
+  it('leaves People when the credential that administered it is replaced by a reader', async () => {
+    api.access = {
+      mode: 'authenticated',
+      role: 'owner',
+      readOnly: false,
+      systemAdmin: false,
+      tenantAdmin: true,
+    };
+    await mount();
+    await navigateTo('people');
+    expect(fixture.nativeElement.querySelector('lh-member-administration')).toBeTruthy();
+
+    api.access = {
+      mode: 'authenticated',
+      role: 'reader',
+      readOnly: true,
+      systemAdmin: false,
+      tenantAdmin: false,
+    };
+    (fixture.nativeElement.querySelector('.credential > .btn') as HTMLButtonElement).click();
+    await fixture.whenStable();
+    const token = fixture.nativeElement.querySelector(
+      '.credential input[type="password"]',
+    ) as HTMLInputElement;
+    token.value = 'lkh_reader_replacement';
+    token.dispatchEvent(new Event('input'));
+    (
+      fixture.nativeElement.querySelector('.credential-actions .btn-primary') as HTMLButtonElement
+    ).click();
+    await fixture.whenStable();
+
+    // A reader administers nobody. Left where it was, the destination shows a member list whose every
+    // request is refused, and the navigation no longer offers a way back to it.
+    expect(fixture.nativeElement.querySelector('lh-member-administration')).toBeNull();
+    expect(fixture.nativeElement.querySelector('[aria-label="SQL editor"]')).toBeTruthy();
   });
 
   it('uses an authenticated browser session and offers logout without retaining a pasted token', async () => {
@@ -126,6 +207,7 @@ describe('WorkbenchComponent', () => {
       role: 'owner',
       readOnly: false,
       systemAdmin: true,
+      tenantAdmin: true,
     };
 
     await mount();
@@ -146,6 +228,7 @@ describe('WorkbenchComponent', () => {
       role: 'owner',
       readOnly: false,
       systemAdmin: true,
+      tenantAdmin: true,
     };
     api.tenants = [];
 
@@ -161,6 +244,7 @@ describe('WorkbenchComponent', () => {
       role: 'owner',
       readOnly: false,
       systemAdmin: true,
+      tenantAdmin: true,
     };
 
     await mount();
@@ -192,6 +276,7 @@ describe('WorkbenchComponent', () => {
       role: 'owner',
       readOnly: false,
       systemAdmin: true,
+      tenantAdmin: true,
     };
     await mount();
     expect(fixture.nativeElement.querySelector('lh-system-settings')).toBeTruthy();
@@ -201,6 +286,7 @@ describe('WorkbenchComponent', () => {
       role: 'owner',
       readOnly: false,
       systemAdmin: false,
+      tenantAdmin: true,
     };
     (fixture.nativeElement.querySelector('.credential > .btn') as HTMLButtonElement).click();
     await fixture.whenStable();
@@ -405,7 +491,7 @@ describe('WorkbenchComponent', () => {
     });
 
     it('opens a friendly read-only demo without exposing mutation controls', async () => {
-      api.access = { mode: 'demo', role: 'reader', readOnly: true, systemAdmin: false };
+      api.access = { mode: 'demo', role: 'reader', readOnly: true, systemAdmin: false, tenantAdmin: false };
       api.backups = [
         {
           generation: '20260726T120000Z',

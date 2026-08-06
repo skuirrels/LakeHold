@@ -521,8 +521,8 @@ credential is a visible provisioning problem, not a silent data breach.
 
 The workbench does this for you: open the site, paste the bootstrap token when it asks, name a
 workspace and a catalog, and it mints the token that can query them and shows it once. An
-administrator can later issue, review, and revoke least-privilege credentials under **System
-Settings → API tokens**, including catalog scope, role, and optional expiry. Revocation closes MCP
+administrator can later issue, review, and revoke least-privilege credentials under **People → API
+tokens**, including catalog scope, role, and optional expiry. Revocation closes MCP
 and the public API immediately. The same three bootstrap steps by hand:
 
 ```bash

@@ -118,7 +118,18 @@ public sealed record TenantDto(string Slug, string DisplayName, IReadOnlyList<Ca
 /// <param name="Role">Effective tenant role, lower-case for direct display and client comparison.</param>
 /// <param name="ReadOnly">Whether catalogs are attached without write access.</param>
 /// <param name="SystemAdmin">Whether this credential may manage instance-wide settings.</param>
-public sealed record AccessDto(string Mode, string Role, bool ReadOnly, bool SystemAdmin);
+/// <param name="TenantAdmin">
+///     Whether this credential may administer its own workspace's people and tokens. Decided by
+///     <c>CapabilityPolicy</c> rather than left for a client to infer from <paramref name="Role"/>:
+///     a read-only or catalog-narrowed owner token is least privilege by design and holds no such
+///     capability, so a client deriving it from the role alone offers a surface the API refuses.
+/// </param>
+public sealed record AccessDto(
+    string Mode,
+    string Role,
+    bool ReadOnly,
+    bool SystemAdmin,
+    bool TenantAdmin);
 
 /// <summary>Non-secret state used by the Workbench to offer the configured sign-in method.</summary>
 /// <param name="OidcEnabled">Whether a browser sign-in flow is configured and can be offered.</param>
