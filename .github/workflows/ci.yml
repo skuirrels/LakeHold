@@ -22,6 +22,11 @@ on:
   push:
     branches: [main]
   pull_request:
+  # A run can be missing rather than red: during the Actions outage of 2026-08-06 no run record was
+  # created at all for a push or a pull request, so there was nothing to re-run once the platform
+  # recovered, and this workflow had no other way in. Manual dispatch means a commit that CI never
+  # saw can still be checked without an empty commit to fake a trigger.
+  workflow_dispatch:
 
 permissions:
   contents: read
