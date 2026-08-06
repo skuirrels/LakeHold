@@ -62,6 +62,9 @@ WHERE event_type = 'purchase'
 GROUP BY country
 ORDER BY revenue DESC;`;
 
+/** Kept in the display name itself so the selector, editor label, and saved queries all agree. */
+const UNAVAILABLE_SUFFIX = '(unavailable)';
+
 export interface WorkbenchQuerySource {
   language: string;
   source: string;
@@ -165,6 +168,17 @@ export class WorkbenchComponent {
   protected readonly activeLanguageAvailable = computed(
     () => this.activeLanguage()?.available !== false,
   );
+  /**
+   * What to say about a language that cannot run. The API's reason is the useful half — a missed
+   * discovery deadline and a mismatched planner key are different problems with different fixes —
+   * but a language whose planner this deployment does not configure has no reason to report.
+   */
+  protected readonly activeLanguageUnavailableMessage = computed(() => {
+    const reason = this.activeLanguage()?.unavailableReason;
+    return reason
+      ? `Planner unavailable — ${reason}`
+      : 'Planner unavailable — source is view-only';
+  });
   protected readonly activeLanguageCanSave = computed(
     () => this.activeLanguageAvailable() && (this.activeLanguage()?.supportsSavedQueries ?? false),
   );
@@ -353,7 +367,12 @@ export class WorkbenchComponent {
     this.api.getQueryLanguages().subscribe({
       next: (languages) => {
         if (languages.length > 0) {
-          const available = languages.map((language) => ({ ...language, available: true }));
+          // An installed-but-unhealthy planner arrives in this list with its reason, and stays in
+          // the selector. Dropping it is what left "where did C# LINQ go?" with no answer anywhere
+          // the person asking could see.
+          const available = languages.map((language) =>
+            language.available === false ? markUnavailable(language) : { ...language, available: true },
+          );
           const current = this.language();
           if (available.some((language) => language.id === current)) {
             this.queryLanguages.set(available);
@@ -995,17 +1014,35 @@ export class WorkbenchComponent {
   }
 }
 
-function unavailableLanguage(language: string, previous?: QueryLanguage): QueryLanguage {
-  const displayName = previous?.displayName ?? language;
+/**
+ * Marks a language the Workbench cannot plan with, keeping whatever the API or an earlier
+ * discovery already told us about it so the selector still reads as the language rather than as a
+ * configured id. Nothing can be planned, so nothing can be run or saved either.
+ */
+function markUnavailable(language: QueryLanguage): QueryLanguage {
   return {
+    ...language,
+    displayName: language.displayName.endsWith(UNAVAILABLE_SUFFIX)
+      ? language.displayName
+      : `${language.displayName} ${UNAVAILABLE_SUFFIX}`,
+    readOnly: true,
+    supportsSavedQueries: false,
+    available: false,
+    unavailableReason: language.unavailableReason ?? null,
+  };
+}
+
+/** A language no configured planner claims — a saved definition outlived its plugin. */
+function unavailableLanguage(language: string, previous?: QueryLanguage): QueryLanguage {
+  return markUnavailable({
     id: language,
-    displayName: displayName.endsWith(' (unavailable)') ? displayName : `${displayName} (unavailable)`,
+    displayName: previous?.displayName ?? language,
     editorLanguage: previous?.editorLanguage ?? 'text',
     starterSource: previous?.starterSource ?? '',
     readOnly: true,
     supportsSavedQueries: false,
-    available: false,
-  };
+    unavailableReason: previous?.unavailableReason ?? null,
+  });
 }
 
 /**

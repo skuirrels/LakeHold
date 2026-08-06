@@ -346,7 +346,8 @@
                 <span>Language</span>
                 <select [value]="language()" (change)="switchLanguage($any($event.target).value)">
                   @for (option of queryLanguages(); track option.id) {
-                    <option [value]="option.id">{{ option.displayName }}</option>
+                    <!-- Selectable even when unavailable: choosing it is how you get told why. -->
+                    <option [value]="option.id" [title]="option.unavailableReason ?? ''">{{ option.displayName }}</option>
                   }
                 </select>
               </label>
@@ -360,7 +361,7 @@
                 <span class="kbd">⌘⏎</span>
               </button>
               @if (!activeLanguageAvailable()) {
-                <span class="tag warn-tag">Planner unavailable — source is view-only</span>
+                <span class="tag warn-tag">{{ activeLanguageUnavailableMessage() }}</span>
               }
               @if (!readOnlyAccess()) {
                 <lh-tabular-import

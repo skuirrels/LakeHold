@@ -6,13 +6,27 @@ using System.Text.Json;
 namespace Lakehold.Querying;
 
 /// <summary>A query language that an installed Workbench planner can compile.</summary>
+/// <remarks>
+///     The first six values are the planner's own self-description and are what a planner returns
+///     from its descriptor resource. <see cref="Available"/> and <see cref="UnavailableReason"/> are
+///     the host's judgement of that planner's health, so the registry always overwrites whatever a
+///     planner sent for them: no plugin gets to declare itself healthy, or to declare itself down
+///     and take a language out of the selector.
+///     <para>
+///         A configured planner that fails discovery is still listed, unavailable and with a reason.
+///         Omitting it made an unhealthy compiler and an uninstalled one indistinguishable, and left
+///         the only explanation in the API's logs, where the person looking at the selector is not.
+///     </para>
+/// </remarks>
 public sealed record QueryLanguageDescriptor(
     string Id,
     string DisplayName,
     string EditorLanguage,
     string StarterSource,
     bool ReadOnly,
-    bool SupportsSavedQueries);
+    bool SupportsSavedQueries,
+    bool Available = true,
+    string? UnavailableReason = null);
 
 /// <summary>One catalog column supplied to a planner without any catalog credential.</summary>
 public sealed record QueryColumnSchema(string Name, string StoreType, bool IsNullable);

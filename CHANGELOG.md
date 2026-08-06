@@ -7,6 +7,18 @@ and LakeHold follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- **An unhealthy query planner disappeared instead of explaining itself.** A configured planner that
+  failed discovery — a missed one-second deadline, a planner key the API and the compiler disagree
+  on, a container still starting — was dropped from `/query-languages` with the only trace in the
+  API's logs. In the Workbench that is indistinguishable from a language nobody ever installed, and
+  the person looking at the selector is not the person reading the logs. A configured planner now
+  stays in the selector, marked unavailable and carrying an operator-actionable reason, and the API
+  logs a warning naming the planner. The language keeps the display name and editor mode it had when
+  it was last healthy, so a compiler that misses one deadline does not also lose its name. SQL is
+  unaffected either way: it runs in the API process and has no planner to be unhealthy.
+
 ## [2.0.2] - 2026-08-05
 
 An operations release. Nothing in the application changed; what changed is that pinning a release

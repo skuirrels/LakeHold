@@ -143,8 +143,17 @@ export interface QueryLanguage {
   starterSource: string;
   readOnly: boolean;
   supportsSavedQueries: boolean;
-  /** False only for a preserved source whose optional planner is currently unavailable. */
+  /**
+   * False for an installed planner the API reported as unhealthy, and for a preserved source whose
+   * planner is not installed here at all. Absent is treated as available.
+   */
   available?: boolean;
+  /**
+   * Why the planner cannot be reached, when the API knows. Present only alongside
+   * `available: false`, and only for a planner this deployment actually configures — a language the
+   * API has never heard of has no reason to give.
+   */
+  unavailableReason?: string | null;
 }
 
 export interface QueryLanguageStarter {

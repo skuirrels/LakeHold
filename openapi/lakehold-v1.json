@@ -24085,6 +24085,16 @@
           },
           "supportsSavedQueries": {
             "type": "boolean"
+          },
+          "available": {
+            "type": "boolean",
+            "default": true
+          },
+          "unavailableReason": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
