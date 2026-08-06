@@ -243,8 +243,11 @@ public sealed class QueryPlannerRegistry(
         var contentLength = response.Content.Headers.ContentLength;
         if (contentLength.HasValue && contentLength.Value > _options.MaxResponseBytes)
         {
-            throw new HttpRequestException(
-                $"Planner response exceeded the {_options.MaxResponseBytes:N0}-byte limit.");
+            // Carries the same inner exception as the mid-read refusal below, because that is what
+            // DescribeAsync classifies on: without it, a planner answering with an oversized body it
+            // declared up front is reported unreachable, and the operator goes looking at a network
+            // that is working.
+            throw Oversized();
         }
 
         await using var source = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
@@ -259,6 +262,13 @@ public sealed class QueryPlannerRegistry(
         catch (Exception exception) when (exception is InvalidDataException or JsonException)
         {
             throw new HttpRequestException(exception.Message, exception);
+        }
+
+        HttpRequestException Oversized()
+        {
+            var limit = new InvalidDataException(
+                $"Planner response exceeded the {_options.MaxResponseBytes:N0}-byte limit.");
+            return new HttpRequestException(limit.Message, limit);
         }
     }
 

@@ -120,6 +120,49 @@ public sealed class QueryPlannerRegistryTests
         Assert.True(down.ReadOnly);
     }
 
+    [Fact]
+    public async Task A_descriptor_that_cannot_be_parsed_says_so_rather_than_blaming_the_network()
+    {
+        var registry = Create(new RecordingHandler(new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent("{ not json", Encoding.UTF8, "application/json"),
+        }));
+
+        var languages = await registry.GetLanguagesAsync(default);
+
+        var linq = Assert.Single(languages, language => language.Id == "csharp-linq");
+        Assert.False(linq.Available);
+        Assert.Contains("cannot read", linq.UnavailableReason, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    // A body over the cap is refused twice over: once up front when the planner declares its length,
+    // and again mid-read when it does not. Both are the same problem to the operator reading the
+    // reason, so both have to arrive there as the same reason — the declared case reported the
+    // planner unreachable, which sends them to check a network that is working.
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task An_oversized_descriptor_says_so_however_the_size_is_discovered(bool declareLength)
+    {
+        var content = new StringContent(new string('x', 8_192), Encoding.UTF8, "application/json");
+        if (!declareLength)
+        {
+            content.Headers.ContentLength = null;
+        }
+
+        var registry = Create(
+            new RecordingHandler(new HttpResponseMessage(HttpStatusCode.OK) { Content = content }),
+            maxResponseBytes: 1_024);
+
+        var languages = await registry.GetLanguagesAsync(default);
+
+        var linq = Assert.Single(languages, language => language.Id == "csharp-linq");
+        Assert.False(linq.Available);
+        Assert.Contains("cannot read", linq.UnavailableReason, StringComparison.Ordinal);
+        // The byte cap is the host's business, and the planner's own size claim is untrusted input.
+        Assert.DoesNotContain("8,192", linq.UnavailableReason, StringComparison.Ordinal);
+    }
+
     private static QueryPlannerRegistry Create(
         HttpMessageHandler handler,
         int maxResponseBytes = 4 * 1024 * 1024,
