@@ -299,6 +299,11 @@ builder.Services.AddOptions<QueryPlannerOptions>()
             == options.Planners.Count,
         "Query planner ids must be unique.")
     .Validate(
+        options => options.LeavesBuiltInLanguageAlone(),
+        $"No query planner may use the id '{QueryPlannerOptions.BuiltInLanguageId}'. The API plans "
+        + "that language in this process and always serves it, so a planner sharing the id would "
+        + "list it twice.")
+    .Validate(
         options => options.MaxResponseBytes is >= 1_024 and <= 16 * 1024 * 1024,
         "Query planner responses must be capped between 1 KiB and 16 MiB.")
     .ValidateOnStart();

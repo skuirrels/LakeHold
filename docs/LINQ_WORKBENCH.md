@@ -59,7 +59,9 @@ misses one deadline does not also lose its name.
 SQL degrades under none of this: it is planned and executed by the API process itself.
 
 More languages can be added through `Lakehold:Querying:Planners`; the API depends
-only on the contracts in `Lakehold.Querying`. Planner endpoints are HTTP(S) base URIs and must end
+only on the contracts in `Lakehold.Querying`. Planner ids must be unique, and none of them may be
+`sql` — the API serves that language from this process and would otherwise list it twice, which
+empties the selector rather than adding to it. Planner endpoints are HTTP(S) base URIs and must end
 in `/` so the host can append `descriptor`, `starter`, and `plan` without path ambiguity. The
 planner also owns catalog-aware starter generation, ensuring the editor and compiler use exactly
 the same identifier rules for awkward, numeric, keyword, and colliding catalog names.

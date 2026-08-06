@@ -26,7 +26,13 @@ public sealed class QueryPlannerRegistry(
         // SQL is executed by this process, so it has no health to report and can never be absent.
         var languages = new List<QueryLanguageDescriptor>
         {
-            new("sql", "SQL", "sql", SqlStarter, ReadOnly: false, SupportsSavedQueries: true),
+            new(
+                QueryPlannerOptions.BuiltInLanguageId,
+                "SQL",
+                "sql",
+                SqlStarter,
+                ReadOnly: false,
+                SupportsSavedQueries: true),
         };
 
         foreach (var planner in _options.Planners)
@@ -147,7 +153,7 @@ public sealed class QueryPlannerRegistry(
         QueryPlanningRequest planningRequest,
         CancellationToken cancellationToken)
     {
-        if (string.Equals(language, "sql", StringComparison.Ordinal))
+        if (string.Equals(language, QueryPlannerOptions.BuiltInLanguageId, StringComparison.Ordinal))
         {
             return new QueryPlan(planningRequest.Source, [], [], planningRequest.SchemaFingerprint);
         }
@@ -187,7 +193,7 @@ public sealed class QueryPlannerRegistry(
         QueryCatalogSchema catalogSchema,
         CancellationToken cancellationToken)
     {
-        if (string.Equals(language, "sql", StringComparison.Ordinal))
+        if (string.Equals(language, QueryPlannerOptions.BuiltInLanguageId, StringComparison.Ordinal))
         {
             return new QueryLanguageStarter(SqlStarter, catalogSchema.SchemaFingerprint);
         }

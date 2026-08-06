@@ -163,6 +163,45 @@ public sealed class QueryPlannerRegistryTests
         Assert.DoesNotContain("8,192", linq.UnavailableReason, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void A_planner_may_not_take_the_language_id_the_api_serves_itself()
+    {
+        var options = new QueryPlannerOptions
+        {
+            Planners =
+            [
+                new ExternalQueryPlannerOptions
+                {
+                    Id = QueryPlannerOptions.BuiltInLanguageId,
+                    Endpoint = new Uri("http://planner.internal/"),
+                },
+            ],
+        };
+
+        // Uniqueness among planners cannot catch this, because the built-in language is not one of
+        // them: a single planner is trivially unique and still collides.
+        Assert.False(options.LeavesBuiltInLanguageAlone());
+
+        options.Planners[0].Id = "csharp-linq";
+        Assert.True(options.LeavesBuiltInLanguageAlone());
+    }
+
+    [Fact]
+    public async Task The_reserved_id_is_the_one_discovery_actually_serves()
+    {
+        // Gives the rule above its teeth. Reserving an id start-up refuses to hand out is only worth
+        // anything while it is the id discovery emits; moving one without the other would reopen the
+        // collision and no other test would notice.
+        var registry = Create(new RecordingHandler(new HttpResponseMessage(HttpStatusCode.ServiceUnavailable)));
+
+        var languages = await registry.GetLanguagesAsync(default);
+
+        var builtIn = Assert.Single(
+            languages,
+            language => language.Id == QueryPlannerOptions.BuiltInLanguageId);
+        Assert.True(builtIn.Available);
+    }
+
     private static QueryPlannerRegistry Create(
         HttpMessageHandler handler,
         int maxResponseBytes = 4 * 1024 * 1024,
