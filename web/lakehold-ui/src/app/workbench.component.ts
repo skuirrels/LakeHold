@@ -236,6 +236,41 @@ export class WorkbenchComponent {
   protected readonly ready = computed(
     () => this.tenantSlug() !== null && this.catalogName() !== null,
   );
+
+  /**
+   * An instance credential on the workbench: it administers the node, holds no workspace, and so
+   * has nothing to select. `loadTenants` sends it to settings, but the workbench stays reachable
+   * from the navigation, and arriving at a blank editor with no explanation is the state this
+   * banner exists to end.
+   */
+  protected readonly instanceAdminWithoutData = computed(
+    () => (this.access()?.systemAdmin ?? false) && this.tenantSlug() === null,
+  );
+
+  /**
+   * What an empty picker should say. "Select a workspace" is an instruction, and giving it to
+   * someone who cannot follow it is worse than saying nothing — so the reason wins where there is
+   * one.
+   */
+  protected readonly workspacePlaceholder = computed(() => {
+    if (this.instanceAdminWithoutData()) {
+      return 'Administration only';
+    }
+
+    return this.tenants().length > 0 ? 'Select a workspace' : 'No workspace';
+  });
+
+  protected readonly catalogPlaceholder = computed(() => {
+    if (this.instanceAdminWithoutData()) {
+      return 'Administration only';
+    }
+
+    if (this.tenantSlug() === null) {
+      return 'Select a workspace first';
+    }
+
+    return this.catalogs().length > 0 ? 'Select a catalog' : 'No catalog in this workspace';
+  });
   protected readonly readOnlyAccess = computed(() => this.access()?.readOnly ?? false);
   protected readonly demoMode = computed(() => this.access()?.mode === 'demo');
 
