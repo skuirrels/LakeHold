@@ -177,10 +177,12 @@ public class JSON {
         gsonBuilder.registerTypeAdapterFactory(new io.lakehold.sdk.model.TabularImportDto.CustomTypeAdapterFactory());
         gsonBuilder.registerTypeAdapterFactory(new io.lakehold.sdk.model.TabularImportedColumnDto.CustomTypeAdapterFactory());
         gsonBuilder.registerTypeAdapterFactory(new io.lakehold.sdk.model.TenantDto.CustomTypeAdapterFactory());
+        gsonBuilder.registerTypeAdapterFactory(new io.lakehold.sdk.model.TenantMemberDto.CustomTypeAdapterFactory());
         gsonBuilder.registerTypeAdapterFactory(new io.lakehold.sdk.model.UpdateDataConnectorRequest.CustomTypeAdapterFactory());
         gsonBuilder.registerTypeAdapterFactory(new io.lakehold.sdk.model.UpdateSavedQueryRequest.CustomTypeAdapterFactory());
         gsonBuilder.registerTypeAdapterFactory(new io.lakehold.sdk.model.UpdateSubscriptionRequest.CustomTypeAdapterFactory());
         gsonBuilder.registerTypeAdapterFactory(new io.lakehold.sdk.model.UpdateSystemSettingsRequest.CustomTypeAdapterFactory());
+        gsonBuilder.registerTypeAdapterFactory(new io.lakehold.sdk.model.UpdateTenantMemberRequest.CustomTypeAdapterFactory());
         gson = gsonBuilder.create();
     }
 

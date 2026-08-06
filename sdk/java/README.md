@@ -121,6 +121,7 @@ Class | Method | HTTP request | Description
 *LakehouseApi* | [**deleteApiV1TenantsTenantSlugCatalogsCatalogNameConnectorsIdInt**](docs/LakehouseApi.md#deleteApiV1TenantsTenantSlugCatalogsCatalogNameConnectorsIdInt) | **DELETE** /api/v1/tenants/{tenantSlug}/catalogs/{catalogName}/connectors/{id} | 
 *LakehouseApi* | [**deleteApiV1TenantsTenantSlugCatalogsCatalogNameSavedQueriesIdInt**](docs/LakehouseApi.md#deleteApiV1TenantsTenantSlugCatalogsCatalogNameSavedQueriesIdInt) | **DELETE** /api/v1/tenants/{tenantSlug}/catalogs/{catalogName}/saved-queries/{id} | Deletes an unpublished reusable query.
 *LakehouseApi* | [**deleteApiV1TenantsTenantSlugCatalogsCatalogNameSubscriptionsIdInt**](docs/LakehouseApi.md#deleteApiV1TenantsTenantSlugCatalogsCatalogNameSubscriptionsIdInt) | **DELETE** /api/v1/tenants/{tenantSlug}/catalogs/{catalogName}/subscriptions/{id} | Deletes a change subscription.
+*LakehouseApi* | [**deleteApiV1TenantsTenantSlugMembersIdInt**](docs/LakehouseApi.md#deleteApiV1TenantsTenantSlugMembersIdInt) | **DELETE** /api/v1/tenants/{tenantSlug}/members/{id} | Removes a membership entirely; the person may return as a new arrival.
 *LakehouseApi* | [**deleteApiV1TenantsTenantSlugTokensIdInt**](docs/LakehouseApi.md#deleteApiV1TenantsTenantSlugTokensIdInt) | **DELETE** /api/v1/tenants/{tenantSlug}/tokens/{id} | Revokes a token; it is refused thereafter on the HTTP and wire surfaces alike.
 *LakehouseApi* | [**getApiV1Access**](docs/LakehouseApi.md#getApiV1Access) | **GET** /api/v1/access | Describes the caller&#39;s effective workbench access.
 *LakehouseApi* | [**getApiV1MaintenanceSchedule**](docs/LakehouseApi.md#getApiV1MaintenanceSchedule) | **GET** /api/v1/maintenance/schedule | Recent scheduled maintenance runs, scoped to what the credential may see.
@@ -147,9 +148,11 @@ Class | Method | HTTP request | Description
 *LakehouseApi* | [**getApiV1TenantsTenantSlugCatalogsCatalogNameTableDetail**](docs/LakehouseApi.md#getApiV1TenantsTenantSlugCatalogsCatalogNameTableDetail) | **GET** /api/v1/tenants/{tenantSlug}/catalogs/{catalogName}/table-detail | Returns one table&#39;s schema, storage footprint, and partition layout.
 *LakehouseApi* | [**getApiV1TenantsTenantSlugCatalogsCatalogNameTableProfile**](docs/LakehouseApi.md#getApiV1TenantsTenantSlugCatalogsCatalogNameTableProfile) | **GET** /api/v1/tenants/{tenantSlug}/catalogs/{catalogName}/table-profile | Profiles the live logical rows of every column in one table.
 *LakehouseApi* | [**getApiV1TenantsTenantSlugHistory**](docs/LakehouseApi.md#getApiV1TenantsTenantSlugHistory) | **GET** /api/v1/tenants/{tenantSlug}/history | Returns recent query runs for a tenant.
+*LakehouseApi* | [**getApiV1TenantsTenantSlugMembers**](docs/LakehouseApi.md#getApiV1TenantsTenantSlugMembers) | **GET** /api/v1/tenants/{tenantSlug}/members | Lists the people who may reach this workspace, including those awaiting approval.
 *LakehouseApi* | [**getApiV1TenantsTenantSlugTokens**](docs/LakehouseApi.md#getApiV1TenantsTenantSlugTokens) | **GET** /api/v1/tenants/{tenantSlug}/tokens | Lists token metadata for a tenant. Never returns the secret.
 *LakehouseApi* | [**getSnapshot**](docs/LakehouseApi.md#getSnapshot) | **GET** /api/v1/tenants/{tenantSlug}/catalogs/{catalogName}/snapshots/{snapshotId} | Returns one retained snapshot by its source-native identifier.
 *LakehouseApi* | [**getSnapshotTable**](docs/LakehouseApi.md#getSnapshotTable) | **GET** /api/v1/tenants/{tenantSlug}/catalogs/{catalogName}/snapshots/{snapshotId}/table | Returns a bounded table preview at an exact retained snapshot.
+*LakehouseApi* | [**patchApiV1TenantsTenantSlugMembersIdInt**](docs/LakehouseApi.md#patchApiV1TenantsTenantSlugMembersIdInt) | **PATCH** /api/v1/tenants/{tenantSlug}/members/{id} | Changes a member&#39;s role or status.
 *LakehouseApi* | [**postApiV1Tenants**](docs/LakehouseApi.md#postApiV1Tenants) | **POST** /api/v1/tenants | Creates a tenant. Instance scope.
 *LakehouseApi* | [**postApiV1TenantsTenantSlugCatalogs**](docs/LakehouseApi.md#postApiV1TenantsTenantSlugCatalogs) | **POST** /api/v1/tenants/{tenantSlug}/catalogs | Creates a catalog under a tenant. Instance scope.
 *LakehouseApi* | [**postApiV1TenantsTenantSlugCatalogsCatalogNameBackupsRestore**](docs/LakehouseApi.md#postApiV1TenantsTenantSlugCatalogsCatalogNameBackupsRestore) | **POST** /api/v1/tenants/{tenantSlug}/catalogs/{catalogName}/backups/restore | Rebuilds a catalog from a backup into a new metadata file.
@@ -265,10 +268,12 @@ Class | Method | HTTP request | Description
  - [TabularImportDto](docs/TabularImportDto.md)
  - [TabularImportedColumnDto](docs/TabularImportedColumnDto.md)
  - [TenantDto](docs/TenantDto.md)
+ - [TenantMemberDto](docs/TenantMemberDto.md)
  - [UpdateDataConnectorRequest](docs/UpdateDataConnectorRequest.md)
  - [UpdateSavedQueryRequest](docs/UpdateSavedQueryRequest.md)
  - [UpdateSubscriptionRequest](docs/UpdateSubscriptionRequest.md)
  - [UpdateSystemSettingsRequest](docs/UpdateSystemSettingsRequest.md)
+ - [UpdateTenantMemberRequest](docs/UpdateTenantMemberRequest.md)
 
 
 <a id="documentation-for-authorization"></a>
