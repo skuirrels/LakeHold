@@ -30,7 +30,7 @@ export interface AccessContext {
    * capability policy, not inferred from `role`: a read-only or catalog-narrowed owner token holds
    * the role and not the capability.
    */
-  tenantAdmin: boolean;
+  tenantAdmin?: boolean;
 }
 
 /** Browser OIDC availability and the current same-origin session. */

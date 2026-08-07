@@ -16676,6 +16676,7 @@ components:
       example:
         mode: mode
         systemAdmin: true
+        tenantAdmin: true
         role: role
         readOnly: true
       properties:
@@ -16686,6 +16687,8 @@ components:
         readOnly:
           type: boolean
         systemAdmin:
+          type: boolean
+        tenantAdmin:
           type: boolean
       required:
       - mode

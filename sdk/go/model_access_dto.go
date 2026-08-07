@@ -24,6 +24,7 @@ type AccessDto struct {
 	Role string `json:"role"`
 	ReadOnly bool `json:"readOnly"`
 	SystemAdmin bool `json:"systemAdmin"`
+	TenantAdmin *bool `json:"tenantAdmin,omitempty"`
 	AdditionalProperties map[string]interface{}
 }
 
@@ -146,6 +147,38 @@ func (o *AccessDto) SetSystemAdmin(v bool) {
 	o.SystemAdmin = v
 }
 
+// GetTenantAdmin returns the TenantAdmin field value if set, zero value otherwise.
+func (o *AccessDto) GetTenantAdmin() bool {
+	if o == nil || IsNil(o.TenantAdmin) {
+		var ret bool
+		return ret
+	}
+	return *o.TenantAdmin
+}
+
+// GetTenantAdminOk returns a tuple with the TenantAdmin field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *AccessDto) GetTenantAdminOk() (*bool, bool) {
+	if o == nil || IsNil(o.TenantAdmin) {
+		return nil, false
+	}
+	return o.TenantAdmin, true
+}
+
+// HasTenantAdmin returns a boolean if a field has been set.
+func (o *AccessDto) HasTenantAdmin() bool {
+	if o != nil && !IsNil(o.TenantAdmin) {
+		return true
+	}
+
+	return false
+}
+
+// SetTenantAdmin gets a reference to the given bool and assigns it to the TenantAdmin field.
+func (o *AccessDto) SetTenantAdmin(v bool) {
+	o.TenantAdmin = &v
+}
+
 func (o AccessDto) MarshalJSON() ([]byte, error) {
 	toSerialize,err := o.ToMap()
 	if err != nil {
@@ -160,6 +193,9 @@ func (o AccessDto) ToMap() (map[string]interface{}, error) {
 	toSerialize["role"] = o.Role
 	toSerialize["readOnly"] = o.ReadOnly
 	toSerialize["systemAdmin"] = o.SystemAdmin
+	if !IsNil(o.TenantAdmin) {
+		toSerialize["tenantAdmin"] = o.TenantAdmin
+	}
 
 	for key, value := range o.AdditionalProperties {
 		toSerialize[key] = value
@@ -210,6 +246,7 @@ func (o *AccessDto) UnmarshalJSON(data []byte) (err error) {
 		delete(additionalProperties, "role")
 		delete(additionalProperties, "readOnly")
 		delete(additionalProperties, "systemAdmin")
+		delete(additionalProperties, "tenantAdmin")
 		o.AdditionalProperties = additionalProperties
 	}
 

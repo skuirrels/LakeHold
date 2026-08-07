@@ -15,6 +15,7 @@ using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.OpenApi;
 using Xunit;
 
 namespace Lakehold.Api.Tests;
@@ -115,6 +116,34 @@ public sealed class PublicApiContractTests
         string path,
         string expected)
         => Assert.Equal(expected, PublicApiOperationIds.Create(method, path));
+
+    [Fact]
+    public void Additive_access_capabilities_remain_optional_in_the_public_schema()
+    {
+        var accessSchema = new OpenApiSchema
+        {
+            Required = new HashSet<string>(StringComparer.Ordinal)
+            {
+                "mode",
+                "tenantAdmin",
+            },
+        };
+        var document = new OpenApiDocument
+        {
+            Components = new OpenApiComponents
+            {
+                Schemas = new Dictionary<string, IOpenApiSchema>(StringComparer.Ordinal)
+                {
+                    ["AccessDto"] = accessSchema,
+                },
+            },
+        };
+
+        PublicApiOpenApi.PreserveAdditiveAccessCompatibility(document);
+
+        Assert.Contains("mode", accessSchema.Required);
+        Assert.DoesNotContain("tenantAdmin", accessSchema.Required);
+    }
 
     [Fact]
     public async Task Mutation_response_is_persisted_and_replayed_without_reexecution()

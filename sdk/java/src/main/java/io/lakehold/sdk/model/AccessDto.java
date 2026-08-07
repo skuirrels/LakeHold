@@ -70,6 +70,11 @@ public class AccessDto {
   @jakarta.annotation.Nonnull
   private Boolean systemAdmin;
 
+  public static final String SERIALIZED_NAME_TENANT_ADMIN = "tenantAdmin";
+  @SerializedName(SERIALIZED_NAME_TENANT_ADMIN)
+  @jakarta.annotation.Nullable
+  private Boolean tenantAdmin;
+
   public AccessDto() {
   }
 
@@ -148,6 +153,25 @@ public class AccessDto {
     this.systemAdmin = systemAdmin;
   }
 
+
+  public AccessDto tenantAdmin(@jakarta.annotation.Nullable Boolean tenantAdmin) {
+    this.tenantAdmin = tenantAdmin;
+    return this;
+  }
+
+  /**
+   * Get tenantAdmin
+   * @return tenantAdmin
+   */
+  @jakarta.annotation.Nullable
+  public Boolean getTenantAdmin() {
+    return tenantAdmin;
+  }
+
+  public void setTenantAdmin(@jakarta.annotation.Nullable Boolean tenantAdmin) {
+    this.tenantAdmin = tenantAdmin;
+  }
+
   /**
    * A container for additional, undeclared properties.
    * This is a holder for any undeclared properties as specified with
@@ -206,13 +230,14 @@ public class AccessDto {
     return Objects.equals(this.mode, accessDto.mode) &&
         Objects.equals(this.role, accessDto.role) &&
         Objects.equals(this.readOnly, accessDto.readOnly) &&
-        Objects.equals(this.systemAdmin, accessDto.systemAdmin)&&
+        Objects.equals(this.systemAdmin, accessDto.systemAdmin) &&
+        Objects.equals(this.tenantAdmin, accessDto.tenantAdmin)&&
         Objects.equals(this.additionalProperties, accessDto.additionalProperties);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(mode, role, readOnly, systemAdmin, additionalProperties);
+    return Objects.hash(mode, role, readOnly, systemAdmin, tenantAdmin, additionalProperties);
   }
 
   @Override
@@ -223,6 +248,7 @@ public class AccessDto {
     sb.append("    role: ").append(toIndentedString(role)).append("\n");
     sb.append("    readOnly: ").append(toIndentedString(readOnly)).append("\n");
     sb.append("    systemAdmin: ").append(toIndentedString(systemAdmin)).append("\n");
+    sb.append("    tenantAdmin: ").append(toIndentedString(tenantAdmin)).append("\n");
     sb.append("    additionalProperties: ").append(toIndentedString(additionalProperties)).append("\n");
     sb.append("}");
     return sb.toString();
@@ -245,7 +271,7 @@ public class AccessDto {
 
   static {
     // a set of all properties/fields (JSON key names)
-    openapiFields = new HashSet<String>(Arrays.asList("mode", "role", "readOnly", "systemAdmin"));
+    openapiFields = new HashSet<String>(Arrays.asList("mode", "role", "readOnly", "systemAdmin", "tenantAdmin"));
 
     // a set of required properties/fields (JSON key names)
     openapiRequiredFields = new HashSet<String>(Arrays.asList("mode", "role", "readOnly", "systemAdmin"));
