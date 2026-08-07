@@ -20,12 +20,24 @@ describe('LakehouseService', () => {
 
   it('reads the effective workbench access before loading tenant data', () => {
     service.getAccess().subscribe((access) => {
-      expect(access).toEqual({ mode: 'demo', role: 'reader', readOnly: true, systemAdmin: false });
+      expect(access).toEqual({
+        mode: 'demo',
+        role: 'reader',
+        readOnly: true,
+        systemAdmin: false,
+        tenantAdmin: false,
+      });
     });
 
     const request = http.expectOne('/api/access');
     expect(request.request.method).toBe('GET');
-    request.flush({ mode: 'demo', role: 'reader', readOnly: true, systemAdmin: false });
+    request.flush({
+      mode: 'demo',
+      role: 'reader',
+      readOnly: true,
+      systemAdmin: false,
+      tenantAdmin: false,
+    });
   });
 
   it('discovers the same-origin browser authentication session', () => {

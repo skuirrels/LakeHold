@@ -1,0 +1,51 @@
+/*
+ * Chrome shared by the full-width administration pages that replace the editor.
+ *
+ * Imported through `styleUrls` alongside each page's own sheet, the same way `panel-shared.css`
+ * serves the workbench panels. Users and System Settings are two destinations with one look, and
+ * without a shared file the second copy of the page header is where they drift apart.
+ */
+
+:host {
+  display: block;
+  flex: 1;
+  min-height: 100%;
+  overflow: auto;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.admin-page {
+  width: min(880px, calc(100% - 48px));
+  margin: 0 auto;
+  padding: 42px 0 64px;
+}
+
+.admin-page > header {
+  margin-bottom: 28px;
+}
+
+.admin-page > header p {
+  margin: 0;
+  color: var(--text-dim);
+}
+
+.eyebrow {
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+h1 {
+  margin: 7px 0 6px;
+  font-size: 28px;
+}
+
+@media (max-width: 700px) {
+  .admin-page {
+    width: min(100% - 28px, 880px);
+    padding-top: 24px;
+  }
+}

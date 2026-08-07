@@ -42,14 +42,16 @@ describe('SystemSettingsComponent', () => {
     expect(fixture.nativeElement.textContent).toContain(
       'System settings are temporarily unavailable.',
     );
-    expect(fixture.nativeElement.querySelector('form')).toBeNull();
+    expect(fixture.nativeElement.querySelector('form.settings-card')).toBeNull();
+    expect(fixture.nativeElement.querySelector('lh-workspace-administration')).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('lh-catalog-administration')).toBeTruthy();
 
     api.failures.delete('getSystemSettings');
     (fixture.nativeElement.querySelector('.retry') as HTMLButtonElement).click();
     await fixture.whenStable();
 
     expect(api.countOf('getSystemSettings')).toBe(2);
-    expect(fixture.nativeElement.querySelector('form')).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('form.settings-card')).toBeTruthy();
   });
 
   it('limits the public base URL to the persisted maximum length', async () => {
@@ -64,7 +66,7 @@ describe('SystemSettingsComponent', () => {
     const inputs = fixture.nativeElement.querySelectorAll('input');
     (inputs[0] as HTMLInputElement).checked = false;
     inputs[0].dispatchEvent(new Event('change'));
-    (fixture.nativeElement.querySelector('form') as HTMLFormElement).dispatchEvent(
+    (fixture.nativeElement.querySelector('form.settings-card') as HTMLFormElement).dispatchEvent(
       new Event('submit'),
     );
     await fixture.whenStable();
@@ -79,7 +81,7 @@ describe('SystemSettingsComponent', () => {
     api.failures.set('saveSystemSettings', 'System settings changed since they were loaded.');
     await mount();
 
-    (fixture.nativeElement.querySelector('form') as HTMLFormElement).dispatchEvent(
+    (fixture.nativeElement.querySelector('form.settings-card') as HTMLFormElement).dispatchEvent(
       new Event('submit'),
     );
     await fixture.whenStable();
@@ -87,5 +89,30 @@ describe('SystemSettingsComponent', () => {
     expect(fixture.nativeElement.textContent).toContain(
       'System settings changed since they were loaded.',
     );
+  });
+
+  it('creates another workspace, refreshes the shell, and selects it for catalog creation', async () => {
+    await mount();
+    const announced: unknown[] = [];
+    fixture.componentInstance.resourcesChanged.subscribe(() => announced.push(true));
+    const workspace = fixture.nativeElement.querySelector(
+      'lh-workspace-administration',
+    ) as HTMLElement;
+    const [slug, displayName] = workspace.querySelectorAll('input');
+    slug.value = 'northwind';
+    slug.dispatchEvent(new Event('input'));
+    displayName.value = 'Northwind Traders';
+    displayName.dispatchEvent(new Event('input'));
+    await fixture.whenStable();
+
+    (workspace.querySelector('button') as HTMLButtonElement).click();
+    await fixture.whenStable();
+
+    expect(api.lastArgs('createTenant')).toEqual(['northwind', 'Northwind Traders']);
+    expect(announced).toEqual([true]);
+    const catalogWorkspace = fixture.nativeElement.querySelector(
+      'lh-catalog-administration select',
+    ) as HTMLSelectElement;
+    expect(catalogWorkspace.value).toBe('northwind');
   });
 });

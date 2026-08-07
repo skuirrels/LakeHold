@@ -105,7 +105,7 @@ Class | Method | HTTP request | Description
 *LakehouseApi* | [**get_api_v1_tenants_tenant_slug_catalogs_catalog_name_table_detail**](docs/LakehouseApi.md#get_api_v1_tenants_tenant_slug_catalogs_catalog_name_table_detail) | **GET** /api/v1/tenants/{tenantSlug}/catalogs/{catalogName}/table-detail | Returns one table&#39;s schema, storage footprint, and partition layout.
 *LakehouseApi* | [**get_api_v1_tenants_tenant_slug_catalogs_catalog_name_table_profile**](docs/LakehouseApi.md#get_api_v1_tenants_tenant_slug_catalogs_catalog_name_table_profile) | **GET** /api/v1/tenants/{tenantSlug}/catalogs/{catalogName}/table-profile | Profiles the live logical rows of every column in one table.
 *LakehouseApi* | [**get_api_v1_tenants_tenant_slug_history**](docs/LakehouseApi.md#get_api_v1_tenants_tenant_slug_history) | **GET** /api/v1/tenants/{tenantSlug}/history | Returns recent query runs for a tenant.
-*LakehouseApi* | [**get_api_v1_tenants_tenant_slug_members**](docs/LakehouseApi.md#get_api_v1_tenants_tenant_slug_members) | **GET** /api/v1/tenants/{tenantSlug}/members | Lists the people who may reach this workspace, including those awaiting approval.
+*LakehouseApi* | [**get_api_v1_tenants_tenant_slug_members**](docs/LakehouseApi.md#get_api_v1_tenants_tenant_slug_members) | **GET** /api/v1/tenants/{tenantSlug}/members | Lists the users who may reach this workspace, including those awaiting approval.
 *LakehouseApi* | [**get_api_v1_tenants_tenant_slug_tokens**](docs/LakehouseApi.md#get_api_v1_tenants_tenant_slug_tokens) | **GET** /api/v1/tenants/{tenantSlug}/tokens | Lists token metadata for a tenant. Never returns the secret.
 *LakehouseApi* | [**get_snapshot**](docs/LakehouseApi.md#get_snapshot) | **GET** /api/v1/tenants/{tenantSlug}/catalogs/{catalogName}/snapshots/{snapshotId} | Returns one retained snapshot by its source-native identifier.
 *LakehouseApi* | [**get_snapshot_table**](docs/LakehouseApi.md#get_snapshot_table) | **GET** /api/v1/tenants/{tenantSlug}/catalogs/{catalogName}/snapshots/{snapshotId}/table | Returns a bounded table preview at an exact retained snapshot.
@@ -251,7 +251,6 @@ Authentication schemes defined for the API:
 
 
 ## Author
-
 
 
 

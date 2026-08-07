@@ -1,0 +1,55 @@
+<section class="panel">
+  <header>
+    <h2>New workspace</h2>
+    <p>
+      A workspace is a tenant: it owns its catalogs, user memberships, and credentials. Create the
+      workspace here, then add its first catalog below.
+    </p>
+  </header>
+
+  <form class="body" (submit)="$event.preventDefault(); create()">
+    <label class="field">
+      <span>Workspace slug</span>
+      <input
+        type="text"
+        autocomplete="off"
+        spellcheck="false"
+        maxlength="63"
+        [pattern]="slugPattern"
+        placeholder="acme"
+        [value]="slug()"
+        [attr.aria-invalid]="slug().trim() && !validSlug() ? 'true' : null"
+        (input)="slug.set($any($event.target).value)"
+      />
+      <small>
+        The stable identifier used in URLs and credentials: lower-case letters, digits, and hyphens.
+      </small>
+    </label>
+
+    <label class="field">
+      <span>Display name <em>optional</em></span>
+      <input
+        type="text"
+        autocomplete="off"
+        maxlength="200"
+        placeholder="Acme"
+        [value]="displayName()"
+        (input)="displayName.set($any($event.target).value)"
+      />
+      <small>Shown in the Workbench. The slug is used when this is left blank.</small>
+    </label>
+
+    @if (error(); as message) {
+      <p class="error" role="alert">{{ message }}</p>
+    }
+    @if (notice(); as message) {
+      <p class="success" role="status">{{ message }}</p>
+    }
+
+    <div class="actions">
+      <button type="submit" [disabled]="busy() || !validWorkspace()">
+        {{ busy() ? 'Creating…' : 'Create workspace' }}
+      </button>
+    </div>
+  </form>
+</section>

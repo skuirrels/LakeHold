@@ -141,4 +141,18 @@ describe('CatalogAdministrationComponent', () => {
     ) as HTMLButtonElement;
     expect(button.disabled).toBe(true);
   });
+
+  it('reloads and selects a workspace created beside it', async () => {
+    await mount();
+    api.tenants = [
+      ...api.tenants,
+      { slug: 'contoso', displayName: 'Contoso', catalogs: [] },
+    ];
+
+    fixture.componentInstance.reload('contoso');
+    await fixture.whenStable();
+
+    const workspace = fixture.nativeElement.querySelector('select') as HTMLSelectElement;
+    expect(workspace.value).toBe('contoso');
+  });
 });

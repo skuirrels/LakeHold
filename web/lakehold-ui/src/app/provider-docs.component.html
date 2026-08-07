@@ -1,5 +1,5 @@
-<div class="page">
-  <header class="nav">
+<header class="nav">
+  <div class="nav-inner">
     <a class="brand" routerLink="/provider">
       <lh-brand-mark class="mark" />
       LakeHold
@@ -23,8 +23,10 @@
       >
       <a class="btn btn-primary" routerLink="/workbench">Open workbench →</a>
     </nav>
-  </header>
+  </div>
+</header>
 
+<div class="page">
   <div class="layout">
     <!-- Left rail, derived from the headings in provider.content.md. -->
     <aside class="sidenav" aria-label="Provider documentation sections">
@@ -77,8 +79,8 @@
       <footer class="foot">
         <p class="domain"><a href="https://lakehold.dev">lakehold.dev</a></p>
         <p>
-          Community provider, MIT licensed. Not affiliated with DuckDB Labs or Microsoft.
-          Built on <a href="https://duckdb.org" target="_blank" rel="noopener">DuckDB</a> and
+          Community provider, MIT licensed. Not affiliated with DuckDB Labs or Microsoft. Built on
+          <a href="https://duckdb.org" target="_blank" rel="noopener">DuckDB</a> and
           <a href="https://ducklake.select" target="_blank" rel="noopener">DuckLake</a>.
         </p>
       </footer>

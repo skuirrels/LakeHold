@@ -1,5 +1,5 @@
-<div class="page">
-  <header class="nav">
+<header class="nav">
+  <div class="nav-inner">
     <a class="brand" routerLink="/">
       <lh-brand-mark class="mark" />
       LakeHold
@@ -13,8 +13,10 @@
       <a routerLink="/compare">Compare</a>
       <a class="btn btn-primary" routerLink="/workbench">Open workbench →</a>
     </nav>
-  </header>
+  </div>
+</header>
 
+<div class="page">
   <div class="layout">
     <aside class="sidenav" [attr.aria-label]="eyebrow + ' sections'">
       <span class="side-label">On this page</span>
@@ -49,7 +51,9 @@
     </aside>
 
     <main class="content">
-      <section class="hero"><span class="eyebrow">{{ eyebrow }}</span></section>
+      <section class="hero">
+        <span class="eyebrow">{{ eyebrow }}</span>
+      </section>
       <article class="markdown" [innerHTML]="body"></article>
 
       <section class="cta">

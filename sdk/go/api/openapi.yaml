@@ -3048,7 +3048,7 @@ paths:
               style: simple
       security:
       - bearerAuth: []
-      summary: "Lists the people who may reach this workspace, including those awaiting\
+      summary: "Lists the users who may reach this workspace, including those awaiting\
         \ approval."
       tags:
       - Lakehouse
@@ -18630,7 +18630,9 @@ components:
     QueryLanguageDescriptor:
       example:
         starterSource: starterSource
+        unavailableReason: unavailableReason
         displayName: displayName
+        available: true
         supportsSavedQueries: true
         readOnly: true
         id: id
@@ -18648,6 +18650,12 @@ components:
           type: boolean
         supportsSavedQueries:
           type: boolean
+        available:
+          default: true
+          type: boolean
+        unavailableReason:
+          nullable: true
+          type: string
       required:
       - displayName
       - editorLanguage

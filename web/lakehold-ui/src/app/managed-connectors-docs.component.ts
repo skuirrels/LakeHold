@@ -10,7 +10,7 @@ import { MarkdownPage } from './markdown-page';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [BrandMarkComponent, RouterLink],
   templateUrl: './product-document.component.html',
-  styleUrls: ['./markdown-page.css', './docs.component.css'],
+  styleUrls: ['./markdown-page.css', './site-header.css', './docs.component.css'],
 })
 export class ManagedConnectorsDocsComponent extends MarkdownPage {
   protected readonly eyebrow = 'Managed connectors';

@@ -24,10 +24,11 @@ import { Tenant } from './models';
   imports: [CatalogPlacementComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './catalog-administration.component.html',
-  styleUrl: './catalog-administration.component.css',
+  styleUrl: './provisioning-administration.component.css',
 })
 export class CatalogAdministrationComponent implements OnInit {
   private readonly api = inject(LakehouseService);
+  private loadGeneration = 0;
 
   /**
    * Announces a catalog that now exists.
@@ -49,13 +50,34 @@ export class CatalogAdministrationComponent implements OnInit {
   private readonly placement = viewChild(CatalogPlacementComponent);
 
   ngOnInit(): void {
+    this.reload();
+  }
+
+  /** Reloads the workspaces and, when present, selects the one an operator just created. */
+  reload(preferredSlug = ''): void {
+    const generation = ++this.loadGeneration;
+    this.loading.set(true);
+    this.error.set(null);
+    this.notice.set(null);
     this.api.listTenants().subscribe({
       next: (tenants) => {
+        if (generation !== this.loadGeneration) {
+          return;
+        }
+
         this.tenants.set(tenants);
-        this.tenantSlug.set(tenants[0]?.slug ?? '');
+        const selected =
+          tenants.find((tenant) => tenant.slug === preferredSlug)
+          ?? tenants.find((tenant) => tenant.slug === this.tenantSlug())
+          ?? tenants[0];
+        this.tenantSlug.set(selected?.slug ?? '');
         this.loading.set(false);
       },
       error: (error: Error) => {
+        if (generation !== this.loadGeneration) {
+          return;
+        }
+
         this.loading.set(false);
         this.error.set(error.message);
       },

@@ -8965,7 +8965,7 @@ public class LakehouseApi {
     }
 
     /**
-     * Lists the people who may reach this workspace, including those awaiting approval.
+     * Lists the users who may reach this workspace, including those awaiting approval.
      *
      * @param tenantSlug  (required)
      * @return APIgetApiV1TenantsTenantSlugMembersRequest

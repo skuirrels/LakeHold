@@ -68,9 +68,9 @@ integration.
   identity scoped to one catalog that fails closed if either is empty. Read it before adding any
   surface that resolves a tenant.
 - `docs/IDENTITY-PROVIDER-SETUP.md`: the operational companion to the above — first-run production
-  setup, adding people, swapping the identity provider, and connecting clients and agents. LakeHold
+  setup, adding users, swapping the identity provider, and connecting clients and agents. LakeHold
   federates authentication and owns authorization: identity comes from the provider, but what an
-  identity reaches is a `TenantMember` row administered under **People**. A `tenant` claim is
+  identity reaches is a `TenantMember` row administered under **Users**. A `tenant` claim is
   honoured only once, to admit a first arrival; after that the row wins, so a provider re-asserting
   a stale role cannot undo a decision made here. Instance administration stays a provider claim by
   design, so a workspace owner cannot promote themselves. Note that an empty `Lakehold:Oidc:Audience`

@@ -9051,7 +9051,7 @@ func (r ApiGetApiV1TenantsTenantSlugMembersRequest) Execute() ([]TenantMemberDto
 }
 
 /*
-GetApiV1TenantsTenantSlugMembers Lists the people who may reach this workspace, including those awaiting approval.
+GetApiV1TenantsTenantSlugMembers Lists the users who may reach this workspace, including those awaiting approval.
 
  @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
  @param tenantSlug

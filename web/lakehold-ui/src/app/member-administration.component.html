@@ -1,9 +1,9 @@
 <section class="panel">
   <header>
-    <h2>People</h2>
+    <h2>Everyone who has signed in</h2>
     <p>
-      Who may reach this workspace. Accounts live in your identity provider — LakeHold never holds a
-      password — but what each person reaches is decided here.
+      A role decides what someone reaches; a status decides whether they reach anything at all.
+      Somebody who has authenticated but not been admitted is listed here as pending.
     </p>
   </header>
 
@@ -13,21 +13,7 @@
 
   @if (loading()) {
     <p class="muted">Loading…</p>
-  } @else if (tenants().length === 0) {
-    <p class="muted">
-      There are no workspaces yet. Create one first; people are admitted to a workspace, not to the
-      instance.
-    </p>
   } @else {
-    <label class="field">
-      <span>Workspace</span>
-      <select name="tenant" [value]="tenantSlug()" (change)="selectTenant($any($event.target).value)">
-        @for (tenant of tenants(); track tenant.slug) {
-          <option [value]="tenant.slug">{{ tenant.displayName }} ({{ tenant.slug }})</option>
-        }
-      </select>
-    </label>
-
     @if (pending().length > 0) {
       <p class="waiting" role="status">
         <strong>{{ pending().length }} waiting for a decision.</strong>
@@ -44,7 +30,7 @@
       <table class="members">
         <thead>
           <tr>
-            <th scope="col">Person</th>
+            <th scope="col">User</th>
             <th scope="col">Role</th>
             <th scope="col">Status</th>
             <th scope="col">Last seen</th>
@@ -59,7 +45,7 @@
                 @if (member.email) {
                   <span class="secondary">{{ member.email }}</span>
                 }
-                <!-- The provider's subject: the only thing that reliably tells two people apart
+                <!-- The provider's subject: the only thing that reliably tells two users apart
                      when display names collide, and what an administrator matches against. -->
                 <span class="subject" [title]="member.subject">{{ member.subject }}</span>
               </td>
@@ -126,7 +112,7 @@
       <p class="hint">
         <strong>Suspend</strong> keeps someone listed and refuses them, so past activity still has a
         name against it. <strong>Remove</strong> discards the record; they return as a new arrival if
-        they sign in again. Changes take effect on the person's next request.
+        they sign in again. Changes take effect on the user's next request.
       </p>
     }
   }

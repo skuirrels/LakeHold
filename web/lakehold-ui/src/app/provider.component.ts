@@ -16,7 +16,7 @@ import { BrandMarkComponent } from './brand-mark.component';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [BrandMarkComponent, RouterLink],
   templateUrl: './provider.component.html',
-  styleUrls: ['./provider.component.css'],
+  styleUrls: ['./site-header.css', './provider.component.css'],
 })
 export class ProviderComponent {
   protected readonly stats = [

@@ -214,7 +214,13 @@ export class FakeLakehouseService {
 
   // ---- Surfaces the workbench itself uses --------------------------------------------------
 
-  access: AccessContext = { mode: 'open', role: 'owner', readOnly: false, systemAdmin: false };
+  access: AccessContext = {
+    mode: 'open',
+    role: 'owner',
+    readOnly: false,
+    systemAdmin: false,
+    tenantAdmin: true,
+  };
   browserSession: BrowserSession = {
     oidcEnabled: false,
     authenticated: false,
@@ -341,8 +347,16 @@ export class FakeLakehouseService {
     return this.answer('listTenants', args, () => this.tenants);
   }
 
-  createTenant(...args: unknown[]): Observable<unknown> {
-    return this.answer('createTenant', args, () => ({}));
+  createTenant(...args: unknown[]): Observable<Tenant> {
+    return this.answer('createTenant', args, () => {
+      const workspace: Tenant = {
+        slug: String(args[0]),
+        displayName: String(args[1]),
+        catalogs: [],
+      };
+      this.tenants = [...this.tenants, workspace];
+      return workspace;
+    });
   }
 
   createCatalog(...args: unknown[]): Observable<unknown> {

@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore;
 namespace Lakehold.Api.Endpoints;
 
 /// <summary>
-///     Administering the people who may reach a workspace.
+///     Administering the users who may reach a workspace.
 /// </summary>
 /// <remarks>
 ///     These are what make membership something an operator owns rather than a property of whatever
@@ -26,7 +26,7 @@ public static class MemberEndpoints
 
         tenants.MapGet("/{tenantSlug}/members", ListAsync)
             .RequireCapability(Capability.TenantAdmin)
-            .WithSummary("Lists the people who may reach this workspace, including those awaiting approval.");
+            .WithSummary("Lists the users who may reach this workspace, including those awaiting approval.");
 
         tenants.MapPatch("/{tenantSlug}/members/{id:int}", UpdateAsync)
             .RequireCapability(Capability.TenantAdmin)

@@ -11,7 +11,7 @@
     <p class="muted">Loading workspaces…</p>
   } @else if (tenants().length === 0) {
     <p class="muted">
-      There are no workspaces yet. A catalog belongs to a workspace, so create one first.
+      There are no workspaces yet. A catalog belongs to a workspace, so create one above first.
     </p>
   } @else {
     <div class="body">
@@ -19,7 +19,9 @@
         <span>Workspace</span>
         <select [value]="tenantSlug()" (change)="tenantSlug.set($any($event.target).value)">
           @for (tenant of tenants(); track tenant.slug) {
-            <option [value]="tenant.slug">{{ tenant.displayName }} ({{ tenant.slug }})</option>
+            <option [value]="tenant.slug" [selected]="tenant.slug === tenantSlug()">
+              {{ tenant.displayName }} ({{ tenant.slug }})
+            </option>
           }
         </select>
       </label>

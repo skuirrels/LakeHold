@@ -7,6 +7,7 @@ import { ApiError, LakehouseService } from './lakehouse.service';
 import { FakeLakehouseService, tableStorage } from './test-doubles';
 import { WorkbenchComponent } from './workbench.component';
 import { QueryEditorComponent } from './query-editor.component';
+import { WorkbenchNavigationComponent } from './workbench-navigation.component';
 
 describe('WorkbenchComponent', () => {
   let api: FakeLakehouseService;
@@ -46,6 +47,27 @@ describe('WorkbenchComponent', () => {
     });
   }
 
+  /** The workspace or catalog picker, found by the label beside it. */
+  function selector(label: string): HTMLSelectElement {
+    const field = [...fixture.nativeElement.querySelectorAll('.selectors .field')].find(
+      (f) => (f as HTMLElement).querySelector('span')?.textContent?.trim() === label,
+    ) as HTMLElement;
+    return field.querySelector('select') as HTMLSelectElement;
+  }
+
+  /** What a picker actually shows — the option the browser has selected, not the bound value. */
+  function selectedLabel(select: HTMLSelectElement): string {
+    return select.options[select.selectedIndex]?.textContent?.trim() ?? '';
+  }
+
+  /** Drives the product navigation, which is how a system administrator reaches the editor. */
+  async function navigateTo(destination: string): Promise<void> {
+    const navigation = fixture.debugElement.query(By.directive(WorkbenchNavigationComponent))
+      .componentInstance as WorkbenchNavigationComponent;
+    navigation.navigate.emit(destination as never);
+    await fixture.whenStable();
+  }
+
   /** Clicks a bottom-panel tab by its label. */
   async function openTab(label: string): Promise<void> {
     const tab = [...fixture.nativeElement.querySelectorAll('.tabs .tab')].find(
@@ -82,6 +104,7 @@ describe('WorkbenchComponent', () => {
       role: 'owner',
       readOnly: false,
       systemAdmin: true,
+      tenantAdmin: true,
     };
 
     await mount();
@@ -89,6 +112,86 @@ describe('WorkbenchComponent', () => {
     expect(text()).toContain('System Settings');
     expect(fixture.nativeElement.querySelector('lh-system-settings')).toBeTruthy();
     expect(api.countOf('getSchemas')).toBe(0);
+  });
+
+  it('administers users from their own destination, not from System Settings', async () => {
+    api.access = {
+      mode: 'authenticated',
+      role: 'owner',
+      readOnly: false,
+      systemAdmin: true,
+      tenantAdmin: true,
+    };
+
+    await mount();
+
+    // Users and tokens answer to a workspace credential and settings to an instance one. Sharing a
+    // page put a card an owner is refused above the two they administer.
+    expect(fixture.nativeElement.querySelector('lh-system-settings')).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('lh-member-administration')).toBeNull();
+    expect(fixture.nativeElement.querySelector('lh-token-administration')).toBeNull();
+
+    await navigateTo('users');
+
+    expect(fixture.nativeElement.querySelector('lh-system-settings')).toBeNull();
+    expect(fixture.nativeElement.querySelector('lh-member-administration')).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('lh-token-administration')).toBeTruthy();
+  });
+
+  it('offers a workspace owner Users but not the instance-only settings page', async () => {
+    api.access = {
+      mode: 'authenticated',
+      role: 'owner',
+      readOnly: false,
+      systemAdmin: false,
+      tenantAdmin: true,
+    };
+
+    await mount();
+
+    const labels = [...fixture.nativeElement.querySelectorAll('lh-workbench-navigation .nav-item')]
+      .map((item) => (item as HTMLElement).getAttribute('aria-label'));
+    // Every control on System Settings requires Capability.Instance, so offering the destination to
+    // an owner offers a page whose one card returns an error.
+    expect(labels).toContain('Users');
+    expect(labels).not.toContain('System Settings');
+  });
+
+  it('leaves Users when the credential that administered it is replaced by a reader', async () => {
+    api.access = {
+      mode: 'authenticated',
+      role: 'owner',
+      readOnly: false,
+      systemAdmin: false,
+      tenantAdmin: true,
+    };
+    await mount();
+    await navigateTo('users');
+    expect(fixture.nativeElement.querySelector('lh-member-administration')).toBeTruthy();
+
+    api.access = {
+      mode: 'authenticated',
+      role: 'reader',
+      readOnly: true,
+      systemAdmin: false,
+      tenantAdmin: false,
+    };
+    (fixture.nativeElement.querySelector('.credential > .btn') as HTMLButtonElement).click();
+    await fixture.whenStable();
+    const token = fixture.nativeElement.querySelector(
+      '.credential input[type="password"]',
+    ) as HTMLInputElement;
+    token.value = 'lkh_reader_replacement';
+    token.dispatchEvent(new Event('input'));
+    (
+      fixture.nativeElement.querySelector('.credential-actions .btn-primary') as HTMLButtonElement
+    ).click();
+    await fixture.whenStable();
+
+    // A reader administers nobody. Left where it was, the destination shows a member list whose every
+    // request is refused, and the navigation no longer offers a way back to it.
+    expect(fixture.nativeElement.querySelector('lh-member-administration')).toBeNull();
+    expect(fixture.nativeElement.querySelector('[aria-label="SQL editor"]')).toBeTruthy();
   });
 
   it('uses an authenticated browser session and offers logout without retaining a pasted token', async () => {
@@ -104,6 +207,7 @@ describe('WorkbenchComponent', () => {
       role: 'owner',
       readOnly: false,
       systemAdmin: true,
+      tenantAdmin: true,
     };
 
     await mount();
@@ -124,6 +228,7 @@ describe('WorkbenchComponent', () => {
       role: 'owner',
       readOnly: false,
       systemAdmin: true,
+      tenantAdmin: true,
     };
     api.tenants = [];
 
@@ -133,12 +238,45 @@ describe('WorkbenchComponent', () => {
     expect(text()).toContain('No workspaces yet');
   });
 
+  it('does not report a workspace as selected when an instance administrator has none', async () => {
+    api.access = {
+      mode: 'authenticated',
+      role: 'owner',
+      readOnly: false,
+      systemAdmin: true,
+      tenantAdmin: true,
+    };
+
+    await mount();
+    await navigateTo('workbench');
+
+    // The regression: a select whose value matches no option displays its first option, so the
+    // picker read "Demo workspace" while the component held no workspace at all — and the empty
+    // catalog beside it looked like a catalog that had disappeared.
+    const workspace = selector('Workspace');
+    expect(workspace.value).toBe('');
+    expect(selectedLabel(workspace)).toBe('Administration only');
+    expect(selectedLabel(selector('Catalog'))).toBe('Administration only');
+    expect(text()).toContain('You’re signed in as an instance administrator.');
+  });
+
+  it('names the selected workspace and catalog for a tenant credential', async () => {
+    await mount();
+
+    expect(selector('Workspace').value).toBe('demo');
+    expect(selectedLabel(selector('Workspace'))).toBe('Demo workspace');
+    expect(selector('Catalog').value).toBe('analytics');
+    expect(selectedLabel(selector('Catalog'))).toBe('analytics');
+    expect(text()).not.toContain('You’re signed in as an instance administrator.');
+  });
+
   it('returns to the workbench when an instance credential is replaced by a tenant credential', async () => {
     api.access = {
       mode: 'authenticated',
       role: 'owner',
       readOnly: false,
       systemAdmin: true,
+      tenantAdmin: true,
     };
     await mount();
     expect(fixture.nativeElement.querySelector('lh-system-settings')).toBeTruthy();
@@ -148,6 +286,7 @@ describe('WorkbenchComponent', () => {
       role: 'owner',
       readOnly: false,
       systemAdmin: false,
+      tenantAdmin: true,
     };
     (fixture.nativeElement.querySelector('.credential > .btn') as HTMLButtonElement).click();
     await fixture.whenStable();
@@ -223,6 +362,41 @@ describe('WorkbenchComponent', () => {
     await fixture.whenStable();
     expect((fixture.nativeElement.querySelector('[aria-label="SQL editor"]') as HTMLElement).textContent)
       .toContain('SELECT');
+  });
+
+  it('keeps an unhealthy planner in the selector and says why it cannot run', async () => {
+    // The API reports a configured planner that failed discovery instead of omitting it: omitting
+    // it is indistinguishable from never having installed the language.
+    api.queryLanguages.push({
+      id: 'csharp-linq',
+      displayName: 'C# LINQ',
+      editorLanguage: 'csharp',
+      starterSource: 'from row in Main.Events select row',
+      readOnly: true,
+      supportsSavedQueries: true,
+      available: false,
+      unavailableReason: 'The planner did not answer within the 1s discovery deadline.',
+    });
+    await mount();
+
+    const language = fixture.nativeElement.querySelector('.language-picker select') as HTMLSelectElement;
+    const option = [...language.options].find((candidate) => candidate.value === 'csharp-linq')!;
+    expect(option.textContent).toBe('C# LINQ (unavailable)');
+    expect(option.title).toBe('The planner did not answer within the 1s discovery deadline.');
+
+    language.value = 'csharp-linq';
+    language.dispatchEvent(new Event('change'));
+    await fixture.whenStable();
+
+    expect(text()).toContain(
+      'Planner unavailable — The planner did not answer within the 1s discovery deadline.',
+    );
+    const run = fixture.nativeElement.querySelector('.editor-toolbar .btn-primary') as HTMLButtonElement;
+    expect(run.disabled).toBe(true);
+    run.click();
+    expect(api.countOf('execute')).toBe(0);
+    // Nothing was asked of the planner that is down.
+    expect(api.countOf('getQueryStarter')).toBe(0);
   });
 
   it('preserves source for an unavailable language without executing or resaving it as SQL', async () => {
@@ -352,7 +526,7 @@ describe('WorkbenchComponent', () => {
     });
 
     it('opens a friendly read-only demo without exposing mutation controls', async () => {
-      api.access = { mode: 'demo', role: 'reader', readOnly: true, systemAdmin: false };
+      api.access = { mode: 'demo', role: 'reader', readOnly: true, systemAdmin: false, tenantAdmin: false };
       api.backups = [
         {
           generation: '20260726T120000Z',

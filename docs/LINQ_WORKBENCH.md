@@ -43,10 +43,25 @@ make demo
 planner credential in memory, supplies it to the API and compiler for that deployment, and rotates
 both together on the next deployment. The value is not printed or persisted.
 
-Omit the `linq` profile to remove the compiler. The API health-checks configured planners during
-language discovery, so an absent or unhealthy compiler removes C# LINQ from the selector without
-degrading SQL. More languages can be added through `Lakehold:Querying:Planners`; the API depends
-only on the contracts in `Lakehold.Querying`. Planner endpoints are HTTP(S) base URIs and must end
+Omit the `linq` profile to remove the compiler. Discovery then finds no planner configured at all
+and the selector offers SQL alone.
+
+A planner that *is* configured behaves differently, and deliberately so. The API health-checks each
+one during language discovery, with a one-second deadline; a planner that fails that check is
+offered as unavailable and carries the reason — a missed deadline, a rejected planner key, an
+endpoint serving something else — rather than being dropped. Selecting the language in the Workbench
+shows the reason, the API logs the same text as a warning naming the planner, and nothing can be
+run, saved, or published in it until the planner answers again. Discovery is not cached, so recovery
+needs no restart: the language becomes runnable on the first load after the planner is healthy. The
+language keeps the display name and editor mode from its last healthy descriptor, so a compiler that
+misses one deadline does not also lose its name.
+
+SQL degrades under none of this: it is planned and executed by the API process itself.
+
+More languages can be added through `Lakehold:Querying:Planners`; the API depends
+only on the contracts in `Lakehold.Querying`. Planner ids must be unique, and none of them may be
+`sql` — the API serves that language from this process and would otherwise list it twice, which
+empties the selector rather than adding to it. Planner endpoints are HTTP(S) base URIs and must end
 in `/` so the host can append `descriptor`, `starter`, and `plan` without path ambiguity. The
 planner also owns catalog-aware starter generation, ensuring the editor and compiler use exactly
 the same identifier rules for awkward, numeric, keyword, and colliding catalog names.
@@ -176,7 +191,8 @@ shaper. Remaining model-mapping opportunities are tracked in
 
 | Symptom | Check |
 |---|---|
-| C# LINQ is absent from the selector | With `make demo`, confirm the compiler container is running and `/ready` succeeds from the internal network; its profile and credential are automatic. For other deployments, also confirm the `linq` profile is enabled and the API and compiler use the same `LAKEHOLD_LINQ_PLANNER_KEY`. |
+| C# LINQ reads "(unavailable)" in the selector | Select it: the toolbar states why, and the API logs the same reason as a warning naming the planner. A rejected planner key means the API and compiler hold different `LAKEHOLD_LINQ_PLANNER_KEY` values; a missed deadline means the compiler is cold, saturated, or unreachable — check `/ready` from the internal network. |
+| C# LINQ is absent from the selector entirely | No planner is configured for this deployment, so nothing was health-checked. Confirm the `linq` profile is enabled and that `Lakehold:Querying:Planners` reached the API — with `make demo` the profile and credential are automatic. |
 | `503` while planning | The configured planner is unavailable or exceeded its timeout. SQL remains usable; inspect compiler health and bounded-queue saturation. |
 | `LINQ001`–`LINQ003` | The expression crosses the read-only source allow-list. Remove side effects, arbitrary method calls, or disallowed static members. |
 | `LINQ004` | The catalog cannot produce a usable dynamic EF model, commonly because it has no supported columns. Use SQL for omitted native types. |

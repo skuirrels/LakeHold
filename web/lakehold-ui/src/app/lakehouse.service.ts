@@ -414,10 +414,13 @@ export class LakehouseService {
 
   /**
    * Creates a workspace. Instance scope: this is the one operation with no tenant to be scoped to,
-   * so it needs the bootstrap credential rather than a tenant's own.
+   * so it needs an instance credential: either the bootstrap token or a system-administrator
+   * browser session, never a tenant's own credential.
    */
-  createTenant(slug: string, displayName: string): Observable<unknown> {
-    return this.http.post(`${API_BASE}/tenants`, { slug, displayName }).pipe(catchError(toMessage));
+  createTenant(slug: string, displayName: string): Observable<Tenant> {
+    return this.http
+      .post<Tenant>(`${API_BASE}/tenants`, { slug, displayName })
+      .pipe(catchError(toMessage));
   }
 
   /**

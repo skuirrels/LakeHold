@@ -1,6 +1,7 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  computed,
   input,
   output,
   signal,
@@ -8,6 +9,10 @@ import {
 } from '@angular/core';
 import { CatalogPlacementComponent } from './catalog-placement.component';
 import { CatalogPlacementValue } from './models';
+import {
+  WORKSPACE_SLUG_PATTERN,
+  normalizeWorkspaceIdentity,
+} from './workspace-provisioning';
 
 /** What is standing between this browser and a usable workbench. */
 export type FirstRunMode = 'none' | 'unauthorized' | 'setup';
@@ -126,6 +131,8 @@ export interface WorkspaceRequest {
               type="text"
               autocomplete="off"
               spellcheck="false"
+              maxlength="63"
+              [pattern]="workspaceSlugPattern"
               placeholder="acme"
               [value]="slug()"
               (input)="slug.set($any($event.target).value)"
@@ -137,6 +144,7 @@ export interface WorkspaceRequest {
             <input
               type="text"
               autocomplete="off"
+              maxlength="200"
               placeholder="Acme"
               [value]="displayName()"
               (input)="displayName.set($any($event.target).value)"
@@ -170,7 +178,7 @@ export interface WorkspaceRequest {
             <button
               class="btn btn-primary"
               type="button"
-              [disabled]="busy() || !slug().trim() || !catalog().trim()"
+              [disabled]="busy() || !validWorkspace() || !catalog().trim()"
               (click)="submitWorkspace()"
             >
               {{ busy() ? 'Creating…' : 'Create workspace' }}
@@ -425,6 +433,10 @@ export class FirstRunComponent {
   protected readonly slug = signal('');
   protected readonly displayName = signal('');
   protected readonly catalog = signal('analytics');
+  protected readonly workspaceSlugPattern = WORKSPACE_SLUG_PATTERN;
+  protected readonly validWorkspace = computed(
+    () => normalizeWorkspaceIdentity(this.slug(), this.displayName()) !== null,
+  );
 
   private readonly placement = viewChild(CatalogPlacementComponent);
 
@@ -437,9 +449,9 @@ export class FirstRunComponent {
   }
 
   protected submitWorkspace(): void {
-    const slug = this.slug().trim();
+    const workspace = normalizeWorkspaceIdentity(this.slug(), this.displayName());
     const catalog = this.catalog().trim();
-    if (!slug || !catalog || this.busy()) {
+    if (!workspace || !catalog || this.busy()) {
       return;
     }
 
@@ -448,8 +460,7 @@ export class FirstRunComponent {
     // so the default path sends the request it always did.
     const placement = this.placement()?.value();
     this.createWorkspace.emit({
-      slug,
-      displayName: this.displayName().trim() || slug,
+      ...workspace,
       catalog,
       ...(placement?.dataPath || placement?.storageProfile || placement?.readOnly
         ? { placement }

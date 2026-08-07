@@ -112,7 +112,7 @@ Class | Method | HTTP request | Description
 *LakehouseAPI* | [**GetApiV1TenantsTenantSlugCatalogsCatalogNameTableDetail**](docs/LakehouseAPI.md#getapiv1tenantstenantslugcatalogscatalognametabledetail) | **Get** /api/v1/tenants/{tenantSlug}/catalogs/{catalogName}/table-detail | Returns one table&#39;s schema, storage footprint, and partition layout.
 *LakehouseAPI* | [**GetApiV1TenantsTenantSlugCatalogsCatalogNameTableProfile**](docs/LakehouseAPI.md#getapiv1tenantstenantslugcatalogscatalognametableprofile) | **Get** /api/v1/tenants/{tenantSlug}/catalogs/{catalogName}/table-profile | Profiles the live logical rows of every column in one table.
 *LakehouseAPI* | [**GetApiV1TenantsTenantSlugHistory**](docs/LakehouseAPI.md#getapiv1tenantstenantslughistory) | **Get** /api/v1/tenants/{tenantSlug}/history | Returns recent query runs for a tenant.
-*LakehouseAPI* | [**GetApiV1TenantsTenantSlugMembers**](docs/LakehouseAPI.md#getapiv1tenantstenantslugmembers) | **Get** /api/v1/tenants/{tenantSlug}/members | Lists the people who may reach this workspace, including those awaiting approval.
+*LakehouseAPI* | [**GetApiV1TenantsTenantSlugMembers**](docs/LakehouseAPI.md#getapiv1tenantstenantslugmembers) | **Get** /api/v1/tenants/{tenantSlug}/members | Lists the users who may reach this workspace, including those awaiting approval.
 *LakehouseAPI* | [**GetApiV1TenantsTenantSlugTokens**](docs/LakehouseAPI.md#getapiv1tenantstenantslugtokens) | **Get** /api/v1/tenants/{tenantSlug}/tokens | Lists token metadata for a tenant. Never returns the secret.
 *LakehouseAPI* | [**GetSnapshot**](docs/LakehouseAPI.md#getsnapshot) | **Get** /api/v1/tenants/{tenantSlug}/catalogs/{catalogName}/snapshots/{snapshotId} | Returns one retained snapshot by its source-native identifier.
 *LakehouseAPI* | [**GetSnapshotTable**](docs/LakehouseAPI.md#getsnapshottable) | **Get** /api/v1/tenants/{tenantSlug}/catalogs/{catalogName}/snapshots/{snapshotId}/table | Returns a bounded table preview at an exact retained snapshot.
@@ -279,6 +279,5 @@ Each of these functions takes a value of the given basic type and returns a poin
 * `PtrTime`
 
 ## Author
-
 
 

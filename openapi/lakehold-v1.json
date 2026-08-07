@@ -3912,7 +3912,7 @@
         "tags": [
           "Lakehouse"
         ],
-        "summary": "Lists the people who may reach this workspace, including those awaiting approval.",
+        "summary": "Lists the users who may reach this workspace, including those awaiting approval.",
         "operationId": "get_api_v1_tenants_tenantSlug_members",
         "parameters": [
           {
@@ -22514,7 +22514,8 @@
           "mode",
           "role",
           "readOnly",
-          "systemAdmin"
+          "systemAdmin",
+          "tenantAdmin"
         ],
         "type": "object",
         "properties": {
@@ -22528,6 +22529,9 @@
             "type": "boolean"
           },
           "systemAdmin": {
+            "type": "boolean"
+          },
+          "tenantAdmin": {
             "type": "boolean"
           }
         }
@@ -24667,6 +24671,16 @@
           },
           "supportsSavedQueries": {
             "type": "boolean"
+          },
+          "available": {
+            "type": "boolean",
+            "default": true
+          },
+          "unavailableReason": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -25893,13 +25907,13 @@
   },
   "tags": [
     {
+      "name": "Lakehouse"
+    },
+    {
       "name": "Discovery"
     },
     {
       "name": "Operations"
-    },
-    {
-      "name": "Lakehouse"
     },
     {
       "name": "System settings"

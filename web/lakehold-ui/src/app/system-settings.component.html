@@ -1,8 +1,8 @@
-<section class="settings-page">
+<section class="admin-page">
   <header>
     <span class="eyebrow">Instance administration</span>
     <h1>System Settings</h1>
-    <p>Control the command surface shared by every LakeHold API node.</p>
+    <p>Control instance-wide settings and provision workspaces and catalogs.</p>
   </header>
 
   @if (loading()) {
@@ -112,13 +112,7 @@
   }
 </section>
 
-@if (settings()) {
-  <lh-storage-configuration />
-  <lh-catalog-administration (created)="catalogCreated.emit()" />
-}
-
-<lh-member-administration />
-
-@if (settings()) {
-  <lh-token-administration />
-}
+<!-- Independent panels: an MCP-settings failure must not remove provisioning or storage status. -->
+<lh-storage-configuration />
+<lh-workspace-administration (created)="workspaceCreated($event)" />
+<lh-catalog-administration (created)="resourcesChanged.emit()" />

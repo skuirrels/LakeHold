@@ -262,8 +262,8 @@ First sign in through the configured identity provider as a system administrator
 break-glass instance credential), then enable MCP in **Workbench → System Settings**. A fresh
 development stack already has it enabled. The settings page shows a copyable endpoint on the
 Workbench origin; the development server proxies that path to the API, while direct access on
-`http://localhost:5200/mcp` remains available. In the **API tokens** card on that same page, choose
-the workspace, narrow the credential to the catalog the agent needs, retain the reader default, and
+`http://localhost:5200/mcp` remains available. Then open **Users** and, in its **API tokens** card,
+choose the workspace, narrow the credential to the catalog the agent needs, retain the reader default, and
 generate it. Existing credentials and their last-use state are listed below; revoking one closes its
 MCP and HTTP access. The plaintext is shown once. The equivalent public API call is:
 

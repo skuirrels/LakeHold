@@ -131,7 +131,7 @@
         [open]="navigationOpen()"
         [compact]="compactViewport()"
         [systemAdmin]="access()?.systemAdmin ?? false"
-        [canAdminister]="access()?.role === 'owner' && !demoMode()"
+        [canAdminister]="canAdminister()"
         (navigate)="openNavigation($event)"
       />
 
@@ -147,13 +147,17 @@
         (click)="closeNavigationOverlays()"
       ></button>
 
-      @if (navigationDestination() === 'settings') {
+      @if (navigationDestination() === 'settings' || navigationDestination() === 'users') {
         <main
-          class="main settings-main"
+          class="main admin-main"
           [attr.aria-hidden]="navigationOverlayOpen() ? 'true' : null"
           [attr.inert]="navigationOverlayOpen() ? '' : null"
         >
-          <lh-system-settings (catalogCreated)="refreshWorkspaces()" />
+          @if (navigationDestination() === 'settings') {
+            <lh-system-settings (resourcesChanged)="refreshWorkspaces()" />
+          } @else {
+            <lh-users />
+          }
         </main>
       } @else {
         <aside
@@ -235,26 +239,37 @@
 
             <div class="workspace-controls">
               <div class="selectors">
+                <!--
+                  Selectedness is bound per option rather than as [value] on the select. A select
+                  whose value names no option it currently owns falls back to *displaying its first
+                  option*, so binding the value alone reports a workspace as chosen when none is —
+                  which is what made an instance administrator's empty workbench read as a catalog
+                  that had gone missing.
+                -->
                 <label class="field">
                   <span>Workspace</span>
-                  <select
-                    [value]="tenantSlug() ?? ''"
-                    (change)="selectTenant($any($event.target).value)"
-                  >
+                  <select (change)="selectTenant($any($event.target).value)">
+                    @if (tenantSlug() === null) {
+                      <option value="" disabled selected>{{ workspacePlaceholder() }}</option>
+                    }
                     @for (tenant of tenants(); track tenant.slug) {
-                      <option [value]="tenant.slug">{{ tenant.displayName }}</option>
+                      <option [value]="tenant.slug" [selected]="tenant.slug === tenantSlug()">
+                        {{ tenant.displayName }}
+                      </option>
                     }
                   </select>
                 </label>
 
                 <label class="field">
                   <span>Catalog</span>
-                  <select
-                    [value]="catalogName() ?? ''"
-                    (change)="selectCatalog($any($event.target).value)"
-                  >
+                  <select (change)="selectCatalog($any($event.target).value)">
+                    @if (catalogName() === null) {
+                      <option value="" disabled selected>{{ catalogPlaceholder() }}</option>
+                    }
                     @for (catalog of catalogs(); track catalog.name) {
-                      <option [value]="catalog.name">{{ catalog.name }}</option>
+                      <option [value]="catalog.name" [selected]="catalog.name === catalogName()">
+                        {{ catalog.name }}
+                      </option>
                     }
                   </select>
                 </label>
@@ -315,13 +330,24 @@
               gets the same safe workspace.
             </div>
           }
+          @if (instanceAdminWithoutData()) {
+            <div class="demo-banner admin-banner">
+              <strong>You’re signed in as an instance administrator.</strong>
+              That credential administers this node — workspaces, users, and settings — and
+              deliberately reaches no catalog, so there is nothing here to query. Granting this
+              identity a workspace membership would not change that; instance administration is
+              resolved from your provider before membership is read. To run queries, sign in as an
+              identity that is a workspace member and not an administrator.
+            </div>
+          }
           <section class="editor-pane">
             <div class="editor-toolbar">
               <label class="language-picker">
                 <span>Language</span>
                 <select [value]="language()" (change)="switchLanguage($any($event.target).value)">
                   @for (option of queryLanguages(); track option.id) {
-                    <option [value]="option.id">{{ option.displayName }}</option>
+                    <!-- Selectable even when unavailable: choosing it is how you get told why. -->
+                    <option [value]="option.id" [title]="option.unavailableReason ?? ''">{{ option.displayName }}</option>
                   }
                 </select>
               </label>
@@ -335,7 +361,7 @@
                 <span class="kbd">⌘⏎</span>
               </button>
               @if (!activeLanguageAvailable()) {
-                <span class="tag warn-tag">Planner unavailable — source is view-only</span>
+                <span class="tag warn-tag">{{ activeLanguageUnavailableMessage() }}</span>
               }
               @if (!readOnlyAccess()) {
                 <lh-tabular-import

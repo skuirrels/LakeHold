@@ -1,10 +1,10 @@
-# Identity: signing in, adding people, and connecting clients
+# Identity: signing in, adding users, and connecting clients
 
 How a person gets into the Workbench, how you decide what they reach, how to run a production node
 for the first time, and how to swap the bundled identity provider for your own.
 
 [`AUTHENTICATION.md`](AUTHENTICATION.md) explains *why* the model is shaped this way. This document
-is the operational one: follow it and you are signed in, with people and clients working.
+is the operational one: follow it and you are signed in, with users and clients working.
 
 ## The model in one paragraph
 
@@ -18,7 +18,7 @@ Three kinds of caller, three mechanisms:
 
 | Caller | Authenticates with | Authorized by |
 |---|---|---|
-| **People** | Browser sign-in at your identity provider | A membership row you manage under **People** |
+| **Users** | Browser sign-in at your identity provider | A membership row you manage under **Users** |
 | **Clients** — BI tools, scripts, SDKs, the PostgreSQL wire endpoint | An API token (`lkh_…`) | The role and catalog scope baked into that token |
 | **Agents** — MCP clients such as Claude or Codex | An API token, always required | The same, plus an operator switch for writes |
 
@@ -53,7 +53,7 @@ Open the site, paste the bootstrap token, and create a workspace (a tenant) and 
 mints an **owner** token for it, shown once. That token is how scripts, BI tools, and the wire
 endpoint reach the workspace.
 
-At this point you have a working node administered by tokens. Everything below is about people.
+At this point you have a working node administered by tokens. Everything below is about users.
 
 ### 4. Point it at your identity provider
 
@@ -72,7 +72,7 @@ LAKEHOLD_OIDC_SYSTEM_ADMIN_VALUE=lakehold-administrators
 A **Sign in** button now appears. Sign in as someone in your administrator group and you land on
 instance administration.
 
-## Part 2 — Adding people
+## Part 2 — Adding users
 
 ### They sign in first, then you admit them
 
@@ -81,7 +81,7 @@ what they reach. That ordering is deliberate: you are approving an identity your
 authenticated, rather than creating an account that then needs one.
 
 1. Send them the site URL. They click **Sign in** and authenticate.
-2. They appear under **System Settings → People**, and until you act they reach nothing.
+2. They appear under **Users**, and until you act they reach nothing.
 3. Choose a role and click **Admit**.
 
 If your provider emits a `tenant` claim naming an existing workspace, a first-time arrival is
@@ -93,7 +93,7 @@ quietly undone the next time their provider re-asserts a stale role.
 
 | Role | Can |
 |---|---|
-| `owner` | Everything in the workspace: query, write, maintenance, eject — and administer its people and credentials |
+| `owner` | Everything in the workspace: query, write, maintenance, eject — and administer its users and credentials |
 | `editor` | Query and write. Not destructive maintenance, not eject |
 | `reader` | Read only, enforced by attaching the catalog read-only rather than by a policy check |
 
@@ -103,7 +103,7 @@ quietly undone the next time their provider re-asserts a stale role.
 and restoring is one click. **Remove** discards the record; they return as a new arrival if they sign
 in again. Either takes effect on their next request.
 
-### Who can administer people
+### Who can administer users
 
 An instance administrator, for any workspace; and a workspace **owner**, for their own. Both see
 **Administration** in the navigation.
@@ -139,7 +139,7 @@ start-up when this is the case. Treat it as an error in production.
 | system admin | `LAKEHOLD_OIDC_SYSTEM_ADMIN_CLAIM` / `_VALUE` | **Required for administrators.** Instance administration stays a provider assertion, so a workspace owner cannot promote themselves. |
 
 Only the third is genuinely required, and only for administrators. Everything else can be done by
-admitting people in the Workbench — which is the point of the membership model: you are not obliged
+admitting users in the Workbench — which is the point of the membership model: you are not obliged
 to encode LakeHold's authorization model in your directory.
 
 **Emit the administrator claim from a group or directory role you control centrally — never from a
@@ -170,7 +170,7 @@ The development realm, its two seeded users, and how to give either the other ca
 
 ## Part 4 — Clients and agents
 
-Both use API tokens. Issue them under **System Settings → API tokens**, or over HTTP:
+Both use API tokens. Issue them under **Users → API tokens**, or over HTTP:
 
 ```bash
 curl -X POST https://<your-host>/api/tenants/<workspace>/tokens \
@@ -210,12 +210,12 @@ type-catalogue shim.
 
 | Symptom | Cause |
 |---|---|
-| Sign-in succeeds, then there is nothing to open | Authenticated but not yet admitted. An administrator admits you under **People**. |
-| A person is not in the People list | They have never signed in. The list is people LakeHold has seen, not everyone in your directory. |
+| Sign-in succeeds, then there is nothing to open | Authenticated but not yet admitted. An administrator admits you under **Users**. |
+| A person is not in the Users list | They have never signed in. The list is users LakeHold has seen, not everyone in your directory. |
 | "Continue with your identity provider" never appears | `CLIENT_ID` is empty. Browser login needs both an authority *and* a client id. |
 | `/auth/login` returns 404 | Same cause. |
 | `invalid_redirect_uri` at the provider | The registered URI must be exactly `<origin>/auth/callback`. |
-| Everyone lands as a reader | No `role` claim is emitted, which is fine — set roles under **People** instead. |
+| Everyone lands as a reader | No `role` claim is emitted, which is fine — set roles under **Users** instead. |
 | Nobody can administer anything | The system-admin claim is not configured or not emitted. It is the one claim you cannot work around in the UI. |
 | Works locally, fails deployed | `RequireHttpsMetadata` with an HTTP authority, or the session cookie needs HTTPS. Terminate TLS in front of the API. |
 | Signing out and back in returns the same person | `/auth/logout` clears LakeHold's session, not the provider's. End the provider session too, or use a private window. |

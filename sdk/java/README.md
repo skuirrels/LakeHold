@@ -148,7 +148,7 @@ Class | Method | HTTP request | Description
 *LakehouseApi* | [**getApiV1TenantsTenantSlugCatalogsCatalogNameTableDetail**](docs/LakehouseApi.md#getApiV1TenantsTenantSlugCatalogsCatalogNameTableDetail) | **GET** /api/v1/tenants/{tenantSlug}/catalogs/{catalogName}/table-detail | Returns one table&#39;s schema, storage footprint, and partition layout.
 *LakehouseApi* | [**getApiV1TenantsTenantSlugCatalogsCatalogNameTableProfile**](docs/LakehouseApi.md#getApiV1TenantsTenantSlugCatalogsCatalogNameTableProfile) | **GET** /api/v1/tenants/{tenantSlug}/catalogs/{catalogName}/table-profile | Profiles the live logical rows of every column in one table.
 *LakehouseApi* | [**getApiV1TenantsTenantSlugHistory**](docs/LakehouseApi.md#getApiV1TenantsTenantSlugHistory) | **GET** /api/v1/tenants/{tenantSlug}/history | Returns recent query runs for a tenant.
-*LakehouseApi* | [**getApiV1TenantsTenantSlugMembers**](docs/LakehouseApi.md#getApiV1TenantsTenantSlugMembers) | **GET** /api/v1/tenants/{tenantSlug}/members | Lists the people who may reach this workspace, including those awaiting approval.
+*LakehouseApi* | [**getApiV1TenantsTenantSlugMembers**](docs/LakehouseApi.md#getApiV1TenantsTenantSlugMembers) | **GET** /api/v1/tenants/{tenantSlug}/members | Lists the users who may reach this workspace, including those awaiting approval.
 *LakehouseApi* | [**getApiV1TenantsTenantSlugTokens**](docs/LakehouseApi.md#getApiV1TenantsTenantSlugTokens) | **GET** /api/v1/tenants/{tenantSlug}/tokens | Lists token metadata for a tenant. Never returns the secret.
 *LakehouseApi* | [**getSnapshot**](docs/LakehouseApi.md#getSnapshot) | **GET** /api/v1/tenants/{tenantSlug}/catalogs/{catalogName}/snapshots/{snapshotId} | Returns one retained snapshot by its source-native identifier.
 *LakehouseApi* | [**getSnapshotTable**](docs/LakehouseApi.md#getSnapshotTable) | **GET** /api/v1/tenants/{tenantSlug}/catalogs/{catalogName}/snapshots/{snapshotId}/table | Returns a bounded table preview at an exact retained snapshot.
@@ -298,6 +298,5 @@ Authentication schemes defined for the API:
 It's recommended to create an instance of `ApiClient` per thread in a multithreaded environment to avoid any potential issues.
 
 ## Author
-
 
 

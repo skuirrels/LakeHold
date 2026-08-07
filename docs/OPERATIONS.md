@@ -37,7 +37,10 @@ docker compose -f compose.production.yaml --profile linq up -d
 ```
 
 Omitting the profile removes the component and the API omits C# LINQ from language discovery. The
-API and compiler must receive the same secret. The compiler is internal-only, read-only, non-root,
+API and compiler must receive the same secret; a mismatch does not hide the language, it offers it
+as unavailable in the Workbench with that as the stated reason and logs a warning naming the
+planner. Discovery is per request and uncached, so a compiler that recovers becomes usable on the
+next page load without restarting the API. The compiler is internal-only, read-only, non-root,
 has no state/catalog volume, and is bounded by the Compose CPU, memory, and process limits. See
 [C# LINQ in the Workbench](LINQ_WORKBENCH.md) for its request and security contract.
 

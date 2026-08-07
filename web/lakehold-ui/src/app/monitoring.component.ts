@@ -10,7 +10,7 @@ import content from '../../../../docs/runbooks/MONITORING-AND-ALERTING.md';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [BrandMarkComponent, RouterLink],
   templateUrl: './operational-docs.component.html',
-  styleUrls: ['./markdown-page.css', './docs.component.css'],
+  styleUrls: ['./markdown-page.css', './site-header.css', './docs.component.css'],
 })
 export class MonitoringComponent extends MarkdownPage {
   constructor() {

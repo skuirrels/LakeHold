@@ -25,6 +25,12 @@ export interface AccessContext {
   role: 'owner' | 'editor' | 'reader';
   readOnly: boolean;
   systemAdmin: boolean;
+  /**
+   * Whether this credential administers its own workspace's users and tokens. Answered by the API's
+   * capability policy, not inferred from `role`: a read-only or catalog-narrowed owner token holds
+   * the role and not the capability.
+   */
+  tenantAdmin: boolean;
 }
 
 /** Browser OIDC availability and the current same-origin session. */
@@ -203,8 +209,17 @@ export interface QueryLanguage {
   starterSource: string;
   readOnly: boolean;
   supportsSavedQueries: boolean;
-  /** False only for a preserved source whose optional planner is currently unavailable. */
+  /**
+   * False for an installed planner the API reported as unhealthy, and for a preserved source whose
+   * planner is not installed here at all. Absent is treated as available.
+   */
   available?: boolean;
+  /**
+   * Why the planner cannot be reached, when the API knows. Present only alongside
+   * `available: false`, and only for a planner this deployment actually configures — a language the
+   * API has never heard of has no reason to give.
+   */
+  unavailableReason?: string | null;
 }
 
 export interface QueryLanguageStarter {

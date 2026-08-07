@@ -963,7 +963,7 @@ namespace Lakehold.Sdk.Api
         Task<IGetApiV1TenantsTenantSlugHistoryApiResponse?> GetApiV1TenantsTenantSlugHistoryOrDefaultAsync(string tenantSlug, Option<int> limit = default, Option<string> cursor = default, System.Threading.CancellationToken cancellationToken = default);
 
         /// <summary>
-        /// Lists the people who may reach this workspace, including those awaiting approval.
+        /// Lists the users who may reach this workspace, including those awaiting approval.
         /// </summary>
         /// <remarks>
         ///
@@ -975,7 +975,7 @@ namespace Lakehold.Sdk.Api
         Task<IGetApiV1TenantsTenantSlugMembersApiResponse> GetApiV1TenantsTenantSlugMembersAsync(string tenantSlug, System.Threading.CancellationToken cancellationToken = default);
 
         /// <summary>
-        /// Lists the people who may reach this workspace, including those awaiting approval.
+        /// Lists the users who may reach this workspace, including those awaiting approval.
         /// </summary>
         /// <remarks>
         ///
@@ -35551,7 +35551,7 @@ namespace Lakehold.Sdk.Api
         partial void OnErrorGetApiV1TenantsTenantSlugMembers(ref bool suppressDefaultLogLocalVar, Exception exceptionLocalVar, string pathFormatLocalVar, string pathLocalVar, string tenantSlug);
 
         /// <summary>
-        /// Lists the people who may reach this workspace, including those awaiting approval.
+        /// Lists the users who may reach this workspace, including those awaiting approval.
         /// </summary>
         /// <param name="tenantSlug"></param>
         /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
@@ -35573,7 +35573,7 @@ namespace Lakehold.Sdk.Api
         }
 
         /// <summary>
-        /// Lists the people who may reach this workspace, including those awaiting approval.
+        /// Lists the users who may reach this workspace, including those awaiting approval.
         /// </summary>
         /// <exception cref="ApiException">Thrown when fails to make API call</exception>
         /// <param name="tenantSlug"></param>

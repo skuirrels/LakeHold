@@ -39,8 +39,10 @@ namespace Lakehold.Sdk.Model
         /// <param name="starterSource">starterSource</param>
         /// <param name="readOnly">readOnly</param>
         /// <param name="supportsSavedQueries">supportsSavedQueries</param>
+        /// <param name="available">available (default to true)</param>
+        /// <param name="unavailableReason">unavailableReason</param>
         [JsonConstructor]
-        public QueryLanguageDescriptor(string id, string displayName, string editorLanguage, string starterSource, bool readOnly, bool supportsSavedQueries)
+        public QueryLanguageDescriptor(string id, string displayName, string editorLanguage, string starterSource, bool readOnly, bool supportsSavedQueries, Option<bool?> available = default, Option<string?> unavailableReason = default)
         {
             Id = id;
             DisplayName = displayName;
@@ -48,6 +50,8 @@ namespace Lakehold.Sdk.Model
             StarterSource = starterSource;
             ReadOnly = readOnly;
             SupportsSavedQueries = supportsSavedQueries;
+            AvailableOption = available;
+            UnavailableReasonOption = unavailableReason;
             OnCreated();
         }
 
@@ -90,6 +94,32 @@ namespace Lakehold.Sdk.Model
         public bool SupportsSavedQueries { get; set; }
 
         /// <summary>
+        /// Used to track the state of Available
+        /// </summary>
+        [JsonIgnore]
+        [global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]
+        public Option<bool?> AvailableOption { get; private set; }
+
+        /// <summary>
+        /// Gets or Sets Available
+        /// </summary>
+        [JsonPropertyName("available")]
+        public bool? Available { get { return this.AvailableOption; } set { this.AvailableOption = new(value); } }
+
+        /// <summary>
+        /// Used to track the state of UnavailableReason
+        /// </summary>
+        [JsonIgnore]
+        [global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]
+        public Option<string?> UnavailableReasonOption { get; private set; }
+
+        /// <summary>
+        /// Gets or Sets UnavailableReason
+        /// </summary>
+        [JsonPropertyName("unavailableReason")]
+        public string? UnavailableReason { get { return this.UnavailableReasonOption; } set { this.UnavailableReasonOption = new(value); } }
+
+        /// <summary>
         /// Returns the string presentation of the object
         /// </summary>
         /// <returns>String presentation of the object</returns>
@@ -103,6 +133,8 @@ namespace Lakehold.Sdk.Model
             sb.Append("  StarterSource: ").Append(StarterSource).Append("\n");
             sb.Append("  ReadOnly: ").Append(ReadOnly).Append("\n");
             sb.Append("  SupportsSavedQueries: ").Append(SupportsSavedQueries).Append("\n");
+            sb.Append("  Available: ").Append(Available).Append("\n");
+            sb.Append("  UnavailableReason: ").Append(UnavailableReason).Append("\n");
             sb.Append("}\n");
             return sb.ToString();
         }
@@ -146,6 +178,8 @@ namespace Lakehold.Sdk.Model
             Option<string?> starterSource = default;
             Option<bool?> readOnly = default;
             Option<bool?> supportsSavedQueries = default;
+            Option<bool?> available = default;
+            Option<string?> unavailableReason = default;
 
             while (utf8JsonReader.Read())
             {
@@ -179,6 +213,12 @@ namespace Lakehold.Sdk.Model
                             break;
                         case "supportsSavedQueries":
                             supportsSavedQueries = new Option<bool?>(utf8JsonReader.TokenType == JsonTokenType.Null ? (bool?)null : utf8JsonReader.GetBoolean());
+                            break;
+                        case "available":
+                            available = new Option<bool?>(utf8JsonReader.TokenType == JsonTokenType.Null ? (bool?)null : utf8JsonReader.GetBoolean());
+                            break;
+                        case "unavailableReason":
+                            unavailableReason = new Option<string?>(utf8JsonReader.GetString());
                             break;
                         default:
                             break;
@@ -222,7 +262,10 @@ namespace Lakehold.Sdk.Model
             if (supportsSavedQueries.IsSet && supportsSavedQueries.Value == null)
                 throw new ArgumentNullException(nameof(supportsSavedQueries), "Property is not nullable for class QueryLanguageDescriptor.");
 
-            return new QueryLanguageDescriptor(id.Value!, displayName.Value!, editorLanguage.Value!, starterSource.Value!, readOnly.Value!.Value!, supportsSavedQueries.Value!.Value!);
+            if (available.IsSet && available.Value == null)
+                throw new ArgumentNullException(nameof(available), "Property is not nullable for class QueryLanguageDescriptor.");
+
+            return new QueryLanguageDescriptor(id.Value!, displayName.Value!, editorLanguage.Value!, starterSource.Value!, readOnly.Value!.Value!, supportsSavedQueries.Value!.Value!, available, unavailableReason);
         }
 
         /// <summary>
@@ -270,6 +313,15 @@ namespace Lakehold.Sdk.Model
             writer.WriteBoolean("readOnly", queryLanguageDescriptor.ReadOnly);
 
             writer.WriteBoolean("supportsSavedQueries", queryLanguageDescriptor.SupportsSavedQueries);
+
+            if (queryLanguageDescriptor.AvailableOption.IsSet)
+                writer.WriteBoolean("available", queryLanguageDescriptor.AvailableOption.Value!.Value);
+
+            if (queryLanguageDescriptor.UnavailableReasonOption.IsSet)
+                if (queryLanguageDescriptor.UnavailableReasonOption.Value != null)
+                    writer.WriteString("unavailableReason", queryLanguageDescriptor.UnavailableReason);
+                else
+                    writer.WriteNull("unavailableReason");
         }
     }
 }

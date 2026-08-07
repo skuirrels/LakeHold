@@ -3,8 +3,13 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Observable, Subject } from 'rxjs';
 import { LakehouseService } from './lakehouse.service';
 import { MemberAdministrationComponent } from './member-administration.component';
-import { TenantMember } from './models';
+import { Tenant, TenantMember } from './models';
 import { FakeLakehouseService } from './test-doubles';
+
+/** A workspace as the page hands it down; only the slug matters to this card. */
+function workspace(slug = 'demo'): Tenant {
+  return { slug, displayName: slug, catalogs: [] };
+}
 
 function member(overrides: Partial<TenantMember> = {}): TenantMember {
   return {
@@ -31,8 +36,16 @@ describe('MemberAdministrationComponent', () => {
     });
   });
 
-  async function mount(): Promise<void> {
+  async function mount(selected: Tenant | null = workspace()): Promise<void> {
     fixture = TestBed.createComponent(MemberAdministrationComponent);
+    // The workspace is the page's decision, so every test states it the way the page would.
+    fixture.componentRef.setInput('workspace', selected);
+    await fixture.whenStable();
+  }
+
+  /** Points the card at another workspace, as switching the page's picker does. */
+  async function show(selected: Tenant): Promise<void> {
+    fixture.componentRef.setInput('workspace', selected);
     await fixture.whenStable();
   }
 
@@ -54,7 +67,7 @@ describe('MemberAdministrationComponent', () => {
     expect(fixture.nativeElement.querySelectorAll('tr.pending')).toHaveLength(1);
   });
 
-  it('admits a pending person with one action', async () => {
+  it('admits a pending user with one action', async () => {
     api.members = [member({ id: 7, subject: 'newcomer', status: 'pending' })];
     await mount();
 
@@ -104,11 +117,7 @@ describe('MemberAdministrationComponent', () => {
   });
 
   it('ignores a listing that arrives after the workspace changed', async () => {
-    api.tenants = [
-      { slug: 'alpha', displayName: 'Alpha', catalogs: [] },
-      { slug: 'beta', displayName: 'Beta', catalogs: [] },
-    ];
-    await mount();
+    await mount(workspace('alpha'));
 
     const pending: Subject<TenantMember[]>[] = [];
     api.listMembers = (): Observable<TenantMember[]> => {
@@ -117,16 +126,11 @@ describe('MemberAdministrationComponent', () => {
       return reply.asObservable();
     };
 
-    const workspace = fixture.nativeElement.querySelector('select[name="tenant"]') as HTMLSelectElement;
-    workspace.value = 'beta';
-    workspace.dispatchEvent(new Event('change'));
-    await fixture.whenStable();
-    workspace.value = 'alpha';
-    workspace.dispatchEvent(new Event('change'));
-    await fixture.whenStable();
+    await show(workspace('beta'));
+    await show(workspace('alpha'));
 
     // Alpha resolves first and beta -- now stale -- lands last. Rendering it would show one
-    // workspace's people under another's name, and suspending from that list would act on alpha.
+    // workspace's users under another's name, and suspending from that list would act on alpha.
     pending[1].next([member({ id: 20, displayName: 'Alpha Person' })]);
     pending[0].next([member({ id: 10, displayName: 'Beta Person' })]);
     await fixture.whenStable();
@@ -135,12 +139,31 @@ describe('MemberAdministrationComponent', () => {
     expect(text()).not.toContain('Beta Person');
   });
 
+  it('ignores a membership failure that arrives after the workspace changed', async () => {
+    api.members = [member({ id: 4, displayName: 'Alpha User' })];
+    await mount(workspace('alpha'));
+    const pending = new Subject<TenantMember>();
+    api.updateMember = (): Observable<TenantMember> => pending.asObservable();
+
+    const role = fixture.nativeElement.querySelector(
+      'select[aria-label="Role for Alpha User"]',
+    ) as HTMLSelectElement;
+    role.value = 'owner';
+    role.dispatchEvent(new Event('change'));
+    await show(workspace('beta'));
+
+    pending.error(new Error('Alpha membership failed.'));
+    await fixture.whenStable();
+
+    expect(text()).not.toContain('Alpha membership failed.');
+  });
+
   it('explains what to do when nobody has signed in yet', async () => {
     api.members = [];
     await mount();
 
     // An empty table with no explanation reads as "broken", which is how an administrator concludes
-    // the product cannot add people.
+    // the product cannot add users.
     expect(text()).toContain('Nobody has signed in to this workspace yet');
   });
 });
