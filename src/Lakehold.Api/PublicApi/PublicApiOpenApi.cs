@@ -6,6 +6,21 @@ namespace Lakehold.Api.PublicApi;
 public static class PublicApiOpenApi
 {
     /// <summary>
+    /// Keeps newly advertised access capabilities additive for existing generated clients. The
+    /// server always emits these flags, but older clients must remain valid when they do not know
+    /// about them and construct an <c>AccessDto</c> themselves.
+    /// </summary>
+    public static void PreserveAdditiveAccessCompatibility(OpenApiDocument document)
+    {
+        ArgumentNullException.ThrowIfNull(document);
+        if (document.Components?.Schemas?.TryGetValue("AccessDto", out var schema) == true
+            && schema is OpenApiSchema accessSchema)
+        {
+            accessSchema.Required?.Remove("tenantAdmin");
+        }
+    }
+
+    /// <summary>
     /// Replaces endpoint-inferred string error bodies with the canonical runtime problem contract.
     /// The public endpoint filter normalizes every 4xx/5xx result, so documenting the handler's
     /// pre-filter CLR union would make generated clients disagree with the wire response.

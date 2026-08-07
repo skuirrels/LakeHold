@@ -82,6 +82,19 @@ perl -pi -e 's/[ \t]+$//' \
     "${temporary}/dotnet/src/Lakehold.Sdk/Api/LakehouseApi.cs" \
     "${temporary}/python/lakehold_sdk/api/lakehouse_api.py"
 
+# Generator templates disagree on how many blank lines belong at end of file. Normalize the
+# aggregate files that are rewritten when an operation or schema changes so regeneration stays
+# whitespace-clean and reproducible across all four clients.
+perl -0pi -e 's/\n+\z/\n/' \
+    "${temporary}/java/README.md" \
+    "${temporary}/java/api/openapi.yaml" \
+    "${temporary}/go/README.md" \
+    "${temporary}/go/api/openapi.yaml" \
+    "${temporary}/dotnet/README.md" \
+    "${temporary}/dotnet/api/openapi.yaml" \
+    "${temporary}/python/README.md" \
+    "${temporary}/python/lakehold_sdk/api/lakehouse_api.py"
+
 # Treat an upstream template change as a failed generation, not as permission to emit an unsafe
 # client. These assertions also make the intended security properties visible in CI output.
 grep -Fq 'loggingInterceptor.redactHeader("Authorization");' "${temporary}/java/src/main/java/io/lakehold/sdk/ApiClient.java"

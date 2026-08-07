@@ -37,13 +37,15 @@ namespace Lakehold.Sdk.Model
         /// <param name="role">role</param>
         /// <param name="readOnly">readOnly</param>
         /// <param name="systemAdmin">systemAdmin</param>
+        /// <param name="tenantAdmin">tenantAdmin</param>
         [JsonConstructor]
-        public AccessDto(string mode, string role, bool readOnly, bool systemAdmin)
+        public AccessDto(string mode, string role, bool readOnly, bool systemAdmin, Option<bool?> tenantAdmin = default)
         {
             Mode = mode;
             Role = role;
             ReadOnly = readOnly;
             SystemAdmin = systemAdmin;
+            TenantAdminOption = tenantAdmin;
             OnCreated();
         }
 
@@ -74,6 +76,19 @@ namespace Lakehold.Sdk.Model
         public bool SystemAdmin { get; set; }
 
         /// <summary>
+        /// Used to track the state of TenantAdmin
+        /// </summary>
+        [JsonIgnore]
+        [global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]
+        public Option<bool?> TenantAdminOption { get; private set; }
+
+        /// <summary>
+        /// Gets or Sets TenantAdmin
+        /// </summary>
+        [JsonPropertyName("tenantAdmin")]
+        public bool? TenantAdmin { get { return this.TenantAdminOption; } set { this.TenantAdminOption = new(value); } }
+
+        /// <summary>
         /// Returns the string presentation of the object
         /// </summary>
         /// <returns>String presentation of the object</returns>
@@ -85,6 +100,7 @@ namespace Lakehold.Sdk.Model
             sb.Append("  Role: ").Append(Role).Append("\n");
             sb.Append("  ReadOnly: ").Append(ReadOnly).Append("\n");
             sb.Append("  SystemAdmin: ").Append(SystemAdmin).Append("\n");
+            sb.Append("  TenantAdmin: ").Append(TenantAdmin).Append("\n");
             sb.Append("}\n");
             return sb.ToString();
         }
@@ -126,6 +142,7 @@ namespace Lakehold.Sdk.Model
             Option<string?> role = default;
             Option<bool?> readOnly = default;
             Option<bool?> systemAdmin = default;
+            Option<bool?> tenantAdmin = default;
 
             while (utf8JsonReader.Read())
             {
@@ -153,6 +170,9 @@ namespace Lakehold.Sdk.Model
                             break;
                         case "systemAdmin":
                             systemAdmin = new Option<bool?>(utf8JsonReader.TokenType == JsonTokenType.Null ? (bool?)null : utf8JsonReader.GetBoolean());
+                            break;
+                        case "tenantAdmin":
+                            tenantAdmin = new Option<bool?>(utf8JsonReader.TokenType == JsonTokenType.Null ? (bool?)null : utf8JsonReader.GetBoolean());
                             break;
                         default:
                             break;
@@ -184,7 +204,10 @@ namespace Lakehold.Sdk.Model
             if (systemAdmin.IsSet && systemAdmin.Value == null)
                 throw new ArgumentNullException(nameof(systemAdmin), "Property is not nullable for class AccessDto.");
 
-            return new AccessDto(mode.Value!, role.Value!, readOnly.Value!.Value!, systemAdmin.Value!.Value!);
+            if (tenantAdmin.IsSet && tenantAdmin.Value == null)
+                throw new ArgumentNullException(nameof(tenantAdmin), "Property is not nullable for class AccessDto.");
+
+            return new AccessDto(mode.Value!, role.Value!, readOnly.Value!.Value!, systemAdmin.Value!.Value!, tenantAdmin);
         }
 
         /// <summary>
@@ -222,6 +245,9 @@ namespace Lakehold.Sdk.Model
             writer.WriteBoolean("readOnly", accessDto.ReadOnly);
 
             writer.WriteBoolean("systemAdmin", accessDto.SystemAdmin);
+
+            if (accessDto.TenantAdminOption.IsSet)
+                writer.WriteBoolean("tenantAdmin", accessDto.TenantAdminOption.Value!.Value);
         }
     }
 }

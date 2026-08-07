@@ -18,7 +18,7 @@ import re  # noqa: F401
 import json
 
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictStr
-from typing import Any, ClassVar, Dict, List
+from typing import Any, ClassVar, Dict, List, Optional
 from typing import Optional, Set
 from typing_extensions import Self
 
@@ -30,7 +30,8 @@ class AccessDto(BaseModel):
     role: StrictStr
     read_only: StrictBool = Field(alias="readOnly")
     system_admin: StrictBool = Field(alias="systemAdmin")
-    __properties: ClassVar[List[str]] = ["mode", "role", "readOnly", "systemAdmin"]
+    tenant_admin: Optional[StrictBool] = Field(default=None, alias="tenantAdmin")
+    __properties: ClassVar[List[str]] = ["mode", "role", "readOnly", "systemAdmin", "tenantAdmin"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -85,7 +86,8 @@ class AccessDto(BaseModel):
             "mode": obj.get("mode"),
             "role": obj.get("role"),
             "readOnly": obj.get("readOnly"),
-            "systemAdmin": obj.get("systemAdmin")
+            "systemAdmin": obj.get("systemAdmin"),
+            "tenantAdmin": obj.get("tenantAdmin")
         })
         return _obj
 

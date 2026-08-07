@@ -22514,8 +22514,7 @@
           "mode",
           "role",
           "readOnly",
-          "systemAdmin",
-          "tenantAdmin"
+          "systemAdmin"
         ],
         "type": "object",
         "properties": {
@@ -25907,13 +25906,13 @@
   },
   "tags": [
     {
-      "name": "Lakehouse"
-    },
-    {
       "name": "Discovery"
     },
     {
       "name": "Operations"
+    },
+    {
+      "name": "Lakehouse"
     },
     {
       "name": "System settings"

@@ -202,6 +202,7 @@ builder.Services.AddOpenApi(options =>
         }
         PublicApiOpenApi.NormalizeNumericSchemas(document);
         PublicApiOpenApi.PruneUnusedSchemas(document);
+        PublicApiOpenApi.PreserveAdditiveAccessCompatibility(document);
 
         return Task.CompletedTask;
     });
