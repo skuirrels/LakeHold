@@ -22,3 +22,56 @@
   justify-content: flex-end;
   margin-top: 14px;
 }
+
+/* Placement is configuration metadata, deliberately set apart from the physical figures below it.
+   The two answer different questions — "where does this live" versus "is it worth compacting" — and
+   running them together invited reading the path as another statistic. */
+.placement {
+  display: grid;
+  gap: 10px 20px;
+  margin: 0 0 10px;
+  padding: 12px 14px;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  background: var(--surface-2, var(--surface-1));
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 6px);
+}
+
+.placement dt {
+  margin-bottom: 3px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-faint);
+}
+
+.placement dd {
+  margin: 0;
+  font-size: 12px;
+}
+
+.placement code {
+  overflow-wrap: anywhere;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 12px;
+}
+
+.placement .muted {
+  color: var(--text-faint);
+}
+
+.placement-note,
+.config-help {
+  margin: 0 0 14px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text-faint);
+}
+
+.config-help {
+  padding: 10px 12px;
+  font-size: 12px;
+  color: var(--text);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  border-radius: var(--radius-sm, 6px);
+}

@@ -1,26 +1,47 @@
 import { DOCUMENT } from '@angular/common';
-import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  OnInit,
+  inject,
+  output,
+  signal,
+  viewChild,
+} from '@angular/core';
 import { LakehouseService } from './lakehouse.service';
-import { SystemSettings } from './models';
+import { SystemSettings, Tenant } from './models';
+import { CatalogAdministrationComponent } from './catalog-administration.component';
+import { StorageConfigurationComponent } from './storage-configuration.component';
+import { WorkspaceAdministrationComponent } from './workspace-administration.component';
 
 const MCP_PUBLIC_BASE_URL_MAX_LENGTH = 2048;
 
 /**
- * Instance-wide operator settings that are applied by the API on the next MCP request.
+ * Instance administration: independent MCP, storage, workspace, and catalog panels.
  *
- * Everything here answers to `Capability.Instance`. People and tokens are workspace administration
- * and live under their own destination, so an owner is never sent to a page whose contents their
- * credential cannot read.
+ * Everything here answers to `Capability.Instance`. A failure in one panel must not hide the
+ * others: provisioning a workspace is unrelated to reading or saving the live MCP settings.
+ * Users and tokens are workspace administration and live under their own destination, so an owner
+ * is never sent to a page whose contents their credential cannot read.
  */
 @Component({
   selector: 'lh-system-settings',
+  imports: [
+    CatalogAdministrationComponent,
+    StorageConfigurationComponent,
+    WorkspaceAdministrationComponent,
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './system-settings.component.html',
   styleUrls: ['./admin-page.css', './system-settings.component.css'],
 })
 export class SystemSettingsComponent implements OnInit {
+  /** Re-emitted for the workbench, whose workspace and catalog pickers this invalidates. */
+  readonly resourcesChanged = output<void>();
+
   private readonly api = inject(LakehouseService);
   private readonly document = inject(DOCUMENT);
+  private readonly catalogAdministration = viewChild(CatalogAdministrationComponent);
 
   protected readonly settings = signal<SystemSettings | null>(null);
   protected readonly enabled = signal(false);
@@ -72,6 +93,12 @@ export class SystemSettingsComponent implements OnInit {
 
   protected setMaxRows(value: string): void {
     this.maxRows.set(Number.parseInt(value, 10) || 0);
+  }
+
+  /** Makes the new workspace immediately available to the adjacent catalog form and shell. */
+  protected workspaceCreated(workspace: Tenant): void {
+    this.catalogAdministration()?.reload(workspace.slug);
+    this.resourcesChanged.emit();
   }
 
   protected load(): void {

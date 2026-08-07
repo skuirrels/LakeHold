@@ -10,7 +10,7 @@ import { expect, test, type Page } from '@playwright/test';
  * on screen rather than implied.
  *
  * Playwright gives every test a fresh browser context, which is what makes signing in as two
- * different people straightforward: there is no session to tear down between them.
+ * different users straightforward: there is no session to tear down between them.
  */
 const skip = process.env['LAKEHOLD_SKIP_IDENTITY_E2E'] === '1';
 
@@ -28,10 +28,10 @@ async function signInWith(page: Page, username: string): Promise<void> {
   await page.waitForURL(/\/workbench/);
 }
 
-/** Opens the People destination, where workspace membership and client tokens are administered. */
-async function openPeople(page: Page): Promise<void> {
-  await page.getByRole('button', { name: 'People' }).click();
-  await expect(page.getByRole('heading', { level: 1, name: 'People' })).toBeVisible();
+/** Opens the Users destination, where workspace membership and client tokens are administered. */
+async function openUsers(page: Page): Promise<void> {
+  await page.getByRole('button', { name: 'Users' }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Users' })).toBeVisible();
 }
 
 /** Reads the session the API reports for this browser. */
@@ -53,7 +53,7 @@ test.describe('identity provider sign-in', () => {
     await page.goto('/workbench');
 
     // The affordance an operator looks for first. When no provider is configured this is absent and
-    // the token box is all there is, which is the state that made people ask where the login was.
+    // the token box is all there is, which is the state that made users ask where the login was.
     await expect(page.getByRole('link', { name: /continue with your identity provider/i })).toBeVisible();
   });
 
@@ -103,15 +103,15 @@ test.describe('identity provider sign-in', () => {
     }
 
     await signInWith(page, 'admin');
-    await openPeople(page);
+    await openUsers(page);
 
     // The point of the whole membership model: somebody who signed in is now a record an
     // administrator can see and act on, rather than an invisible consequence of a claim.
-    const people = page.locator('lh-member-administration');
-    await expect(people.getByRole('heading', { name: 'Everyone who has signed in' })).toBeVisible();
-    await expect(people.getByText('Owen Owner')).toBeVisible();
+    const users = page.locator('lh-member-administration');
+    await expect(users.getByRole('heading', { name: 'Everyone who has signed in' })).toBeVisible();
+    await expect(users.getByText('Owen Owner')).toBeVisible();
 
-    const role = people.getByLabel('Role for Owen Owner');
+    const role = users.getByLabel('Role for Owen Owner');
 
     // Deliberately not asserting the starting role: this test changes server state, so depending on
     // what it was would make a retry fail against the value the first attempt already wrote.
@@ -122,22 +122,22 @@ test.describe('identity provider sign-in', () => {
     // that holds -- which is the entire reason membership exists rather than trusting the claim.
     // An instance credential lands on System Settings, so the page has to be reopened first.
     await page.reload();
-    await openPeople(page);
-    await expect(people.getByLabel('Role for Owen Owner')).toHaveValue('reader');
+    await openUsers(page);
+    await expect(users.getByLabel('Role for Owen Owner')).toHaveValue('reader');
 
-    await expect(people.getByRole('button', { name: 'Suspend' })).toBeVisible();
-    await expect(people.getByRole('button', { name: 'Remove' })).toBeVisible();
+    await expect(users.getByRole('button', { name: 'Suspend' })).toBeVisible();
+    await expect(users.getByRole('button', { name: 'Remove' })).toBeVisible();
 
     // Leave the workspace as it was found, so this suite can run twice in a row.
-    await people.getByLabel('Role for Owen Owner').selectOption('owner');
-    await expect(people.getByLabel('Role for Owen Owner')).toHaveValue('owner');
+    await users.getByLabel('Role for Owen Owner').selectOption('owner');
+    await expect(users.getByLabel('Role for Owen Owner')).toHaveValue('owner');
   });
 
   test('shows an administrator how to issue credentials for clients and agents', async ({
     page,
   }) => {
     await signInWith(page, 'admin');
-    await openPeople(page);
+    await openUsers(page);
 
     // An administrator arriving for the first time has to be able to find this without being told.
     // If the panel or its controls disappear, that is a confused administrator, so it fails here.

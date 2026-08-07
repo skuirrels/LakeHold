@@ -105,6 +105,8 @@ namespace Lakehold.Sdk.Client
             _jsonOptions.Converters.Add(new QueryResponseJsonConverter());
             _jsonOptions.Converters.Add(new QueryRunDtoJsonConverter());
             _jsonOptions.Converters.Add(new RegisterCdcConsumerRequestJsonConverter());
+            _jsonOptions.Converters.Add(new ResolveStoragePathRequestJsonConverter());
+            _jsonOptions.Converters.Add(new ResolvedStoragePathDtoJsonConverter());
             _jsonOptions.Converters.Add(new RestoreRequestJsonConverter());
             _jsonOptions.Converters.Add(new RestoreTableRequestJsonConverter());
             _jsonOptions.Converters.Add(new SavedQueryDtoJsonConverter());
@@ -113,8 +115,10 @@ namespace Lakehold.Sdk.Client
             _jsonOptions.Converters.Add(new SchemaDtoJsonConverter());
             _jsonOptions.Converters.Add(new SchemaTableDtoJsonConverter());
             _jsonOptions.Converters.Add(new SnapshotDtoJsonConverter());
+            _jsonOptions.Converters.Add(new StorageProfileSummaryDtoJsonConverter());
             _jsonOptions.Converters.Add(new SubscriptionDtoJsonConverter());
             _jsonOptions.Converters.Add(new SystemSettingsDtoJsonConverter());
+            _jsonOptions.Converters.Add(new SystemStorageDtoJsonConverter());
             _jsonOptions.Converters.Add(new TableDetailColumnDtoJsonConverter());
             _jsonOptions.Converters.Add(new TableDetailDtoJsonConverter());
             _jsonOptions.Converters.Add(new TableFilesDtoJsonConverter());

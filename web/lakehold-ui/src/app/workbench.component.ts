@@ -40,7 +40,7 @@ import {
   TabularImportResult,
   Tenant,
 } from './models';
-import { PeopleComponent } from './people.component';
+import { UsersComponent } from './users.component';
 import { ResultGridComponent } from './result-grid.component';
 import { QueryEditorComponent } from './query-editor.component';
 import { SavedQueriesPanelComponent } from './saved-queries-panel.component';
@@ -96,7 +96,7 @@ type BottomTab =
     DataHistoryPanelComponent,
     EjectPanelComponent,
     FirstRunComponent,
-    PeopleComponent,
+    UsersComponent,
     QueryEditorComponent,
     ResultGridComponent,
     RouterLink,
@@ -249,6 +249,11 @@ export class WorkbenchComponent {
     () => this.tenants().find((t) => t.slug === this.tenantSlug())?.catalogs ?? [],
   );
 
+  /** The selected catalog's own record, for the storage panel's immutable placement summary. */
+  protected readonly selectedCatalog = computed(
+    () => this.catalogs().find((catalog) => catalog.name === this.catalogName()) ?? null,
+  );
+
   protected readonly ready = computed(
     () => this.tenantSlug() !== null && this.catalogName() !== null,
   );
@@ -291,7 +296,7 @@ export class WorkbenchComponent {
   protected readonly demoMode = computed(() => this.access()?.mode === 'demo');
 
   /**
-   * Whether this principal administers the workspace it belongs to, and so reaches People.
+   * Whether this principal administers the workspace it belongs to, and so reaches Users.
    *
    * Taken from the API rather than derived from the role here. An owner token that is read-only or
    * narrowed to one catalog is least privilege by design — it must not be able to mint a broader
@@ -471,12 +476,12 @@ export class WorkbenchComponent {
           }
 
           // A credential can be replaced while an administration page is open, and the new one may
-          // not reach it: System Settings is instance-only, and People needs a workspace owner. Send
+          // not reach it: System Settings is instance-only, and Users needs a workspace owner. Send
           // such a principal back to a surface it owns rather than leaving it on a refusal.
           const destination = this.navigationDestination();
           if (
             destination === 'settings'
-            || (destination === 'people' && !this.canAdminister())
+            || (destination === 'users' && !this.canAdminister())
           ) {
             this.navigationDestination.set('workbench');
           }
@@ -535,7 +540,7 @@ export class WorkbenchComponent {
    * without the third step the workbench would still refuse every query it offered to run.
    */
   protected createWorkspace(request: WorkspaceRequest): void {
-    const { slug, displayName, catalog } = request;
+    const { slug, displayName, catalog, placement } = request;
     if (this.setupBusy()) {
       return;
     }
@@ -551,7 +556,9 @@ export class WorkbenchComponent {
       .createTenant(slug, displayName)
       .pipe(
         catchError(ignoreConflict),
-        switchMap(() => this.api.createCatalog(slug, catalog).pipe(catchError(ignoreConflict))),
+        switchMap(() =>
+          this.api.createCatalog(slug, catalog, placement).pipe(catchError(ignoreConflict)),
+        ),
         switchMap(() =>
           this.api.createToken(slug, {
             name: 'workbench',
@@ -782,6 +789,11 @@ export class WorkbenchComponent {
     }
   }
 
+  /** Re-reads the workspace list after System Settings provisions a workspace or catalog. */
+  protected refreshWorkspaces(): void {
+    this.loadTenants();
+  }
+
   protected openNavigation(destination: WorkbenchDestination): void {
     this.navigationDestination.set(destination);
 
@@ -795,7 +807,7 @@ export class WorkbenchComponent {
       case 'queries':
         this.showSidebar('queries');
         break;
-      case 'people':
+      case 'users':
       case 'settings':
         // Full-width administration pages: the catalog panel has nothing to say beside them.
         this.contextPanelOpen.set(false);

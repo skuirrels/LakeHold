@@ -1,12 +1,12 @@
 import { provideZonelessChangeDetection } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { LakehouseService } from './lakehouse.service';
-import { PeopleComponent } from './people.component';
+import { UsersComponent } from './users.component';
 import { FakeLakehouseService } from './test-doubles';
 
-describe('PeopleComponent', () => {
+describe('UsersComponent', () => {
   let api: FakeLakehouseService;
-  let fixture: ComponentFixture<PeopleComponent>;
+  let fixture: ComponentFixture<UsersComponent>;
 
   beforeEach(() => {
     api = new FakeLakehouseService();
@@ -14,12 +14,16 @@ describe('PeopleComponent', () => {
       {
         slug: 'alpha',
         displayName: 'Alpha',
-        catalogs: [{ name: 'a', dataPath: '/a', isReadOnly: false }],
+        catalogs: [
+          { name: 'a', dataPath: '/a', isReadOnly: false, storageKind: 'Local', storageProfile: null },
+        ],
       },
       {
         slug: 'beta',
         displayName: 'Beta',
-        catalogs: [{ name: 'b', dataPath: '/b', isReadOnly: false }],
+        catalogs: [
+          { name: 'b', dataPath: '/b', isReadOnly: false, storageKind: 'Local', storageProfile: null },
+        ],
       },
     ];
     TestBed.configureTestingModule({
@@ -28,7 +32,7 @@ describe('PeopleComponent', () => {
   });
 
   async function mount(): Promise<void> {
-    fixture = TestBed.createComponent(PeopleComponent);
+    fixture = TestBed.createComponent(UsersComponent);
     await fixture.whenStable();
   }
 
@@ -46,6 +50,7 @@ describe('PeopleComponent', () => {
   it('asks for the workspaces once and offers exactly one picker for the page', async () => {
     await mount();
 
+    expect(fixture.nativeElement.querySelector('h1')?.textContent).toBe('Users');
     // Two cards that each loaded the list cost two identical requests to render one page.
     expect(api.countOf('listTenants')).toBe(1);
     expect(fixture.nativeElement.querySelectorAll('select[name="workspace"]')).toHaveLength(1);

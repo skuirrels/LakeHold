@@ -1,0 +1,115 @@
+@if (!unavailable()) {
+  <div class="placement">
+    <div class="choice">
+      <label>
+        <input
+          type="radio"
+          name="placement-mode"
+          [checked]="mode() === 'default'"
+          (change)="chooseMode('default')"
+        />
+        <span>
+          <strong>Use deployment default</strong>
+          <small>Placed beneath this node's configured data root.</small>
+        </span>
+      </label>
+
+      <label>
+        <input
+          type="radio"
+          name="placement-mode"
+          [checked]="mode() === 'exact'"
+          (change)="chooseMode('exact')"
+        />
+        <span>
+          <strong>Choose exact placement</strong>
+          <small>Name the bucket, container, or path and the profile that reaches it.</small>
+        </span>
+      </label>
+    </div>
+
+    @if (mode() === 'exact') {
+      <label class="field">
+        <span>Data path</span>
+        <input
+          type="text"
+          autocomplete="off"
+          spellcheck="false"
+          placeholder="s3://my-bucket/lakehold/acme/analytics"
+          [value]="dataPath()"
+          (input)="dataPath.set($any($event.target).value)"
+        />
+        <small>A local path, or an s3://, gs://, az://, or abfss:// URI.</small>
+      </label>
+
+      @if (selectableProfiles().length > 0) {
+        <label class="field">
+          <span>Storage profile</span>
+          <select
+            [value]="storageProfile()"
+            (change)="storageProfile.set($any($event.target).value)"
+          >
+            <option value="">Deployment default</option>
+            @for (profile of selectableProfiles(); track profile.name) {
+              <option [value]="profile.name">
+                {{ profile.name }} — {{ kindLabel(profile.kind) }}
+                @if (!profile.credentialsConfigured && profile.kind !== 'Local') {
+                  (credentials missing)
+                }
+              </option>
+            }
+          </select>
+          <small>Filtered to profiles that can serve this path. The server checks again.</small>
+        </label>
+      }
+
+      <label class="toggle">
+        <input
+          type="checkbox"
+          [checked]="readOnly()"
+          (change)="readOnly.set($any($event.target).checked)"
+        />
+        <span>
+          <strong>Read-only catalog</strong>
+          <small>Attached without write access. This cannot be changed in place afterwards.</small>
+        </span>
+      </label>
+    }
+
+    @if (previewError(); as message) {
+      <p class="error" role="alert">{{ message }}</p>
+    } @else if (preview(); as resolved) {
+      <dl class="preview">
+        <div>
+          <dt>Resolved location</dt>
+          <dd>
+            <code>{{ resolved.dataPath }}</code>
+          </dd>
+        </div>
+        <div>
+          <dt>Storage</dt>
+          <dd>
+            {{ kindLabel(resolved.kind) }}
+            @if (resolved.storageProfile; as name) {
+              · profile <code>{{ name }}</code>
+            }
+          </dd>
+        </div>
+      </dl>
+
+      @if (filesystem()) {
+        <p class="warning" role="note">
+          Filesystem storage is safe for one node, or when every node mounts the same durable
+          filesystem at the same path. Use object storage for ordinary multi-node deployments.
+        </p>
+      }
+    } @else if (resolving()) {
+      <p class="muted">Resolving location…</p>
+    }
+
+    <p class="muted note">
+      Placement is chosen once. Moving a catalog afterwards is a migration, not a setting, so it
+      cannot be edited in place.
+    </p>
+  </div>
+}

@@ -13,7 +13,7 @@ import { LakehouseService } from './lakehouse.service';
 import { MemberStatus, Tenant, TenantMember, TokenRole } from './models';
 
 /**
- * The people who may reach a workspace.
+ * The users who may reach a workspace.
  *
  * This is the surface that was missing when "how do I add a user?" had no answer. Identity still
  * comes from the provider — LakeHold never holds a password — but who reaches what is decided here,
@@ -51,7 +51,7 @@ export class MemberAdministrationComponent {
 
   protected readonly roles: TokenRole[] = ['reader', 'editor', 'owner'];
 
-  /** People waiting on a decision. Surfaced separately because it is the only actionable state. */
+  /** Users waiting on a decision. Surfaced separately because it is the only actionable state. */
   protected readonly pending = computed(() =>
     this.members().filter((member) => member.status === 'pending'),
   );
@@ -104,15 +104,24 @@ export class MemberAdministrationComponent {
     }
 
     const tenant = this.slug();
+    const generation = this.generation;
     this.busyId.set(member.id);
     this.error.set(null);
     this.api.removeMember(tenant, member.id).subscribe({
       next: () => {
+        if (generation !== this.generation) {
+          return;
+        }
+
         this.busyId.set(null);
         this.pendingRemovalId.set(null);
         this.loadMembers();
       },
       error: (error: Error) => {
+        if (generation !== this.generation) {
+          return;
+        }
+
         this.busyId.set(null);
         this.error.set(error.message);
       },
@@ -128,14 +137,23 @@ export class MemberAdministrationComponent {
       return;
     }
 
+    const generation = this.generation;
     this.busyId.set(member.id);
     this.error.set(null);
     this.api.updateMember(this.slug(), member.id, change).subscribe({
       next: () => {
+        if (generation !== this.generation) {
+          return;
+        }
+
         this.busyId.set(null);
         this.loadMembers();
       },
       error: (error: Error) => {
+        if (generation !== this.generation) {
+          return;
+        }
+
         this.busyId.set(null);
         this.error.set(error.message);
       },

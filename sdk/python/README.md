@@ -105,7 +105,7 @@ Class | Method | HTTP request | Description
 *LakehouseApi* | [**get_api_v1_tenants_tenant_slug_catalogs_catalog_name_table_detail**](docs/LakehouseApi.md#get_api_v1_tenants_tenant_slug_catalogs_catalog_name_table_detail) | **GET** /api/v1/tenants/{tenantSlug}/catalogs/{catalogName}/table-detail | Returns one table&#39;s schema, storage footprint, and partition layout.
 *LakehouseApi* | [**get_api_v1_tenants_tenant_slug_catalogs_catalog_name_table_profile**](docs/LakehouseApi.md#get_api_v1_tenants_tenant_slug_catalogs_catalog_name_table_profile) | **GET** /api/v1/tenants/{tenantSlug}/catalogs/{catalogName}/table-profile | Profiles the live logical rows of every column in one table.
 *LakehouseApi* | [**get_api_v1_tenants_tenant_slug_history**](docs/LakehouseApi.md#get_api_v1_tenants_tenant_slug_history) | **GET** /api/v1/tenants/{tenantSlug}/history | Returns recent query runs for a tenant.
-*LakehouseApi* | [**get_api_v1_tenants_tenant_slug_members**](docs/LakehouseApi.md#get_api_v1_tenants_tenant_slug_members) | **GET** /api/v1/tenants/{tenantSlug}/members | Lists the people who may reach this workspace, including those awaiting approval.
+*LakehouseApi* | [**get_api_v1_tenants_tenant_slug_members**](docs/LakehouseApi.md#get_api_v1_tenants_tenant_slug_members) | **GET** /api/v1/tenants/{tenantSlug}/members | Lists the users who may reach this workspace, including those awaiting approval.
 *LakehouseApi* | [**get_api_v1_tenants_tenant_slug_tokens**](docs/LakehouseApi.md#get_api_v1_tenants_tenant_slug_tokens) | **GET** /api/v1/tenants/{tenantSlug}/tokens | Lists token metadata for a tenant. Never returns the secret.
 *LakehouseApi* | [**get_snapshot**](docs/LakehouseApi.md#get_snapshot) | **GET** /api/v1/tenants/{tenantSlug}/catalogs/{catalogName}/snapshots/{snapshotId} | Returns one retained snapshot by its source-native identifier.
 *LakehouseApi* | [**get_snapshot_table**](docs/LakehouseApi.md#get_snapshot_table) | **GET** /api/v1/tenants/{tenantSlug}/catalogs/{catalogName}/snapshots/{snapshotId}/table | Returns a bounded table preview at an exact retained snapshot.
@@ -139,6 +139,8 @@ Class | Method | HTTP request | Description
 *LakehouseApi* | [**stream_query**](docs/LakehouseApi.md#stream_query) | **POST** /api/v1/tenants/{tenantSlug}/catalogs/{catalogName}/query:stream | Streams a read-only SQL result as schema, row, and completion NDJSON records.
 *OperationsApi* | [**get_operation**](docs/OperationsApi.md#get_operation) | **GET** /api/v1/operations/{id} | Returns one durable public API operation visible to the caller.
 *SystemSettingsApi* | [**get_api_v1_system_settings**](docs/SystemSettingsApi.md#get_api_v1_system_settings) | **GET** /api/v1/system-settings | Returns the instance-wide runtime settings.
+*SystemSettingsApi* | [**get_api_v1_system_settings_storage**](docs/SystemSettingsApi.md#get_api_v1_system_settings_storage) | **GET** /api/v1/system-settings/storage | Returns this node&#39;s Parquet storage placement and redacted profile inventory.
+*SystemSettingsApi* | [**post_api_v1_system_settings_storage_resolve**](docs/SystemSettingsApi.md#post_api_v1_system_settings_storage_resolve) | **POST** /api/v1/system-settings/storage/resolve | Resolves where a catalog&#39;s Parquet would go, without creating anything.
 *SystemSettingsApi* | [**put_api_v1_system_settings**](docs/SystemSettingsApi.md#put_api_v1_system_settings) | **PUT** /api/v1/system-settings | Saves and immediately applies the instance-wide runtime settings.
 
 
@@ -206,6 +208,8 @@ Class | Method | HTTP request | Description
  - [QueryResponse](docs/QueryResponse.md)
  - [QueryRunDto](docs/QueryRunDto.md)
  - [RegisterCdcConsumerRequest](docs/RegisterCdcConsumerRequest.md)
+ - [ResolveStoragePathRequest](docs/ResolveStoragePathRequest.md)
+ - [ResolvedStoragePathDto](docs/ResolvedStoragePathDto.md)
  - [RestoreRequest](docs/RestoreRequest.md)
  - [RestoreTableRequest](docs/RestoreTableRequest.md)
  - [SavedQueryDto](docs/SavedQueryDto.md)
@@ -214,8 +218,10 @@ Class | Method | HTTP request | Description
  - [SchemaDto](docs/SchemaDto.md)
  - [SchemaTableDto](docs/SchemaTableDto.md)
  - [SnapshotDto](docs/SnapshotDto.md)
+ - [StorageProfileSummaryDto](docs/StorageProfileSummaryDto.md)
  - [SubscriptionDto](docs/SubscriptionDto.md)
  - [SystemSettingsDto](docs/SystemSettingsDto.md)
+ - [SystemStorageDto](docs/SystemStorageDto.md)
  - [TableDetailColumnDto](docs/TableDetailColumnDto.md)
  - [TableDetailDto](docs/TableDetailDto.md)
  - [TableFilesDto](docs/TableFilesDto.md)
@@ -245,7 +251,6 @@ Authentication schemes defined for the API:
 
 
 ## Author
-
 
 
 

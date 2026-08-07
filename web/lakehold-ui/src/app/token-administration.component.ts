@@ -51,6 +51,7 @@ export class TokenAdministrationComponent {
    * under another's name, and revoking from that list would act on the workspace now selected.
    */
   private tokenRequestGeneration = 0;
+  private workspaceGeneration = 0;
 
   protected readonly canCreate = computed(() => {
     const nameLength = this.tokenName().trim().length;
@@ -61,12 +62,15 @@ export class TokenAdministrationComponent {
     // Same shape as the workbench panels: depend on exactly the input, do the work `untracked`.
     effect(() => {
       const workspace = this.workspace();
+      this.workspaceGeneration += 1;
       untracked(() => {
         this.tokens.set([]);
         this.error.set(null);
         // A pending "click again to confirm" is scoped to the list it was armed against, and an id
         // armed against the old list would revoke whichever credential shares it in the new one.
         this.pendingRevokeId.set(null);
+        this.creating.set(false);
+        this.revokingId.set(null);
         // The one-time secret on screen was minted for the workspace being left. Keeping it visible
         // beside another workspace's credentials invites pasting it where it does not work.
         this.createdToken.set(null);
@@ -87,6 +91,7 @@ export class TokenAdministrationComponent {
   protected create(): void {
     const name = this.tokenName().trim();
     const tenant = this.slug();
+    const workspaceGeneration = this.workspaceGeneration;
     if (this.creating() || tenant.length === 0 || name.length < 1 || name.length > 200) {
       return;
     }
@@ -118,11 +123,19 @@ export class TokenAdministrationComponent {
       })
       .subscribe({
         next: (created) => {
+          if (workspaceGeneration !== this.workspaceGeneration) {
+            return;
+          }
+
           this.creating.set(false);
           this.createdToken.set(created);
           this.loadTokens();
         },
         error: (error: Error) => {
+          if (workspaceGeneration !== this.workspaceGeneration) {
+            return;
+          }
+
           this.creating.set(false);
           this.error.set(error.message);
         },
@@ -132,6 +145,7 @@ export class TokenAdministrationComponent {
   protected async copyToken(): Promise<void> {
     const token = this.createdToken()?.token;
     const clipboard = this.document.defaultView?.navigator.clipboard;
+    const workspaceGeneration = this.workspaceGeneration;
     if (!token || !clipboard) {
       this.copyStatus.set('Automatic copy is unavailable. Select and copy the token manually.');
       return;
@@ -139,9 +153,13 @@ export class TokenAdministrationComponent {
 
     try {
       await clipboard.writeText(token);
-      this.copyStatus.set('Token copied.');
+      if (workspaceGeneration === this.workspaceGeneration) {
+        this.copyStatus.set('Token copied.');
+      }
     } catch {
-      this.copyStatus.set('Automatic copy failed. Select and copy the token manually.');
+      if (workspaceGeneration === this.workspaceGeneration) {
+        this.copyStatus.set('Automatic copy failed. Select and copy the token manually.');
+      }
     }
   }
 
@@ -161,15 +179,24 @@ export class TokenAdministrationComponent {
     }
 
     const tenant = this.slug();
+    const workspaceGeneration = this.workspaceGeneration;
     this.revokingId.set(id);
     this.error.set(null);
     this.api.revokeToken(tenant, id).subscribe({
       next: () => {
+        if (workspaceGeneration !== this.workspaceGeneration) {
+          return;
+        }
+
         this.revokingId.set(null);
         this.pendingRevokeId.set(null);
         this.loadTokens();
       },
       error: (error: Error) => {
+        if (workspaceGeneration !== this.workspaceGeneration) {
+          return;
+        }
+
         this.revokingId.set(null);
         this.error.set(error.message);
       },

@@ -85,7 +85,7 @@ provider**. Two users are seeded, both with the password `lakehold`:
 | Sign in as | You get |
 |---|---|
 | `analyst` | Owner of the `demo` workspace — query, write, maintenance, backup, and eject |
-| `admin` | Instance administration — provision workspaces, catalogs, and credentials, and administer people in any workspace |
+| `admin` | Instance administration — provision workspaces, catalogs, and credentials, and administer users in any workspace |
 
 Either way you land on a seeded catalog: a `demo` workspace with an `analytics` catalog of 250,000
 events and 5,000 customers, so there is something to run against before you load data of your own.
@@ -97,7 +97,7 @@ events and 5,000 customers, so there is something to run against before you load
 
 **Machines, scripts, and agents use API tokens instead**, not browser sign-in. Paste one into the
 same dialog under **or use an API token**, or send it as `Authorization: Bearer lkh_…`. Issue tokens
-under **People → API tokens**. Full detail — production first-run, adding people, swapping
+under **Users → API tokens**. Full detail — production first-run, adding users, swapping
 Keycloak for your own provider, and connecting clients and agents — is in the
 [identity provider setup guide](https://github.com/skuirrels/LakeHold/blob/main/docs/IDENTITY-PROVIDER-SETUP.md).
 
@@ -166,6 +166,11 @@ output pane below it with eight panels — **Results**, **Query history**, **Dat
 A workspace is a tenant; a catalog is the isolated data unit attached to your session. Pick one of
 each — every query, history entry, and maintenance run is scoped to that pair. Isolation comes from
 which catalog is attached, not from anything in the SQL you submit.
+
+An instance administrator creates additional tenants under **System Settings → New workspace**.
+The workspace slug is its stable identifier in URLs and credentials; its display name is what the
+Workbench shows. **New catalog**, directly below it, creates the first or next isolated data unit in
+that workspace and selects its storage placement.
 
 ### Catalog explorer — _left sidebar → Catalog_
 
@@ -716,7 +721,7 @@ not yet a published general-purpose NuGet change-stream package.
 
 LakeHold authenticates with **API tokens**. A token names one tenant, may be narrowed to a single
 catalog, carries a role (`owner`, `editor`, `reader`), and can be revoked — which closes the HTTP API
-and the PostgreSQL wire endpoint together. People sign in through your identity provider instead —
+and the PostgreSQL wire endpoint together. Users sign in through your identity provider instead —
 see the [identity provider setup
 guide](https://github.com/skuirrels/LakeHold/blob/main/docs/IDENTITY-PROVIDER-SETUP.md).
 
@@ -739,8 +744,9 @@ admin credential is a visible provisioning problem rather than a silent data bre
 
 **The workbench does this for you.** Open a fresh deployment and it asks for that bootstrap token,
 then for a workspace and catalog name, creates both, and mints the token that can query them —
-showing it once, because the server keeps only a hash. Adopting it is one click. The steps below are
-the same thing by hand, for a script or a deployment with no browser in reach.
+showing it once, because the server keeps only a hash. Adopting it is one click. Additional
+workspaces and catalogs are created under **System Settings** with an instance credential. The steps
+below are the same thing by hand, for a script or a deployment with no browser in reach.
 
 ```bash
 docker compose -f compose.production.yaml up -d
@@ -807,8 +813,8 @@ un-revoke — issue a new token.
 Where OIDC is configured, **Continue with your identity provider** starts an authorization-code +
 PKCE login. The API returns an HttpOnly session cookie; provider tokens never enter browser
 JavaScript. A person carrying the configured system-admin claim changes MCP controls under System
-Settings; they, and the owner of a workspace, admit people and issue, review, or revoke that
-workspace's client credentials under People.
+Settings; they, and the owner of a workspace, admit users and issue, review, or revoke that
+workspace's client credentials under Users.
 
 The token field remains the machine and break-glass path. A pasted token is held for that browser
 session only and sent as a bearer token on API calls. With neither OIDC nor a token, the workbench

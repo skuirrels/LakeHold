@@ -147,16 +147,16 @@
         (click)="closeNavigationOverlays()"
       ></button>
 
-      @if (navigationDestination() === 'settings' || navigationDestination() === 'people') {
+      @if (navigationDestination() === 'settings' || navigationDestination() === 'users') {
         <main
           class="main admin-main"
           [attr.aria-hidden]="navigationOverlayOpen() ? 'true' : null"
           [attr.inert]="navigationOverlayOpen() ? '' : null"
         >
           @if (navigationDestination() === 'settings') {
-            <lh-system-settings />
+            <lh-system-settings (resourcesChanged)="refreshWorkspaces()" />
           } @else {
-            <lh-people />
+            <lh-users />
           }
         </main>
       } @else {
@@ -333,7 +333,7 @@
           @if (instanceAdminWithoutData()) {
             <div class="demo-banner admin-banner">
               <strong>You’re signed in as an instance administrator.</strong>
-              That credential administers this node — workspaces, people, and settings — and
+              That credential administers this node — workspaces, users, and settings — and
               deliberately reaches no catalog, so there is nothing here to query. Granting this
               identity a workspace membership would not change that; instance administration is
               resolved from your provider before membership is read. To run queries, sign in as an
@@ -549,6 +549,7 @@
                   <lh-storage-panel
                     [tenant]="tenantSlug()"
                     [catalog]="catalogName()"
+                    [placement]="selectedCatalog()"
                     [inspect]="inspectedTable()"
                   />
                 }

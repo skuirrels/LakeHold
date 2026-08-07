@@ -114,7 +114,7 @@
 </div>
 
 <!-- Shown to a workspace owner as well as an instance administrator. The API has always allowed an
-     owner to administer their own workspace's people and credentials; gating the navigation on
+     owner to administer their own workspace's users and credentials; gating the navigation on
      systemAdmin meant they could do it over HTTP and nowhere in the product. -->
 @if (systemAdmin() || canAdminister()) {
   <div class="nav-section">
@@ -122,18 +122,18 @@
     <button
       type="button"
       class="nav-item"
-      aria-label="People"
-      [title]="open() ? null : 'People'"
-      [class.active]="destination() === 'people'"
-      [attr.aria-current]="destination() === 'people' ? 'page' : null"
-      (click)="navigate.emit('people')"
+      aria-label="Users"
+      [title]="open() ? null : 'Users'"
+      [class.active]="destination() === 'users'"
+      [attr.aria-current]="destination() === 'users' ? 'page' : null"
+      (click)="navigate.emit('users')"
     >
       <svg viewBox="0 0 20 20" aria-hidden="true">
         <circle cx="7.5" cy="7" r="2.75" />
         <path d="M2.5 16.5c0-2.6 2.2-4.5 5-4.5s5 1.9 5 4.5" />
         <path d="M13 4.7a2.75 2.75 0 0 1 0 5.1M14.5 12.4c1.9.5 3 2 3 4.1" />
       </svg>
-      <span>People</span>
+      <span>Users</span>
     </button>
     <!-- Instance-only. Every control on that page answers to an instance credential, so offering it
          to a workspace owner is offering a page whose one card they are refused. -->

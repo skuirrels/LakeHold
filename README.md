@@ -521,9 +521,12 @@ credential is a visible provisioning problem, not a silent data breach.
 
 The workbench does this for you: open the site, paste the bootstrap token when it asks, name a
 workspace and a catalog, and it mints the token that can query them and shows it once. An
-administrator can later issue, review, and revoke least-privilege credentials under **People → API
-tokens**, including catalog scope, role, and optional expiry. Revocation closes MCP
-and the public API immediately. The same three bootstrap steps by hand:
+instance administrator can create additional tenants under **System Settings → New workspace**,
+then add their catalogs directly below under **New catalog**. A workspace is the tenant boundary: it
+owns its catalogs, user memberships, and credentials. Administrators can later issue, review, and revoke
+least-privilege credentials under **Users → API tokens**, including catalog scope, role, and
+optional expiry. Revocation closes MCP and the public API immediately. The same three bootstrap
+steps by hand:
 
 ```bash
 docker compose -f compose.production.yaml up -d
@@ -562,7 +565,7 @@ Worth knowing:
   credential the API already refuses.
 - **OIDC** covers humans through an authorization-code + PKCE Workbench login. Set an authority and
   client id, register `https://<lakehold-host>/auth/callback`, and map the configured system-admin
-  claim to people allowed to manage MCP client credentials. Their session is an HttpOnly cookie
+  claim to users allowed to manage MCP client credentials. Their session is an HttpOnly cookie
   protected by keys shared through PostgreSQL; provider tokens never reach browser JavaScript.
   Leave the authority unset and the path stays off, preserving air-gapped operation.
 

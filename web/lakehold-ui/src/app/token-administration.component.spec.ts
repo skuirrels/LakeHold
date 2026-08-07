@@ -2,7 +2,7 @@ import { provideZonelessChangeDetection } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Observable, Subject } from 'rxjs';
 import { LakehouseService } from './lakehouse.service';
-import { ApiToken, Tenant } from './models';
+import { ApiToken, CreatedToken, Tenant } from './models';
 import { FakeLakehouseService } from './test-doubles';
 import { TokenAdministrationComponent } from './token-administration.component';
 
@@ -39,7 +39,9 @@ describe('TokenAdministrationComponent', () => {
     return {
       slug,
       displayName: slug,
-      catalogs: [{ name: catalog, dataPath: '/d', isReadOnly: false }],
+      catalogs: [
+        { name: catalog, dataPath: '/d', isReadOnly: false, storageKind: 'Local', storageProfile: null },
+      ],
     };
   }
 
@@ -207,6 +209,28 @@ describe('TokenAdministrationComponent', () => {
 
     expect(fixture.nativeElement.textContent).toContain('alpha-credential');
     expect(fixture.nativeElement.textContent).not.toContain('beta-credential');
+  });
+
+  it('never reveals a one-time token after the workspace changed', async () => {
+    await mount(workspace('alpha', 'a'));
+    const pending = new Subject<CreatedToken>();
+    api.createToken = (): Observable<CreatedToken> => pending.asObservable();
+
+    const name = fixture.nativeElement.querySelector(
+      'input[name="token-name"]',
+    ) as HTMLInputElement;
+    name.value = 'alpha-client';
+    name.dispatchEvent(new Event('input'));
+    (fixture.nativeElement.querySelector('form') as HTMLFormElement).dispatchEvent(
+      new Event('submit'),
+    );
+    await show(workspace('beta', 'b'));
+
+    pending.next({ id: 8, name: 'alpha-client', token: 'lkh_alpha_one-time-secret' });
+    await fixture.whenStable();
+
+    expect(fixture.nativeElement.querySelector('[aria-label="Generated API token"]')).toBeNull();
+    expect(fixture.nativeElement.textContent).not.toContain('lkh_alpha_one-time-secret');
   });
 
   it('refuses an expiry that has already passed instead of minting a dead credential', async () => {

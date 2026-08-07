@@ -112,7 +112,7 @@ Class | Method | HTTP request | Description
 *LakehouseAPI* | [**GetApiV1TenantsTenantSlugCatalogsCatalogNameTableDetail**](docs/LakehouseAPI.md#getapiv1tenantstenantslugcatalogscatalognametabledetail) | **Get** /api/v1/tenants/{tenantSlug}/catalogs/{catalogName}/table-detail | Returns one table&#39;s schema, storage footprint, and partition layout.
 *LakehouseAPI* | [**GetApiV1TenantsTenantSlugCatalogsCatalogNameTableProfile**](docs/LakehouseAPI.md#getapiv1tenantstenantslugcatalogscatalognametableprofile) | **Get** /api/v1/tenants/{tenantSlug}/catalogs/{catalogName}/table-profile | Profiles the live logical rows of every column in one table.
 *LakehouseAPI* | [**GetApiV1TenantsTenantSlugHistory**](docs/LakehouseAPI.md#getapiv1tenantstenantslughistory) | **Get** /api/v1/tenants/{tenantSlug}/history | Returns recent query runs for a tenant.
-*LakehouseAPI* | [**GetApiV1TenantsTenantSlugMembers**](docs/LakehouseAPI.md#getapiv1tenantstenantslugmembers) | **Get** /api/v1/tenants/{tenantSlug}/members | Lists the people who may reach this workspace, including those awaiting approval.
+*LakehouseAPI* | [**GetApiV1TenantsTenantSlugMembers**](docs/LakehouseAPI.md#getapiv1tenantstenantslugmembers) | **Get** /api/v1/tenants/{tenantSlug}/members | Lists the users who may reach this workspace, including those awaiting approval.
 *LakehouseAPI* | [**GetApiV1TenantsTenantSlugTokens**](docs/LakehouseAPI.md#getapiv1tenantstenantslugtokens) | **Get** /api/v1/tenants/{tenantSlug}/tokens | Lists token metadata for a tenant. Never returns the secret.
 *LakehouseAPI* | [**GetSnapshot**](docs/LakehouseAPI.md#getsnapshot) | **Get** /api/v1/tenants/{tenantSlug}/catalogs/{catalogName}/snapshots/{snapshotId} | Returns one retained snapshot by its source-native identifier.
 *LakehouseAPI* | [**GetSnapshotTable**](docs/LakehouseAPI.md#getsnapshottable) | **Get** /api/v1/tenants/{tenantSlug}/catalogs/{catalogName}/snapshots/{snapshotId}/table | Returns a bounded table preview at an exact retained snapshot.
@@ -146,6 +146,8 @@ Class | Method | HTTP request | Description
 *LakehouseAPI* | [**StreamQuery**](docs/LakehouseAPI.md#streamquery) | **Post** /api/v1/tenants/{tenantSlug}/catalogs/{catalogName}/query:stream | Streams a read-only SQL result as schema, row, and completion NDJSON records.
 *OperationsAPI* | [**GetOperation**](docs/OperationsAPI.md#getoperation) | **Get** /api/v1/operations/{id} | Returns one durable public API operation visible to the caller.
 *SystemSettingsAPI* | [**GetApiV1SystemSettings**](docs/SystemSettingsAPI.md#getapiv1systemsettings) | **Get** /api/v1/system-settings | Returns the instance-wide runtime settings.
+*SystemSettingsAPI* | [**GetApiV1SystemSettingsStorage**](docs/SystemSettingsAPI.md#getapiv1systemsettingsstorage) | **Get** /api/v1/system-settings/storage | Returns this node&#39;s Parquet storage placement and redacted profile inventory.
+*SystemSettingsAPI* | [**PostApiV1SystemSettingsStorageResolve**](docs/SystemSettingsAPI.md#postapiv1systemsettingsstorageresolve) | **Post** /api/v1/system-settings/storage/resolve | Resolves where a catalog&#39;s Parquet would go, without creating anything.
 *SystemSettingsAPI* | [**PutApiV1SystemSettings**](docs/SystemSettingsAPI.md#putapiv1systemsettings) | **Put** /api/v1/system-settings | Saves and immediately applies the instance-wide runtime settings.
 
 
@@ -213,6 +215,8 @@ Class | Method | HTTP request | Description
  - [QueryResponse](docs/QueryResponse.md)
  - [QueryRunDto](docs/QueryRunDto.md)
  - [RegisterCdcConsumerRequest](docs/RegisterCdcConsumerRequest.md)
+ - [ResolveStoragePathRequest](docs/ResolveStoragePathRequest.md)
+ - [ResolvedStoragePathDto](docs/ResolvedStoragePathDto.md)
  - [RestoreRequest](docs/RestoreRequest.md)
  - [RestoreTableRequest](docs/RestoreTableRequest.md)
  - [SavedQueryDto](docs/SavedQueryDto.md)
@@ -221,8 +225,10 @@ Class | Method | HTTP request | Description
  - [SchemaDto](docs/SchemaDto.md)
  - [SchemaTableDto](docs/SchemaTableDto.md)
  - [SnapshotDto](docs/SnapshotDto.md)
+ - [StorageProfileSummaryDto](docs/StorageProfileSummaryDto.md)
  - [SubscriptionDto](docs/SubscriptionDto.md)
  - [SystemSettingsDto](docs/SystemSettingsDto.md)
+ - [SystemStorageDto](docs/SystemStorageDto.md)
  - [TableDetailColumnDto](docs/TableDetailColumnDto.md)
  - [TableDetailDto](docs/TableDetailDto.md)
  - [TableFilesDto](docs/TableFilesDto.md)
@@ -273,6 +279,5 @@ Each of these functions takes a value of the given basic type and returns a poin
 * `PtrTime`
 
 ## Author
-
 
 

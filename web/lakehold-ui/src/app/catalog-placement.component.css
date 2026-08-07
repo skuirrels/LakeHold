@@ -1,0 +1,123 @@
+:host {
+  display: block;
+}
+
+.placement {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 6px);
+  background: var(--surface-2, var(--surface-1));
+}
+
+.choice {
+  display: grid;
+  gap: 8px;
+}
+
+.choice label,
+.toggle {
+  display: flex;
+  gap: 9px;
+  align-items: flex-start;
+  cursor: pointer;
+}
+
+.choice input,
+.toggle input {
+  margin-top: 3px;
+}
+
+strong {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+small {
+  display: block;
+  margin-top: 2px;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--text-faint);
+}
+
+.field {
+  display: grid;
+  gap: 5px;
+}
+
+.field > span {
+  font-size: 12px;
+  color: var(--text-faint);
+}
+
+input[type='text'],
+select {
+  padding: 7px 9px;
+  font: inherit;
+  font-size: 13px;
+  color: var(--text);
+  background: var(--surface, var(--surface-1));
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 6px);
+}
+
+.preview {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 10px 12px;
+  background: var(--surface-3, var(--surface-1));
+  border-radius: var(--radius-sm, 6px);
+}
+
+.preview dt {
+  margin-bottom: 2px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-faint);
+}
+
+.preview dd {
+  margin: 0;
+  font-size: 12px;
+}
+
+/* Long URIs wrap rather than pushing the dialog sideways. */
+code {
+  overflow-wrap: anywhere;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 12px;
+}
+
+/* Advisory, not a refusal — a single-node deployment on a filesystem is a supported choice, and
+   the warning exists so it is a chosen one rather than a default nobody read. */
+.warning {
+  margin: 0;
+  padding: 9px 11px;
+  font-size: 12px;
+  line-height: 1.5;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  border-radius: var(--radius-sm, 6px);
+}
+
+.muted {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-faint);
+}
+
+.note {
+  font-size: 11px;
+}
+
+.error {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--danger, #ff6b6b);
+}

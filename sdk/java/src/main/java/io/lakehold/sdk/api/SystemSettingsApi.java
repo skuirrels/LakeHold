@@ -28,7 +28,10 @@ import java.io.IOException;
 
 
 import io.lakehold.sdk.model.PublicApiProblemDetails;
+import io.lakehold.sdk.model.ResolveStoragePathRequest;
+import io.lakehold.sdk.model.ResolvedStoragePathDto;
 import io.lakehold.sdk.model.SystemSettingsDto;
+import io.lakehold.sdk.model.SystemStorageDto;
 import io.lakehold.sdk.model.UpdateSystemSettingsRequest;
 
 import java.lang.reflect.Type;
@@ -292,6 +295,454 @@ public class SystemSettingsApi {
      */
     public APIgetApiV1SystemSettingsRequest getApiV1SystemSettings() {
         return new APIgetApiV1SystemSettingsRequest();
+    }
+    private okhttp3.Call getApiV1SystemSettingsStorageCall(final ApiCallback _callback) throws ApiException {
+        String basePath = null;
+        // Operation Servers
+        String[] localBasePaths = new String[] {  };
+
+        // Determine Base Path to Use
+        if (localCustomBaseUrl != null){
+            basePath = localCustomBaseUrl;
+        } else if ( localBasePaths.length > 0 ) {
+            basePath = localBasePaths[localHostIndex];
+        } else {
+            basePath = null;
+        }
+
+        Object localVarPostBody = null;
+
+        // create path and map variables
+        String localVarPath = "/api/v1/system-settings/storage";
+
+        List<Pair> localVarQueryParams = new ArrayList<Pair>();
+        List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
+        Map<String, String> localVarHeaderParams = new HashMap<String, String>();
+        Map<String, String> localVarCookieParams = new HashMap<String, String>();
+        Map<String, Object> localVarFormParams = new HashMap<String, Object>();
+
+        final String[] localVarAccepts = {
+            "application/problem+json",
+            "application/json"
+        };
+        final String localVarAccept = localVarApiClient.selectHeaderAccept(localVarAccepts);
+        if (localVarAccept != null) {
+            localVarHeaderParams.put("Accept", localVarAccept);
+        }
+
+        final String[] localVarContentTypes = {
+        };
+        final String localVarContentType = localVarApiClient.selectHeaderContentType(localVarContentTypes);
+        if (localVarContentType != null) {
+            localVarHeaderParams.put("Content-Type", localVarContentType);
+        }
+
+        String[] localVarAuthNames = new String[] { "bearerAuth" };
+        return localVarApiClient.buildCall(basePath, localVarPath, "GET", localVarQueryParams, localVarCollectionQueryParams, localVarPostBody, localVarHeaderParams, localVarCookieParams, localVarFormParams, localVarAuthNames, _callback);
+    }
+
+    @SuppressWarnings("rawtypes")
+    private okhttp3.Call getApiV1SystemSettingsStorageValidateBeforeCall(final ApiCallback _callback) throws ApiException {
+        return getApiV1SystemSettingsStorageCall(_callback);
+
+    }
+
+
+    private ApiResponse<SystemStorageDto> getApiV1SystemSettingsStorageWithHttpInfo() throws ApiException {
+        okhttp3.Call localVarCall = getApiV1SystemSettingsStorageValidateBeforeCall(null);
+        Type localVarReturnType = new TypeToken<SystemStorageDto>(){}.getType();
+        return localVarApiClient.execute(localVarCall, localVarReturnType);
+    }
+
+    private okhttp3.Call getApiV1SystemSettingsStorageAsync(final ApiCallback<SystemStorageDto> _callback) throws ApiException {
+
+        okhttp3.Call localVarCall = getApiV1SystemSettingsStorageValidateBeforeCall(_callback);
+        Type localVarReturnType = new TypeToken<SystemStorageDto>(){}.getType();
+        localVarApiClient.executeAsync(localVarCall, localVarReturnType, _callback);
+        return localVarCall;
+    }
+
+    public class APIgetApiV1SystemSettingsStorageRequest {
+
+        private APIgetApiV1SystemSettingsStorageRequest() {
+        }
+
+        /**
+         * Build call for getApiV1SystemSettingsStorage
+         * @param _callback ApiCallback API callback
+         * @return Call to execute
+         * @throws ApiException If fail to serialize the request body object
+         * @http.response.details
+         <table border="1">
+       <caption>Response Details</caption>
+            <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+            <tr><td> 400 </td><td> Bad Request </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 401 </td><td> Unauthorized </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 403 </td><td> Forbidden </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 404 </td><td> Not Found </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 408 </td><td> Request Timeout </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 409 </td><td> Conflict </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 412 </td><td> Precondition Failed </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 413 </td><td> Payload Too Large </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 422 </td><td> Unprocessable Entity </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 429 </td><td> Too Many Requests </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 500 </td><td> Internal Server Error </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 502 </td><td> Bad Gateway </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 503 </td><td> Service Unavailable </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 504 </td><td> Gateway Timeout </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 200 </td><td> OK </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+         </table>
+         */
+        public okhttp3.Call buildCall(final ApiCallback _callback) throws ApiException {
+            return getApiV1SystemSettingsStorageCall(_callback);
+        }
+
+        /**
+         * Execute getApiV1SystemSettingsStorage request
+         * @return SystemStorageDto
+         * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+         * @http.response.details
+         <table border="1">
+       <caption>Response Details</caption>
+            <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+            <tr><td> 400 </td><td> Bad Request </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 401 </td><td> Unauthorized </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 403 </td><td> Forbidden </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 404 </td><td> Not Found </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 408 </td><td> Request Timeout </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 409 </td><td> Conflict </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 412 </td><td> Precondition Failed </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 413 </td><td> Payload Too Large </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 422 </td><td> Unprocessable Entity </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 429 </td><td> Too Many Requests </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 500 </td><td> Internal Server Error </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 502 </td><td> Bad Gateway </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 503 </td><td> Service Unavailable </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 504 </td><td> Gateway Timeout </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 200 </td><td> OK </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+         </table>
+         */
+        public SystemStorageDto execute() throws ApiException {
+            ApiResponse<SystemStorageDto> localVarResp = getApiV1SystemSettingsStorageWithHttpInfo();
+            return localVarResp.getData();
+        }
+
+        /**
+         * Execute getApiV1SystemSettingsStorage request with HTTP info returned
+         * @return ApiResponse&lt;SystemStorageDto&gt;
+         * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+         * @http.response.details
+         <table border="1">
+       <caption>Response Details</caption>
+            <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+            <tr><td> 400 </td><td> Bad Request </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 401 </td><td> Unauthorized </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 403 </td><td> Forbidden </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 404 </td><td> Not Found </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 408 </td><td> Request Timeout </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 409 </td><td> Conflict </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 412 </td><td> Precondition Failed </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 413 </td><td> Payload Too Large </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 422 </td><td> Unprocessable Entity </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 429 </td><td> Too Many Requests </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 500 </td><td> Internal Server Error </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 502 </td><td> Bad Gateway </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 503 </td><td> Service Unavailable </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 504 </td><td> Gateway Timeout </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 200 </td><td> OK </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+         </table>
+         */
+        public ApiResponse<SystemStorageDto> executeWithHttpInfo() throws ApiException {
+            return getApiV1SystemSettingsStorageWithHttpInfo();
+        }
+
+        /**
+         * Execute getApiV1SystemSettingsStorage request (asynchronously)
+         * @param _callback The callback to be executed when the API call finishes
+         * @return The request call
+         * @throws ApiException If fail to process the API call, e.g. serializing the request body object
+         * @http.response.details
+         <table border="1">
+       <caption>Response Details</caption>
+            <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+            <tr><td> 400 </td><td> Bad Request </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 401 </td><td> Unauthorized </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 403 </td><td> Forbidden </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 404 </td><td> Not Found </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 408 </td><td> Request Timeout </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 409 </td><td> Conflict </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 412 </td><td> Precondition Failed </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 413 </td><td> Payload Too Large </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 422 </td><td> Unprocessable Entity </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 429 </td><td> Too Many Requests </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 500 </td><td> Internal Server Error </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 502 </td><td> Bad Gateway </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 503 </td><td> Service Unavailable </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 504 </td><td> Gateway Timeout </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 200 </td><td> OK </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+         </table>
+         */
+        public okhttp3.Call executeAsync(final ApiCallback<SystemStorageDto> _callback) throws ApiException {
+            return getApiV1SystemSettingsStorageAsync(_callback);
+        }
+    }
+
+    /**
+     * Returns this node&#39;s Parquet storage placement and redacted profile inventory.
+     * 
+     * @return APIgetApiV1SystemSettingsStorageRequest
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+        <tr><td> 401 </td><td> Unauthorized </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+        <tr><td> 403 </td><td> Forbidden </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+        <tr><td> 404 </td><td> Not Found </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+        <tr><td> 408 </td><td> Request Timeout </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+        <tr><td> 409 </td><td> Conflict </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+        <tr><td> 412 </td><td> Precondition Failed </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+        <tr><td> 413 </td><td> Payload Too Large </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+        <tr><td> 422 </td><td> Unprocessable Entity </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+        <tr><td> 429 </td><td> Too Many Requests </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+        <tr><td> 500 </td><td> Internal Server Error </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+        <tr><td> 502 </td><td> Bad Gateway </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+        <tr><td> 503 </td><td> Service Unavailable </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+        <tr><td> 504 </td><td> Gateway Timeout </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+        <tr><td> 200 </td><td> OK </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+     </table>
+     */
+    public APIgetApiV1SystemSettingsStorageRequest getApiV1SystemSettingsStorage() {
+        return new APIgetApiV1SystemSettingsStorageRequest();
+    }
+    private okhttp3.Call postApiV1SystemSettingsStorageResolveCall(@jakarta.annotation.Nonnull ResolveStoragePathRequest resolveStoragePathRequest, final ApiCallback _callback) throws ApiException {
+        String basePath = null;
+        // Operation Servers
+        String[] localBasePaths = new String[] {  };
+
+        // Determine Base Path to Use
+        if (localCustomBaseUrl != null){
+            basePath = localCustomBaseUrl;
+        } else if ( localBasePaths.length > 0 ) {
+            basePath = localBasePaths[localHostIndex];
+        } else {
+            basePath = null;
+        }
+
+        Object localVarPostBody = resolveStoragePathRequest;
+
+        // create path and map variables
+        String localVarPath = "/api/v1/system-settings/storage/resolve";
+
+        List<Pair> localVarQueryParams = new ArrayList<Pair>();
+        List<Pair> localVarCollectionQueryParams = new ArrayList<Pair>();
+        Map<String, String> localVarHeaderParams = new HashMap<String, String>();
+        Map<String, String> localVarCookieParams = new HashMap<String, String>();
+        Map<String, Object> localVarFormParams = new HashMap<String, Object>();
+
+        final String[] localVarAccepts = {
+            "application/problem+json",
+            "application/json"
+        };
+        final String localVarAccept = localVarApiClient.selectHeaderAccept(localVarAccepts);
+        if (localVarAccept != null) {
+            localVarHeaderParams.put("Accept", localVarAccept);
+        }
+
+        final String[] localVarContentTypes = {
+            "application/json"
+        };
+        final String localVarContentType = localVarApiClient.selectHeaderContentType(localVarContentTypes);
+        if (localVarContentType != null) {
+            localVarHeaderParams.put("Content-Type", localVarContentType);
+        }
+
+        String[] localVarAuthNames = new String[] { "bearerAuth" };
+        return localVarApiClient.buildCall(basePath, localVarPath, "POST", localVarQueryParams, localVarCollectionQueryParams, localVarPostBody, localVarHeaderParams, localVarCookieParams, localVarFormParams, localVarAuthNames, _callback);
+    }
+
+    @SuppressWarnings("rawtypes")
+    private okhttp3.Call postApiV1SystemSettingsStorageResolveValidateBeforeCall(@jakarta.annotation.Nonnull ResolveStoragePathRequest resolveStoragePathRequest, final ApiCallback _callback) throws ApiException {
+        // verify the required parameter 'resolveStoragePathRequest' is set
+        if (resolveStoragePathRequest == null) {
+            throw new ApiException("Missing the required parameter 'resolveStoragePathRequest' when calling postApiV1SystemSettingsStorageResolve(Async)");
+        }
+
+        return postApiV1SystemSettingsStorageResolveCall(resolveStoragePathRequest, _callback);
+
+    }
+
+
+    private ApiResponse<ResolvedStoragePathDto> postApiV1SystemSettingsStorageResolveWithHttpInfo(@jakarta.annotation.Nonnull ResolveStoragePathRequest resolveStoragePathRequest) throws ApiException {
+        okhttp3.Call localVarCall = postApiV1SystemSettingsStorageResolveValidateBeforeCall(resolveStoragePathRequest, null);
+        Type localVarReturnType = new TypeToken<ResolvedStoragePathDto>(){}.getType();
+        return localVarApiClient.execute(localVarCall, localVarReturnType);
+    }
+
+    private okhttp3.Call postApiV1SystemSettingsStorageResolveAsync(@jakarta.annotation.Nonnull ResolveStoragePathRequest resolveStoragePathRequest, final ApiCallback<ResolvedStoragePathDto> _callback) throws ApiException {
+
+        okhttp3.Call localVarCall = postApiV1SystemSettingsStorageResolveValidateBeforeCall(resolveStoragePathRequest, _callback);
+        Type localVarReturnType = new TypeToken<ResolvedStoragePathDto>(){}.getType();
+        localVarApiClient.executeAsync(localVarCall, localVarReturnType, _callback);
+        return localVarCall;
+    }
+
+    public class APIpostApiV1SystemSettingsStorageResolveRequest {
+        @jakarta.annotation.Nonnull
+        private final ResolveStoragePathRequest resolveStoragePathRequest;
+
+        private APIpostApiV1SystemSettingsStorageResolveRequest(@jakarta.annotation.Nonnull ResolveStoragePathRequest resolveStoragePathRequest) {
+            this.resolveStoragePathRequest = resolveStoragePathRequest;
+        }
+
+        /**
+         * Build call for postApiV1SystemSettingsStorageResolve
+         * @param _callback ApiCallback API callback
+         * @return Call to execute
+         * @throws ApiException If fail to serialize the request body object
+         * @http.response.details
+         <table border="1">
+       <caption>Response Details</caption>
+            <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+            <tr><td> 400 </td><td> Bad Request </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 401 </td><td> Unauthorized </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 403 </td><td> Forbidden </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 404 </td><td> Not Found </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 408 </td><td> Request Timeout </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 409 </td><td> Conflict </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 412 </td><td> Precondition Failed </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 413 </td><td> Payload Too Large </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 422 </td><td> Unprocessable Entity </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 429 </td><td> Too Many Requests </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 500 </td><td> Internal Server Error </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 502 </td><td> Bad Gateway </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 503 </td><td> Service Unavailable </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 504 </td><td> Gateway Timeout </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 200 </td><td> OK </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+         </table>
+         */
+        public okhttp3.Call buildCall(final ApiCallback _callback) throws ApiException {
+            return postApiV1SystemSettingsStorageResolveCall(resolveStoragePathRequest, _callback);
+        }
+
+        /**
+         * Execute postApiV1SystemSettingsStorageResolve request
+         * @return ResolvedStoragePathDto
+         * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+         * @http.response.details
+         <table border="1">
+       <caption>Response Details</caption>
+            <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+            <tr><td> 400 </td><td> Bad Request </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 401 </td><td> Unauthorized </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 403 </td><td> Forbidden </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 404 </td><td> Not Found </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 408 </td><td> Request Timeout </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 409 </td><td> Conflict </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 412 </td><td> Precondition Failed </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 413 </td><td> Payload Too Large </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 422 </td><td> Unprocessable Entity </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 429 </td><td> Too Many Requests </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 500 </td><td> Internal Server Error </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 502 </td><td> Bad Gateway </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 503 </td><td> Service Unavailable </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 504 </td><td> Gateway Timeout </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 200 </td><td> OK </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+         </table>
+         */
+        public ResolvedStoragePathDto execute() throws ApiException {
+            ApiResponse<ResolvedStoragePathDto> localVarResp = postApiV1SystemSettingsStorageResolveWithHttpInfo(resolveStoragePathRequest);
+            return localVarResp.getData();
+        }
+
+        /**
+         * Execute postApiV1SystemSettingsStorageResolve request with HTTP info returned
+         * @return ApiResponse&lt;ResolvedStoragePathDto&gt;
+         * @throws ApiException If fail to call the API, e.g. server error or cannot deserialize the response body
+         * @http.response.details
+         <table border="1">
+       <caption>Response Details</caption>
+            <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+            <tr><td> 400 </td><td> Bad Request </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 401 </td><td> Unauthorized </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 403 </td><td> Forbidden </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 404 </td><td> Not Found </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 408 </td><td> Request Timeout </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 409 </td><td> Conflict </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 412 </td><td> Precondition Failed </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 413 </td><td> Payload Too Large </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 422 </td><td> Unprocessable Entity </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 429 </td><td> Too Many Requests </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 500 </td><td> Internal Server Error </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 502 </td><td> Bad Gateway </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 503 </td><td> Service Unavailable </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 504 </td><td> Gateway Timeout </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 200 </td><td> OK </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+         </table>
+         */
+        public ApiResponse<ResolvedStoragePathDto> executeWithHttpInfo() throws ApiException {
+            return postApiV1SystemSettingsStorageResolveWithHttpInfo(resolveStoragePathRequest);
+        }
+
+        /**
+         * Execute postApiV1SystemSettingsStorageResolve request (asynchronously)
+         * @param _callback The callback to be executed when the API call finishes
+         * @return The request call
+         * @throws ApiException If fail to process the API call, e.g. serializing the request body object
+         * @http.response.details
+         <table border="1">
+       <caption>Response Details</caption>
+            <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+            <tr><td> 400 </td><td> Bad Request </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 401 </td><td> Unauthorized </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 403 </td><td> Forbidden </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 404 </td><td> Not Found </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 408 </td><td> Request Timeout </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 409 </td><td> Conflict </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 412 </td><td> Precondition Failed </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 413 </td><td> Payload Too Large </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 422 </td><td> Unprocessable Entity </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 429 </td><td> Too Many Requests </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 500 </td><td> Internal Server Error </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 502 </td><td> Bad Gateway </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 503 </td><td> Service Unavailable </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 504 </td><td> Gateway Timeout </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+            <tr><td> 200 </td><td> OK </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+         </table>
+         */
+        public okhttp3.Call executeAsync(final ApiCallback<ResolvedStoragePathDto> _callback) throws ApiException {
+            return postApiV1SystemSettingsStorageResolveAsync(resolveStoragePathRequest, _callback);
+        }
+    }
+
+    /**
+     * Resolves where a catalog&#39;s Parquet would go, without creating anything.
+     * 
+     * @param resolveStoragePathRequest  (required)
+     * @return APIpostApiV1SystemSettingsStorageResolveRequest
+     * @http.response.details
+     <table border="1">
+       <caption>Response Details</caption>
+        <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 400 </td><td> Bad Request </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+        <tr><td> 401 </td><td> Unauthorized </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+        <tr><td> 403 </td><td> Forbidden </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+        <tr><td> 404 </td><td> Not Found </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+        <tr><td> 408 </td><td> Request Timeout </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+        <tr><td> 409 </td><td> Conflict </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+        <tr><td> 412 </td><td> Precondition Failed </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+        <tr><td> 413 </td><td> Payload Too Large </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+        <tr><td> 422 </td><td> Unprocessable Entity </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+        <tr><td> 429 </td><td> Too Many Requests </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+        <tr><td> 500 </td><td> Internal Server Error </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+        <tr><td> 502 </td><td> Bad Gateway </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+        <tr><td> 503 </td><td> Service Unavailable </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+        <tr><td> 504 </td><td> Gateway Timeout </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+        <tr><td> 200 </td><td> OK </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
+     </table>
+     */
+    public APIpostApiV1SystemSettingsStorageResolveRequest postApiV1SystemSettingsStorageResolve(@jakarta.annotation.Nonnull ResolveStoragePathRequest resolveStoragePathRequest) {
+        return new APIpostApiV1SystemSettingsStorageResolveRequest(resolveStoragePathRequest);
     }
     private okhttp3.Call putApiV1SystemSettingsCall(@jakarta.annotation.Nonnull UpdateSystemSettingsRequest updateSystemSettingsRequest, final ApiCallback _callback) throws ApiException {
         String basePath = null;

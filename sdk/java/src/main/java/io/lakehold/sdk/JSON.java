@@ -158,6 +158,8 @@ public class JSON {
         gsonBuilder.registerTypeAdapterFactory(new io.lakehold.sdk.model.QueryResponse.CustomTypeAdapterFactory());
         gsonBuilder.registerTypeAdapterFactory(new io.lakehold.sdk.model.QueryRunDto.CustomTypeAdapterFactory());
         gsonBuilder.registerTypeAdapterFactory(new io.lakehold.sdk.model.RegisterCdcConsumerRequest.CustomTypeAdapterFactory());
+        gsonBuilder.registerTypeAdapterFactory(new io.lakehold.sdk.model.ResolveStoragePathRequest.CustomTypeAdapterFactory());
+        gsonBuilder.registerTypeAdapterFactory(new io.lakehold.sdk.model.ResolvedStoragePathDto.CustomTypeAdapterFactory());
         gsonBuilder.registerTypeAdapterFactory(new io.lakehold.sdk.model.RestoreRequest.CustomTypeAdapterFactory());
         gsonBuilder.registerTypeAdapterFactory(new io.lakehold.sdk.model.RestoreTableRequest.CustomTypeAdapterFactory());
         gsonBuilder.registerTypeAdapterFactory(new io.lakehold.sdk.model.SavedQueryDto.CustomTypeAdapterFactory());
@@ -166,8 +168,10 @@ public class JSON {
         gsonBuilder.registerTypeAdapterFactory(new io.lakehold.sdk.model.SchemaDto.CustomTypeAdapterFactory());
         gsonBuilder.registerTypeAdapterFactory(new io.lakehold.sdk.model.SchemaTableDto.CustomTypeAdapterFactory());
         gsonBuilder.registerTypeAdapterFactory(new io.lakehold.sdk.model.SnapshotDto.CustomTypeAdapterFactory());
+        gsonBuilder.registerTypeAdapterFactory(new io.lakehold.sdk.model.StorageProfileSummaryDto.CustomTypeAdapterFactory());
         gsonBuilder.registerTypeAdapterFactory(new io.lakehold.sdk.model.SubscriptionDto.CustomTypeAdapterFactory());
         gsonBuilder.registerTypeAdapterFactory(new io.lakehold.sdk.model.SystemSettingsDto.CustomTypeAdapterFactory());
+        gsonBuilder.registerTypeAdapterFactory(new io.lakehold.sdk.model.SystemStorageDto.CustomTypeAdapterFactory());
         gsonBuilder.registerTypeAdapterFactory(new io.lakehold.sdk.model.TableDetailColumnDto.CustomTypeAdapterFactory());
         gsonBuilder.registerTypeAdapterFactory(new io.lakehold.sdk.model.TableDetailDto.CustomTypeAdapterFactory());
         gsonBuilder.registerTypeAdapterFactory(new io.lakehold.sdk.model.TableFilesDto.CustomTypeAdapterFactory());

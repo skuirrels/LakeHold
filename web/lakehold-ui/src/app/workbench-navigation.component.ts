@@ -18,7 +18,7 @@ export type WorkbenchDestination =
   | 'backups'
   | 'ejects'
   | 'schedule'
-  | 'people'
+  | 'users'
   | 'settings';
 
 /** The product-level Workbench rail; its destinations remain owned by the parent shell. */
@@ -47,7 +47,7 @@ export class WorkbenchNavigationComponent {
    * Whether this principal administers its own workspace — a tenant owner.
    *
    * Separate from systemAdmin because they reach different things: an instance credential
-   * provisions tenants and owns System Settings, an owner administers the people and tokens of the
+   * provisions tenants and owns System Settings, an owner administers the users and tokens of the
    * workspace they belong to. Both need the section; only the former needs every item in it.
    */
   readonly canAdminister = input(false);

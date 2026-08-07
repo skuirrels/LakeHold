@@ -1,0 +1,107 @@
+:host {
+  display: block;
+  margin-top: 24px;
+}
+
+.panel {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+header,
+.body,
+.muted {
+  padding: 20px 22px;
+}
+
+header {
+  border-bottom: 1px solid var(--border);
+}
+
+h2 {
+  margin: 0 0 5px;
+  font-size: 17px;
+}
+
+header p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-faint);
+}
+
+.body {
+  display: grid;
+  gap: 16px;
+}
+
+.field {
+  display: grid;
+  gap: 6px;
+}
+
+.field > span {
+  font-size: 12px;
+  color: var(--text-faint);
+}
+
+.field small {
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--text-faint);
+}
+
+select,
+input[type='text'] {
+  padding: 7px 9px;
+  font: inherit;
+  font-size: 13px;
+  color: var(--text);
+  background: var(--surface-2, var(--surface-1));
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 6px);
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+button {
+  padding: 7px 13px;
+  font: inherit;
+  font-size: 13px;
+  color: var(--on-accent, #1b1b1b);
+  background: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm, 6px);
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.muted {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-faint);
+}
+
+.error,
+.success {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.error {
+  color: var(--danger, #ff6b6b);
+}
+
+.success {
+  color: var(--accent);
+}

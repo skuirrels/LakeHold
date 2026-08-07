@@ -11416,7 +11416,7 @@ class LakehouseApi:
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> List[TenantMemberDto]:
-        """Lists the people who may reach this workspace, including those awaiting approval.
+        """Lists the users who may reach this workspace, including those awaiting approval.
 
 
         :param tenant_slug: (required)
@@ -11496,7 +11496,7 @@ class LakehouseApi:
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> ApiResponse[List[TenantMemberDto]]:
-        """Lists the people who may reach this workspace, including those awaiting approval.
+        """Lists the users who may reach this workspace, including those awaiting approval.
 
 
         :param tenant_slug: (required)
@@ -11576,7 +11576,7 @@ class LakehouseApi:
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> RESTResponseType:
-        """Lists the people who may reach this workspace, including those awaiting approval.
+        """Lists the users who may reach this workspace, including those awaiting approval.
 
 
         :param tenant_slug: (required)
@@ -22695,5 +22695,4 @@ class LakehouseApi:
             _host=_host,
             _request_auth=_request_auth
         )
-
 

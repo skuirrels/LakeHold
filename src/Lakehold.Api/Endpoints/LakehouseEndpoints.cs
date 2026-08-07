@@ -228,7 +228,7 @@ public static class LakehouseEndpoints
         var mode = principal.IsDemo ? "demo" : "authenticated";
 
         // Asked of the same policy the member and token routes enforce, against the principal's own
-        // tenant, so the Workbench offers People exactly when those routes would answer it. A demo
+        // tenant, so the Workbench offers Users exactly when those routes would answer it. A demo
         // reader, a read-only owner, and a catalog-narrowed owner are all refused there, and a client
         // has no business re-deriving that from the role.
         var tenantAdmin = CapabilityPolicy.Evaluate(

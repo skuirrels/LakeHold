@@ -2,6 +2,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   OnDestroy,
+  computed,
   effect,
   inject,
   input,
@@ -11,9 +12,16 @@ import {
 import { Subscription } from 'rxjs';
 import { formatBytes, formatCount } from './format';
 import { LakehouseService } from './lakehouse.service';
-import { CatalogStorage, TableReference, TableStorage } from './models';
+import { Catalog, CatalogStorage, StorageKind, TableReference, TableStorage } from './models';
 import { PanelErrorComponent } from './panel-error.component';
 import { TableDetailComponent } from './table-detail.component';
+
+const KIND_LABELS: Readonly<Record<StorageKind, string>> = {
+  Local: 'Filesystem',
+  S3: 'Amazon S3 or compatible',
+  Gcs: 'Google Cloud Storage',
+  Azure: 'Azure Blob Storage or ADLS',
+};
 
 /**
  * The physical layer: what each table weighs, how many Parquet files it is spread across, and
@@ -38,6 +46,15 @@ export class StoragePanelComponent implements OnDestroy {
   /** A table selected outside this panel, normally from the catalog explorer. */
   readonly inspect = input<TableReference | null>(null);
 
+  /**
+   * The catalog record behind this panel, for the placement summary.
+   *
+   * Comes from the tenant listing the workbench already holds rather than a second request: the
+   * listing has carried the data path, kind, and profile all along, and the browser was discarding
+   * them.
+   */
+  readonly placement = input<Catalog | null>(null);
+
   protected readonly storage = signal<CatalogStorage | null>(null);
   protected readonly loading = signal(false);
   protected readonly error = signal<string | null>(null);
@@ -48,6 +65,25 @@ export class StoragePanelComponent implements OnDestroy {
 
   protected readonly formatBytes = formatBytes;
   protected readonly formatCount = formatCount;
+
+  protected readonly kindLabel = computed(() => {
+    const kind = this.placement()?.storageKind;
+    return kind ? (KIND_LABELS[kind] ?? kind) : null;
+  });
+
+  /**
+   * Whether the failure above is deployment configuration rather than a data problem.
+   *
+   * A catalog whose profile is missing from this node, or whose profile kind no longer matches its
+   * path, fails when the engine attaches it — far from the cause, and phrased as though the catalog
+   * were broken. It is not: the catalog is fine and the node's configuration is not. The server's
+   * message stays the authority; this only decides how to frame it, so a message that stops
+   * mentioning a storage profile degrades to the ordinary banner rather than to a wrong one.
+   */
+  protected readonly configurationError = computed(() => {
+    const message = this.error();
+    return !!message && /storage profile/i.test(message);
+  });
 
   constructor() {
     // Reload whenever the panel is pointed at a different catalog. The panel is created and

@@ -119,7 +119,7 @@ public sealed record TenantDto(string Slug, string DisplayName, IReadOnlyList<Ca
 /// <param name="ReadOnly">Whether catalogs are attached without write access.</param>
 /// <param name="SystemAdmin">Whether this credential may manage instance-wide settings.</param>
 /// <param name="TenantAdmin">
-///     Whether this credential may administer its own workspace's people and tokens. Decided by
+///     Whether this credential may administer its own workspace's users and tokens. Decided by
 ///     <c>CapabilityPolicy</c> rather than left for a client to infer from <paramref name="Role"/>:
 ///     a read-only or catalog-narrowed owner token is least privilege by design and holds no such
 ///     capability, so a client deriving it from the role alone offers a surface the API refuses.
@@ -165,6 +165,89 @@ public sealed record UpdateSystemSettingsRequest(
     int McpMaxRowsPerResult,
     string? McpPublicBaseUrl,
     int Version);
+
+/// <summary>
+///     Where this node places Parquet data, and which storage profiles it can authenticate with.
+/// </summary>
+/// <remarks>
+///     Deliberately an explicit projection rather than a serialised <c>LakehouseOptions</c>. Every
+///     credential-bearing setting — <c>KeyId</c>, <c>Secret</c>, <c>SessionToken</c>,
+///     <c>AzureConnectionString</c>, <c>AzureAccountName</c>, and <c>AzureCredentialChain</c> — lives
+///     on the options type this stands in front of, so a shape that mirrored it would publish them
+///     the moment one was added. Invariant 8: an object-store credential never reaches a response.
+/// </remarks>
+/// <param name="RequiresRestartToChange">
+///     Always true, and not a placeholder for a future toggle. <c>LakehouseOptions</c> is bound
+///     once at startup and its profiles are what <c>DucklingSessionConfigurator</c> turns into DuckDB
+///     secrets, so editing the deployment's environment changes nothing in a running process. The UI
+///     needs this to say "restart required" rather than imply an unsaved edit.
+/// </param>
+public sealed record SystemStorageDto(
+    string DataRoot,
+    string BackupRoot,
+    string EjectRoot,
+    string? DefaultStorageProfile,
+    IReadOnlyList<StorageProfileSummaryDto> Profiles,
+    bool RequiresRestartToChange);
+
+/// <summary>One configured storage profile, reduced to what selecting it requires.</summary>
+/// <param name="Kind">
+///     <c>Local</c>, <c>S3</c>, <c>Gcs</c>, or <c>Azure</c>. The UI filters profiles by this so a
+///     bucket URI cannot be paired with a profile that could not authenticate against it.
+/// </param>
+/// <param name="Endpoint">
+///     Host and port of an S3-compatible service, or null for the provider's own endpoint. Any
+///     userinfo is stripped before this is returned: <c>ENDPOINT</c> takes a bare host, but a
+///     deployment that puts credentials there anyway must not have them reflected back.
+/// </param>
+/// <param name="CredentialsConfigured">
+///     Whether the settings this profile's kind requires are present — mirroring what
+///     <c>DucklingSessionConfigurator</c> insists on when it creates the secret, so a profile that
+///     reads as configured here is one that will actually attach. Never the value, and never its
+///     length, suffix, or hash: those narrow a secret without ever being needed to select a profile.
+/// </param>
+/// <param name="AzureAuthentication">
+///     <c>connection-string</c> or <c>credential-chain</c> for an Azure profile, null otherwise. Which
+///     mode is in use is operational fact; the connection string, account name, and chain content are
+///     not returned in any form.
+/// </param>
+public sealed record StorageProfileSummaryDto(
+    string Name,
+    string Kind,
+    string? Region,
+    string? Endpoint,
+    bool UseSsl,
+    string UrlStyle,
+    bool CredentialsConfigured,
+    string? AzureAuthentication);
+
+/// <summary>Asks where a catalog's Parquet would go, without creating anything.</summary>
+/// <param name="TenantSlug">
+///     The workspace the catalog would belong to. It need not exist yet: the first-run form previews
+///     a placement for a tenant it is about to create, so requiring the row would make the preview
+///     useless exactly where it is most wanted.
+/// </param>
+/// <param name="DataPath">
+///     Null or empty to derive the tenant-qualified path beneath the deployment's data root. A value
+///     is validated instead of derived, which is how the browser checks an explicit placement without
+///     re-implementing scheme and profile-kind rules.
+/// </param>
+public sealed record ResolveStoragePathRequest(
+    string TenantSlug,
+    string CatalogName,
+    string? DataPath = null,
+    string? StorageProfile = null);
+
+/// <summary>A validated placement. Nothing was created, and nothing is reserved by asking.</summary>
+/// <param name="Derived">
+///     True when the path came from the deployment's roots. The browser needs this to know whether
+///     editing the tenant or catalog name will move the path it is showing.
+/// </param>
+public sealed record ResolvedStoragePathDto(
+    string DataPath,
+    string Kind,
+    string? StorageProfile,
+    bool Derived);
 
 /// <summary>A column created by a tabular-file import.</summary>
 public sealed record TabularImportedColumnDto(string Name, string DataType);

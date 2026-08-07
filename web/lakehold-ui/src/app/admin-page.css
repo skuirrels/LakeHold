@@ -2,7 +2,7 @@
  * Chrome shared by the full-width administration pages that replace the editor.
  *
  * Imported through `styleUrls` alongside each page's own sheet, the same way `panel-shared.css`
- * serves the workbench panels. People and System Settings are two destinations with one look, and
+ * serves the workbench panels. Users and System Settings are two destinations with one look, and
  * without a shared file the second copy of the page header is where they drift apart.
  */
 

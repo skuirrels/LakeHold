@@ -12,7 +12,7 @@ import { Tenant } from './models';
 import { TokenAdministrationComponent } from './token-administration.component';
 
 /**
- * Who and what may reach a workspace: the people admitted from the identity provider and the tokens
+ * Who and what may reach a workspace: the users admitted from the identity provider and the tokens
  * issued to clients.
  *
  * Its own destination rather than a section of System Settings, because the two answer to different
@@ -26,13 +26,13 @@ import { TokenAdministrationComponent } from './token-administration.component';
  * two identical `listTenants` requests to render one page.
  */
 @Component({
-  selector: 'lh-people',
+  selector: 'lh-users',
   imports: [MemberAdministrationComponent, TokenAdministrationComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  templateUrl: './people.component.html',
-  styleUrls: ['./admin-page.css', './people.component.css'],
+  templateUrl: './users.component.html',
+  styleUrls: ['./admin-page.css', './users.component.css'],
 })
-export class PeopleComponent implements OnInit {
+export class UsersComponent implements OnInit {
   private readonly api = inject(LakehouseService);
 
   protected readonly tenants = signal<Tenant[]>([]);

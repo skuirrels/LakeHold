@@ -4,6 +4,13 @@ export interface Catalog {
   name: string;
   dataPath: string;
   isReadOnly: boolean;
+  /**
+   * Where this catalog's Parquet lives and which deployment profile reaches it. Chosen at creation
+   * and immutable afterwards — moving a catalog is a migration, not a settings change — so the UI
+   * displays these and offers no control that would edit them.
+   */
+  storageKind: StorageKind;
+  storageProfile: string | null;
 }
 
 export interface Tenant {
@@ -19,7 +26,7 @@ export interface AccessContext {
   readOnly: boolean;
   systemAdmin: boolean;
   /**
-   * Whether this credential administers its own workspace's people and tokens. Answered by the API's
+   * Whether this credential administers its own workspace's users and tokens. Answered by the API's
    * capability policy, not inferred from `role`: a read-only or catalog-narrowed owner token holds
    * the role and not the capability.
    */
@@ -51,6 +58,65 @@ export interface UpdateSystemSettings {
   mcpMaxRowsPerResult: number;
   mcpPublicBaseUrl: string;
   version: number;
+}
+
+export type StorageKind = 'Local' | 'S3' | 'Gcs' | 'Azure';
+
+/**
+ * One deployment-configured storage profile.
+ *
+ * There is deliberately no credential member and no room for one: the API returns whether the
+ * settings a profile needs are present, never the values, and never a length, suffix, or hash of
+ * them. Nothing here is editable from the browser.
+ */
+export interface StorageProfileSummary {
+  name: string;
+  kind: StorageKind;
+  region: string | null;
+  endpoint: string | null;
+  useSsl: boolean;
+  urlStyle: string;
+  credentialsConfigured: boolean;
+  azureAuthentication: 'connection-string' | 'credential-chain' | null;
+}
+
+/** Asks where a catalog's Parquet would go. The tenant need not exist yet. */
+export interface ResolveStoragePathRequest {
+  tenantSlug: string;
+  catalogName: string;
+  dataPath?: string | null;
+  storageProfile?: string | null;
+}
+
+/** A placement the server resolved. Asking reserves nothing and creates nothing. */
+export interface ResolvedStoragePath {
+  dataPath: string;
+  kind: StorageKind;
+  storageProfile: string | null;
+  /** True when the path came from the deployment's roots, so editing a name moves it. */
+  derived: boolean;
+}
+
+/**
+ * What a placement form contributes to a catalog-creation request.
+ *
+ * Nulls mean "let the deployment decide" and are what the default path sends, so the one-click
+ * flow reaches exactly the request it always did.
+ */
+export interface CatalogPlacementValue {
+  dataPath: string | null;
+  storageProfile: string | null;
+  readOnly: boolean;
+}
+
+/** Where this node places Parquet, and which profiles it can authenticate with. */
+export interface SystemStorage {
+  dataRoot: string;
+  backupRoot: string;
+  ejectRoot: string;
+  defaultStorageProfile: string | null;
+  profiles: StorageProfileSummary[];
+  requiresRestartToChange: boolean;
 }
 
 export type TokenRole = 'reader' | 'editor' | 'owner';

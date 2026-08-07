@@ -67,7 +67,7 @@ describe('MemberAdministrationComponent', () => {
     expect(fixture.nativeElement.querySelectorAll('tr.pending')).toHaveLength(1);
   });
 
-  it('admits a pending person with one action', async () => {
+  it('admits a pending user with one action', async () => {
     api.members = [member({ id: 7, subject: 'newcomer', status: 'pending' })];
     await mount();
 
@@ -130,7 +130,7 @@ describe('MemberAdministrationComponent', () => {
     await show(workspace('alpha'));
 
     // Alpha resolves first and beta -- now stale -- lands last. Rendering it would show one
-    // workspace's people under another's name, and suspending from that list would act on alpha.
+    // workspace's users under another's name, and suspending from that list would act on alpha.
     pending[1].next([member({ id: 20, displayName: 'Alpha Person' })]);
     pending[0].next([member({ id: 10, displayName: 'Beta Person' })]);
     await fixture.whenStable();
@@ -139,12 +139,31 @@ describe('MemberAdministrationComponent', () => {
     expect(text()).not.toContain('Beta Person');
   });
 
+  it('ignores a membership failure that arrives after the workspace changed', async () => {
+    api.members = [member({ id: 4, displayName: 'Alpha User' })];
+    await mount(workspace('alpha'));
+    const pending = new Subject<TenantMember>();
+    api.updateMember = (): Observable<TenantMember> => pending.asObservable();
+
+    const role = fixture.nativeElement.querySelector(
+      'select[aria-label="Role for Alpha User"]',
+    ) as HTMLSelectElement;
+    role.value = 'owner';
+    role.dispatchEvent(new Event('change'));
+    await show(workspace('beta'));
+
+    pending.error(new Error('Alpha membership failed.'));
+    await fixture.whenStable();
+
+    expect(text()).not.toContain('Alpha membership failed.');
+  });
+
   it('explains what to do when nobody has signed in yet', async () => {
     api.members = [];
     await mount();
 
     // An empty table with no explanation reads as "broken", which is how an administrator concludes
-    // the product cannot add people.
+    // the product cannot add users.
     expect(text()).toContain('Nobody has signed in to this workspace yet');
   });
 });

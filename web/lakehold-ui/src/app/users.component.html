@@ -1,9 +1,9 @@
 <section class="admin-page">
   <header>
     <span class="eyebrow">Workspace administration</span>
-    <h1>People</h1>
+    <h1>Users</h1>
     <p>
-      Who may reach this workspace. People arrive from your identity provider — LakeHold never holds
+      Who may reach this workspace. Users arrive from your identity provider — LakeHold never holds
       a password — and clients and agents arrive with a token you issue here. What either one
       reaches is decided in this product, not in the provider.
     </p>
@@ -18,8 +18,8 @@
     </div>
   } @else if (tenants().length === 0) {
     <p class="state">
-      There are no workspaces yet. Create one first; people are admitted to a workspace, not to the
-      instance.
+      There are no workspaces yet. Create one under System Settings first; users are admitted to a
+      workspace, not to the instance.
     </p>
   } @else {
     <!--
@@ -36,7 +36,7 @@
           </option>
         }
       </select>
-      <small>The people and the tokens below both belong to this workspace.</small>
+      <small>The users and the tokens below both belong to this workspace.</small>
     </label>
 
     <lh-member-administration [workspace]="workspace()" />

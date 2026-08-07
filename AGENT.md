@@ -47,6 +47,17 @@ integration.
 - `docs/PROVIDER-FEEDBACK.md`: provider capabilities and why the data plane uses its dynamic API.
 - `docs/POSTGRES-WIRE.md`: the wire protocol surface, its connection model, and what is
   deliberately unimplemented. Update it with the endpoint.
+- `docs/POSTGRES-AND-STORAGE.md`: the two PostgreSQL responsibilities and the **single source** for
+  Parquet storage configuration — where a setting belongs (placement is not a secret and does not go
+  in `.env`), how `Lakehouse:StateRoot` resolves the four roots, per-provider profile keys for
+  filesystem, S3, S3-compatible, GCS, and Azure, the production Compose override, and how catalog
+  creation selects a data path and profile. Do not restate any of it in a second document; link here.
+- `docs/STORAGE-CONFIGURATION-AND-UI-PLAN.md`: the phased plan for surfacing that configuration in
+  the Workbench — a redacted instance-scoped read endpoint under the existing `/system-settings`
+  group, a server-side path-resolve endpoint so URI joining never moves into Angular, storage-aware
+  catalog creation, and immutable placement display. It deliberately stops short of accepting cloud
+  credentials into a form; an editable profile needs the external secret-provider contract in its
+  phase 4. Read it before adding any storage surface to the UI.
 - `docs/AUTHENTICATION.md`: the phased plan for API authentication, now fully implemented — API
   tokens, provisioning, read-only-by-attachment, audit, wire convergence, OIDC browser sessions,
   system-administrator claims, and roles. Browser cookie keys are shared through PostgreSQL. A route
@@ -57,9 +68,9 @@ integration.
   identity scoped to one catalog that fails closed if either is empty. Read it before adding any
   surface that resolves a tenant.
 - `docs/IDENTITY-PROVIDER-SETUP.md`: the operational companion to the above — first-run production
-  setup, adding people, swapping the identity provider, and connecting clients and agents. LakeHold
+  setup, adding users, swapping the identity provider, and connecting clients and agents. LakeHold
   federates authentication and owns authorization: identity comes from the provider, but what an
-  identity reaches is a `TenantMember` row administered under **People**. A `tenant` claim is
+  identity reaches is a `TenantMember` row administered under **Users**. A `tenant` claim is
   honoured only once, to admit a first arrival; after that the row wins, so a provider re-asserting
   a stale role cannot undo a decision made here. Instance administration stays a provider claim by
   design, so a workspace owner cannot promote themselves. Note that an empty `Lakehold:Oidc:Audience`

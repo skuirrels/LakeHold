@@ -114,7 +114,7 @@ describe('WorkbenchComponent', () => {
     expect(api.countOf('getSchemas')).toBe(0);
   });
 
-  it('administers people from their own destination, not from System Settings', async () => {
+  it('administers users from their own destination, not from System Settings', async () => {
     api.access = {
       mode: 'authenticated',
       role: 'owner',
@@ -125,20 +125,20 @@ describe('WorkbenchComponent', () => {
 
     await mount();
 
-    // People and tokens answer to a workspace credential and settings to an instance one. Sharing a
+    // Users and tokens answer to a workspace credential and settings to an instance one. Sharing a
     // page put a card an owner is refused above the two they administer.
     expect(fixture.nativeElement.querySelector('lh-system-settings')).toBeTruthy();
     expect(fixture.nativeElement.querySelector('lh-member-administration')).toBeNull();
     expect(fixture.nativeElement.querySelector('lh-token-administration')).toBeNull();
 
-    await navigateTo('people');
+    await navigateTo('users');
 
     expect(fixture.nativeElement.querySelector('lh-system-settings')).toBeNull();
     expect(fixture.nativeElement.querySelector('lh-member-administration')).toBeTruthy();
     expect(fixture.nativeElement.querySelector('lh-token-administration')).toBeTruthy();
   });
 
-  it('offers a workspace owner People but not the instance-only settings page', async () => {
+  it('offers a workspace owner Users but not the instance-only settings page', async () => {
     api.access = {
       mode: 'authenticated',
       role: 'owner',
@@ -153,11 +153,11 @@ describe('WorkbenchComponent', () => {
       .map((item) => (item as HTMLElement).getAttribute('aria-label'));
     // Every control on System Settings requires Capability.Instance, so offering the destination to
     // an owner offers a page whose one card returns an error.
-    expect(labels).toContain('People');
+    expect(labels).toContain('Users');
     expect(labels).not.toContain('System Settings');
   });
 
-  it('leaves People when the credential that administered it is replaced by a reader', async () => {
+  it('leaves Users when the credential that administered it is replaced by a reader', async () => {
     api.access = {
       mode: 'authenticated',
       role: 'owner',
@@ -166,7 +166,7 @@ describe('WorkbenchComponent', () => {
       tenantAdmin: true,
     };
     await mount();
-    await navigateTo('people');
+    await navigateTo('users');
     expect(fixture.nativeElement.querySelector('lh-member-administration')).toBeTruthy();
 
     api.access = {
@@ -594,7 +594,9 @@ describe('WorkbenchComponent', () => {
 
       expect(provisioning).toEqual([
         ['createTenant', ['northwind', 'Northwind Traders']],
-        ['createCatalog', ['northwind', 'warehouse']],
+        // No placement: an operator who touched nothing in the storage section still provisions
+        // through the deployment's default, which is the one-click path this test guards.
+        ['createCatalog', ['northwind', 'warehouse', undefined]],
         [
           'createToken',
           [
@@ -667,14 +669,18 @@ describe('WorkbenchComponent', () => {
         {
           slug: 'current',
           displayName: 'Current workspace',
-          catalogs: [{ name: 'current_catalog', dataPath: '/current', isReadOnly: false }],
+          catalogs: [
+            { name: 'current_catalog', dataPath: '/current', isReadOnly: false, storageKind: 'Local', storageProfile: null },
+          ],
         },
       ];
       const staleTenants: typeof api.tenants = [
         {
           slug: 'stale',
           displayName: 'Stale workspace',
-          catalogs: [{ name: 'stale_catalog', dataPath: '/stale', isReadOnly: false }],
+          catalogs: [
+            { name: 'stale_catalog', dataPath: '/stale', isReadOnly: false, storageKind: 'Local', storageProfile: null },
+          ],
         },
       ];
       let request = 0;
@@ -934,8 +940,8 @@ describe('WorkbenchComponent', () => {
           slug: 'demo',
           displayName: 'Demo workspace',
           catalogs: [
-            { name: 'analytics', dataPath: '/a', isReadOnly: false },
-            { name: 'archive', dataPath: '/b', isReadOnly: true },
+            { name: 'analytics', dataPath: '/a', isReadOnly: false, storageKind: 'Local', storageProfile: null },
+            { name: 'archive', dataPath: '/b', isReadOnly: true, storageKind: 'Local', storageProfile: null },
           ],
         },
       ];

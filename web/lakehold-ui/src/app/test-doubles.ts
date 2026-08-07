@@ -15,6 +15,8 @@ import {
   QueryLanguage,
   QueryLanguageStarter,
   QueryRun,
+  ResolveStoragePathRequest,
+  ResolvedStoragePath,
   RestoreResult,
   SavedQuery,
   ScheduledRun,
@@ -22,6 +24,7 @@ import {
   Snapshot,
   Subscription,
   SystemSettings,
+  SystemStorage,
   TableDetail,
   TableFiles,
   TableProfile,
@@ -237,7 +240,15 @@ export class FakeLakehouseService {
     {
       slug: 'demo',
       displayName: 'Demo workspace',
-      catalogs: [{ name: 'analytics', dataPath: '/d', isReadOnly: false }],
+      catalogs: [
+        {
+          name: 'analytics',
+          dataPath: '/d',
+          isReadOnly: false,
+          storageKind: 'Local',
+          storageProfile: null,
+        },
+      ],
     },
   ];
   schemas: Schema[] = [];
@@ -296,12 +307,56 @@ export class FakeLakehouseService {
     });
   }
 
+  systemStorage: SystemStorage = {
+    dataRoot: '/var/lib/lakehold/data',
+    backupRoot: '/var/lib/lakehold/backups',
+    ejectRoot: '/var/lib/lakehold/ejects',
+    defaultStorageProfile: null,
+    profiles: [],
+    requiresRestartToChange: true,
+  };
+
+  getSystemStorage(...args: unknown[]): Observable<SystemStorage> {
+    return this.answer('getSystemStorage', args, () => this.systemStorage);
+  }
+
+  /**
+   * Stands in for the server's placement rules. Deliberately simple — the rules themselves are
+   * tested against the real implementation in the API suite, and duplicating them here would only
+   * prove that two fakes agree.
+   */
+  resolvedPath: ResolvedStoragePath | null = null;
+
+  resolveStoragePath(...args: unknown[]): Observable<ResolvedStoragePath> {
+    return this.answer('resolveStoragePath', args, () => {
+      const request = args[0] as ResolveStoragePathRequest;
+      return (
+        this.resolvedPath ?? {
+          dataPath:
+            request.dataPath ||
+            `/var/lib/lakehold/data/${request.tenantSlug}/${request.catalogName}`,
+          kind: request.dataPath?.startsWith('s3://') ? 'S3' : 'Local',
+          storageProfile: request.storageProfile ?? null,
+          derived: !request.dataPath,
+        }
+      );
+    });
+  }
+
   listTenants(...args: unknown[]): Observable<Tenant[]> {
     return this.answer('listTenants', args, () => this.tenants);
   }
 
-  createTenant(...args: unknown[]): Observable<unknown> {
-    return this.answer('createTenant', args, () => ({}));
+  createTenant(...args: unknown[]): Observable<Tenant> {
+    return this.answer('createTenant', args, () => {
+      const workspace: Tenant = {
+        slug: String(args[0]),
+        displayName: String(args[1]),
+        catalogs: [],
+      };
+      this.tenants = [...this.tenants, workspace];
+      return workspace;
+    });
   }
 
   createCatalog(...args: unknown[]): Observable<unknown> {

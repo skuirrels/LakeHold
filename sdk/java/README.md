@@ -148,7 +148,7 @@ Class | Method | HTTP request | Description
 *LakehouseApi* | [**getApiV1TenantsTenantSlugCatalogsCatalogNameTableDetail**](docs/LakehouseApi.md#getApiV1TenantsTenantSlugCatalogsCatalogNameTableDetail) | **GET** /api/v1/tenants/{tenantSlug}/catalogs/{catalogName}/table-detail | Returns one table&#39;s schema, storage footprint, and partition layout.
 *LakehouseApi* | [**getApiV1TenantsTenantSlugCatalogsCatalogNameTableProfile**](docs/LakehouseApi.md#getApiV1TenantsTenantSlugCatalogsCatalogNameTableProfile) | **GET** /api/v1/tenants/{tenantSlug}/catalogs/{catalogName}/table-profile | Profiles the live logical rows of every column in one table.
 *LakehouseApi* | [**getApiV1TenantsTenantSlugHistory**](docs/LakehouseApi.md#getApiV1TenantsTenantSlugHistory) | **GET** /api/v1/tenants/{tenantSlug}/history | Returns recent query runs for a tenant.
-*LakehouseApi* | [**getApiV1TenantsTenantSlugMembers**](docs/LakehouseApi.md#getApiV1TenantsTenantSlugMembers) | **GET** /api/v1/tenants/{tenantSlug}/members | Lists the people who may reach this workspace, including those awaiting approval.
+*LakehouseApi* | [**getApiV1TenantsTenantSlugMembers**](docs/LakehouseApi.md#getApiV1TenantsTenantSlugMembers) | **GET** /api/v1/tenants/{tenantSlug}/members | Lists the users who may reach this workspace, including those awaiting approval.
 *LakehouseApi* | [**getApiV1TenantsTenantSlugTokens**](docs/LakehouseApi.md#getApiV1TenantsTenantSlugTokens) | **GET** /api/v1/tenants/{tenantSlug}/tokens | Lists token metadata for a tenant. Never returns the secret.
 *LakehouseApi* | [**getSnapshot**](docs/LakehouseApi.md#getSnapshot) | **GET** /api/v1/tenants/{tenantSlug}/catalogs/{catalogName}/snapshots/{snapshotId} | Returns one retained snapshot by its source-native identifier.
 *LakehouseApi* | [**getSnapshotTable**](docs/LakehouseApi.md#getSnapshotTable) | **GET** /api/v1/tenants/{tenantSlug}/catalogs/{catalogName}/snapshots/{snapshotId}/table | Returns a bounded table preview at an exact retained snapshot.
@@ -182,6 +182,8 @@ Class | Method | HTTP request | Description
 *LakehouseApi* | [**streamQuery**](docs/LakehouseApi.md#streamQuery) | **POST** /api/v1/tenants/{tenantSlug}/catalogs/{catalogName}/query:stream | Streams a read-only SQL result as schema, row, and completion NDJSON records.
 *OperationsApi* | [**getOperation**](docs/OperationsApi.md#getOperation) | **GET** /api/v1/operations/{id} | Returns one durable public API operation visible to the caller.
 *SystemSettingsApi* | [**getApiV1SystemSettings**](docs/SystemSettingsApi.md#getApiV1SystemSettings) | **GET** /api/v1/system-settings | Returns the instance-wide runtime settings.
+*SystemSettingsApi* | [**getApiV1SystemSettingsStorage**](docs/SystemSettingsApi.md#getApiV1SystemSettingsStorage) | **GET** /api/v1/system-settings/storage | Returns this node&#39;s Parquet storage placement and redacted profile inventory.
+*SystemSettingsApi* | [**postApiV1SystemSettingsStorageResolve**](docs/SystemSettingsApi.md#postApiV1SystemSettingsStorageResolve) | **POST** /api/v1/system-settings/storage/resolve | Resolves where a catalog&#39;s Parquet would go, without creating anything.
 *SystemSettingsApi* | [**putApiV1SystemSettings**](docs/SystemSettingsApi.md#putApiV1SystemSettings) | **PUT** /api/v1/system-settings | Saves and immediately applies the instance-wide runtime settings.
 
 
@@ -249,6 +251,8 @@ Class | Method | HTTP request | Description
  - [QueryResponse](docs/QueryResponse.md)
  - [QueryRunDto](docs/QueryRunDto.md)
  - [RegisterCdcConsumerRequest](docs/RegisterCdcConsumerRequest.md)
+ - [ResolveStoragePathRequest](docs/ResolveStoragePathRequest.md)
+ - [ResolvedStoragePathDto](docs/ResolvedStoragePathDto.md)
  - [RestoreRequest](docs/RestoreRequest.md)
  - [RestoreTableRequest](docs/RestoreTableRequest.md)
  - [SavedQueryDto](docs/SavedQueryDto.md)
@@ -257,8 +261,10 @@ Class | Method | HTTP request | Description
  - [SchemaDto](docs/SchemaDto.md)
  - [SchemaTableDto](docs/SchemaTableDto.md)
  - [SnapshotDto](docs/SnapshotDto.md)
+ - [StorageProfileSummaryDto](docs/StorageProfileSummaryDto.md)
  - [SubscriptionDto](docs/SubscriptionDto.md)
  - [SystemSettingsDto](docs/SystemSettingsDto.md)
+ - [SystemStorageDto](docs/SystemStorageDto.md)
  - [TableDetailColumnDto](docs/TableDetailColumnDto.md)
  - [TableDetailDto](docs/TableDetailDto.md)
  - [TableFilesDto](docs/TableFilesDto.md)
@@ -292,6 +298,5 @@ Authentication schemes defined for the API:
 It's recommended to create an instance of `ApiClient` per thread in a multithreaded environment to avoid any potential issues.
 
 ## Author
-
 
 

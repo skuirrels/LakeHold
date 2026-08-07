@@ -97,6 +97,23 @@ describe('FirstRunComponent', () => {
     ).toBe(true);
   });
 
+  it('uses the same workspace-slug validation as later provisioning', async () => {
+    await mount();
+    const received: WorkspaceRequest[] = [];
+    fixture.componentInstance.createWorkspace.subscribe((request) => received.push(request));
+    const [slug] = fixture.nativeElement.querySelectorAll(
+      'input[type="text"]',
+    ) as NodeListOf<HTMLInputElement>;
+    slug.value = 'North Wind';
+    slug.dispatchEvent(new Event('input'));
+    await fixture.whenStable();
+
+    const button = fixture.nativeElement.querySelector('.actions button') as HTMLButtonElement;
+    expect(button.disabled).toBe(true);
+    button.click();
+    expect(received).toEqual([]);
+  });
+
   it('shows the one-time token instead of another setup form', async () => {
     await mount();
     fixture.componentRef.setInput('issuedToken', 'lkh_acme_once');

@@ -60,7 +60,7 @@ public sealed class MemberEndpointsTests : IAsyncLifetime
         };
 
     [Fact]
-    public async Task Listing_puts_people_awaiting_approval_first()
+    public async Task Listing_puts_users_awaiting_approval_first()
     {
         var result = await MemberEndpoints.ListAsync("demo", _context, CancellationToken.None);
         var members = Assert.IsType<Microsoft.AspNetCore.Http.HttpResults.Ok<IReadOnlyList<TenantMemberDto>>>(

@@ -1,0 +1,227 @@
+:host {
+  display: block;
+  margin-top: 24px;
+}
+
+.panel {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+header,
+.roots,
+.note,
+.warning,
+.muted,
+.load-error,
+.source,
+.help,
+h3 {
+  padding: 20px 22px;
+}
+
+header {
+  border-bottom: 1px solid var(--border);
+}
+
+h2 {
+  margin: 0 0 5px;
+  font-size: 17px;
+}
+
+header p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-faint);
+}
+
+h3 {
+  margin: 0;
+  padding-bottom: 0;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-faint);
+}
+
+.roots {
+  display: grid;
+  gap: 14px 24px;
+  margin: 0;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  border-bottom: 1px solid var(--border);
+}
+
+.roots dt {
+  margin-bottom: 4px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-faint);
+}
+
+.roots dd {
+  margin: 0;
+  font-size: 13px;
+}
+
+/* Roots are long URIs and paths. Wrapping beats a panel that scrolls sideways. */
+code {
+  overflow-wrap: anywhere;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 12px;
+}
+
+.note,
+.muted {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-faint);
+}
+
+.note {
+  border-bottom: 1px solid var(--border);
+}
+
+/* A misconfiguration an operator has to act on, not a status. Both cases here mean a catalog will
+   fail at attach time, which is far enough from the cause to be worth naming up front. */
+.warning {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  border-bottom: 1px solid var(--border);
+}
+
+.table-scroll {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+th {
+  text-align: left;
+}
+
+thead th {
+  padding: 10px 22px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-faint);
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+tbody th,
+tbody td {
+  padding: 12px 22px;
+  vertical-align: middle;
+  border-bottom: 1px solid var(--border);
+  font-weight: 400;
+}
+
+.missing {
+  color: var(--danger, #ff6b6b);
+}
+
+.source {
+  display: grid;
+  gap: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.source div {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  justify-content: space-between;
+  font-size: 13px;
+}
+
+.source p {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-faint);
+}
+
+.help summary {
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.help p {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-faint);
+}
+
+.help article {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.help-heading {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+h4 {
+  margin: 0;
+  font-size: 13px;
+}
+
+pre {
+  overflow-x: auto;
+  margin: 8px 0 0;
+  padding: 10px 12px;
+  background: var(--surface-3, var(--surface-1));
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+button {
+  padding: 6px 11px;
+  font: inherit;
+  font-size: 12px;
+  color: var(--text);
+  background: var(--surface-3);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.copy-status {
+  margin-top: 12px;
+}
+
+.load-error {
+  display: grid;
+  gap: 10px;
+  justify-items: start;
+}
+
+.error {
+  margin: 0;
+  font-size: 13px;
+  color: var(--danger, #ff6b6b);
+}
+
+/* A refresh that failed while the panel already holds values: shown beneath them rather than
+   replacing them, so the operator keeps the reading that is still on screen. */
+.panel > .error {
+  padding: 20px 22px;
+}

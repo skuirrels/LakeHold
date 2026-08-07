@@ -30,7 +30,7 @@
       <table class="members">
         <thead>
           <tr>
-            <th scope="col">Person</th>
+            <th scope="col">User</th>
             <th scope="col">Role</th>
             <th scope="col">Status</th>
             <th scope="col">Last seen</th>
@@ -45,7 +45,7 @@
                 @if (member.email) {
                   <span class="secondary">{{ member.email }}</span>
                 }
-                <!-- The provider's subject: the only thing that reliably tells two people apart
+                <!-- The provider's subject: the only thing that reliably tells two users apart
                      when display names collide, and what an administrator matches against. -->
                 <span class="subject" [title]="member.subject">{{ member.subject }}</span>
               </td>
@@ -112,7 +112,7 @@
       <p class="hint">
         <strong>Suspend</strong> keeps someone listed and refuses them, so past activity still has a
         name against it. <strong>Remove</strong> discards the record; they return as a new arrival if
-        they sign in again. Changes take effect on the person's next request.
+        they sign in again. Changes take effect on the user's next request.
       </p>
     }
   }

@@ -46,7 +46,7 @@ public sealed class ControlPlaneContext(DbContextOptions<ControlPlaneContext> op
 
     public DbSet<ApiToken> ApiTokens => Set<ApiToken>();
 
-    /// <summary>People's memberships of tenants. Identity is federated; this is the authorization.</summary>
+    /// <summary>Users' memberships of tenants. Identity is federated; this is the authorization.</summary>
     public DbSet<TenantMember> TenantMembers => Set<TenantMember>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
