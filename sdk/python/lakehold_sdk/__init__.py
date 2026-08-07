@@ -93,6 +93,8 @@ __all__ = [
     "QueryResponse",
     "QueryRunDto",
     "RegisterCdcConsumerRequest",
+    "ResolveStoragePathRequest",
+    "ResolvedStoragePathDto",
     "RestoreRequest",
     "RestoreTableRequest",
     "SavedQueryDto",
@@ -101,8 +103,10 @@ __all__ = [
     "SchemaDto",
     "SchemaTableDto",
     "SnapshotDto",
+    "StorageProfileSummaryDto",
     "SubscriptionDto",
     "SystemSettingsDto",
+    "SystemStorageDto",
     "TableDetailColumnDto",
     "TableDetailDto",
     "TableFilesDto",
@@ -200,6 +204,8 @@ from lakehold_sdk.models.query_language_starter import QueryLanguageStarter as Q
 from lakehold_sdk.models.query_response import QueryResponse as QueryResponse
 from lakehold_sdk.models.query_run_dto import QueryRunDto as QueryRunDto
 from lakehold_sdk.models.register_cdc_consumer_request import RegisterCdcConsumerRequest as RegisterCdcConsumerRequest
+from lakehold_sdk.models.resolve_storage_path_request import ResolveStoragePathRequest as ResolveStoragePathRequest
+from lakehold_sdk.models.resolved_storage_path_dto import ResolvedStoragePathDto as ResolvedStoragePathDto
 from lakehold_sdk.models.restore_request import RestoreRequest as RestoreRequest
 from lakehold_sdk.models.restore_table_request import RestoreTableRequest as RestoreTableRequest
 from lakehold_sdk.models.saved_query_dto import SavedQueryDto as SavedQueryDto
@@ -208,8 +214,10 @@ from lakehold_sdk.models.schema_column_dto import SchemaColumnDto as SchemaColum
 from lakehold_sdk.models.schema_dto import SchemaDto as SchemaDto
 from lakehold_sdk.models.schema_table_dto import SchemaTableDto as SchemaTableDto
 from lakehold_sdk.models.snapshot_dto import SnapshotDto as SnapshotDto
+from lakehold_sdk.models.storage_profile_summary_dto import StorageProfileSummaryDto as StorageProfileSummaryDto
 from lakehold_sdk.models.subscription_dto import SubscriptionDto as SubscriptionDto
 from lakehold_sdk.models.system_settings_dto import SystemSettingsDto as SystemSettingsDto
+from lakehold_sdk.models.system_storage_dto import SystemStorageDto as SystemStorageDto
 from lakehold_sdk.models.table_detail_column_dto import TableDetailColumnDto as TableDetailColumnDto
 from lakehold_sdk.models.table_detail_dto import TableDetailDto as TableDetailDto
 from lakehold_sdk.models.table_files_dto import TableFilesDto as TableFilesDto

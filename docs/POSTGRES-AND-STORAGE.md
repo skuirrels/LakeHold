@@ -46,34 +46,211 @@ Default durable locations include the tenant key:
 The same layout is used for local paths and object-store URIs. Two tenants can therefore use the
 same catalog name without sharing Parquet files, backups, eject bundles, or a warm compute session.
 
-### S3 or S3-compatible
+`BackupRoot` and `EjectRoot` are deliberately siblings of `DataRoot`, never children of it. DuckLake
+orphan cleanup removes unreferenced files beneath the data path, which would make a nested backup or
+eject bundle delete itself once it ages past the retention cutoff.
 
-```text
+## Where storage configuration lives
+
+Storage has two separate parts, and the split decides where each belongs:
+
+1. A **data path** says where a catalog's Parquet data goes. For object storage the URI carries the
+   bucket or container and prefix. It is placement, not a secret.
+2. A **storage profile** supplies credentials and protocol settings. Catalog records persist only
+   the profile *name*; the credential stays in deployment configuration or its secret store.
+
+For source-based development, copy `.env.example` to `.env` in the repository root. The API loads
+that file before the host is built, without overwriting real environment variables:
+
+```bash
+cp .env.example .env
+```
+
+Placement settings are not secrets, so they belong in `appsettings*.json` under the `Lakehouse`
+section or in a Compose override — not in `.env`. Credentials belong in `.env` for development and
+in the platform's secret store for production. Never commit a credential to `appsettings*.json` or
+to `.env.example`.
+
+`Lakehouse__StateRoot` anchors the four roots. A root left at its default resolves beneath it, so
+`Lakehouse__StateRoot=/var/lib/lakehold` puts the unchanged data root at `/var/lib/lakehold/data`; a
+relative override resolves under the state root too, and an absolute path or a `://` URI is taken as
+written. That keeps a default from following the process's working directory.
+
+For production, supply these settings through the deployment platform's environment and secret
+store. `compose.production.yaml` deliberately embeds no object store, and its API service passes an
+explicit list of environment values — so a setting added only to the Compose `.env` file does
+**not** reach the container. Use a Compose override, a Kubernetes Secret/ConfigMap, or the hosting
+platform's equivalent.
+
+## Filesystem
+
+The default data root is `./.lakehold/data`, resolved against the state root as described above.
+Local paths need no storage profile. To choose explicit mounts:
+
+```dotenv
+Lakehouse__DataRoot=/mnt/lakehold/data
+Lakehouse__BackupRoot=/mnt/lakehold/backups
+Lakehouse__EjectRoot=/mnt/lakehold/ejects
+```
+
+A filesystem is appropriate for a single API node. A multi-node deployment may use one only when
+every worker sees the same durable filesystem at the same path; a node-local volume is not shared
+storage.
+
+## Amazon S3
+
+```dotenv
 Lakehouse__DataRoot=s3://my-bucket/lakehold
 Lakehouse__DefaultStorageProfile=primary
+Lakehouse__StorageProfiles__primary__Kind=S3
+Lakehouse__StorageProfiles__primary__KeyId=change-me
+Lakehouse__StorageProfiles__primary__Secret=change-me
+Lakehouse__StorageProfiles__primary__Region=eu-west-1
+```
+
+Temporary session credentials may also supply:
+
+```dotenv
+Lakehouse__StorageProfiles__primary__SessionToken=change-me
+```
+
+The bucket must already exist. LakeHold does not create production buckets.
+
+## MinIO and other S3-compatible services
+
+Use the S3 profile kind and add the endpoint-specific settings:
+
+```dotenv
+Lakehouse__DataRoot=s3://my-bucket/lakehold
+Lakehouse__DefaultStorageProfile=primary
+Lakehouse__StorageProfiles__primary__Kind=S3
+Lakehouse__StorageProfiles__primary__KeyId=change-me
+Lakehouse__StorageProfiles__primary__Secret=change-me
+Lakehouse__StorageProfiles__primary__Endpoint=minio.example.com:9000
+Lakehouse__StorageProfiles__primary__UseSsl=false
+Lakehouse__StorageProfiles__primary__UrlStyle=path
+```
+
+`UrlStyle=path` is common for compatible endpoints. Production should use TLS unless the endpoint is
+on an explicitly trusted private network. The development Compose stack creates only its
+`lakehold-test` integration-test bucket; that is test fixture setup, not application catalog
+provisioning.
+
+## Google Cloud Storage
+
+```dotenv
+Lakehouse__DataRoot=gs://my-bucket/lakehold
+Lakehouse__DefaultStorageProfile=primary
+Lakehouse__StorageProfiles__primary__Kind=Gcs
+Lakehouse__StorageProfiles__primary__KeyId=gcs-hmac-access-id
+Lakehouse__StorageProfiles__primary__Secret=gcs-hmac-secret
+```
+
+`gcs://` is accepted as well as `gs://`. DuckDB's GCS path uses interoperability HMAC credentials:
+`KeyId` and `Secret` are not a Google service-account JSON document.
+
+## Azure Blob Storage and ADLS Gen2
+
+Connection-string authentication:
+
+```dotenv
+Lakehouse__DataRoot=az://my-container/lakehold
+Lakehouse__DefaultStorageProfile=primary
+Lakehouse__StorageProfiles__primary__Kind=Azure
+Lakehouse__StorageProfiles__primary__AzureConnectionString=change-me
+```
+
+Account name with a workload or managed identity chain:
+
+```dotenv
+Lakehouse__DataRoot=az://my-container/lakehold
+Lakehouse__DefaultStorageProfile=primary
+Lakehouse__StorageProfiles__primary__Kind=Azure
+Lakehouse__StorageProfiles__primary__AzureAccountName=mystorageaccount
+Lakehouse__StorageProfiles__primary__AzureCredentialChain=workload_identity;managed_identity
+```
+
+`azure://` and `abfss://` data paths are recognised as well as `az://`. The container or filesystem
+must already exist. The Azure extension is loaded only for catalogs using an Azure profile.
+
+## Production Compose example
+
+Keep non-secret placement settings in an override and resolve secrets from the deployment's secret
+manager, or from `.env` in a development-grade deployment:
+
+```yaml
+# compose.storage.yaml
+services:
+  api:
+    environment:
+      Lakehouse__DataRoot: s3://company-lake/lakehold
+      Lakehouse__BackupRoot: s3://company-backups/lakehold
+      Lakehouse__EjectRoot: s3://company-exports/lakehold
+      Lakehouse__DefaultStorageProfile: primary
+      Lakehouse__StorageProfiles__primary__Kind: S3
+      Lakehouse__StorageProfiles__primary__KeyId: ${LAKEHOLD_S3_KEY}
+      Lakehouse__StorageProfiles__primary__Secret: ${LAKEHOLD_S3_SECRET}
+      Lakehouse__StorageProfiles__primary__Region: eu-west-1
+```
+
+Start the deployment with both files:
+
+```bash
+docker compose -f compose.production.yaml -f compose.storage.yaml up -d
+```
+
+The override is an example, not a reason to commit credentials. A production secret manager should
+inject `LAKEHOLD_S3_KEY` and `LAKEHOLD_S3_SECRET`.
+
+## Multiple buckets and profiles
+
+A profile is named credentials and connection settings; the bucket stays part of each catalog's data
+path. A deployment can define more than one:
+
+```dotenv
 Lakehouse__StorageProfiles__primary__Kind=S3
 Lakehouse__StorageProfiles__primary__KeyId=...
 Lakehouse__StorageProfiles__primary__Secret=...
 Lakehouse__StorageProfiles__primary__Region=eu-west-1
+
+Lakehouse__StorageProfiles__archive__Kind=S3
+Lakehouse__StorageProfiles__archive__KeyId=...
+Lakehouse__StorageProfiles__archive__Secret=...
+Lakehouse__StorageProfiles__archive__Region=eu-central-1
 ```
 
-For MinIO or another compatible service, also set `Endpoint`, `UseSsl`, and `UrlStyle` on the
-profile. `UrlStyle=path` is common for local-compatible endpoints.
+## Selecting placement when creating a catalog
 
-### Google Cloud Storage
+An instance administrator can name an exact path and profile through the catalog API:
 
-Set the profile `Kind` to `Gcs` and supply `KeyId`/`Secret` from a GCS interoperability HMAC key.
-These are not a Google service-account JSON key.
+```http
+POST /api/v1/tenants/acme/catalogs
+Authorization: Bearer <instance credential>
+Content-Type: application/json
 
-### Azure Blob Storage or ADLS
+{
+  "name": "analytics",
+  "dataPath": "s3://customer-bucket/lakehold/acme/analytics",
+  "storageProfile": "primary",
+  "readOnly": false
+}
+```
 
-Set `Kind=Azure` and use either:
+Omitting `dataPath` derives it from `DataRoot`, the tenant slug, and the catalog name. Omitting
+`storageProfile` for a remote path uses `DefaultStorageProfile`. LakeHold rejects:
 
-- `AzureConnectionString` for an explicit storage connection string; or
-- `AzureAccountName` plus optional `AzureCredentialChain`, such as
-  `workload_identity;managed_identity`.
+- an unsupported URI scheme;
+- a remote path without a configured profile;
+- a profile whose kind does not match the URI;
+- a local path paired with an object-storage profile; and
+- a data path already assigned to another catalog.
 
-The Azure extension is loaded only for catalogs using an Azure profile.
+Placement is chosen when the catalog is created. There is no in-place catalog storage update
+endpoint: moving an existing catalog is a migration, not a settings toggle, and must preserve
+DuckLake metadata, inlined rows, deletes, updates, and history.
+
+Surfacing this configuration in the Workbench is planned in
+[STORAGE-CONFIGURATION-AND-UI-PLAN.md](STORAGE-CONFIGURATION-AND-UI-PLAN.md).
 
 ## Importing a legacy DuckDB control plane
 

@@ -233,6 +233,11 @@ export class WorkbenchComponent {
     () => this.tenants().find((t) => t.slug === this.tenantSlug())?.catalogs ?? [],
   );
 
+  /** The selected catalog's own record, for the storage panel's immutable placement summary. */
+  protected readonly selectedCatalog = computed(
+    () => this.catalogs().find((catalog) => catalog.name === this.catalogName()) ?? null,
+  );
+
   protected readonly ready = computed(
     () => this.tenantSlug() !== null && this.catalogName() !== null,
   );
@@ -464,7 +469,7 @@ export class WorkbenchComponent {
    * without the third step the workbench would still refuse every query it offered to run.
    */
   protected createWorkspace(request: WorkspaceRequest): void {
-    const { slug, displayName, catalog } = request;
+    const { slug, displayName, catalog, placement } = request;
     if (this.setupBusy()) {
       return;
     }
@@ -480,7 +485,9 @@ export class WorkbenchComponent {
       .createTenant(slug, displayName)
       .pipe(
         catchError(ignoreConflict),
-        switchMap(() => this.api.createCatalog(slug, catalog).pipe(catchError(ignoreConflict))),
+        switchMap(() =>
+          this.api.createCatalog(slug, catalog, placement).pipe(catchError(ignoreConflict)),
+        ),
         switchMap(() =>
           this.api.createToken(slug, {
             name: 'workbench',
@@ -709,6 +716,11 @@ export class WorkbenchComponent {
       this.navigationOpen.set(false);
       this.focusContextPanel();
     }
+  }
+
+  /** Re-reads the workspace list after System Settings provisions a catalog into it. */
+  protected refreshWorkspaces(): void {
+    this.loadTenants();
   }
 
   protected openNavigation(destination: WorkbenchDestination): void {

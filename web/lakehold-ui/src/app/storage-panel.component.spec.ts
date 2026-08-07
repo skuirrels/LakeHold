@@ -2,7 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideZonelessChangeDetection } from '@angular/core';
 import { Subject } from 'rxjs';
 import { LakehouseService } from './lakehouse.service';
-import { CatalogStorage } from './models';
+import { Catalog, CatalogStorage } from './models';
 import { StoragePanelComponent } from './storage-panel.component';
 import { FakeLakehouseService, tableStorage } from './test-doubles';
 
@@ -247,6 +247,100 @@ describe('StoragePanelComponent', () => {
       api.storage = { ...api.storage, tables: [tableStorage()], targetFileSizeBytes: null };
       await mount();
       expect(text()).toContain('advisory floor of 16 MB');
+    });
+  });
+
+  describe('placement', () => {
+    const remote: Catalog = {
+      name: 'analytics',
+      dataPath: 's3://company-lake/lakehold/demo/analytics',
+      isReadOnly: false,
+      storageKind: 'S3',
+      storageProfile: 'primary',
+    };
+
+    async function mountWith(catalog: Catalog | null) {
+      fixture = TestBed.createComponent(StoragePanelComponent);
+      fixture.componentRef.setInput('tenant', 'demo');
+      fixture.componentRef.setInput('catalog', 'analytics');
+      fixture.componentRef.setInput('placement', catalog);
+      await fixture.whenStable();
+    }
+
+    it('says where the Parquet lives and which profile reaches it', async () => {
+      await mountWith(remote);
+
+      expect(text()).toContain('s3://company-lake/lakehold/demo/analytics');
+      expect(text()).toContain('Amazon S3 or compatible');
+      expect(text()).toContain('primary');
+      expect(text()).toContain('Read-write');
+    });
+
+    it('offers no control that would edit the placement', async () => {
+      await mountWith(remote);
+
+      // The whole claim of this summary is that placement is immutable. An input or a save button
+      // here would promise an in-place move, which is a migration the product does not perform.
+      const editable = fixture.nativeElement.querySelectorAll(
+        '.placement input, .placement select, .placement button, .placement textarea',
+      );
+      expect(editable.length).toBe(0);
+      expect(text()).toContain('Placement cannot be edited in place');
+    });
+
+    it('reports a local catalog as needing no credential rather than as missing one', async () => {
+      await mountWith({
+        ...remote,
+        dataPath: '/var/lib/lakehold/data/demo/analytics',
+        storageKind: 'Local',
+        storageProfile: null,
+      });
+
+      expect(text()).toContain('a local path needs no credential');
+      expect(text()).toContain('Filesystem');
+    });
+
+    it('shows a read-only attachment as read-only', async () => {
+      await mountWith({ ...remote, isReadOnly: true });
+
+      expect(text()).toContain('Read-only');
+    });
+
+    it('says nothing about placement when it has no catalog record', async () => {
+      await mountWith(null);
+
+      expect(fixture.nativeElement.querySelector('.placement')).toBeNull();
+    });
+
+    it('frames a missing profile as configuration rather than a broken catalog', async () => {
+      api.failures.set('getStorage', "Storage profile 'primary' is not configured on this node.");
+      await mountWith(remote);
+
+      // The catalog is fine and the node is not, and the failure surfaces at attach time — far
+      // enough from the cause that the default banner sends operators looking in the wrong place.
+      expect(text()).toContain("cannot reach the catalog's storage");
+      expect(text()).toContain('System Settings');
+      expect(text()).toContain('restart the API');
+    });
+
+    it('frames a kind mismatch the same way', async () => {
+      api.failures.set(
+        'getStorage',
+        "Storage profile 'primary' is Azure, but catalog 'analytics' requires S3.",
+      );
+      await mountWith(remote);
+
+      expect(text()).toContain("cannot reach the catalog's storage");
+    });
+
+    it('leaves an ordinary failure as an ordinary failure', async () => {
+      // The re-framing keys off the server's own wording. A message that says nothing about a
+      // storage profile has to degrade to the normal banner rather than to a wrong explanation.
+      api.failures.set('getStorage', 'Connection reset while reading the catalog.');
+      await mountWith(remote);
+
+      expect(text()).toContain('Could not read storage');
+      expect(text()).not.toContain('storage-profile problem on this node');
     });
   });
 

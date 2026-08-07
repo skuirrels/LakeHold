@@ -420,7 +420,9 @@ describe('WorkbenchComponent', () => {
 
       expect(provisioning).toEqual([
         ['createTenant', ['northwind', 'Northwind Traders']],
-        ['createCatalog', ['northwind', 'warehouse']],
+        // No placement: an operator who touched nothing in the storage section still provisions
+        // through the deployment's default, which is the one-click path this test guards.
+        ['createCatalog', ['northwind', 'warehouse', undefined]],
         [
           'createToken',
           [
@@ -493,14 +495,18 @@ describe('WorkbenchComponent', () => {
         {
           slug: 'current',
           displayName: 'Current workspace',
-          catalogs: [{ name: 'current_catalog', dataPath: '/current', isReadOnly: false }],
+          catalogs: [
+            { name: 'current_catalog', dataPath: '/current', isReadOnly: false, storageKind: 'Local', storageProfile: null },
+          ],
         },
       ];
       const staleTenants: typeof api.tenants = [
         {
           slug: 'stale',
           displayName: 'Stale workspace',
-          catalogs: [{ name: 'stale_catalog', dataPath: '/stale', isReadOnly: false }],
+          catalogs: [
+            { name: 'stale_catalog', dataPath: '/stale', isReadOnly: false, storageKind: 'Local', storageProfile: null },
+          ],
         },
       ];
       let request = 0;
@@ -760,8 +766,8 @@ describe('WorkbenchComponent', () => {
           slug: 'demo',
           displayName: 'Demo workspace',
           catalogs: [
-            { name: 'analytics', dataPath: '/a', isReadOnly: false },
-            { name: 'archive', dataPath: '/b', isReadOnly: true },
+            { name: 'analytics', dataPath: '/a', isReadOnly: false, storageKind: 'Local', storageProfile: null },
+            { name: 'archive', dataPath: '/b', isReadOnly: true, storageKind: 'Local', storageProfile: null },
           ],
         },
       ];

@@ -27,7 +27,21 @@ optimistically versioned PostgreSQL row, and the API reads that shared state for
 so the change applies across nodes without restarting the process. The same destination includes
 **API tokens**: an administrator can issue a tenant token, optionally narrow it to one catalog, choose
 its role and expiry, and copy the plaintext once. Existing client credentials can be reviewed and
-revoked from the same card. A human system administrator reaches this surface through the configured
+revoked from the same card. It also carries a read-only **Storage** card: the data, backup, and eject
+roots this node resolved, and the configured storage profiles reduced to kind, endpoint host, region,
+TLS, URL style, and whether the credentials a profile needs are present. Unlike the MCP controls
+beside it, nothing there is saveable — `LakehouseOptions` binds at startup, so changing placement
+means changing the deployment's environment and restarting the API, and the card says so rather than
+offering a control that could not work. It never displays a key, secret, session token, connection
+string, account name, or credential chain, and never their length, suffix, or hash. Beside it,
+**New catalog** creates a catalog in an existing workspace — the operation that previously existed
+only at first run and, after that, only over HTTP. Both it and the first-run card embed one shared
+placement control: deployment default by default, with an exact path and profile behind an advanced
+choice, a server-resolved preview of the location, and a multi-node warning on filesystem paths. The
+browser joins no URIs and decides no profile matches; the preview and the create both resolve
+through the same server-side rules, so the location an operator approves is the location they get.
+The remaining plan is `docs/STORAGE-CONFIGURATION-AND-UI-PLAN.md`. A human system
+administrator reaches this surface through the configured
 OIDC provider; the browser receives an HttpOnly LakeHold session rather than an identity-provider
 token. The browser calls the existing public token endpoints and never persists generated secrets.
 
@@ -162,7 +176,16 @@ Three traps, all verified:
 
 ### Storage tab
 
-A fourth tab beside Results, Query history, and Data history — one row per table:
+A fourth tab beside Results, Query history, and Data history. It opens with the catalog's
+**placement** — data path, storage kind, profile name, and whether the attachment is read-only —
+stated as immutable fact with no control that would edit it, because moving a catalog is a migration
+that has to preserve DuckLake metadata, inlined rows, deletes, updates, and history. That summary
+costs no request: `CatalogDto` has always carried those fields and the browser was discarding them.
+When the failure above it is a storage-profile problem, the banner says so and points at
+**System Settings → Storage** rather than implying the catalog is broken — the catalog is fine and
+the node's configuration is not, and the two look identical at attach time.
+
+Below the placement, one row per table:
 
 | Table | Rows | Size | Files | Avg file | Deletes | Maintenance |
 |---|---|---|---|---|---|---|

@@ -1,0 +1,59 @@
+<section class="panel">
+  <header>
+    <h2>New catalog</h2>
+    <p>
+      A catalog is the isolated unit of data attached to a session. Where its Parquet goes is chosen
+      now and cannot be changed in place afterwards.
+    </p>
+  </header>
+
+  @if (loading()) {
+    <p class="muted">Loading workspaces…</p>
+  } @else if (tenants().length === 0) {
+    <p class="muted">
+      There are no workspaces yet. A catalog belongs to a workspace, so create one first.
+    </p>
+  } @else {
+    <div class="body">
+      <label class="field">
+        <span>Workspace</span>
+        <select [value]="tenantSlug()" (change)="tenantSlug.set($any($event.target).value)">
+          @for (tenant of tenants(); track tenant.slug) {
+            <option [value]="tenant.slug">{{ tenant.displayName }} ({{ tenant.slug }})</option>
+          }
+        </select>
+      </label>
+
+      <label class="field">
+        <span>Catalog name</span>
+        <input
+          type="text"
+          autocomplete="off"
+          spellcheck="false"
+          placeholder="analytics"
+          [value]="name()"
+          (input)="name.set($any($event.target).value)"
+        />
+        <small>A bare SQL identifier — it reaches ATTACH, which cannot be parameterised.</small>
+      </label>
+
+      <div class="field">
+        <span>Storage</span>
+        <lh-catalog-placement [tenantSlug]="tenantSlug()" [catalogName]="name()" />
+      </div>
+
+      @if (error(); as message) {
+        <p class="error" role="alert">{{ message }}</p>
+      }
+      @if (notice(); as message) {
+        <p class="success" role="status">{{ message }}</p>
+      }
+
+      <div class="actions">
+        <button type="button" [disabled]="busy() || !name().trim()" (click)="create()">
+          {{ busy() ? 'Creating…' : 'Create catalog' }}
+        </button>
+      </div>
+    </div>
+  }
+</section>

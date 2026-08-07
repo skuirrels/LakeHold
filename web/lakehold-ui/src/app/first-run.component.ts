@@ -1,4 +1,13 @@
-import { ChangeDetectionStrategy, Component, input, output, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  input,
+  output,
+  signal,
+  viewChild,
+} from '@angular/core';
+import { CatalogPlacementComponent } from './catalog-placement.component';
+import { CatalogPlacementValue } from './models';
 
 /** What is standing between this browser and a usable workbench. */
 export type FirstRunMode = 'none' | 'unauthorized' | 'setup';
@@ -14,6 +23,11 @@ export interface WorkspaceRequest {
   slug: string;
   displayName: string;
   catalog: string;
+  /**
+   * Where the catalog's Parquet goes. Absent for the deployment default, which is what the
+   * one-click path still sends — choosing storage is an option here, never a step.
+   */
+  placement?: CatalogPlacementValue;
 }
 
 /**
@@ -29,6 +43,7 @@ export interface WorkspaceRequest {
  */
 @Component({
   selector: 'lh-first-run',
+  imports: [CatalogPlacementComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="first-run">
@@ -138,6 +153,11 @@ export interface WorkspaceRequest {
               (input)="catalog.set($any($event.target).value)"
             />
           </label>
+
+          <div class="field">
+            <span>Storage</span>
+            <lh-catalog-placement [tenantSlug]="slug()" [catalogName]="catalog()" />
+          </div>
 
           @if (error(); as message) {
             <div class="banner">
@@ -406,6 +426,8 @@ export class FirstRunComponent {
   protected readonly displayName = signal('');
   protected readonly catalog = signal('analytics');
 
+  private readonly placement = viewChild(CatalogPlacementComponent);
+
   protected submitToken(): void {
     const value = this.token().trim();
     if (value) {
@@ -421,6 +443,17 @@ export class FirstRunComponent {
       return;
     }
 
-    this.createWorkspace.emit({ slug, displayName: this.displayName().trim() || slug, catalog });
+    // Read at submit rather than tracked as it changes: the parent then cannot hold a copy of the
+    // form that the operator has since edited. An explicitly-empty placement is left off entirely
+    // so the default path sends the request it always did.
+    const placement = this.placement()?.value();
+    this.createWorkspace.emit({
+      slug,
+      displayName: this.displayName().trim() || slug,
+      catalog,
+      ...(placement?.dataPath || placement?.storageProfile || placement?.readOnly
+        ? { placement }
+        : {}),
+    });
   }
 }

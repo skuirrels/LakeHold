@@ -112,6 +112,11 @@
   }
 </section>
 
+@if (settings()) {
+  <lh-storage-configuration />
+  <lh-catalog-administration (created)="catalogCreated.emit()" />
+}
+
 <lh-member-administration />
 
 @if (settings()) {

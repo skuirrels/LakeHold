@@ -28,7 +28,11 @@ import {
   Schema,
   Snapshot,
   Subscription,
+  CatalogPlacementValue,
+  ResolveStoragePathRequest,
+  ResolvedStoragePath,
   SystemSettings,
+  SystemStorage,
   TabularImportRequest,
   TabularImportResult,
   TableDetail,
@@ -83,6 +87,28 @@ export class LakehouseService {
   saveSystemSettings(settings: UpdateSystemSettings): Observable<SystemSettings> {
     return this.http
       .put<SystemSettings>(`${API_BASE}/system-settings`, settings)
+      .pipe(catchError(toMessage));
+  }
+
+  /**
+   * Reads this node's storage placement. Instance-scoped and read-only: there is no companion save,
+   * because the values are bound at API startup and come from the deployment's configuration.
+   */
+  getSystemStorage(): Observable<SystemStorage> {
+    return this.http
+      .get<SystemStorage>(`${API_BASE}/system-settings/storage`)
+      .pipe(catchError(toMessage));
+  }
+
+  /**
+   * Asks the server where a catalog's Parquet would go.
+   *
+   * A POST that creates nothing. URI joining and profile-kind matching stay on the server so the
+   * preview cannot disagree with the create that follows it; the browser only displays the answer.
+   */
+  resolveStoragePath(request: ResolveStoragePathRequest): Observable<ResolvedStoragePath> {
+    return this.http
+      .post<ResolvedStoragePath>(`${API_BASE}/system-settings/storage/resolve`, request)
       .pipe(catchError(toMessage));
   }
 
@@ -394,10 +420,29 @@ export class LakehouseService {
     return this.http.post(`${API_BASE}/tenants`, { slug, displayName }).pipe(catchError(toMessage));
   }
 
-  /** Creates a catalog under a workspace. Instance scope, like the workspace itself. */
-  createCatalog(tenant: string, name: string): Observable<unknown> {
+  /**
+   * Creates a catalog under a workspace. Instance scope, like the workspace itself.
+   *
+   * `placement` is omitted for the deployment default, which sends exactly the body this method
+   * always sent. An explicit placement adds the fields `CreateCatalogRequest` has always accepted
+   * and the browser previously dropped.
+   */
+  createCatalog(
+    tenant: string,
+    name: string,
+    placement?: CatalogPlacementValue,
+  ): Observable<unknown> {
     return this.http
-      .post(`${API_BASE}/tenants/${encodeURIComponent(tenant)}/catalogs`, { name })
+      .post(`${API_BASE}/tenants/${encodeURIComponent(tenant)}/catalogs`, {
+        name,
+        ...(placement
+          ? {
+              dataPath: placement.dataPath,
+              storageProfile: placement.storageProfile,
+              readOnly: placement.readOnly,
+            }
+          : {}),
+      })
       .pipe(catchError(toMessage));
   }
 

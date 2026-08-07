@@ -146,6 +146,8 @@ Class | Method | HTTP request | Description
 *LakehouseAPI* | [**StreamQuery**](docs/LakehouseAPI.md#streamquery) | **Post** /api/v1/tenants/{tenantSlug}/catalogs/{catalogName}/query:stream | Streams a read-only SQL result as schema, row, and completion NDJSON records.
 *OperationsAPI* | [**GetOperation**](docs/OperationsAPI.md#getoperation) | **Get** /api/v1/operations/{id} | Returns one durable public API operation visible to the caller.
 *SystemSettingsAPI* | [**GetApiV1SystemSettings**](docs/SystemSettingsAPI.md#getapiv1systemsettings) | **Get** /api/v1/system-settings | Returns the instance-wide runtime settings.
+*SystemSettingsAPI* | [**GetApiV1SystemSettingsStorage**](docs/SystemSettingsAPI.md#getapiv1systemsettingsstorage) | **Get** /api/v1/system-settings/storage | Returns this node&#39;s Parquet storage placement and redacted profile inventory.
+*SystemSettingsAPI* | [**PostApiV1SystemSettingsStorageResolve**](docs/SystemSettingsAPI.md#postapiv1systemsettingsstorageresolve) | **Post** /api/v1/system-settings/storage/resolve | Resolves where a catalog&#39;s Parquet would go, without creating anything.
 *SystemSettingsAPI* | [**PutApiV1SystemSettings**](docs/SystemSettingsAPI.md#putapiv1systemsettings) | **Put** /api/v1/system-settings | Saves and immediately applies the instance-wide runtime settings.
 
 
@@ -213,6 +215,8 @@ Class | Method | HTTP request | Description
  - [QueryResponse](docs/QueryResponse.md)
  - [QueryRunDto](docs/QueryRunDto.md)
  - [RegisterCdcConsumerRequest](docs/RegisterCdcConsumerRequest.md)
+ - [ResolveStoragePathRequest](docs/ResolveStoragePathRequest.md)
+ - [ResolvedStoragePathDto](docs/ResolvedStoragePathDto.md)
  - [RestoreRequest](docs/RestoreRequest.md)
  - [RestoreTableRequest](docs/RestoreTableRequest.md)
  - [SavedQueryDto](docs/SavedQueryDto.md)
@@ -221,8 +225,10 @@ Class | Method | HTTP request | Description
  - [SchemaDto](docs/SchemaDto.md)
  - [SchemaTableDto](docs/SchemaTableDto.md)
  - [SnapshotDto](docs/SnapshotDto.md)
+ - [StorageProfileSummaryDto](docs/StorageProfileSummaryDto.md)
  - [SubscriptionDto](docs/SubscriptionDto.md)
  - [SystemSettingsDto](docs/SystemSettingsDto.md)
+ - [SystemStorageDto](docs/SystemStorageDto.md)
  - [TableDetailColumnDto](docs/TableDetailColumnDto.md)
  - [TableDetailDto](docs/TableDetailDto.md)
  - [TableFilesDto](docs/TableFilesDto.md)

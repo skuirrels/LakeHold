@@ -1,4 +1,52 @@
-<lh-panel-error [title]="errorTitle()" [message]="error()" />
+<lh-panel-error
+  [title]="configurationError() ? 'This node cannot reach the catalog\'s storage' : errorTitle()"
+  [message]="error()" />
+
+@if (configurationError()) {
+  <!-- Deployment configuration, not data. Pointing at the profile inventory is the actionable
+       step; the alternative is an operator hunting a broken catalog that is not broken. -->
+  <p class="config-help">
+    This is a storage-profile problem on this node, not a problem with the catalog. Compare the
+    profile below with the inventory in <strong>System Settings &rarr; Storage</strong>, then correct
+    the deployment's configuration and restart the API.
+  </p>
+}
+
+@if (placement(); as catalog) {
+  <dl class="placement">
+    <div>
+      <dt>Data path</dt>
+      <dd><code>{{ catalog.dataPath }}</code></dd>
+    </div>
+    <div>
+      <dt>Storage</dt>
+      <dd>{{ kindLabel() }}</dd>
+    </div>
+    <div>
+      <dt>Profile</dt>
+      <dd>
+        @if (catalog.storageProfile; as profile) {
+          <code>{{ profile }}</code>
+        } @else {
+          <span class="muted">None &mdash; a local path needs no credential</span>
+        }
+      </dd>
+    </div>
+    <div>
+      <dt>Attachment</dt>
+      <dd>{{ catalog.isReadOnly ? 'Read-only' : 'Read-write' }}</dd>
+    </div>
+  </dl>
+
+  <p class="placement-note">
+    Placement cannot be edited in place. Moving a catalog is a migration that has to preserve
+    DuckLake metadata, inlined rows, deletes, updates, and history &mdash; see
+    <a
+      href="https://github.com/skuirrels/LakeHold/blob/main/docs/POSTGRES-AND-STORAGE.md"
+      target="_blank"
+      rel="noopener">PostgreSQL and Parquet storage</a>.
+  </p>
+}
 
 @if (error() && !storage()) {
   <!-- The error banner above is the complete state; an unread catalog is not an empty catalog. -->

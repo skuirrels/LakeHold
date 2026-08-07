@@ -171,12 +171,16 @@ describe('TokenAdministrationComponent', () => {
       {
         slug: 'alpha',
         displayName: 'Alpha',
-        catalogs: [{ name: 'a', dataPath: '/a', isReadOnly: false }],
+        catalogs: [
+          { name: 'a', dataPath: '/a', isReadOnly: false, storageKind: 'Local', storageProfile: null },
+        ],
       },
       {
         slug: 'beta',
         displayName: 'Beta',
-        catalogs: [{ name: 'b', dataPath: '/b', isReadOnly: false }],
+        catalogs: [
+          { name: 'b', dataPath: '/b', isReadOnly: false, storageKind: 'Local', storageProfile: null },
+        ],
       },
     ];
     await mount();

@@ -21923,6 +21923,588 @@
           }
         ]
       }
+    },
+    "/api/v1/system-settings/storage": {
+      "get": {
+        "tags": [
+          "System settings"
+        ],
+        "summary": "Returns this node's Parquet storage placement and redacted profile inventory.",
+        "operationId": "get_api_v1_system_settings_storage",
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server correlation identifier for support and diagnostics.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicApiProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server correlation identifier for support and diagnostics.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicApiProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server correlation identifier for support and diagnostics.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicApiProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server correlation identifier for support and diagnostics.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicApiProblemDetails"
+                }
+              }
+            }
+          },
+          "408": {
+            "description": "Request Timeout",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server correlation identifier for support and diagnostics.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicApiProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server correlation identifier for support and diagnostics.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicApiProblemDetails"
+                }
+              }
+            }
+          },
+          "412": {
+            "description": "Precondition Failed",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server correlation identifier for support and diagnostics.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicApiProblemDetails"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Payload Too Large",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server correlation identifier for support and diagnostics.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicApiProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server correlation identifier for support and diagnostics.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicApiProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server correlation identifier for support and diagnostics.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicApiProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server correlation identifier for support and diagnostics.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicApiProblemDetails"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Bad Gateway",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server correlation identifier for support and diagnostics.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicApiProblemDetails"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server correlation identifier for support and diagnostics.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicApiProblemDetails"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway Timeout",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server correlation identifier for support and diagnostics.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicApiProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server correlation identifier for support and diagnostics.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SystemStorageDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": [ ]
+          }
+        ]
+      }
+    },
+    "/api/v1/system-settings/storage/resolve": {
+      "post": {
+        "tags": [
+          "System settings"
+        ],
+        "summary": "Resolves where a catalog's Parquet would go, without creating anything.",
+        "operationId": "post_api_v1_system_settings_storage_resolve",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResolveStoragePathRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server correlation identifier for support and diagnostics.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicApiProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server correlation identifier for support and diagnostics.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicApiProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server correlation identifier for support and diagnostics.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicApiProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server correlation identifier for support and diagnostics.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicApiProblemDetails"
+                }
+              }
+            }
+          },
+          "408": {
+            "description": "Request Timeout",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server correlation identifier for support and diagnostics.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicApiProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server correlation identifier for support and diagnostics.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicApiProblemDetails"
+                }
+              }
+            }
+          },
+          "412": {
+            "description": "Precondition Failed",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server correlation identifier for support and diagnostics.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicApiProblemDetails"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Payload Too Large",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server correlation identifier for support and diagnostics.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicApiProblemDetails"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server correlation identifier for support and diagnostics.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicApiProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server correlation identifier for support and diagnostics.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicApiProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server correlation identifier for support and diagnostics.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicApiProblemDetails"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Bad Gateway",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server correlation identifier for support and diagnostics.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicApiProblemDetails"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server correlation identifier for support and diagnostics.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicApiProblemDetails"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "Gateway Timeout",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server correlation identifier for support and diagnostics.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicApiProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server correlation identifier for support and diagnostics.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResolvedStoragePathDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": [ ]
+          }
+        ]
+      }
     }
   },
   "components": {
@@ -24240,6 +24822,59 @@
           }
         }
       },
+      "ResolveStoragePathRequest": {
+        "required": [
+          "tenantSlug",
+          "catalogName"
+        ],
+        "type": "object",
+        "properties": {
+          "tenantSlug": {
+            "type": "string"
+          },
+          "catalogName": {
+            "type": "string"
+          },
+          "dataPath": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "storageProfile": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "ResolvedStoragePathDto": {
+        "required": [
+          "dataPath",
+          "kind",
+          "storageProfile",
+          "derived"
+        ],
+        "type": "object",
+        "properties": {
+          "dataPath": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "storageProfile": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "derived": {
+            "type": "boolean"
+          }
+        }
+      },
       "RestoreRequest": {
         "required": [
           "generation",
@@ -24512,6 +25147,54 @@
           }
         }
       },
+      "StorageProfileSummaryDto": {
+        "required": [
+          "name",
+          "kind",
+          "region",
+          "endpoint",
+          "useSsl",
+          "urlStyle",
+          "credentialsConfigured",
+          "azureAuthentication"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "region": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "endpoint": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "useSsl": {
+            "type": "boolean"
+          },
+          "urlStyle": {
+            "type": "string"
+          },
+          "credentialsConfigured": {
+            "type": "boolean"
+          },
+          "azureAuthentication": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
       "SubscriptionDto": {
         "required": [
           "id",
@@ -24615,6 +25298,43 @@
               "string"
             ],
             "format": "date-time"
+          }
+        }
+      },
+      "SystemStorageDto": {
+        "required": [
+          "dataRoot",
+          "backupRoot",
+          "ejectRoot",
+          "defaultStorageProfile",
+          "profiles",
+          "requiresRestartToChange"
+        ],
+        "type": "object",
+        "properties": {
+          "dataRoot": {
+            "type": "string"
+          },
+          "backupRoot": {
+            "type": "string"
+          },
+          "ejectRoot": {
+            "type": "string"
+          },
+          "defaultStorageProfile": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "profiles": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StorageProfileSummaryDto"
+            }
+          },
+          "requiresRestartToChange": {
+            "type": "boolean"
           }
         }
       },

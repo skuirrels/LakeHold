@@ -76,6 +76,8 @@ from lakehold_sdk.models.query_language_starter import QueryLanguageStarter
 from lakehold_sdk.models.query_response import QueryResponse
 from lakehold_sdk.models.query_run_dto import QueryRunDto
 from lakehold_sdk.models.register_cdc_consumer_request import RegisterCdcConsumerRequest
+from lakehold_sdk.models.resolve_storage_path_request import ResolveStoragePathRequest
+from lakehold_sdk.models.resolved_storage_path_dto import ResolvedStoragePathDto
 from lakehold_sdk.models.restore_request import RestoreRequest
 from lakehold_sdk.models.restore_table_request import RestoreTableRequest
 from lakehold_sdk.models.saved_query_dto import SavedQueryDto
@@ -84,8 +86,10 @@ from lakehold_sdk.models.schema_column_dto import SchemaColumnDto
 from lakehold_sdk.models.schema_dto import SchemaDto
 from lakehold_sdk.models.schema_table_dto import SchemaTableDto
 from lakehold_sdk.models.snapshot_dto import SnapshotDto
+from lakehold_sdk.models.storage_profile_summary_dto import StorageProfileSummaryDto
 from lakehold_sdk.models.subscription_dto import SubscriptionDto
 from lakehold_sdk.models.system_settings_dto import SystemSettingsDto
+from lakehold_sdk.models.system_storage_dto import SystemStorageDto
 from lakehold_sdk.models.table_detail_column_dto import TableDetailColumnDto
 from lakehold_sdk.models.table_detail_dto import TableDetailDto
 from lakehold_sdk.models.table_files_dto import TableFilesDto

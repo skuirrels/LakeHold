@@ -1,0 +1,185 @@
+<section class="panel">
+  <header>
+    <h2>Storage</h2>
+    <p>
+      Where this node writes DuckLake Parquet, and which profiles it can authenticate with. Set by
+      the deployment, so these values are shown rather than edited.
+    </p>
+  </header>
+
+  @if (loading()) {
+    <p class="muted">Loading storage configuration…</p>
+  } @else if (!storage() && error(); as message) {
+    <div class="load-error">
+      <p class="error" role="alert">{{ message }}</p>
+      <button class="retry" type="button" (click)="load()">Retry</button>
+    </div>
+  } @else if (storage(); as current) {
+    <dl class="roots">
+      <div>
+        <dt>Default data root</dt>
+        <dd>
+          <code>{{ current.dataRoot }}</code>
+        </dd>
+      </div>
+      <div>
+        <dt>Backup root</dt>
+        <dd>
+          <code>{{ current.backupRoot }}</code>
+        </dd>
+      </div>
+      <div>
+        <dt>Eject root</dt>
+        <dd>
+          <code>{{ current.ejectRoot }}</code>
+        </dd>
+      </div>
+      <div>
+        <dt>Default profile</dt>
+        <dd>
+          @if (current.defaultStorageProfile; as name) {
+            <code>{{ name }}</code>
+          } @else {
+            <span class="muted">None. A remote data path must name its profile explicitly.</span>
+          }
+        </dd>
+      </div>
+    </dl>
+
+    <p class="note">
+      A catalog's location is tenant-qualified beneath these roots —
+      <code>&lt;root&gt;/&lt;tenant&gt;/&lt;catalog&gt;/</code>. Backup and eject roots are siblings
+      of the data root, never inside it, because DuckLake's orphan cleanup would eventually delete a
+      backup nested under the data path.
+    </p>
+
+    @if (unknownDefaultProfile()) {
+      <p class="warning" role="alert">
+        The default profile <code>{{ current.defaultStorageProfile }}</code> is not configured on
+        this node. Catalogs created against the default will fail to attach until the deployment's
+        configuration and this node agree.
+      </p>
+    }
+
+    <h3>Profiles</h3>
+    @if (current.profiles.length === 0) {
+      <p class="muted">
+        No storage profiles are configured. This node can use local paths only; a bucket or
+        container needs a profile in the deployment's configuration.
+      </p>
+    } @else {
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">Name</th>
+              <th scope="col">Kind</th>
+              <th scope="col">Endpoint</th>
+              <th scope="col">Region</th>
+              <th scope="col">TLS</th>
+              <th scope="col">URL style</th>
+              <th scope="col">Credentials</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (profile of current.profiles; track profile.name) {
+              <tr>
+                <th scope="row">
+                  <code>{{ profile.name }}</code>
+                </th>
+                <td>{{ kindLabel(profile.kind) }}</td>
+                <td>
+                  @if (profile.endpoint) {
+                    <code>{{ profile.endpoint }}</code>
+                  } @else {
+                    <span class="muted">Provider default</span>
+                  }
+                </td>
+                <td>
+                  @if (profile.region) {
+                    {{ profile.region }}
+                  } @else {
+                    <span class="muted">—</span>
+                  }
+                </td>
+                <td>{{ profile.kind === 'Local' ? '—' : profile.useSsl ? 'On' : 'Off' }}</td>
+                <td>
+                  {{
+                    profile.kind === 'Local' || profile.kind === 'Azure' ? '—' : profile.urlStyle
+                  }}
+                </td>
+                <td [class.missing]="!profile.credentialsConfigured && profile.kind !== 'Local'">
+                  {{ credentialState(profile) }}
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      @if (incomplete().length > 0) {
+        <p class="warning" role="alert">
+          @if (incomplete().length === 1) {
+            Profile <code>{{ incomplete()[0].name }}</code> is missing the settings it needs to
+            authenticate. A catalog using it will fail when it attaches.
+          } @else {
+            {{ incomplete().length }} profiles are missing the settings they need to authenticate. A
+            catalog using one will fail when it attaches.
+          }
+        </p>
+      }
+    }
+
+    <div class="source">
+      <div>
+        <strong>Configuration source</strong>
+        <span>Deployment environment</span>
+      </div>
+      @if (current.requiresRestartToChange) {
+        <p>
+          These settings are read once when the API starts. Changing them means changing the
+          deployment's environment or secret store and restarting the API — there is nothing to save
+          here.
+        </p>
+      }
+    </div>
+
+    <details class="help">
+      <summary>Deployment settings by provider</summary>
+      <p>
+        Placement is not a secret and belongs in <code>appsettings*.json</code> or a Compose
+        override; credentials belong in the deployment's secret store. LakeHold never creates a
+        bucket or container — provision those with your cloud provider first.
+      </p>
+
+      @for (provider of providerHelp; track provider.kind) {
+        <article>
+          <div class="help-heading">
+            <h4>{{ provider.title }}</h4>
+            <button type="button" (click)="copy(provider.settings)">Copy</button>
+          </div>
+          <p>{{ provider.note }}</p>
+          <pre><code>{{ provider.settings }}</code></pre>
+        </article>
+      }
+
+      @if (copyStatus(); as message) {
+        <p class="copy-status" role="status">{{ message }}</p>
+      }
+
+      <p>
+        Full reference:
+        <a
+          href="https://github.com/skuirrels/LakeHold/blob/main/docs/POSTGRES-AND-STORAGE.md"
+          target="_blank"
+          rel="noopener"
+          >PostgreSQL and Parquet storage</a
+        >.
+      </p>
+    </details>
+
+    @if (error(); as message) {
+      <p class="error" role="alert">{{ message }}</p>
+    }
+  }
+</section>

@@ -153,7 +153,7 @@
           [attr.aria-hidden]="navigationOverlayOpen() ? 'true' : null"
           [attr.inert]="navigationOverlayOpen() ? '' : null"
         >
-          <lh-system-settings />
+          <lh-system-settings (catalogCreated)="refreshWorkspaces()" />
         </main>
       } @else {
         <aside
@@ -523,6 +523,7 @@
                   <lh-storage-panel
                     [tenant]="tenantSlug()"
                     [catalog]="catalogName()"
+                    [placement]="selectedCatalog()"
                     [inspect]="inspectedTable()"
                   />
                 }

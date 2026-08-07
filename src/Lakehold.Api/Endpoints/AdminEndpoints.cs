@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Lakehold.Api.Auth;
+using Lakehold.Api.Storage;
 using Lakehold.ControlPlane.Data;
 using Lakehold.ControlPlane.Model;
 using Lakehold.ControlPlane.Security;
@@ -174,41 +175,21 @@ public static partial class AdminEndpoints
             return TypedResults.Conflict($"Catalog '{request.Name}' already exists for tenant '{tenantSlug}'.");
         }
 
-        var lakehouseOptions = options.Value;
-        var dataPath = string.IsNullOrWhiteSpace(request.DataPath)
-            ? CatalogStorageNamespace.Under(lakehouseOptions.DataRoot, tenantSlug, request.Name)
-            : request.DataPath;
-        var storageKind = StorageLocation.KindOf(dataPath);
-        if (storageKind is null)
+        // Shared with the storage-resolve preview, so the path this creates is the path the browser
+        // was shown. See CatalogPlacement for why the two database checks stay here instead.
+        if (!CatalogPlacement.TryResolve(
+                options.Value,
+                tenantSlug,
+                request.Name,
+                request.DataPath,
+                request.StorageProfile,
+                out var placement,
+                out var placementError))
         {
-            return TypedResults.BadRequest(
-                "DataPath must be a local path or use s3://, gs://, gcs://, az://, azure://, or abfss://.");
+            return TypedResults.BadRequest(placementError);
         }
 
-        var storageProfile = request.StorageProfile ?? lakehouseOptions.DefaultStorageProfile;
-        if (storageKind != ParquetStorageKind.Local)
-        {
-            if (string.IsNullOrWhiteSpace(storageProfile))
-            {
-                return TypedResults.BadRequest(
-                    $"A storage profile is required for {storageKind} Parquet storage.");
-            }
-
-            if (!lakehouseOptions.StorageProfiles.TryGetValue(storageProfile, out var profile))
-            {
-                return TypedResults.BadRequest($"Storage profile '{storageProfile}' is not configured.");
-            }
-
-            if (profile.Kind != storageKind)
-            {
-                return TypedResults.BadRequest(
-                    $"Storage profile '{storageProfile}' is {profile.Kind}, but DataPath requires {storageKind}.");
-            }
-        }
-        else if (!string.IsNullOrWhiteSpace(storageProfile))
-        {
-            return TypedResults.BadRequest("A local DataPath must not select an object-storage profile.");
-        }
+        var (dataPath, storageKind, storageProfile, _) = placement;
 
         if (await context.Catalogs
                 .AnyAsync(c => c.DataPath == dataPath, cancellationToken)
@@ -243,7 +224,7 @@ public static partial class AdminEndpoints
             MetadataSchema = metadataSchema,
             MetadataSecretName = metadataSecretName,
             DataPath = dataPath,
-            StorageKind = storageKind.Value,
+            StorageKind = storageKind,
             StorageProfile = storageProfile,
             StorageSecretName = storageSecretName,
             ConfigurationVersion = 1,
