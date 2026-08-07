@@ -49,6 +49,12 @@ perl -ni -e 'print unless /# TODO/' "${temporary}/python/pyproject.toml"
 # NotImplementedException. Remove that false contract claim from every generated model.
 find "${temporary}/dotnet/src/Lakehold.Sdk/Model" -type f -name '*.cs' \
     -exec perl -ni -e 'print unless /<exception cref="NotImplementedException"><\/exception>/' {} \;
+# Optional non-nullable properties use the generator's Option<T> constructor parameter. The default
+# System.Text.Json constructor binder cannot match that parameter to the nullable public property,
+# while the generated converter already preserves absent-versus-null semantics correctly. Attach it
+# to this additive access model so direct JsonSerializer callers and the configured SDK behave alike.
+perl -0pi -e 's/(    public partial class AccessDto : IValidatableObject)/    [JsonConverter(typeof(AccessDtoJsonConverter))]\n$1/' \
+    "${temporary}/dotnet/src/Lakehold.Sdk/Model/AccessDto.cs"
 # The generator's OrDefault helpers catch every exception, including caller cancellation. Preserve
 # their documented null-on-failure convenience without turning cancellation into a false null result.
 find "${temporary}/dotnet/src/Lakehold.Sdk/Api" -type f -name '*.cs' \
@@ -101,6 +107,8 @@ grep -Fq 'loggingInterceptor.redactHeader("Authorization");' "${temporary}/java/
 grep -Fq 'loggingInterceptor.setLevel(Level.HEADERS);' "${temporary}/java/src/main/java/io/lakehold/sdk/ApiClient.java"
 grep -Fq 'token: <redacted>' "${temporary}/java/src/main/java/io/lakehold/sdk/model/CreatedTokenDto.java"
 grep -Fq 'Token: <redacted>' "${temporary}/dotnet/src/Lakehold.Sdk/Model/CreatedTokenDto.cs"
+grep -Fq '[JsonConverter(typeof(AccessDtoJsonConverter))]' \
+    "${temporary}/dotnet/src/Lakehold.Sdk/Model/AccessDto.cs"
 dotnet_default_catches="$(perl -0ne \
     '$count += () = /catch \(Exception\)\s*\{\s*return null;/g; END { print $count // 0 }' \
     "${temporary}/dotnet/src/Lakehold.Sdk/Api/"*.cs)"

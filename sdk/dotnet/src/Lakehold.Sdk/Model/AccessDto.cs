@@ -28,6 +28,7 @@ namespace Lakehold.Sdk.Model
     /// <summary>
     /// AccessDto
     /// </summary>
+    [JsonConverter(typeof(AccessDtoJsonConverter))]
     public partial class AccessDto : IValidatableObject
     {
         /// <summary>
