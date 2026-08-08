@@ -86,9 +86,24 @@ services:
     networks:
       kafka-avro-net:
         ipv4_address: 172.31.240.14
+  # Publishes the topic's first record as a tombstone — a null value, which is what a keyed topic
+  # writes for a delete. It must land at offset 0, before the Avro record, or a bounded read would
+  # stop on its row budget without ever reaching it. Plain console producer, not the Avro one: a
+  # tombstone carries no payload to serialise, which is precisely the case under test.
+  tombstone-producer:
+    image: confluentinc/cp-kafka:7.7.1
+    depends_on: { kafka: { condition: service_healthy } }
+    entrypoint: []
+    command: ["/bin/sh", "-ec", "echo 'Publishing fixture tombstone'; echo 'lifecycle-1:NULL' | kafka-console-producer --bootstrap-server kafka:9092 --topic lakehold-avro-proxy-test --property parse.key=true --property key.separator=: --property null.marker=NULL; echo 'Fixture tombstone published'"]
+    restart: "no"
+    networks:
+      kafka-avro-net:
+        ipv4_address: 172.31.240.17
   avro-producer:
     image: confluentinc/cp-schema-registry:7.7.1
-    depends_on: { schema-registry: { condition: service_started } }
+    depends_on:
+      schema-registry: { condition: service_started }
+      tombstone-producer: { condition: service_completed_successfully }
     entrypoint: []
     command: ["/bin/sh", "-ec", "echo 'Publishing fixture Avro lifecycle record'; echo '{\"id\":1,\"state\":\"accepted\"}' | kafka-avro-console-producer --bootstrap-server kafka:9092 --topic lakehold-avro-proxy-test --property value.schema='{\"type\":\"record\",\"name\":\"Lifecycle\",\"fields\":[{\"name\":\"id\",\"type\":\"long\"},{\"name\":\"state\",\"type\":\"string\"}]}' --property schema.registry.url=http://schema-registry:8081 --property basic.auth.credentials.source=USER_INFO --property basic.auth.user.info=lakehold-fixture:lakehold-fixture-password; echo 'Fixture Avro lifecycle record published'"]
     restart: "no"

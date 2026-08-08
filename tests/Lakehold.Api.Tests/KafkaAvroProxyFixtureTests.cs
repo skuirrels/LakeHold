@@ -22,14 +22,56 @@ public sealed class KafkaAvroProxyFixtureTests
     [SkippableFact]
     public async Task Kafka_avro_source_reads_registry_backed_records_only_through_the_required_gateways()
     {
-        Skip.If(
-            !string.Equals(Environment.GetEnvironmentVariable("LAKEHOLD_KAFKA_FIXTURE_RUNNING"), "1", StringComparison.Ordinal),
-            "Kafka Avro protocol evidence runs in the Linux Compose fixture; use scripts/test-kafka-avro-proxy.sh.");
+        SkipUnlessFixtureIsRunning();
 
-        await ReadExistingFixtureAsync("172.31.240.13", 1080, "172.31.240.14", 8888, "/fixture-certs/ca.pem");
+        var (_, writer) = await ReadExistingFixtureAsync(pageSize: 1);
+
+        Assert.True(writer.Rows == 1, $"Expected one decoded record, found {writer.Rows}.");
+        Assert.Contains("\"state\":\"accepted\"", writer.RowsJson.Single(), StringComparison.Ordinal);
     }
 
-    private static async Task ReadExistingFixtureAsync(string socksHost, int socksPort, string proxyHost, int proxyPort, string ca)
+    /// <summary>
+    /// The fixture topic opens with a tombstone at offset 0 and carries the Avro record at offset 1.
+    /// </summary>
+    /// <remarks>
+    /// A tombstone has no payload to stage, and this adapter does not represent source deletions —
+    /// but it must still be *passed*. Staging it as a literal `null` fails the connector's own key
+    /// and not-null gates, which fails the batch, which commits no offset, so the next run re-reads
+    /// the same record and fails identically. That is a connector that never moves again, and it is
+    /// only reachable against a real broker, which is why the proof lives here rather than in a unit
+    /// test.
+    /// </remarks>
+    [SkippableFact]
+    public async Task A_tombstone_is_skipped_and_its_offset_is_still_passed()
+    {
+        SkipUnlessFixtureIsRunning();
+
+        // A row budget of one is the discriminating case: if the tombstone were staged it would
+        // consume that budget, and the read would end having produced an unusable row and never
+        // reached the record behind it.
+        var (result, writer) = await ReadExistingFixtureAsync(pageSize: 1);
+
+        // One row, and it is the record rather than the tombstone. Unfixed, this is the tombstone
+        // staged as the literal `null`, and the record behind it is never read at all.
+        var row = Assert.Single(writer.RowsJson);
+        Assert.Contains("\"state\":\"accepted\"", row, StringComparison.Ordinal);
+
+        // Offset 0 was the tombstone and offset 1 the record, so the next offset is 2. Anything less
+        // means the batch would replay a record it has already dealt with.
+        Assert.Equal("lakehold-avro-proxy-test:0:2", result.ProposedCheckpoint);
+    }
+
+    private static void SkipUnlessFixtureIsRunning() => Skip.If(
+        !string.Equals(Environment.GetEnvironmentVariable("LAKEHOLD_KAFKA_FIXTURE_RUNNING"), "1", StringComparison.Ordinal),
+        "Kafka Avro protocol evidence runs in the Linux Compose fixture; use scripts/test-kafka-avro-proxy.sh.");
+
+    private static async Task<(ConnectorSourceResult Result, CapturingWriter Writer)> ReadExistingFixtureAsync(
+        int pageSize,
+        string socksHost = "172.31.240.13",
+        int socksPort = 1080,
+        string proxyHost = "172.31.240.14",
+        int proxyPort = 8888,
+        string ca = "/fixture-certs/ca.pem")
     {
         Assert.True(File.Exists(ca), "The Linux fixture CA is not installed.");
         await using var kafkaGateway = await SocksTcpGateway.StartAsync(socksHost, socksPort, new IPEndPoint(IPAddress.Parse("172.31.240.10"), 19092));
@@ -39,12 +81,13 @@ public sealed class KafkaAvroProxyFixtureTests
         try
         {
             var options = Options.Create(new ConnectorOptions { AllowUnsafeDestinations = true, RequestTimeout = TimeSpan.FromSeconds(15), KafkaEgressGateway = new KafkaEgressGatewayOptions { PolicyName = "fixture", KafkaBootstrapGateway = "127.0.0.1:19092", SchemaRegistryHttpProxy = $"http://{proxyHost}:{proxyPort}", SchemaRegistryCaCertificatePath = ca }, SecretBindings = [new() { TenantSlug = "fixture", CatalogName = "fixture", Reference = $"env://{username}", DestinationHost = "172.31.240.12" }, new() { TenantSlug = "fixture", CatalogName = "fixture", Reference = $"env://{password}", DestinationHost = "172.31.240.12" }] });
-            var connector = DataConnector.Create(1, 1, new DataConnectorDefinition("avro", null, "fixture@example.test", [], DataConnectorKind.KafkaAvro, "https://172.31.240.12:8443", null, RestResponseFormat.JsonArray, "main", "lifecycle", 1, ["id"], ["id"], false, null, new DataConnectorPlatformDefinition("lakehold.kafka-avro", 1, DataConnectorReadMode.Incremental, DataConnectorSchemaPolicy.Reject, ["id"], [], new DataConnectorSourceSettings(PageSize: 1, KafkaBootstrapServers: "172.31.240.10:9092", KafkaTopic: "lakehold-avro-proxy-test", KafkaConsumerGroup: "lakehold-fixture-" + Guid.NewGuid().ToString("N"), SchemaRegistryUrl: "https://172.31.240.12:8443"), new DataConnectorAuthentication(DataConnectorAuthenticationKind.None, SchemaRegistryUsernameSecretReference: $"env://{username}", SchemaRegistryPasswordSecretReference: $"env://{password}"))), DateTimeOffset.UtcNow);
+            // A fresh consumer group per read, so each test starts from the beginning of the topic
+            // rather than from what another test committed.
+            var connector = DataConnector.Create(1, 1, new DataConnectorDefinition("avro", null, "fixture@example.test", [], DataConnectorKind.KafkaAvro, "https://172.31.240.12:8443", null, RestResponseFormat.JsonArray, "main", "lifecycle", 1, ["id"], ["id"], false, null, new DataConnectorPlatformDefinition("lakehold.kafka-avro", 1, DataConnectorReadMode.Incremental, DataConnectorSchemaPolicy.Reject, ["id"], [], new DataConnectorSourceSettings(PageSize: pageSize, KafkaBootstrapServers: "172.31.240.10:9092", KafkaTopic: "lakehold-avro-proxy-test", KafkaConsumerGroup: "lakehold-fixture-" + Guid.NewGuid().ToString("N"), SchemaRegistryUrl: "https://172.31.240.12:8443"), new DataConnectorAuthentication(DataConnectorAuthenticationKind.None, SchemaRegistryUsernameSecretReference: $"env://{username}", SchemaRegistryPasswordSecretReference: $"env://{password}"))), DateTimeOffset.UtcNow);
             var source = new KafkaAvroDataConnectorSource(new ConnectorSecretResolver([new EnvironmentConnectorSecretProvider()], options), options); var writer = new CapturingWriter();
-            await source.ReadAsync(new ConnectorReadContext(connector, null, "fixture", "fixture"), writer, default);
-            Assert.True(writer.Rows == 1, $"Expected one decoded record, found {writer.Rows}.");
-            Assert.Contains("\"state\":\"accepted\"", writer.RowsJson.Single(), StringComparison.Ordinal);
+            var result = await source.ReadAsync(new ConnectorReadContext(connector, null, "fixture", "fixture"), writer, default);
             await ((IConnectorPostPublicationAcknowledger)source).AcknowledgePublishedAsync(default);
+            return (result, writer);
         }
         finally { Environment.SetEnvironmentVariable(username, null); Environment.SetEnvironmentVariable(password, null); }
     }

@@ -61,7 +61,8 @@ and LakeHold follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **A Kafka tombstone stopped a connector permanently.** A null-valued record was staged as a literal
   `null`, which fails an incremental connector's own key and not-null gates; the batch failed, so no
   offset was committed, so the next run read the same record and failed the same way. Tombstones now
-  advance the offset without staging a row.
+  advance the offset without staging a row, proven against a real broker: the fixture topic opens
+  with a tombstone, and a one-row read has to pass it and still return the record behind it.
 - **A broker that went away could replace a run's real outcome.** Releasing the consumer happened in
   a `finally` with nothing catching it, and closing a Kafka consumer talks to the broker — so in the
   case that most often caused the failure, tearing down threw over the top of the failure that had

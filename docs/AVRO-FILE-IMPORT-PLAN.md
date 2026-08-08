@@ -132,6 +132,11 @@ Cover:
   `scripts/test-kafka-avro-proxy.sh` and CI, because the registry leg is TLS against a fixture CA
   that exists only in the container's trust store. There is deliberately no host-side fallback: one
   that skipped the TLS leg would report the same green tick for strictly less evidence.
+- Tombstone handling, in the same fixture: the topic opens with a null-valued record at offset 0, so
+  a bounded read has to pass it and still return the Avro record behind it, with the checkpoint
+  advanced past both. It is a fixture case rather than a unit test because only a real broker
+  produces a tombstone, and the failure it guards — a connector that fails the same record on every
+  replay and never moves again — is invisible until one arrives.
 
 ## Acceptance criteria
 
