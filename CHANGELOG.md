@@ -42,6 +42,13 @@ A presentation release. LakeHold can be read on a light screen.
   opacity, which against a near-black surface still reads as a control that is present but inert, and
   against white took a brand-yellow button's label down to roughly 2.3:1. Under the light palette
   disabled controls now state that look rather than fading into it. The dark treatment is unchanged.
+- **An MCP client could not connect to the development stack.** The dev-server proxy forwarded only
+  the one discovery document LakeHold publishes, so a client's remaining RFC 8414 and OIDC probes
+  fell through to the Angular router and were answered with `index.html`. The client failed on
+  `Unrecognized token '<'` and never reached the authorization server it had already been told
+  about. The whole `/.well-known` prefix now goes to the API, which answers the unpublished paths
+  with the 404 that means "read the issuer instead". Development only; production serves the API and
+  the website through nginx and was never affected.
 
 ## [2.1.0] - 2026-08-08
 
