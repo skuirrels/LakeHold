@@ -144,7 +144,7 @@ public sealed class McpServerTests : IAsyncLifetime
         var names = (await client.ListToolsAsync()).Select(t => t.Name).OrderBy(n => n).ToArray();
 
         Assert.Equal(
-            ["describe_schema", "get_snapshot", "list_changes", "list_snapshots", "list_tenants", "query", "query_snapshot"],
+            ["create_connector", "describe_schema", "get_connector", "get_snapshot", "list_changes", "list_connector_dead_letters", "list_connector_runs", "list_connectors", "list_snapshots", "list_tenants", "pause_connector", "query", "query_snapshot", "resume_connector", "retire_connector", "retry_connector", "run_connector", "update_connector", "validate_connector"],
             names);
     }
 

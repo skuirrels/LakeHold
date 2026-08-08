@@ -1,13 +1,9 @@
-using Lakehold.ControlPlane.Data;
-using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
 namespace Lakehold.ControlPlane.Data.Migrations;
 
-[DbContext(typeof(ControlPlaneContext))]
-[Migration("20260808123000_AddConnectorSourceAcknowledgementRecovery")]
 public partial class AddConnectorSourceAcknowledgementRecovery : Migration
 {
     protected override void Up(MigrationBuilder migrationBuilder)
