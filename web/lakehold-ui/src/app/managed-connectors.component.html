@@ -296,7 +296,7 @@
           <tbody>
             @for (connector of connectors(); track connector.id) {
               <tr>
-                <td>
+                <td class="name-cell">
                   <button class="link-button" type="button" (click)="inspect(connector)">
                     {{ connector.name }}
                   </button>
@@ -308,7 +308,7 @@
                   }}</span>
                 </td>
                 <td class="target">{{ connector.targetSchema }}.{{ connector.targetTable }}</td>
-                <td>
+                <td class="health-cell">
                   <span
                     class="state"
                     [class.state-ready]="health(connector) === 'ready'"
@@ -319,7 +319,7 @@
                     <span class="state-detail">{{ detail }}</span>
                   }
                 </td>
-                <td>
+                <td class="actions-cell">
                   <div class="row-actions">
                     <button
                       class="btn btn-sm"
@@ -374,7 +374,7 @@
         }
       </dl>
 
-      <div class="section">
+      <div class="section subhead">
         <h3>Run history</h3>
       </div>
       @if (diagnosticsLoading()) {
@@ -406,7 +406,7 @@
         </div>
       }
 
-      <div class="section">
+      <div class="section subhead">
         <h3>Dead letters</h3>
       </div>
       @if (deadLetters().length === 0) {

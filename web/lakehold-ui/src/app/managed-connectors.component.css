@@ -6,11 +6,24 @@
    grouping, so each concern is a bordered section inside one panel and every control is a stacked
    `.field` rather than a label wrapped inline around its input. */
 
+/* Wider than the 880px the other administration pages use. Those are forms read a field at a time;
+   this page is a five-column table whose last column carries six controls, and at 880px the name
+   wrapped, the endpoint broke mid-word, and the actions fell onto a second row. */
+.admin-page {
+  width: min(1160px, calc(100% - 48px));
+}
+
 .toolbar {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
   margin-bottom: 20px;
+}
+
+/* The editor stays at reading width inside the wider page — a form stretched to 1160px puts a
+   label and its input a screen apart. */
+.panel.editor {
+  max-width: 880px;
 }
 
 .panel {
@@ -46,6 +59,12 @@ code {
 .section {
   padding: 18px 22px;
   border-bottom: 1px solid var(--border);
+}
+
+/* A section that carries only a heading is a label for what follows, not a band of its own. */
+.section.subhead {
+  padding-bottom: 0;
+  border-bottom: 0;
 }
 
 .section h3 {
@@ -133,7 +152,7 @@ code {
 }
 
 .connectors th {
-  padding: 10px 22px;
+  padding: 10px 16px;
   font-size: 11px;
   font-weight: 600;
   text-align: left;
@@ -144,9 +163,31 @@ code {
 }
 
 .connectors td {
-  padding: 12px 22px;
+  padding: 12px 16px;
   vertical-align: top;
   border-bottom: 1px solid var(--border);
+}
+
+.connectors th:first-child,
+.connectors td:first-child {
+  padding-left: 22px;
+}
+
+.connectors th:last-child,
+.connectors td:last-child {
+  padding-right: 22px;
+}
+
+/* The endpoint is the only cell allowed to take the slack, so the identifying columns keep their
+   names on one line and the actions keep their row. */
+.connectors .name-cell,
+.connectors .target,
+.connectors .health-cell {
+  white-space: nowrap;
+}
+
+.connectors .actions-cell {
+  white-space: nowrap;
 }
 
 .connectors tr:last-child td {
@@ -167,10 +208,10 @@ code {
   font-size: 12px;
 }
 
-/* Six controls per row wrap rather than forcing the table wider than the page. */
+/* One line. The column sizes to these six controls and the endpoint column takes what is left;
+   below the breakpoint the whole table scrolls instead. */
 .row-actions {
   display: flex;
-  flex-wrap: wrap;
   justify-content: flex-end;
   gap: 6px;
 }
@@ -210,10 +251,12 @@ code {
   color: var(--error);
 }
 
+/* The cell is `nowrap` so the chip keeps its line; the sentence beneath it has to opt back in. */
 .state-detail {
   display: block;
   max-width: 34ch;
   margin-top: 4px;
+  white-space: normal;
   font-size: 11px;
   line-height: 1.45;
   color: var(--text-faint);
@@ -327,6 +370,6 @@ code {
   }
 
   .connectors {
-    min-width: 620px;
+    min-width: 900px;
   }
 }
