@@ -22,6 +22,16 @@
   --warn: #f0a742;
   --error: #f0616d;
 
+  /* Aliases the administration sheets were written against. They are not a second palette: each
+     resolves to a token above. Without them `var(--surface)` and friends are invalid at computed
+     value time, which silently drops the declaration — a card with no background and an error
+     message in body text rather than red, on every page under Administration. */
+  --bg: var(--surface-0);
+  --surface: var(--surface-1);
+  --text-dim: var(--text-muted);
+  --danger: var(--error);
+  --success: var(--ok);
+
   --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
   --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 

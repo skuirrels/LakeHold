@@ -7,7 +7,7 @@ import { DataConnector, DataConnectorDefinitionRequest, DataConnectorExecution, 
  * One administrator form for every registered connector kind. It persists precisely the same
  * definition exposed to MCP; secret fields are references only and are never populated with values.
  */
-@Component({ selector: 'lh-managed-connectors', changeDetection: ChangeDetectionStrategy.OnPush, templateUrl: './managed-connectors.component.html', styleUrl: './admin-page.css' })
+@Component({ selector: 'lh-managed-connectors', changeDetection: ChangeDetectionStrategy.OnPush, templateUrl: './managed-connectors.component.html', styleUrls: ['./admin-page.css', './managed-connectors.component.css'] })
 export class ManagedConnectorsComponent implements OnChanges {
   private readonly api = inject(LakehouseService);
   readonly tenant = input.required<string>(); readonly catalog = input.required<string>();
@@ -28,6 +28,27 @@ export class ManagedConnectorsComponent implements OnChanges {
   ngOnChanges(): void { this.reload(); }
   protected reload(): void { if (!this.tenant() || !this.catalog()) return; this.loading.set(true); this.api.listConnectors(this.tenant(), this.catalog()).subscribe({ next: x => { this.connectors.set(x); this.loading.set(false); }, error: (e: Error) => { this.error.set(e.message); this.loading.set(false); } }); }
   protected supports(kind: string): boolean { return this.kind() === kind; }
+
+  /**
+   * Health as three states rather than one sentence. A pending source acknowledgement and a failed
+   * run both need an operator; a paused connector does not, and rendering all three as the same grey
+   * prose is how the one that needs acting on gets scanned past.
+   */
+  protected health(c: DataConnector): 'ready' | 'paused' | 'attention' {
+    if (c.sourceAcknowledgementPendingUtc || c.lastError) return 'attention';
+    return c.pausedUtc ? 'paused' : 'ready';
+  }
+
+  protected healthLabel(c: DataConnector): string {
+    const health = this.health(c);
+    return health === 'attention' ? 'Needs attention' : health === 'paused' ? 'Paused' : 'Ready';
+  }
+
+  protected healthDetail(c: DataConnector): string | null {
+    if (c.sourceAcknowledgementPendingUtc) return 'Source acknowledgement pending — retry required.';
+    return c.lastError || null;
+  }
+
   protected list(value: string): string[] { return value.split(',').map(x => x.trim()).filter(Boolean); }
   protected save(): void {
     if (this.busy()) return;

@@ -1,17 +1,430 @@
 <section class="admin-page">
-  <header><h1>Managed connectors</h1><p>Administrator-owned sources for this catalog. The UI and MCP manage the same saved definitions; secrets are deployment-owned references only.</p></header>
-  <div class="actions"><button type="button" (click)="reload()" [disabled]="loading()">Refresh</button><button type="button" (click)="showCreate() ? cancelEdit() : showCreate.set(true)">Add connector</button></div>
-  @if (showCreate()) { <div class="card"><h2>{{ editing() ? 'Edit connector' : 'New connector' }}</h2>
-    <label>Adapter <select [value]="kind()" (change)="kind.set($any($event.target).value)"><option value="rest">REST</option><option value="grpc">gRPC</option><option value="postgresql">PostgreSQL</option><option value="hubspot">HubSpot contacts</option><option value="kafkaavro">Kafka Avro</option></select></label>
-    <label>Name <input [value]="name()" (input)="name.set($any($event.target).value)" /></label><label>Description <input [value]="description()" (input)="description.set($any($event.target).value)" /></label><label>Owner <input [value]="owner()" (input)="owner.set($any($event.target).value)" /></label><label>Tags (comma-separated) <input [value]="tags()" (input)="tags.set($any($event.target).value)" /></label>
-    <label>Target schema <input [value]="targetSchema()" (input)="targetSchema.set($any($event.target).value)" /></label><label>Target table <input [value]="targetTable()" (input)="targetTable.set($any($event.target).value)" /></label><label>Schedule seconds (blank for manual) <input type="number" [value]="schedule()" (input)="schedule.set($any($event.target).value)" /></label><label><input type="checkbox" [checked]="enabled()" (change)="enabled.set($any($event.target).checked)" /> Enabled</label>
-    <label>Page size <input type="number" [value]="pageSize()" (input)="pageSize.set($any($event.target).value)" /></label><label>Required columns (comma-separated) <input [value]="required()" (input)="required.set($any($event.target).value)" /></label><label>Not-null columns (comma-separated) <input [value]="notNull()" (input)="notNull.set($any($event.target).value)" /></label><label>Mappings (source:target:transform) <input [value]="mappings()" (input)="mappings.set($any($event.target).value)" /></label>
-    @if (supports('kafkaavro')) { <h3>Kafka Avro source</h3><label>Brokers <input [value]="brokers()" (input)="brokers.set($any($event.target).value)" /></label><label>Topic <input [value]="topic()" (input)="topic.set($any($event.target).value)" /></label><label>Consumer group <input [value]="group()" (input)="group.set($any($event.target).value)" /></label><label>HTTPS Schema Registry <input type="url" [value]="registry()" (input)="registry.set($any($event.target).value)" /></label><label>Keys (comma-separated) <input [value]="keys()" (input)="keys.set($any($event.target).value)" /></label><label>Schema Registry username secret reference (optional) <input placeholder="vault://..." [value]="registryUsernameReference()" (input)="registryUsernameReference.set($any($event.target).value)" /></label><label>Schema Registry password secret reference (optional) <input placeholder="vault://..." [value]="registryPasswordReference()" (input)="registryPasswordReference.set($any($event.target).value)" /></label> }
-    @else if (supports('postgresql')) { <h3>PostgreSQL source</h3><label>PostgreSQL URL <input [value]="endpoint()" (input)="endpoint.set($any($event.target).value)" /></label><label>Source table (schema.table) <input [value]="sourceTable()" (input)="sourceTable.set($any($event.target).value)" /></label><label>Cursor column <input [value]="cursorColumn()" (input)="cursorColumn.set($any($event.target).value)" /></label><label>Cursor type <select [value]="cursorType()" (change)="cursorType.set($any($event.target).value)"><option>int64</option><option>timestamptz</option><option>uuid</option><option>text</option></select></label><label>Keys (comma-separated) <input [value]="keys()" (input)="keys.set($any($event.target).value)" /></label> }
-    @else { <h3>{{ supports('hubspot') ? 'HubSpot source' : 'Source' }}</h3><label>Endpoint URL <input type="url" [value]="endpoint()" (input)="endpoint.set($any($event.target).value)" /></label>@if (supports('hubspot')) { <label>Properties (comma-separated) <input [value]="properties()" (input)="properties.set($any($event.target).value)" /></label><label>Keys (comma-separated) <input [value]="keys()" (input)="keys.set($any($event.target).value)" /></label> } }
-    <h3>Authentication</h3><label>Mode <select [value]="authKind()" (change)="authKind.set($any($event.target).value)"><option value="none">None</option><option value="bearer">Bearer</option><option value="postgresql-password">PostgreSQL password</option><option value="kafka-sasl-plain">Kafka SASL/PLAIN</option></select></label>@if (authKind() === 'bearer') { <label>Secret reference <input placeholder="vault://..." [value]="secretReference()" (input)="secretReference.set($any($event.target).value)" /></label> } @if (authKind() === 'postgresql-password' || authKind() === 'kafka-sasl-plain') { <label>Username secret reference <input placeholder="vault://..." [value]="usernameReference()" (input)="usernameReference.set($any($event.target).value)" /></label><label>Password secret reference <input placeholder="vault://..." [value]="passwordReference()" (input)="passwordReference.set($any($event.target).value)" /></label> }
-    <button type="button" [disabled]="busy()" (click)="save()">{{ busy() ? 'Saving…' : 'Save connector' }}</button><button type="button" [disabled]="busy()" (click)="cancelEdit()">Cancel</button></div> }
-  @if (error(); as message) { <p class="error" role="alert">{{ message }}</p> } @if (notice(); as message) { <p class="success" role="status">{{ message }}</p> }
-  @if (loading()) { <p>Loading connectors…</p> } @else if (connectors().length === 0) { <p>No connectors are configured for this catalog.</p> } @else { <div class="card"><table><thead><tr><th>Name</th><th>Source</th><th>Target</th><th>Health</th><th>Actions</th></tr></thead><tbody>@for (connector of connectors(); track connector.id) { <tr><td><button type="button" class="link-button" (click)="inspect(connector)">{{ connector.name }}</button></td><td>{{ connector.kind }}<br /><small>{{ connector.sourceSettings.kafkaTopic || connector.endpointUrl }}</small></td><td>{{ connector.targetSchema }}.{{ connector.targetTable }}</td><td>{{ connector.sourceAcknowledgementPendingUtc ? 'Source acknowledgement pending — retry required' : connector.pausedUtc ? 'Paused' : connector.lastError || 'Ready' }}</td><td><button type="button" [disabled]="busy() || !!connector.sourceAcknowledgementPendingUtc" (click)="run(connector)">Run</button><button type="button" [disabled]="busy()" (click)="toggle(connector)">{{ connector.pausedUtc ? 'Resume' : 'Pause' }}</button><button type="button" [disabled]="busy()" (click)="edit(connector)">Edit</button><button type="button" [disabled]="busy()" (click)="inspect(connector)">Details</button><button type="button" [disabled]="busy()" (click)="retry(connector)">{{ connector.sourceAcknowledgementPendingUtc ? 'Recover and retry' : 'Retry' }}</button><button type="button" [disabled]="busy()" (click)="remove(connector)">Retire</button></td></tr> }</tbody></table></div> }
-  @if (selected(); as connector) { <section class="card"><h2>{{ connector.name }} details</h2><dl><dt>Adapter</dt><dd>{{ connector.adapterId }}</dd><dt>Target</dt><dd>{{ connector.targetSchema }}.{{ connector.targetTable }}</dd><dt>Checkpoint</dt><dd>{{ connector.checkpoint || 'None recorded' }}</dd>@if (connector.sourceAcknowledgementPendingUtc) { <dt>Recovery state</dt><dd>Source acknowledgement pending since {{ connector.sourceAcknowledgementPendingUtc }}. {{ connector.sourceAcknowledgementError || 'Use Recover and retry.' }}</dd> }</dl><h3>Run history</h3>@if (diagnosticsLoading()) { <p>Loading safe diagnostics…</p> } @else { <table><thead><tr><th>When</th><th>Status</th><th>Rows</th><th>Diagnostic</th></tr></thead><tbody>@for (run of runs(); track run.id) { <tr><td>{{ run.startedUtc }}</td><td>{{ run.status }}</td><td>{{ run.rowsPublished }}/{{ run.rowsRead }}</td><td>{{ run.error || '—' }}</td></tr> }</tbody></table> }<h3>Dead letters</h3>@if (deadLetters().length === 0) { <p>No dead-lettered runs.</p> } @else { <table><tbody>@for (run of deadLetters(); track run.id) { <tr><td>{{ run.startedUtc }}</td><td>{{ run.error }}</td></tr> }</tbody></table> }</section> }
+  <header>
+    <p class="eyebrow">Administration</p>
+    <h1>Managed connectors</h1>
+    <p>
+      Administrator-owned sources for this catalog. The UI and MCP manage the same saved
+      definitions; secrets are deployment-owned references only.
+    </p>
+  </header>
+
+  <div class="toolbar">
+    <button class="btn" type="button" (click)="reload()" [disabled]="loading()">Refresh</button>
+    <button
+      class="btn btn-primary"
+      type="button"
+      (click)="showCreate() ? cancelEdit() : showCreate.set(true)"
+    >
+      Add connector
+    </button>
+  </div>
+
+  @if (showCreate()) {
+    <div class="panel">
+      <header>
+        <h2>{{ editing() ? 'Edit connector' : 'New connector' }}</h2>
+        <p>
+          Every credential field takes a deployment-owned reference such as
+          <code>vault://…</code>, never a secret value.
+        </p>
+      </header>
+
+      <div class="section">
+        <h3>Definition</h3>
+        <div class="fields">
+          <label class="field">
+            <span>Adapter</span>
+            <select [value]="kind()" (change)="kind.set($any($event.target).value)">
+              <option value="rest">REST</option>
+              <option value="grpc">gRPC</option>
+              <option value="postgresql">PostgreSQL</option>
+              <option value="hubspot">HubSpot contacts</option>
+              <option value="kafkaavro">Kafka Avro</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>Name</span>
+            <input [value]="name()" (input)="name.set($any($event.target).value)" />
+          </label>
+          <label class="field wide">
+            <span>Description</span>
+            <input [value]="description()" (input)="description.set($any($event.target).value)" />
+          </label>
+          <label class="field">
+            <span>Owner</span>
+            <input [value]="owner()" (input)="owner.set($any($event.target).value)" />
+          </label>
+          <label class="field">
+            <span>Tags <small>comma-separated</small></span>
+            <input [value]="tags()" (input)="tags.set($any($event.target).value)" />
+          </label>
+        </div>
+      </div>
+
+      <div class="section">
+        <h3>Target and schedule</h3>
+        <div class="fields">
+          <label class="field">
+            <span>Target schema</span>
+            <input [value]="targetSchema()" (input)="targetSchema.set($any($event.target).value)" />
+          </label>
+          <label class="field">
+            <span>Target table</span>
+            <input [value]="targetTable()" (input)="targetTable.set($any($event.target).value)" />
+          </label>
+          <label class="field">
+            <span>Schedule seconds <small>blank for manual</small></span>
+            <input
+              type="number"
+              [value]="schedule()"
+              (input)="schedule.set($any($event.target).value)"
+            />
+          </label>
+          <label class="toggle">
+            <input
+              type="checkbox"
+              [checked]="enabled()"
+              (change)="enabled.set($any($event.target).checked)"
+            />
+            <span>Enabled</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="section">
+        <h3>Quality gates and mapping</h3>
+        <div class="fields">
+          <label class="field">
+            <span>Page size</span>
+            <input
+              type="number"
+              [value]="pageSize()"
+              (input)="pageSize.set($any($event.target).value)"
+            />
+          </label>
+          <label class="field">
+            <span>Required columns <small>comma-separated</small></span>
+            <input [value]="required()" (input)="required.set($any($event.target).value)" />
+          </label>
+          <label class="field">
+            <span>Not-null columns <small>comma-separated</small></span>
+            <input [value]="notNull()" (input)="notNull.set($any($event.target).value)" />
+          </label>
+          <label class="field">
+            <span>Mappings <small>source:target:transform</small></span>
+            <input [value]="mappings()" (input)="mappings.set($any($event.target).value)" />
+          </label>
+        </div>
+      </div>
+
+      @if (supports('kafkaavro')) {
+        <div class="section">
+          <h3>Kafka Avro source</h3>
+          <div class="fields">
+            <label class="field">
+              <span>Brokers</span>
+              <input [value]="brokers()" (input)="brokers.set($any($event.target).value)" />
+            </label>
+            <label class="field">
+              <span>Topic</span>
+              <input [value]="topic()" (input)="topic.set($any($event.target).value)" />
+            </label>
+            <label class="field">
+              <span>Consumer group</span>
+              <input [value]="group()" (input)="group.set($any($event.target).value)" />
+            </label>
+            <label class="field">
+              <span>HTTPS Schema Registry</span>
+              <input type="url" [value]="registry()" (input)="registry.set($any($event.target).value)" />
+            </label>
+            <label class="field">
+              <span>Keys <small>comma-separated</small></span>
+              <input [value]="keys()" (input)="keys.set($any($event.target).value)" />
+            </label>
+            <label class="field">
+              <span>Registry username reference <small>optional</small></span>
+              <input
+                placeholder="vault://..."
+                [value]="registryUsernameReference()"
+                (input)="registryUsernameReference.set($any($event.target).value)"
+              />
+            </label>
+            <label class="field">
+              <span>Registry password reference <small>optional</small></span>
+              <input
+                placeholder="vault://..."
+                [value]="registryPasswordReference()"
+                (input)="registryPasswordReference.set($any($event.target).value)"
+              />
+            </label>
+          </div>
+        </div>
+      } @else if (supports('postgresql')) {
+        <div class="section">
+          <h3>PostgreSQL source</h3>
+          <div class="fields">
+            <label class="field wide">
+              <span>PostgreSQL URL</span>
+              <input [value]="endpoint()" (input)="endpoint.set($any($event.target).value)" />
+            </label>
+            <label class="field">
+              <span>Source table <small>schema.table</small></span>
+              <input [value]="sourceTable()" (input)="sourceTable.set($any($event.target).value)" />
+            </label>
+            <label class="field">
+              <span>Cursor column</span>
+              <input
+                [value]="cursorColumn()"
+                (input)="cursorColumn.set($any($event.target).value)"
+              />
+            </label>
+            <label class="field">
+              <span>Cursor type</span>
+              <select [value]="cursorType()" (change)="cursorType.set($any($event.target).value)">
+                <option>int64</option>
+                <option>timestamptz</option>
+                <option>uuid</option>
+                <option>text</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>Keys <small>comma-separated</small></span>
+              <input [value]="keys()" (input)="keys.set($any($event.target).value)" />
+            </label>
+          </div>
+        </div>
+      } @else {
+        <div class="section">
+          <h3>{{ supports('hubspot') ? 'HubSpot source' : 'Source' }}</h3>
+          <div class="fields">
+            <label class="field wide">
+              <span>Endpoint URL</span>
+              <input type="url" [value]="endpoint()" (input)="endpoint.set($any($event.target).value)" />
+            </label>
+            @if (supports('hubspot')) {
+              <label class="field">
+                <span>Properties <small>comma-separated</small></span>
+                <input [value]="properties()" (input)="properties.set($any($event.target).value)" />
+              </label>
+              <label class="field">
+                <span>Keys <small>comma-separated</small></span>
+                <input [value]="keys()" (input)="keys.set($any($event.target).value)" />
+              </label>
+            }
+          </div>
+        </div>
+      }
+
+      <div class="section">
+        <h3>Authentication</h3>
+        <div class="fields">
+          <label class="field">
+            <span>Mode</span>
+            <select [value]="authKind()" (change)="authKind.set($any($event.target).value)">
+              <option value="none">None</option>
+              <option value="bearer">Bearer</option>
+              <option value="postgresql-password">PostgreSQL password</option>
+              <option value="kafka-sasl-plain">Kafka SASL/PLAIN</option>
+            </select>
+          </label>
+          @if (authKind() === 'bearer') {
+            <label class="field">
+              <span>Secret reference</span>
+              <input
+                placeholder="vault://..."
+                [value]="secretReference()"
+                (input)="secretReference.set($any($event.target).value)"
+              />
+            </label>
+          }
+          @if (authKind() === 'postgresql-password' || authKind() === 'kafka-sasl-plain') {
+            <label class="field">
+              <span>Username secret reference</span>
+              <input
+                placeholder="vault://..."
+                [value]="usernameReference()"
+                (input)="usernameReference.set($any($event.target).value)"
+              />
+            </label>
+            <label class="field">
+              <span>Password secret reference</span>
+              <input
+                placeholder="vault://..."
+                [value]="passwordReference()"
+                (input)="passwordReference.set($any($event.target).value)"
+              />
+            </label>
+          }
+        </div>
+      </div>
+
+      <footer>
+        <button class="btn btn-primary" type="button" [disabled]="busy()" (click)="save()">
+          {{ busy() ? 'Saving…' : 'Save connector' }}
+        </button>
+        <button class="btn" type="button" [disabled]="busy()" (click)="cancelEdit()">Cancel</button>
+      </footer>
+    </div>
+  }
+
+  @if (error(); as message) {
+    <p class="message error" role="alert">{{ message }}</p>
+  }
+  @if (notice(); as message) {
+    <p class="message success" role="status">{{ message }}</p>
+  }
+
+  @if (loading()) {
+    <div class="panel"><p class="empty">Loading connectors…</p></div>
+  } @else if (connectors().length === 0) {
+    <div class="panel">
+      <p class="empty">No connectors are configured for this catalog.</p>
+    </div>
+  } @else {
+    <div class="panel">
+      <div class="table-scroll">
+        <table class="connectors">
+          <thead>
+            <tr>
+              <th scope="col">Name</th>
+              <th scope="col">Source</th>
+              <th scope="col">Target</th>
+              <th scope="col">Health</th>
+              <th scope="col">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (connector of connectors(); track connector.id) {
+              <tr>
+                <td>
+                  <button class="link-button" type="button" (click)="inspect(connector)">
+                    {{ connector.name }}
+                  </button>
+                </td>
+                <td>
+                  {{ connector.kind }}
+                  <span class="source">{{
+                    connector.sourceSettings.kafkaTopic || connector.endpointUrl
+                  }}</span>
+                </td>
+                <td class="target">{{ connector.targetSchema }}.{{ connector.targetTable }}</td>
+                <td>
+                  <span
+                    class="state"
+                    [class.state-ready]="health(connector) === 'ready'"
+                    [class.state-paused]="health(connector) === 'paused'"
+                    [class.state-attention]="health(connector) === 'attention'"
+                  >{{ healthLabel(connector) }}</span>
+                  @if (healthDetail(connector); as detail) {
+                    <span class="state-detail">{{ detail }}</span>
+                  }
+                </td>
+                <td>
+                  <div class="row-actions">
+                    <button
+                      class="btn btn-sm"
+                      type="button"
+                      [disabled]="busy() || !!connector.sourceAcknowledgementPendingUtc"
+                      (click)="run(connector)"
+                    >Run</button>
+                    <button class="btn btn-sm" type="button" [disabled]="busy()" (click)="toggle(connector)">{{
+                      connector.pausedUtc ? 'Resume' : 'Pause'
+                    }}</button>
+                    <button class="btn btn-sm" type="button" [disabled]="busy()" (click)="edit(connector)">Edit</button>
+                    <button class="btn btn-sm" type="button" [disabled]="busy()" (click)="inspect(connector)">Details</button>
+                    <button class="btn btn-sm" type="button" [disabled]="busy()" (click)="retry(connector)">{{
+                      connector.sourceAcknowledgementPendingUtc ? 'Recover and retry' : 'Retry'
+                    }}</button>
+                    <button
+                      class="btn btn-sm btn-danger"
+                      type="button"
+                      [disabled]="busy()"
+                      (click)="remove(connector)"
+                    >Retire</button>
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  }
+
+  @if (selected(); as connector) {
+    <section class="panel">
+      <header>
+        <h2>{{ connector.name }}</h2>
+        <p>Safe diagnostics: outcomes and sanitised errors, never source records.</p>
+      </header>
+
+      <dl class="summary">
+        <dt>Adapter</dt>
+        <dd>{{ connector.adapterId }}</dd>
+        <dt>Target</dt>
+        <dd class="target">{{ connector.targetSchema }}.{{ connector.targetTable }}</dd>
+        <dt>Checkpoint</dt>
+        <dd>{{ connector.checkpoint || 'None recorded' }}</dd>
+        @if (connector.sourceAcknowledgementPendingUtc) {
+          <dt>Recovery state</dt>
+          <dd>
+            Source acknowledgement pending since {{ connector.sourceAcknowledgementPendingUtc }}.
+            {{ connector.sourceAcknowledgementError || 'Use Recover and retry.' }}
+          </dd>
+        }
+      </dl>
+
+      <div class="section">
+        <h3>Run history</h3>
+      </div>
+      @if (diagnosticsLoading()) {
+        <p class="empty">Loading safe diagnostics…</p>
+      } @else if (runs().length === 0) {
+        <p class="empty">No runs recorded yet.</p>
+      } @else {
+        <div class="table-scroll">
+          <table class="runs">
+            <thead>
+              <tr>
+                <th scope="col">When</th>
+                <th scope="col">Status</th>
+                <th scope="col">Rows</th>
+                <th scope="col">Diagnostic</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (run of runs(); track run.id) {
+                <tr>
+                  <td>{{ run.startedUtc }}</td>
+                  <td>{{ run.status }}</td>
+                  <td>{{ run.rowsPublished }}/{{ run.rowsRead }}</td>
+                  <td>{{ run.error || '—' }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+
+      <div class="section">
+        <h3>Dead letters</h3>
+      </div>
+      @if (deadLetters().length === 0) {
+        <p class="empty">No dead-lettered runs.</p>
+      } @else {
+        <div class="table-scroll">
+          <table class="runs">
+            <tbody>
+              @for (run of deadLetters(); track run.id) {
+                <tr>
+                  <td>{{ run.startedUtc }}</td>
+                  <td>{{ run.error }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    </section>
+  }
 </section>
