@@ -281,6 +281,20 @@ export interface DataConnector {
 }
 
 /** Safe, durable evidence for one connector attempt. Never contains source records or secrets. */
+/**
+ * The result of one connector execution. `status` is the run's own outcome — notably
+ * `published-source-acknowledgement-pending`, which arrives on a 202 and means the batch is durable
+ * but the source was never told, so an operator has to recover it.
+ */
+export interface DataConnectorExecution {
+  runId: number;
+  status: string;
+  rowsRead: number;
+  rowsPublished: number;
+  sourceVersion: string | null;
+  error: string | null;
+}
+
 export interface DataConnectorRun {
   id: number;
   trigger: string;
@@ -321,6 +335,8 @@ export interface DataConnectorAuthentication {
   clientCertificateSecretReference: string | null;
   certificatePasswordSecretReference: string | null;
   customHeaderName: string | null;
+  schemaRegistryUsernameSecretReference: string | null;
+  schemaRegistryPasswordSecretReference: string | null;
 }
 
 export interface DataConnectorDefinitionRequest {
@@ -363,6 +379,8 @@ export interface DataConnectorDefinitionRequest {
     clientCertificateSecretReference?: string | null;
     certificatePasswordSecretReference?: string | null;
     customHeaderName?: string | null;
+    schemaRegistryUsernameSecretReference?: string | null;
+    schemaRegistryPasswordSecretReference?: string | null;
   };
   adapterId?: string | null;
   adapterVersion?: number;

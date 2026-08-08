@@ -8,6 +8,9 @@ import {
   ChangePage,
   ColumnDistribution,
   CreatedToken,
+  DataConnector,
+  DataConnectorExecution,
+  DataConnectorRun,
   EjectBundle,
   EjectResult,
   MaintenanceResult,
@@ -131,6 +134,18 @@ export class FakeLakehouseService {
 
   /** Method names that should fail instead of answering, mapped to the message they fail with. */
   readonly failures = new Map<string, string>();
+
+  connectors: DataConnector[] = [];
+  connectorRuns: DataConnectorRun[] = [];
+  connectorDeadLetters: DataConnectorRun[] = [];
+  execution: DataConnectorExecution = {
+    runId: 1,
+    status: 'succeeded',
+    rowsRead: 3,
+    rowsPublished: 3,
+    sourceVersion: 'orders:0:41',
+    error: null,
+  };
 
   /** Exact errors for cases where the error type or status is part of the behavior under test. */
   readonly errors = new Map<string, Error>();
@@ -486,6 +501,46 @@ export class FakeLakehouseService {
     }));
   }
 
+  listConnectors(...args: unknown[]): Observable<DataConnector[]> {
+    return this.answer('listConnectors', args, () => this.connectors);
+  }
+
+  createConnector(...args: unknown[]): Observable<DataConnector> {
+    return this.answer('createConnector', args, () => this.connectors[0] ?? dataConnector());
+  }
+
+  updateConnector(...args: unknown[]): Observable<DataConnector> {
+    return this.answer('updateConnector', args, () => this.connectors[0] ?? dataConnector());
+  }
+
+  deleteConnector(...args: unknown[]): Observable<void> {
+    return this.answer('deleteConnector', args, () => undefined);
+  }
+
+  pauseConnector(...args: unknown[]): Observable<DataConnector> {
+    return this.answer('pauseConnector', args, () => this.connectors[0] ?? dataConnector());
+  }
+
+  resumeConnector(...args: unknown[]): Observable<DataConnector> {
+    return this.answer('resumeConnector', args, () => this.connectors[0] ?? dataConnector());
+  }
+
+  runConnector(...args: unknown[]): Observable<DataConnectorExecution> {
+    return this.answer('runConnector', args, () => this.execution);
+  }
+
+  retryConnector(...args: unknown[]): Observable<DataConnectorExecution> {
+    return this.answer('retryConnector', args, () => this.execution);
+  }
+
+  listConnectorRuns(...args: unknown[]): Observable<DataConnectorRun[]> {
+    return this.answer('listConnectorRuns', args, () => this.connectorRuns);
+  }
+
+  listConnectorDeadLetters(...args: unknown[]): Observable<DataConnectorRun[]> {
+    return this.answer('listConnectorDeadLetters', args, () => this.connectorDeadLetters);
+  }
+
   /** The arguments the named method was last called with, or undefined if it never was. */
   lastArgs(method: string): unknown[] | undefined {
     return this.calls.filter((c) => c.method === method).at(-1)?.args;
@@ -505,6 +560,67 @@ export class FakeLakehouseService {
     const failure = this.failures.get(method);
     return failure ? throwError(() => new Error(failure)) : of(value());
   }
+}
+
+/** A saved connector with stable defaults, so specs only state the behavior-relevant fields. */
+export function dataConnector(overrides: Partial<DataConnector> = {}): DataConnector {
+  return {
+    id: 1,
+    name: 'orders',
+    description: null,
+    owner: 'administrator',
+    tags: [],
+    kind: 'rest',
+    adapterId: 'lakehold.rest',
+    endpointUrl: 'https://api.example.test/orders',
+    adapterVersion: 1,
+    readMode: 'full-snapshot',
+    restResponseFormat: 'json-array',
+    sourceSettings: {
+      sourceTable: null,
+      cursorColumn: null,
+      cursorType: null,
+      pageSize: 100,
+      properties: [],
+      cursorIsCommitMonotonic: false,
+      kafkaBootstrapServers: null,
+      kafkaTopic: null,
+      kafkaConsumerGroup: null,
+      schemaRegistryUrl: null,
+    },
+    authentication: {
+      kind: 'none',
+      secretReference: null,
+      usernameSecretReference: null,
+      passwordSecretReference: null,
+      clientIdSecretReference: null,
+      clientSecretReference: null,
+      refreshTokenSecretReference: null,
+      clientCertificateSecretReference: null,
+      certificatePasswordSecretReference: null,
+      customHeaderName: null,
+      schemaRegistryUsernameSecretReference: null,
+      schemaRegistryPasswordSecretReference: null,
+    },
+    fieldMappings: [],
+    schemaPolicy: 'reject',
+    keyColumns: [],
+    minimumRows: 1,
+    requiredColumns: [],
+    notNullColumns: [],
+    refreshIntervalSeconds: null,
+    targetSchema: 'main',
+    targetTable: 'orders',
+    enabled: true,
+    pausedUtc: null,
+    lastCompletedUtc: null,
+    lastError: null,
+    sourceAcknowledgementPendingUtc: null,
+    sourceAcknowledgementError: null,
+    checkpoint: null,
+    version: 4,
+    ...overrides,
+  };
 }
 
 /** A reusable query with stable defaults, so specs only state the behavior-relevant fields. */

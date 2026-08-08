@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
 using Lakehold.Api.Connectors;
@@ -8,99 +7,26 @@ using Xunit;
 
 namespace Lakehold.Api.Tests;
 
-/// <summary>Real Docker protocol evidence; skips only when the Docker daemon is unavailable.</summary>
+/// <summary>
+/// Real Kafka and Schema Registry protocol evidence, over the mandatory SOCKS/HTTP gateways.
+/// </summary>
+/// <remarks>
+/// This runs only inside the Linux Compose fixture, which <c>scripts/test-kafka-avro-proxy.sh</c>
+/// starts before setting <c>LAKEHOLD_KAFKA_FIXTURE_RUNNING</c>. There is deliberately no host-side
+/// fallback: the registry leg is TLS against the fixture CA, and that CA is only in the container's
+/// trust store. A fallback that skipped the TLS leg would report the same green tick for strictly
+/// less evidence.
+/// </remarks>
 public sealed class KafkaAvroProxyFixtureTests
 {
     [SkippableFact]
     public async Task Kafka_avro_source_reads_registry_backed_records_only_through_the_required_gateways()
     {
-        if (string.Equals(Environment.GetEnvironmentVariable("LAKEHOLD_KAFKA_FIXTURE_RUNNING"), "1", StringComparison.Ordinal))
-        {
-            await ReadExistingFixtureAsync("172.31.240.13", 1080, "172.31.240.14", 8888, "/fixture-certs/ca.pem");
-            return;
-        }
-        Skip.If(true, "Kafka Avro TLS proof runs in the Linux Compose fixture, where the fixture CA is installed in the container trust store.");
-        Skip.If(!await DockerAvailableAsync(), "Docker is unavailable; Kafka fixture cannot run.");
-        var root = Root();
-        var compose = Path.Combine(root, "tests/fixtures/kafka-avro-proxy/compose.yaml");
-        var project = "lakehold-kafka-avro-" + Guid.NewGuid().ToString("N");
-        try
-        {
-            await Docker(root, "compose", "-p", project, "-f", compose, "up", "-d", "--wait", "kafka", "schema-registry", "schema-registry-tls", "socks-gateway", "registry-proxy");
-            await Docker(root, "compose", "-p", project, "-f", compose, "exec", "-T", "kafka", "kafka-topics", "--bootstrap-server", "kafka:9092", "--create", "--if-not-exists", "--topic", "lakehold-avro-proxy-test", "--partitions", "1", "--replication-factor", "1");
-            var producerName = project + "-producer";
-            await Docker(root, "compose", "-p", project, "-f", compose, "run", "--name", producerName, "avro-producer");
-            var producerOutput = await Docker(root, "logs", producerName);
-            Assert.Contains("Fixture Avro lifecycle record published", producerOutput, StringComparison.Ordinal);
-            var produced = await Docker(root, "compose", "-p", project, "-f", compose, "exec", "-T", "schema-registry", "kafka-avro-console-consumer", "--bootstrap-server", "kafka:9092", "--topic", "lakehold-avro-proxy-test", "--from-beginning", "--max-messages", "1", "--timeout-ms", "15000", "--property", "schema.registry.url=http://schema-registry:8081", "--property", "basic.auth.credentials.source=USER_INFO", "--property", "basic.auth.user.info=lakehold-fixture:lakehold-fixture-password");
-            Assert.True(produced.Contains("accepted", StringComparison.OrdinalIgnoreCase),
-                $"The fixture producer did not publish the expected lifecycle record. Producer output: {producerOutput}");
-            var socksPort = await PublishedPort(root, project, compose, "socks-gateway", "1080");
-            var registryProxyPort = await PublishedPort(root, project, compose, "registry-proxy", "8888");
-            var ca = Path.Combine(root, "tests/fixtures/kafka-avro-proxy/certs/ca.pem");
-            Assert.True(File.Exists(ca), "The TLS fixture CA was not created.");
+        Skip.If(
+            !string.Equals(Environment.GetEnvironmentVariable("LAKEHOLD_KAFKA_FIXTURE_RUNNING"), "1", StringComparison.Ordinal),
+            "Kafka Avro protocol evidence runs in the Linux Compose fixture; use scripts/test-kafka-avro-proxy.sh.");
 
-
-            await using var kafkaGateway = await SocksTcpGateway.StartAsync(socksPort, new IPEndPoint(IPAddress.Parse("172.31.240.10"), 19092));
-            var username = "LAKEHOLD_FIXTURE_SR_USER_" + Guid.NewGuid().ToString("N");
-            var password = "LAKEHOLD_FIXTURE_SR_PASSWORD_" + Guid.NewGuid().ToString("N");
-            Environment.SetEnvironmentVariable(username, "lakehold-fixture");
-            Environment.SetEnvironmentVariable(password, "lakehold-fixture-password");
-            try
-            {
-                var options = Options.Create(new ConnectorOptions
-                {
-                    AllowUnsafeDestinations = true,
-                    RequestTimeout = TimeSpan.FromSeconds(15),
-                    KafkaEgressGateway = new KafkaEgressGatewayOptions
-                    {
-                        PolicyName = "fixture-only",
-                        KafkaBootstrapGateway = "127.0.0.1:19092",
-                        SchemaRegistryHttpProxy = $"http://127.0.0.1:{registryProxyPort}",
-                        SchemaRegistryCaCertificatePath = ca,
-                    },
-                    SecretBindings =
-                    [
-                        new() { TenantSlug = "fixture", CatalogName = "fixture", Reference = $"env://{username}", DestinationHost = "172.31.240.12" },
-                        new() { TenantSlug = "fixture", CatalogName = "fixture", Reference = $"env://{password}", DestinationHost = "172.31.240.12" },
-                    ],
-                });
-                var definition = new DataConnectorDefinition(
-                    "avro-fixture", null, "fixture@example.test", [], DataConnectorKind.KafkaAvro,
-                    "https://172.31.240.12:8443", null, RestResponseFormat.JsonArray, "main", "lifecycle", 1,
-                    ["id"], ["id"], false, null,
-                    new DataConnectorPlatformDefinition(
-                        "lakehold.kafka-avro", 1, DataConnectorReadMode.Incremental, DataConnectorSchemaPolicy.Reject,
-                        ["id"], [],
-                        new DataConnectorSourceSettings(PageSize: 10, KafkaBootstrapServers: "172.31.240.10:9092", KafkaTopic: "lakehold-avro-proxy-test", KafkaConsumerGroup: "lakehold-fixture-" + Guid.NewGuid().ToString("N"), SchemaRegistryUrl: "https://172.31.240.12:8443"),
-                        new DataConnectorAuthentication(DataConnectorAuthenticationKind.None, SchemaRegistryUsernameSecretReference: $"env://{username}", SchemaRegistryPasswordSecretReference: $"env://{password}")));
-                var connector = DataConnector.Create(1, 1, definition, DateTimeOffset.UtcNow);
-                var source = new KafkaAvroDataConnectorSource(new ConnectorSecretResolver([new EnvironmentConnectorSecretProvider()], options), options);
-                var writer = new CapturingWriter();
-                var result = await source.ReadAsync(new ConnectorReadContext(connector, null, "fixture", "fixture"), writer, default);
-                Assert.True(writer.Rows == 1,
-                    $"Expected one decoded record, found {writer.Rows}. Kafka TCP gateway accepted {kafkaGateway.Connections} connection(s) and completed {kafkaGateway.SocksConnections} SOCKS connection(s).");
-                Assert.Contains("\"state\":\"accepted\"", writer.RowsJson.Single(), StringComparison.Ordinal);
-                Assert.NotNull(result.ProposedCheckpoint);
-                await ((IConnectorPostPublicationAcknowledger)source).AcknowledgePublishedAsync(default);
-            }
-            finally
-            {
-                Environment.SetEnvironmentVariable(username, null);
-                Environment.SetEnvironmentVariable(password, null);
-            }
-
-            var socksLog = await Docker(root, "compose", "-p", project, "-f", compose, "logs", "socks-gateway");
-            var proxyLog = await Docker(root, "compose", "-p", project, "-f", compose, "logs", "registry-proxy");
-            Assert.Contains("socks", socksLog, StringComparison.OrdinalIgnoreCase);
-            Assert.Contains("CONNECT", proxyLog, StringComparison.OrdinalIgnoreCase);
-        }
-        finally
-        {
-            await Docker(root,
-                ["compose", "-p", project, "-f", compose, "down", "-v", "--remove-orphans"],
-                allowFailure: true);
-        }
+        await ReadExistingFixtureAsync("172.31.240.13", 1080, "172.31.240.14", 8888, "/fixture-certs/ca.pem");
     }
 
     private static async Task ReadExistingFixtureAsync(string socksHost, int socksPort, string proxyHost, int proxyPort, string ca)
@@ -123,13 +49,6 @@ public sealed class KafkaAvroProxyFixtureTests
         finally { Environment.SetEnvironmentVariable(username, null); Environment.SetEnvironmentVariable(password, null); }
     }
 
-    private static async Task<int> PublishedPort(string root, string project, string compose, string service, string privatePort)
-    {
-        var output = await Docker(root, "compose", "-p", project, "-f", compose, "port", service, privatePort);
-        var value = output.Trim().Split(':').Last();
-        return int.Parse(value, System.Globalization.CultureInfo.InvariantCulture);
-    }
-
     private sealed class CapturingWriter : IDataConnectorRecordWriter
     {
         public List<string> RowsJson { get; } = [];
@@ -146,7 +65,6 @@ public sealed class KafkaAvroProxyFixtureTests
         public int Connections { get; private set; }
         public int SocksConnections { get; private set; }
 
-        public static async Task<SocksTcpGateway> StartAsync(int socksPort, IPEndPoint destination) => await StartAsync("127.0.0.1", socksPort, destination);
         public static async Task<SocksTcpGateway> StartAsync(string socksHost, int socksPort, IPEndPoint destination)
         {
             var listener = new TcpListener(IPAddress.Loopback, 19092);
@@ -196,25 +114,5 @@ public sealed class KafkaAvroProxyFixtureTests
 
         private static async Task<int> ReadDomainLengthAsync(NetworkStream stream) { var length = new byte[1]; await stream.ReadExactlyAsync(length); return length[0] + 2; }
         public async ValueTask DisposeAsync() { _stop.Cancel(); listener.Stop(); try { await _acceptLoop; } catch (OperationCanceledException) { } _stop.Dispose(); }
-    }
-
-    private static async Task<bool> DockerAvailableAsync()
-    {
-        try { await Docker(Root(), "version", "--format", "{{.Server.Version}}"); return true; }
-        catch { return false; }
-    }
-    private static string Root()
-    {
-        for (var path = new DirectoryInfo(AppContext.BaseDirectory); path is not null; path = path.Parent)
-            if (File.Exists(Path.Combine(path.FullName, "Lakehold.slnx"))) return path.FullName;
-        throw new InvalidOperationException("Repository root was not found.");
-    }
-    private static async Task<string> Docker(string directory, params string[] arguments) => await Docker(directory, arguments, false);
-    private static async Task<string> Docker(string directory, string[] arguments, bool allowFailure)
-    {
-        using var process = Process.Start(new ProcessStartInfo("docker") { WorkingDirectory = directory, RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false, Arguments = string.Join(' ', arguments.Select(x => x.Contains(' ') ? $"\"{x}\"" : x)) })!;
-        var output = await process.StandardOutput.ReadToEndAsync() + await process.StandardError.ReadToEndAsync(); await process.WaitForExitAsync();
-        if (!allowFailure && process.ExitCode != 0) throw new Xunit.Sdk.XunitException(output);
-        return output;
     }
 }

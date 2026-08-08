@@ -8,7 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Lakehold.Api.Endpoints;
 
-    /// <summary>Browser upload and tabular-file-to-table endpoints.</summary>
+/// <summary>Browser upload and tabular-file-to-table endpoints.</summary>
 public static class TabularImportEndpoints
 {
     /// <summary>Adds the catalog-scoped CSV/XLSX/Avro import route and its CSV compatibility alias.</summary>

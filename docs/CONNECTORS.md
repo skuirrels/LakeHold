@@ -1,13 +1,12 @@
 # Managed data connectors
 
-> **Current delivery state:** the managed connector platform is established, and this feature branch
-> adds Kafka Avro alongside the earlier REST, gRPC, PostgreSQL, and HubSpot adapters. The five built-in
-> adapters are production paths with full-stack release-gate evidence; a release version is assigned
-> only when the branch is released.
-> they are not a claim of a broad hosted connector catalogue.
+> **Current delivery state:** the managed connector platform shipped in v1.3.0; Kafka Avro joins the
+> earlier REST, gRPC, PostgreSQL, and HubSpot adapters and is unreleased at the time of writing. All
+> five are production paths with full-stack release-gate evidence; they are not a claim of a broad
+> hosted connector catalogue.
 
 LakeHold's managed-ingestion platform reads bounded full snapshots from REST or gRPC and
-checkpointed deltas from PostgreSQL or HubSpot Contacts. It validates a declared data contract and
+checkpointed deltas from PostgreSQL, HubSpot Contacts, or Kafka Avro. It validates a declared data contract and
 atomically replaces or key-upserts one DuckLake table. Connector definitions,
 schedules, leases, run outcomes, source versions, and row counts are durable PostgreSQL control-plane
 state. Response bytes use disposable node-local scratch during a run. LakeHold bounds concurrent
@@ -329,7 +328,10 @@ non-empty, only exact hosts or entries such as `*.example.com` are reachable.
   `Retry-After` response rather than a distributed LakeHold rate-limit lease.
 - Mapping is top-level and declarative; nested-path expressions and arbitrary code are not supported.
 - Scheduling is interval-based, not cron-based.
-- Connectors are owner-administered through the Workbench, HTTP API, and MCP using the same durable definitions.
+- Connectors are owner-administered through the Workbench, HTTP API, and MCP using the same durable
+  definitions. The mutating MCP tools sit behind **Allow write commands** in System Settings; see
+  [`MCP.md`](MCP.md).
+- Kafka Avro does not represent source deletions: a tombstone advances the offset and stages no row.
 
 ### Kafka Avro
 
@@ -341,10 +343,22 @@ stored in a connector definition.
 
 Kafka is never contacted directly. Deployment configuration supplies a literal-IP Kafka TCP gateway
 which handles every advertised broker listener (and may tunnel via SOCKS), plus a literal-IP HTTP(S)
-proxy for Registry traffic. The deployment network policy owns the final allow-list. This is
-at-least-once ingestion: after publish, source acknowledgement is durable and explicit retry/replay
-is required if the broker commit fails. It is not a generic CDC/Debezium connector, does not support
-Apicurio or AWS Glue registries, and makes no exactly-once claim.
+proxy for Registry traffic.
+
+That gateway is a second control, not a replacement for the egress policy. Like every other adapter,
+this one resolves the shared outbound destination policy — the host allow-list and the private-address
+checks — for each broker in `kafkaBootstrapServers` **and** for `schemaRegistryUrl`, at creation and
+again on every read. Because the policy is what approves a destination, a Kafka Avro connector's
+`endpointUrl` must name the same host and port as its `schemaRegistryUrl`; a definition that let the
+two disagree would have the policy approve one host while the adapter read another, and both the HTTP
+validator and the durable model refuse it.
+
+This is at-least-once ingestion: after publish, source acknowledgement is durable and explicit
+retry/replay is required if the broker commit fails. A tombstone — a null-valued record, ordinary on a
+keyed topic — advances the offset without staging a row: source deletions are not represented, and
+staging an empty record would fail the batch's own key and not-null gates on every replay. It is not a
+generic CDC/Debezium connector, does not support Apicurio or AWS Glue registries, and makes no
+exactly-once claim.
 
 Manual `.avro` object-container upload is a separate developer/import path; it is not Kafka wire
 format ingestion.

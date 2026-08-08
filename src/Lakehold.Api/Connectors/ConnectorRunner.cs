@@ -318,7 +318,17 @@ internal sealed class ConnectorRunner(
         {
             if (source is IConnectorPostPublicationAcknowledger acknowledger)
             {
-                await acknowledger.AbandonAsync().ConfigureAwait(false);
+                try
+                {
+                    await acknowledger.AbandonAsync().ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    // Releasing a transport is best effort. Throwing from a finally would replace
+                    // the outcome this method already decided — including a failure result that was
+                    // handled and recorded — with an unhandled exception out of RunAsync.
+                    ConnectorLog.SourceReleaseFailed(logger, ex, connectorId);
+                }
             }
             LakeholdTelemetry.ConnectorWorkersActive.Add(-1);
         }
@@ -390,6 +400,15 @@ internal sealed partial class ConnectorLog
         Level = LogLevel.Error,
         Message = "Connector {ConnectorId} published data but acknowledgement-pending state could not be recorded.")]
     public static partial void AcknowledgementStateRecordFailed(
+        ILogger logger,
+        Exception exception,
+        int connectorId);
+
+    [LoggerMessage(
+        EventId = 4303,
+        Level = LogLevel.Warning,
+        Message = "Connector {ConnectorId} could not release its source transport cleanly; the run outcome is unaffected.")]
+    public static partial void SourceReleaseFailed(
         ILogger logger,
         Exception exception,
         int connectorId);

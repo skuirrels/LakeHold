@@ -64,6 +64,74 @@ public sealed class DataConnectorCorrectnessTests : IDisposable
     }
 
     [Fact]
+    public async Task Kafka_destinations_go_through_the_same_egress_policy_as_every_other_adapter()
+    {
+        // The gateway constrains where packets go, but the operator's allow-list is what says which
+        // destinations a tenant may name. Every other adapter resolves it; this one has to as well,
+        // for the brokers and the registry alike, or the policy approves one host and the adapter
+        // contacts another (invariant 23).
+        var options = new ConnectorOptions
+        {
+            AllowUnsafeDestinations = true,
+            AllowedHosts = ["registry.example.test", "broker-one.example.test"],
+            KafkaEgressGateway = new KafkaEgressGatewayOptions
+            {
+                PolicyName = "approved-kafka",
+                KafkaBootstrapGateway = "198.51.100.10:1080",
+                SchemaRegistryHttpProxy = "http://198.51.100.11:8080",
+            },
+        };
+
+        Assert.Null(await DataConnectorEndpoints.ValidateKafkaDestinationsAsync(
+            "broker-one.example.test:9092",
+            new Uri("https://registry.example.test"),
+            options,
+            default));
+
+        var unapprovedBroker = await DataConnectorEndpoints.ValidateKafkaDestinationsAsync(
+            "broker-one.example.test:9092,broker-elsewhere.example.test:9092",
+            new Uri("https://registry.example.test"),
+            options,
+            default);
+        Assert.Contains("egress policy", unapprovedBroker, StringComparison.OrdinalIgnoreCase);
+
+        var unapprovedRegistry = await DataConnectorEndpoints.ValidateKafkaDestinationsAsync(
+            "broker-one.example.test:9092",
+            new Uri("https://registry-elsewhere.example.test"),
+            options,
+            default);
+        Assert.Contains("egress policy", unapprovedRegistry, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void A_kafka_definition_cannot_approve_one_registry_host_and_read_from_another()
+    {
+        // The endpoint is what the policy above resolves. If the durable model let it disagree with
+        // schemaRegistryUrl, approving an allowed host would buy a connector that reads a different
+        // one, so the model refuses it rather than trusting the HTTP validator to have checked.
+        var definition = new DataConnectorDefinition(
+            "avro", null, "owner@example.test", [], DataConnectorKind.KafkaAvro,
+            "https://approved.example.test", null, RestResponseFormat.JsonArray, "main", "lifecycle", 1,
+            ["id"], ["id"], false, null,
+            new DataConnectorPlatformDefinition(
+                "lakehold.kafka-avro", 1, DataConnectorReadMode.Incremental, DataConnectorSchemaPolicy.Reject,
+                ["id"], [],
+                new DataConnectorSourceSettings(
+                    KafkaBootstrapServers: "broker.example.test:9092",
+                    KafkaTopic: "lifecycle",
+                    KafkaConsumerGroup: "lakehold",
+                    SchemaRegistryUrl: "https://elsewhere.example.test"),
+                new DataConnectorAuthentication()));
+
+        var refusal = Assert.Throws<ArgumentException>(
+            () => DataConnector.Create(1, 1, definition, DateTimeOffset.UtcNow));
+        Assert.Contains("same host and port", refusal.Message, StringComparison.OrdinalIgnoreCase);
+
+        var agreed = definition with { EndpointUrl = "https://elsewhere.example.test" };
+        _ = DataConnector.Create(1, 1, agreed, DateTimeOffset.UtcNow);
+    }
+
+    [Fact]
     public void Failed_run_preserves_partial_evidence_without_claiming_quality_was_evaluated()
     {
         var now = new DateTimeOffset(2026, 8, 2, 12, 0, 0, TimeSpan.Zero);

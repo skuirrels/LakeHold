@@ -11,12 +11,15 @@ invariant in `AGENT.md`; where a rule already exists, this document says how the
 it rather than restating why.
 
 **Status: Phases 1-5 have landed, bar two items that are blocked or have nothing to carry.** The
-capability rules live in one transport-neutral policy; the endpoint serves seven read-only tools —
-`list_tenants`, `describe_schema`, `query`, `list_snapshots`, `get_snapshot`, `query_snapshot`, and
-`list_changes` — plus schema and snapshot resources,
-behind a credential it always demands; it publishes RFC 9728 protected-resource metadata where OIDC is
-configured; and a sixth tool, `execute`, appears only where an operator has opted into writes. What
-remains is recorded under [Phases](#phases) with the reason rather than as an aspiration.
+capability rules live in one transport-neutral policy; the endpoint serves twelve read-only tools —
+`list_tenants`, `describe_schema`, `query`, `list_snapshots`, `get_snapshot`, `query_snapshot`,
+`list_changes`, and the connector control plane's read half (`list_connectors`, `get_connector`,
+`validate_connector`, `list_connector_runs`, `list_connector_dead_letters`) — plus schema and snapshot
+resources, behind a credential it always demands; it publishes RFC 9728 protected-resource metadata
+where OIDC is configured; and eight mutating tools — `execute` plus `create_connector`,
+`update_connector`, `retire_connector`, `run_connector`, `retry_connector`, `pause_connector`, and
+`resume_connector` — appear only where an operator has opted into writes. What remains is recorded
+under [Phases](#phases) with the reason rather than as an aspiration.
 
 It is enabled for `make dev` and the development Compose stack. Production configuration remains
 closed before first use. An instance operator can then change Enabled, Allow writes, maximum rows,
@@ -341,8 +344,7 @@ The `query` tool attaches the catalog **read-only regardless of the credential's
 never changes — not even where writes are enabled. A credential that may write over HTTP cannot write
 through `query`.
 
-Writes are a *separate* tool, `execute`, exposed only when **Allow write commands** is saved in System
-Settings. The
+Writes are *separate* tools, exposed only when **Allow write commands** is saved in System Settings. The
 reason is the tool annotations: MCP clients read `readOnly` and `destructive` to decide whether to ask
 a human before calling, and those live in an attribute fixed at compile time. A `query` that sometimes
 wrote would advertise itself read-only while writing, or destructive while doing nothing of the kind —
@@ -354,6 +356,33 @@ Two gates, not one. The operator opts in *and* the credential must not be read-o
 credential still produces a read-only attachment, so its refusal comes from DuckDB (invariants 4
 and 20); the explicit check exists only so the agent reads "your credential cannot write" instead of an
 engine error about the catalog.
+
+**The gate is the annotation, not a list of names.** The list-tools filter removes every tool whose
+`readOnly` hint is not true, and the call-tools filter resolves the same annotation for the requested
+name — so discovery and enforcement cannot describe different surfaces, and a client calling from a
+stale tool cache is refused rather than served. This matters because the first version of the gate
+matched the literal name `execute`: when the connector control plane arrived, its seven mutating tools
+were reachable on a deployment with writes turned off, and nothing in the design said so. Any tool
+annotated `ReadOnly = false` is now covered the moment it is registered, and `McpWriteToolTests` asserts
+over the whole advertised set rather than over a list somebody has to remember to extend.
+
+### The connector control plane
+
+`list_connectors`, `get_connector`, `validate_connector`, `list_connector_runs`, and
+`list_connector_dead_letters` are read-only. `create_connector`, `update_connector`, `retire_connector`,
+`run_connector`, `retry_connector`, `pause_connector`, and `resume_connector` mutate, and sit behind
+**Allow write commands** with the rest.
+
+They are here rather than withheld because a managed connector is ordinary durable catalog
+configuration that an administrator already edits in the Workbench, and both surfaces call the *same*
+validation boundary — `DataConnectorEndpoints.ValidateAsync` — so an agent cannot save a definition the
+administrator UI would refuse. All eleven declare `Capability.TenantOwner`, the same capability the
+HTTP routes declare, enforced by the same policy (invariant 21). Secret *references* are accepted;
+secret values never are, on either surface.
+
+`run_connector` and `retry_connector` are annotated **destructive**: a full-snapshot connector replaces
+the whole of its DuckLake target, so a client should treat a run as an operation worth confirming
+rather than an additive one.
 
 ### What is deliberately unimplemented
 
@@ -368,6 +397,7 @@ The section that makes this document useful, in the same spirit as `POSTGRES-WIR
 | Token minting | `TenantAdmin`. A credential that can mint credentials is the one thing an agent must never reach |
 | CDC subscriptions | Creating a webhook subscription is an outbound side effect with a stored secret (invariant 17) |
 | Arbitrary DDL | Available through `execute` where an operator has enabled writes, and nowhere else |
+| Connector *secret values* | A connector tool accepts a secret reference and never a value, exactly as the HTTP surface does. The operator's binding decides which reference resolves at which destination (invariant 23) |
 
 Long-running operations, if any of the above are ever exposed, go through the SDK 2.0 **Tasks**
 extension rather than a bespoke mechanism — and Tasks is structurally the same thing as
@@ -502,6 +532,13 @@ what is asserted is conformance rather than agreement with a hand-rolled fixture
 registered at start-up and so cannot vary within one server.
 - `execute` is **absent** unless the operator enables it, so an upgrade does not silently acquire an
   agent that can mutate the lakehouse.
+- **No** advertised tool is annotated non-read-only while writes are disabled. Asserted over the whole
+  set rather than over named tools, so a mutating tool added later cannot land outside the gate — which
+  is how the connector control plane first shipped reachable with writes off.
+- Every mutating tool is refused **by name** while writes are disabled, covering a client that calls
+  from a cached tool list rather than a fresh `tools/list`.
+- `run_connector` advertises itself destructive and `list_connectors` read-only, so the annotation a
+  client uses to decide whether to ask a human matches what the tool does.
 - Enabling it advertises a tool annotated non-read-only and destructive, while `query` stays annotated
   read-only — the annotations a client trusts are asserted, not just the behaviour behind them.
 - A read-write credential writes, proven by reading the table back rather than by the response.

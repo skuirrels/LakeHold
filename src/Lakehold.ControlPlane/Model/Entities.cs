@@ -917,16 +917,30 @@ public sealed class DataConnector
             throw new ArgumentException("HubSpot connector endpoints must use https://api.hubapi.com.");
         }
 
-        if (kind == DataConnectorKind.KafkaAvro
-            && (endpoint.Scheme != Uri.UriSchemeHttps
+        if (kind == DataConnectorKind.KafkaAvro)
+        {
+            if (endpoint.Scheme != Uri.UriSchemeHttps
                 || string.IsNullOrWhiteSpace(platform.SourceSettings.KafkaBootstrapServers)
                 || string.IsNullOrWhiteSpace(platform.SourceSettings.KafkaTopic)
                 || string.IsNullOrWhiteSpace(platform.SourceSettings.KafkaConsumerGroup)
                 || !Uri.TryCreate(platform.SourceSettings.SchemaRegistryUrl, UriKind.Absolute, out var registry)
-                || registry.Scheme != Uri.UriSchemeHttps))
-        {
-            throw new ArgumentException(
-                "Kafka Avro connectors require an HTTPS registry endpoint plus broker, topic, and consumer-group settings.");
+                || registry.Scheme != Uri.UriSchemeHttps)
+            {
+                throw new ArgumentException(
+                    "Kafka Avro connectors require an HTTPS registry endpoint plus broker, topic, and consumer-group settings.");
+            }
+
+            // The endpoint is what the operator's egress policy approves; the registry setting is
+            // what the adapter reads. A definition that lets them disagree approves one host and
+            // contacts another, so the durable model refuses it too, not only the HTTP validator.
+            if (!string.Equals(
+                    endpoint.GetLeftPart(UriPartial.Authority),
+                    registry.GetLeftPart(UriPartial.Authority),
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                throw new ArgumentException(
+                    "A Kafka Avro connector's endpoint URL must name the same host and port as its schema registry URL.");
+            }
         }
 
         if (!Enum.IsDefined(platform.Authentication.Kind))

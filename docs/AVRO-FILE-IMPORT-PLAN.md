@@ -74,6 +74,13 @@ to reach only these gateways; the gateway policy must itself restrict broker, re
 CONNECT/SOCKS destinations. A private Registry CA is supplied only through deployment configuration
 and uses the client-supported CA-bundle setting; certificate verification is never disabled.
 
+The gateway is a second control, not a replacement for the shared egress policy. Like every other
+adapter, this one resolves `OutboundDestinationPolicy` — the operator's host allow-list and the
+private-address checks — for each broker in the bootstrap list and for the Schema Registry, at
+creation and again on every read (invariant 23). Because the policy is what approves a destination,
+a connector's `endpointUrl` must name the same host and port as its `schemaRegistryUrl`: letting the
+two disagree would have the policy approve one host while the adapter read another.
+
 ### 4. Administrator configuration, UI, and MCP parity
 
 Connector definitions are durable control-plane records, not hidden application settings. The same validated definition and lifecycle service must be used by the UI, HTTP administration API, and MCP tools so a connector created by an AI agent appears immediately in the UI, and a connector created in the UI can be inspected and operated through MCP.
@@ -120,8 +127,11 @@ Cover:
   configuration routes both protocol clients through the deployment-owned egress boundary.
 - Docker protocol fixture: Confluent Kafka with its advertised listener, a Schema Registry using
   Jetty JAAS/property-file BASIC authentication behind trusted HTTPS, a Kafka TCP gateway that
-  tunnels through SOCKS5, and a separate HTTP registry proxy. It runs LakeHold's source adapter,
-  rather than a console consumer, and is skipped only when Docker itself is unavailable.
+  tunnels through SOCKS5, and a separate HTTP registry proxy. It runs LakeHold's source adapter
+  rather than a console consumer. It runs **only inside that Linux Compose fixture**, started by
+  `scripts/test-kafka-avro-proxy.sh` and CI, because the registry leg is TLS against a fixture CA
+  that exists only in the container's trust store. There is deliberately no host-side fallback: one
+  that skipped the TLS leg would report the same green tick for strictly less evidence.
 
 ## Acceptance criteria
 

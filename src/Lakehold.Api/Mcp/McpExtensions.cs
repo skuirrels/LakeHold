@@ -2,6 +2,7 @@ using Microsoft.Extensions.Options;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using ModelContextProtocol;
 using ModelContextProtocol.Protocol;
+using ModelContextProtocol.Server;
 
 namespace Lakehold.Api.Mcp;
 
@@ -41,11 +42,14 @@ public static class McpExtensions
 
                     if (!settings.AllowWrites)
                     {
-                        var execute = result.Tools.FirstOrDefault(
-                            tool => string.Equals(tool.Name, "execute", StringComparison.Ordinal));
-                        if (execute is not null)
+                        // Gate on the tool's own read-only annotation rather than a list of names.
+                        // A name list silently stops covering the next mutating tool somebody adds,
+                        // which is exactly how `execute` ended up being the only gated one.
+                        foreach (var mutating in result.Tools
+                                     .Where(tool => tool.Annotations?.ReadOnlyHint is not true)
+                                     .ToArray())
                         {
-                            result.Tools.Remove(execute);
+                            result.Tools.Remove(mutating);
                         }
                     }
 
@@ -57,10 +61,17 @@ public static class McpExtensions
 
                 filters.AddCallToolFilter(next => async (context, cancellationToken) =>
                 {
-                    if (string.Equals(context.Params.Name, "execute", StringComparison.Ordinal))
+                    var services = context.Services
+                        ?? throw new McpException("No request services are available.");
+
+                    // Removing a tool from discovery is not enforcement: a client with a stale tool
+                    // cache calls it by name. Resolve the same annotation the list filter reads, so
+                    // discovery and enforcement cannot describe different surfaces.
+                    var tools = services.GetRequiredService<IOptions<McpServerOptions>>().Value.ToolCollection;
+                    if (tools is not null
+                        && tools.TryGetPrimitive(context.Params.Name, out var tool)
+                        && tool.ProtocolTool.Annotations?.ReadOnlyHint is not true)
                     {
-                        var services = context.Services
-                            ?? throw new McpException("No request services are available.");
                         var settings = await services
                             .GetRequiredService<McpRuntimeSettingsStore>()
                             .GetAsync(cancellationToken)

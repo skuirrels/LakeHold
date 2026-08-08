@@ -77,4 +77,27 @@ internal static class McpCaller
             _ => throw new McpException($"Catalog '{catalog}' was not found for tenant '{tenant}'."),
         };
     }
+
+    /// <summary>
+    ///     The administrator capability plus the operator's write opt-in, for a tool that changes
+    ///     durable state or moves tenant data.
+    /// </summary>
+    /// <remarks>
+    ///     The request filters already refuse a mutating tool while writes are disabled. Keeping the
+    ///     check on the tool as well means a future transport or SDK dispatch that misses the filter
+    ///     still fails closed, exactly as <see cref="LakeholdWriteTools"/> does for `execute`.
+    /// </remarks>
+    public static ILakeholdPrincipal AuthorizeOwnerForWrite(
+        IHttpContextAccessor accessor,
+        string tenant,
+        string catalog)
+    {
+        var principal = AuthorizeOwner(accessor, tenant, catalog);
+        if (!Settings(accessor).AllowWrites)
+        {
+            throw new McpException("Writing through MCP is disabled in LakeHold System Settings.");
+        }
+
+        return principal;
+    }
 }

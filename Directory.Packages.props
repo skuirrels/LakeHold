@@ -1,8 +1,10 @@
 <Project>
+
   <PropertyGroup>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
     <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
   </PropertyGroup>
+
   <ItemGroup>
     <!-- Lakehouse engine + control plane persistence.
 
@@ -26,12 +28,14 @@
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.10" />
     <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
   </ItemGroup>
+
   <ItemGroup>
     <!-- Aspire orchestration -->
     <PackageVersion Include="Aspire.Hosting.AppHost" Version="13.4.6" />
     <!-- Node/npm hosting moved out of Aspire.Hosting.NodeJs (frozen at 9.5.2) in Aspire 13. -->
     <PackageVersion Include="Aspire.Hosting.JavaScript" Version="13.4.6" />
   </ItemGroup>
+
   <ItemGroup>
     <!-- Service defaults: telemetry, health, resilience -->
     <PackageVersion Include="Microsoft.Extensions.Http.Resilience" Version="10.8.0" />
@@ -45,6 +49,7 @@
     <PackageVersion Include="OpenTelemetry.Instrumentation.Http" Version="1.17.0" />
     <PackageVersion Include="OpenTelemetry.Instrumentation.Runtime" Version="1.17.0" />
   </ItemGroup>
+
   <ItemGroup>
     <!-- API surface -->
     <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="10.0.10" />
@@ -71,6 +76,7 @@
     <PackageVersion Include="Grpc.Net.Client" Version="2.83.0" />
     <PackageVersion Include="Grpc.Tools" Version="2.83.0" />
   </ItemGroup>
+
   <ItemGroup>
     <!-- Local development configuration. Loads .env into the process environment before the host
          reads configuration, so compose credentials and the integration-test gates live in one
@@ -78,6 +84,7 @@
          deployments use the platform's own environment or secret store. -->
     <PackageVersion Include="DotNetEnv" Version="3.2.0" />
   </ItemGroup>
+
   <ItemGroup>
     <!-- Shared extensions -->
     <!-- Keep Roslyn on one release line. EF Core Design permits Workspaces 5.0.0 or newer, but
@@ -91,6 +98,7 @@
     <PackageVersion Include="Microsoft.Extensions.Options" Version="10.0.10" />
     <PackageVersion Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.10" />
   </ItemGroup>
+
   <ItemGroup>
     <!-- Test-only -->
     <PackageVersion Include="Microsoft.AspNetCore.TestHost" Version="10.0.10" />
@@ -107,8 +115,10 @@
          real BI tool sends rather than the one we assumed it would. -->
     <PackageVersion Include="Npgsql" Version="10.0.3" />
   </ItemGroup>
+
   <ItemGroup>
     <!-- Scheduling -->
     <PackageVersion Include="Quartz.Extensions.Hosting" Version="3.19.1" />
   </ItemGroup>
+
 </Project>

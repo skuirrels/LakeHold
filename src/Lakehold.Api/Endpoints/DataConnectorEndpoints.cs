@@ -529,9 +529,20 @@ public static class DataConnectorEndpoints
                 {
                     return (null, gatewayError);
                 }
+
+                var registryUri = new Uri(platform.Definition!.SourceSettings.SchemaRegistryUrl!, UriKind.Absolute);
+                if (!IsSameOrigin(endpoint, registryUri))
+                {
+                    // The policy above approved `endpoint`. The adapter reads from
+                    // `schemaRegistryUrl`. Letting the two differ would approve one host and
+                    // contact another.
+                    return (null,
+                        "A Kafka Avro connector's endpoint URL must name the same host and port as schemaRegistryUrl.");
+                }
+
                 var kafkaDestinationError = await ValidateKafkaDestinationsAsync(
-                        platform.Definition!.SourceSettings.KafkaBootstrapServers!,
-                        new Uri(platform.Definition.SourceSettings.SchemaRegistryUrl!, UriKind.Absolute),
+                        platform.Definition.SourceSettings.KafkaBootstrapServers!,
+                        registryUri,
                         options,
                         cancellationToken)
                     .ConfigureAwait(false);
@@ -787,16 +798,64 @@ public static class DataConnectorEndpoints
             request.RetryMaxSeconds), null);
     }
 
+    /// <summary>
+    /// Applies the shared outbound egress policy to every host this adapter actually contacts —
+    /// each broker in the bootstrap list and the Schema Registry — and requires the deployment
+    /// gateway. The gateway is a second control, not a substitute: invariant 23 requires an adapter
+    /// to reuse the shared policy, and every other adapter resolves it in its own read path.
+    /// </summary>
     internal static async Task<string?> ValidateKafkaDestinationsAsync(
         string bootstrapServers,
         Uri registry,
         ConnectorOptions options,
         CancellationToken cancellationToken)
     {
-        cancellationToken.ThrowIfCancellationRequested();
-        _ = GetKafkaBootstrapHosts(bootstrapServers);
-        return options.TryGetKafkaEgressGateway(out _, out var error) ? null : error;
+        ArgumentNullException.ThrowIfNull(registry);
+        ArgumentNullException.ThrowIfNull(options);
+        if (!options.TryGetKafkaEgressGateway(out _, out var gatewayError))
+        {
+            return gatewayError;
+        }
+
+        var registryResolution = await OutboundDestinationPolicy
+            .ResolveAsync(registry, options, "Connector schema registry", cancellationToken)
+            .ConfigureAwait(false);
+        if (registryResolution.Error is not null)
+        {
+            return registryResolution.Error;
+        }
+
+        foreach (var host in GetKafkaBootstrapHosts(bootstrapServers))
+        {
+            // A broker address carries no scheme, so the host is presented to the policy the same
+            // way a PostgreSQL connector endpoint's host is. The allow-list and address checks are
+            // the part that matters; the wire protocol is not HTTPS either way.
+            var brokerResolution = await OutboundDestinationPolicy
+                .ResolveAsync(
+                    new UriBuilder(Uri.UriSchemeHttps, host).Uri,
+                    options,
+                    "Connector Kafka broker",
+                    cancellationToken)
+                .ConfigureAwait(false);
+            if (brokerResolution.Error is not null)
+            {
+                return brokerResolution.Error;
+            }
+        }
+
+        return null;
     }
+
+    /// <summary>
+    /// True when two URLs name the same origin. A Kafka Avro connector's approved endpoint and its
+    /// registry setting must agree here, or the policy would approve one host while the adapter
+    /// contacted another.
+    /// </summary>
+    internal static bool IsSameOrigin(Uri left, Uri right) =>
+        string.Equals(
+            left.GetLeftPart(UriPartial.Authority),
+            right.GetLeftPart(UriPartial.Authority),
+            StringComparison.OrdinalIgnoreCase);
 
     internal static IReadOnlyList<string> GetKafkaBootstrapHosts(string bootstrapServers)
     {

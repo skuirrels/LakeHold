@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, OnChanges, inject, input, signal } from '@angular/core';
+import { Observable } from 'rxjs';
 import { LakehouseService } from './lakehouse.service';
-import { DataConnector, DataConnectorDefinitionRequest, DataConnectorRun } from './models';
+import { DataConnector, DataConnectorDefinitionRequest, DataConnectorExecution, DataConnectorRun } from './models';
 
 /**
  * One administrator form for every registered connector kind. It persists precisely the same
@@ -20,6 +21,9 @@ export class ManagedConnectorsComponent implements OnChanges {
   protected readonly sourceTable = signal(''); protected readonly cursorColumn = signal(''); protected readonly cursorType = signal('int64'); protected readonly properties = signal('');
   protected readonly brokers = signal(''); protected readonly topic = signal(''); protected readonly group = signal('lakehold'); protected readonly registry = signal('');
   protected readonly authKind = signal('none'); protected readonly secretReference = signal(''); protected readonly usernameReference = signal(''); protected readonly passwordReference = signal('');
+  // A protected Schema Registry uses HTTP Basic, which is a different protocol from the broker's
+  // SASL. Round-tripping these separately is what stops an edit from silently dropping them.
+  protected readonly registryUsernameReference = signal(''); protected readonly registryPasswordReference = signal('');
 
   ngOnChanges(): void { this.reload(); }
   protected reload(): void { if (!this.tenant() || !this.catalog()) return; this.loading.set(true); this.api.listConnectors(this.tenant(), this.catalog()).subscribe({ next: x => { this.connectors.set(x); this.loading.set(false); }, error: (e: Error) => { this.error.set(e.message); this.loading.set(false); } }); }
@@ -35,19 +39,46 @@ export class ManagedConnectorsComponent implements OnChanges {
       minimumRows: 1, requiredColumns: this.list(this.required()), notNullColumns: this.list(this.notNull()), enabled: this.enabled(), refreshIntervalSeconds: this.schedule().trim() ? Number(this.schedule()) : null,
       adapterId: `lakehold.${kind === 'kafkaavro' ? 'kafka-avro' : kind === 'hubspot' ? 'hubspot-contacts' : kind}`, adapterVersion: 1, readMode: incremental ? 'incremental' : 'full-snapshot', schemaPolicy: this.mappings().trim() ? 'mapped-version' : 'reject', keyColumns: incremental ? this.list(this.keys()) : [],
       fieldMappings: this.parseMappings(), sourceSettings: { pageSize: Number(this.pageSize()), sourceTable: this.sourceTable().trim() || null, cursorColumn: this.cursorColumn().trim() || null, cursorType: this.cursorType().trim() || null, cursorIsCommitMonotonic: kind === 'postgresql', properties: this.list(this.properties()), kafkaBootstrapServers: this.brokers().trim() || null, kafkaTopic: this.topic().trim() || null, kafkaConsumerGroup: this.group().trim() || null, schemaRegistryUrl: this.registry().trim() || null },
-      authentication: { kind: this.authKind(), secretReference: this.secretReference().trim() || null, usernameSecretReference: this.usernameReference().trim() || null, passwordSecretReference: this.passwordReference().trim() || null },
+      authentication: { kind: this.authKind(), secretReference: this.secretReference().trim() || null, usernameSecretReference: this.usernameReference().trim() || null, passwordSecretReference: this.passwordReference().trim() || null, schemaRegistryUsernameSecretReference: this.registryUsernameReference().trim() || null, schemaRegistryPasswordSecretReference: this.registryPasswordReference().trim() || null },
     };
     if (!definition.name || !definition.owner || !definition.endpointUrl || !definition.targetTable || (incremental && definition.keyColumns!.length === 0)) { this.error.set('Name, owner, endpoint, target table, and incremental keys are required.'); return; }
     this.busy.set(true); this.error.set(null); const existing = this.editing(); const request = existing ? this.api.updateConnector(this.tenant(), this.catalog(), existing.id, existing.version, definition) : this.api.createConnector(this.tenant(), this.catalog(), definition);
     request.subscribe({ next: () => { this.busy.set(false); this.notice.set(existing ? 'Connector updated.' : 'Connector saved.'); this.cancelEdit(); this.reload(); }, error: (e: Error) => { this.busy.set(false); this.error.set(e.message); } });
   }
   protected parseMappings(): { source: string; target: string; transform: string }[] { return this.mappings().split(',').map(value => value.trim()).filter(Boolean).map(value => { const [source, target, transform = 'none'] = value.split(':').map(x => x.trim()); return { source, target, transform }; }); }
-  protected edit(c: DataConnector): void { this.editing.set(c); this.showCreate.set(true); this.kind.set(c.kind); this.name.set(c.name); this.description.set(c.description || ''); this.owner.set(c.owner); this.tags.set(c.tags.join(', ')); this.endpoint.set(c.endpointUrl); this.targetSchema.set(c.targetSchema); this.targetTable.set(c.targetTable); this.enabled.set(c.enabled); this.schedule.set(c.refreshIntervalSeconds?.toString() || ''); this.pageSize.set(c.sourceSettings.pageSize.toString()); this.keys.set(c.keyColumns.join(', ')); this.required.set(c.requiredColumns.join(', ')); this.notNull.set(c.notNullColumns.join(', ')); this.mappings.set(c.fieldMappings.map(x => `${x.source}:${x.target}:${x.transform}`).join(', ')); this.sourceTable.set(c.sourceSettings.sourceTable || ''); this.cursorColumn.set(c.sourceSettings.cursorColumn || ''); this.cursorType.set(c.sourceSettings.cursorType || 'int64'); this.properties.set(c.sourceSettings.properties.join(', ')); this.brokers.set(c.sourceSettings.kafkaBootstrapServers || ''); this.topic.set(c.sourceSettings.kafkaTopic || ''); this.group.set(c.sourceSettings.kafkaConsumerGroup || 'lakehold'); this.registry.set(c.sourceSettings.schemaRegistryUrl || ''); this.authKind.set(c.authentication.kind); this.secretReference.set(c.authentication.secretReference || ''); this.usernameReference.set(c.authentication.usernameSecretReference || ''); this.passwordReference.set(c.authentication.passwordSecretReference || ''); }
-  protected cancelEdit(): void { this.showCreate.set(false); this.editing.set(null); this.kind.set('rest'); this.name.set(''); this.description.set(''); this.owner.set('administrator'); this.tags.set(''); this.endpoint.set('https://'); this.targetSchema.set('main'); this.targetTable.set(''); this.enabled.set(true); this.schedule.set(''); this.pageSize.set('100'); this.keys.set(''); this.required.set(''); this.notNull.set(''); this.mappings.set(''); this.sourceTable.set(''); this.cursorColumn.set(''); this.cursorType.set('int64'); this.properties.set(''); this.brokers.set(''); this.topic.set(''); this.group.set('lakehold'); this.registry.set(''); this.authKind.set('none'); this.secretReference.set(''); this.usernameReference.set(''); this.passwordReference.set(''); }
+  protected edit(c: DataConnector): void { this.editing.set(c); this.showCreate.set(true); this.kind.set(c.kind); this.name.set(c.name); this.description.set(c.description || ''); this.owner.set(c.owner); this.tags.set(c.tags.join(', ')); this.endpoint.set(c.endpointUrl); this.targetSchema.set(c.targetSchema); this.targetTable.set(c.targetTable); this.enabled.set(c.enabled); this.schedule.set(c.refreshIntervalSeconds?.toString() || ''); this.pageSize.set(c.sourceSettings.pageSize.toString()); this.keys.set(c.keyColumns.join(', ')); this.required.set(c.requiredColumns.join(', ')); this.notNull.set(c.notNullColumns.join(', ')); this.mappings.set(c.fieldMappings.map(x => `${x.source}:${x.target}:${x.transform}`).join(', ')); this.sourceTable.set(c.sourceSettings.sourceTable || ''); this.cursorColumn.set(c.sourceSettings.cursorColumn || ''); this.cursorType.set(c.sourceSettings.cursorType || 'int64'); this.properties.set(c.sourceSettings.properties.join(', ')); this.brokers.set(c.sourceSettings.kafkaBootstrapServers || ''); this.topic.set(c.sourceSettings.kafkaTopic || ''); this.group.set(c.sourceSettings.kafkaConsumerGroup || 'lakehold'); this.registry.set(c.sourceSettings.schemaRegistryUrl || ''); this.authKind.set(c.authentication.kind); this.secretReference.set(c.authentication.secretReference || ''); this.usernameReference.set(c.authentication.usernameSecretReference || ''); this.passwordReference.set(c.authentication.passwordSecretReference || ''); this.registryUsernameReference.set(c.authentication.schemaRegistryUsernameSecretReference || ''); this.registryPasswordReference.set(c.authentication.schemaRegistryPasswordSecretReference || ''); }
+  protected cancelEdit(): void { this.showCreate.set(false); this.editing.set(null); this.kind.set('rest'); this.name.set(''); this.description.set(''); this.owner.set('administrator'); this.tags.set(''); this.endpoint.set('https://'); this.targetSchema.set('main'); this.targetTable.set(''); this.enabled.set(true); this.schedule.set(''); this.pageSize.set('100'); this.keys.set(''); this.required.set(''); this.notNull.set(''); this.mappings.set(''); this.sourceTable.set(''); this.cursorColumn.set(''); this.cursorType.set('int64'); this.properties.set(''); this.brokers.set(''); this.topic.set(''); this.group.set('lakehold'); this.registry.set(''); this.authKind.set('none'); this.secretReference.set(''); this.usernameReference.set(''); this.passwordReference.set(''); this.registryUsernameReference.set(''); this.registryPasswordReference.set(''); }
   protected inspect(c: DataConnector): void { this.selected.set(c); this.diagnosticsLoading.set(true); this.api.listConnectorRuns(this.tenant(), this.catalog(), c.id).subscribe({ next: x => { this.runs.set(x); this.diagnosticsLoading.set(false); }, error: (e: Error) => { this.error.set(e.message); this.diagnosticsLoading.set(false); } }); this.api.listConnectorDeadLetters(this.tenant(), this.catalog(), c.id).subscribe({ next: x => this.deadLetters.set(x), error: (e: Error) => this.error.set(e.message) }); }
-  protected retry(c: DataConnector): void { this.lifecycle(this.api.retryConnector(this.tenant(), this.catalog(), c.id, c.version), `Connector '${c.name}' retried.`); }
+  protected retry(c: DataConnector): void { this.execute(this.api.retryConnector(this.tenant(), this.catalog(), c.id, c.version), c.name); }
   protected remove(c: DataConnector): void { if (confirm(`Retire '${c.name}'? This does not delete its governed table.`)) this.lifecycle(this.api.deleteConnector(this.tenant(), this.catalog(), c.id, c.version), `Connector '${c.name}' retired.`); }
   protected toggle(c: DataConnector): void { this.lifecycle(c.pausedUtc ? this.api.resumeConnector(this.tenant(), this.catalog(), c.id, c.version) : this.api.pauseConnector(this.tenant(), this.catalog(), c.id, c.version), 'Connector state updated.'); }
-  protected run(c: DataConnector): void { this.lifecycle(this.api.runConnector(this.tenant(), this.catalog(), c.id), `Connector '${c.name}' ran.`); }
-  private lifecycle(operation: { subscribe: Function }, notice: string): void { if (this.busy()) return; this.busy.set(true); operation.subscribe({ next: () => { this.busy.set(false); this.notice.set(notice); this.reload(); }, error: (e: Error) => { this.busy.set(false); this.error.set(e.message); } }); }
+  protected run(c: DataConnector): void { this.execute(this.api.runConnector(this.tenant(), this.catalog(), c.id), c.name); }
+
+  /**
+   * A run that reaches the client is not automatically a run that worked. Publishing without a
+   * source acknowledgement answers 202, which is a success status carrying an outcome an operator
+   * has to act on, so report the run's own status rather than the fact a response arrived.
+   */
+  private execute(operation: Observable<DataConnectorExecution>, name: string): void {
+    if (this.busy()) return;
+    this.busy.set(true);
+    this.error.set(null);
+    operation.subscribe({
+      next: result => {
+        this.busy.set(false);
+        if (result?.status === 'published-source-acknowledgement-pending') {
+          this.notice.set(null);
+          this.error.set(
+            `Connector '${name}' published ${result.rowsPublished} row(s), but the source was not acknowledged. ` +
+              (result.error ?? 'Use Recover and retry; the batch replays safely.'));
+        } else {
+          this.notice.set(`Connector '${name}' ran: ${result?.status ?? 'completed'}, ${result?.rowsPublished ?? 0} row(s) published.`);
+        }
+        this.reload();
+      },
+      error: (e: Error) => { this.busy.set(false); this.error.set(e.message); },
+    });
+  }
+
+  private lifecycle(operation: Observable<unknown>, notice: string): void { if (this.busy()) return; this.busy.set(true); this.error.set(null); operation.subscribe({ next: () => { this.busy.set(false); this.notice.set(notice); this.reload(); }, error: (e: Error) => { this.busy.set(false); this.error.set(e.message); } }); }
 }

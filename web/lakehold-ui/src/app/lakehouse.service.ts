@@ -37,6 +37,7 @@ import {
   TabularImportResult,
   DataConnector,
   DataConnectorDefinitionRequest,
+  DataConnectorExecution,
   DataConnectorRun,
   TableDetail,
   TableFiles,
@@ -210,12 +211,16 @@ export class LakehouseService {
     return this.http.post<DataConnector>(this.catalogUrl(tenant, catalog, `connectors/${id}/resume`), { version }).pipe(catchError(toMessage));
   }
 
-  runConnector(tenant: string, catalog: string, id: number): Observable<unknown> {
-    return this.http.post(this.catalogUrl(tenant, catalog, `connectors/${id}/run`), {}).pipe(catchError(toMessage));
+  runConnector(tenant: string, catalog: string, id: number): Observable<DataConnectorExecution> {
+    return this.http
+      .post<DataConnectorExecution>(this.catalogUrl(tenant, catalog, `connectors/${id}/run`), {})
+      .pipe(catchError(toMessage));
   }
 
-  retryConnector(tenant: string, catalog: string, id: number, version: number): Observable<unknown> {
-    return this.http.post(this.catalogUrl(tenant, catalog, `connectors/${id}/retry`), { version }).pipe(catchError(toMessage));
+  retryConnector(tenant: string, catalog: string, id: number, version: number): Observable<DataConnectorExecution> {
+    return this.http
+      .post<DataConnectorExecution>(this.catalogUrl(tenant, catalog, `connectors/${id}/retry`), { version })
+      .pipe(catchError(toMessage));
   }
 
   listConnectorRuns(tenant: string, catalog: string, id: number): Observable<DataConnectorRun[]> {
@@ -746,13 +751,13 @@ function toMessage(response: HttpErrorResponse): Observable<never> {
 }
 
 function importContentType(file: File): string {
-    if (file.name.toLowerCase().endsWith('.xlsx')) {
-      return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
-    }
+  if (file.name.toLowerCase().endsWith('.xlsx')) {
+    return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+  }
 
-    if (file.name.toLowerCase().endsWith('.avro')) {
-      return 'application/avro';
-    }
+  if (file.name.toLowerCase().endsWith('.avro')) {
+    return 'application/avro';
+  }
 
   return file.type === 'text/csv' ? 'text/csv' : 'application/octet-stream';
 }

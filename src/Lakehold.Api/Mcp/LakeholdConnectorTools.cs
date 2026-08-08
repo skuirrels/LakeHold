@@ -73,7 +73,7 @@ public sealed class LakeholdConnectorTools(
         [Description("Connector definition. Secret references only; never secret values.")] DataConnectorDefinitionRequest definition,
         CancellationToken cancellationToken)
     {
-        McpCaller.AuthorizeOwner(httpContextAccessor, tenant, catalog);
+        McpCaller.AuthorizeOwnerForWrite(httpContextAccessor, tenant, catalog);
         var validated = await RequireDefinitionAsync(tenant, catalog, definition, cancellationToken).ConfigureAwait(false);
         try
         {
@@ -97,7 +97,7 @@ public sealed class LakeholdConnectorTools(
         [Description("Replacement connector definition. Secret references only; never secret values.")] DataConnectorDefinitionRequest definition,
         CancellationToken cancellationToken)
     {
-        McpCaller.AuthorizeOwner(httpContextAccessor, tenant, catalog);
+        McpCaller.AuthorizeOwnerForWrite(httpContextAccessor, tenant, catalog);
         var validated = await RequireDefinitionAsync(tenant, catalog, definition, cancellationToken).ConfigureAwait(false);
         try
         {
@@ -115,7 +115,7 @@ public sealed class LakeholdConnectorTools(
     [Description("Retires a connector. It is no longer scheduled, while its run lineage remains retained.")]
     public async Task RetireAsync(string tenant, string catalog, int id, int version, CancellationToken cancellationToken)
     {
-        McpCaller.AuthorizeOwner(httpContextAccessor, tenant, catalog);
+        McpCaller.AuthorizeOwnerForWrite(httpContextAccessor, tenant, catalog);
         try
         {
             await connectors.DeleteAsync(tenant, catalog, id, version, cancellationToken).ConfigureAwait(false);
@@ -126,13 +126,15 @@ public sealed class LakeholdConnectorTools(
         }
     }
 
-    [McpServerTool(Name = "run_connector", Title = "Run managed connector", ReadOnly = false, Destructive = false)]
-    [Description("Runs one enabled connector now and returns its safe execution result.")]
+    // Destructive: a full-snapshot connector replaces the whole of its DuckLake target, so a run is
+    // not an additive operation the client should wave through without asking.
+    [McpServerTool(Name = "run_connector", Title = "Run managed connector", ReadOnly = false, Destructive = true)]
+    [Description("Runs one enabled connector now and returns its safe execution result. A full-snapshot connector replaces its target table.")]
     public Task<DataConnectorExecutionDto> RunAsync(string tenant, string catalog, int id, CancellationToken cancellationToken) =>
         RunAsync(tenant, catalog, id, retry: false, cancellationToken);
 
-    [McpServerTool(Name = "retry_connector", Title = "Retry managed connector", ReadOnly = false, Destructive = false)]
-    [Description("Retries a failed connector using its existing definition.")]
+    [McpServerTool(Name = "retry_connector", Title = "Retry managed connector", ReadOnly = false, Destructive = true)]
+    [Description("Retries a failed connector using its existing definition, replaying its bounded source window.")]
     public Task<DataConnectorExecutionDto> RetryAsync(string tenant, string catalog, int id, int version, CancellationToken cancellationToken) =>
         RunAsync(tenant, catalog, id, retry: true, version, cancellationToken);
 
@@ -195,7 +197,7 @@ public sealed class LakeholdConnectorTools(
 
     private async Task<DataConnectorExecutionDto> RunAsync(string tenant, string catalog, int id, bool retry, int? version, CancellationToken cancellationToken)
     {
-        McpCaller.AuthorizeOwner(httpContextAccessor, tenant, catalog);
+        McpCaller.AuthorizeOwnerForWrite(httpContextAccessor, tenant, catalog);
         try
         {
             var connector = await connectors.GetAsync(tenant, catalog, id, cancellationToken).ConfigureAwait(false);
@@ -227,7 +229,7 @@ public sealed class LakeholdConnectorTools(
 
     private async Task<DataConnectorDto> ChangeStateAsync(string tenant, string catalog, Func<Task<DataConnector>> operation)
     {
-        McpCaller.AuthorizeOwner(httpContextAccessor, tenant, catalog);
+        McpCaller.AuthorizeOwnerForWrite(httpContextAccessor, tenant, catalog);
         try
         {
             return DataConnectorDto.From(await operation().ConfigureAwait(false));

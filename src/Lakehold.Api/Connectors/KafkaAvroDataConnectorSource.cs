@@ -145,6 +145,10 @@ internal sealed class KafkaAvroDataConnectorSource(
         // partitions after a successful DuckLake publication.
         var nextOffsets = new Dictionary<TopicPartition, Offset>();
         var limit = Math.Clamp(settings.PageSize, 1, 10_000);
+        // Consumed records, staged rows, or neither. A tombstone advances the position without
+        // staging a row, so "have we seen anything yet" is a different question from "do we have
+        // rows", and only the first one says whether the group has finished joining.
+        var consumed = 0;
         // Assignment is asynchronous. A first one-second poll commonly returns no record while
         // the group joins, so wait for the configured bounded request window rather than treating
         // that transport heartbeat as an empty source.
@@ -166,18 +170,30 @@ internal sealed class KafkaAvroDataConnectorSource(
                 // EOF is per assigned partition and may be delivered while the group is still
                 // establishing its starting position. Do not turn that transient marker into an
                 // empty successful batch before the bounded read window has had a chance to see
-                // a record. Once a batch has records, EOF is the natural batch boundary.
-                if (destination.Rows == 0 && DateTimeOffset.UtcNow < readDeadline)
+                // a record. Once a batch has consumed records, EOF is the natural batch boundary.
+                if (consumed == 0 && DateTimeOffset.UtcNow < readDeadline)
                 {
                     continue;
                 }
                 break;
             }
 
-            await destination.WriteAsync(JsonSerializer.Serialize(ToPlain(record.Message.Value)), cancellationToken)
-                .ConfigureAwait(false);
+            consumed++;
+
             nextOffsets[record.TopicPartition] = record.Offset + 1;
             destination.RecordSourceVersion($"{record.TopicPartition.Topic}:{record.TopicPartition.Partition.Value}:{record.Offset.Value}");
+            if (record.Message.Value is null)
+            {
+                // A tombstone is a null-valued record, ordinary on a keyed topic. It carries no
+                // fields to stage, and this adapter does not represent source deletions. Advance
+                // past it: staging a literal `null` fails the key and not-null gates, which fails
+                // the batch, which commits no offset — so every replay would re-read the same
+                // record and the connector would never move again.
+                continue;
+            }
+
+            await destination.WriteAsync(JsonSerializer.Serialize(ToPlain(record.Message.Value)), cancellationToken)
+                .ConfigureAwait(false);
         }
 
         var checkpoint = nextOffsets.Count == 0
@@ -218,10 +234,28 @@ internal sealed class KafkaAvroDataConnectorSource(
 
     private void DisposeConsumer()
     {
+        var consumer = _consumer;
         _pendingOffsets = null;
-        _consumer?.Close();
-        _consumer?.Dispose();
         _consumer = null;
+        if (consumer is null)
+        {
+            return;
+        }
+
+        try
+        {
+            // Close leaves the group cleanly, but it talks to the broker — and the common reason to
+            // be tearing down is that the broker is unreachable. Never let that failure replace the
+            // outcome the caller is already reporting, and never let it skip Dispose.
+            consumer.Close();
+        }
+        catch (KafkaException)
+        {
+        }
+        finally
+        {
+            consumer.Dispose();
+        }
     }
 
     private static object? ToPlain(object? value) => value switch

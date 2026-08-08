@@ -9,6 +9,27 @@ and LakeHold follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **Kafka Avro ingestion**, as a fifth built-in managed connector. It consumes a bounded window of
+  Confluent-wire-format Avro records, resolves schemas through a Confluent-compatible HTTPS Schema
+  Registry, and publishes into a governed DuckLake table on the existing incremental keyed-upsert
+  path. Broker and Registry credentials are secret references only. Kafka is never contacted
+  directly: a deployment-owned literal-IP TCP gateway carries broker traffic, a literal-IP HTTP(S)
+  proxy carries Registry traffic, and the connector is refused outright until both are configured.
+  This is at-least-once ingestion and says so — LakeHold publishes the batch *before* committing the
+  broker offset, so a failed commit replays rather than loses, and never reports itself as a clean
+  run. It is not a Debezium-style CDC connector: source deletions are not represented, and a
+  tombstone advances the offset without staging a row.
+- **`.avro` object-container upload** alongside CSV and XLSX, reading the file's own embedded writer
+  schema. This is a developer import path and is unrelated to Kafka wire-format ingestion.
+- **Managed connectors in the Workbench.** The connector platform was previously HTTP-only. The same
+  durable definitions are now administered from a workbench panel and from MCP, all three going
+  through one validation boundary, so an agent cannot save a definition the administrator UI would
+  refuse.
+- **A recovery state for a publication whose source was never acknowledged.** When LakeHold commits
+  a batch to DuckLake but the source acknowledgement then fails, the run is recorded as
+  `published-source-acknowledgement-pending` rather than as either a success or a failure, and the
+  connector stops scheduling until an operator retries it explicitly. Neither of the alternatives is
+  true: the data is queryable, and the offset was not committed.
 - **System Settings → New workspace** provisions additional tenant boundaries without dropping to
   HTTP. A successful create refreshes the Workbench workspace list and preselects the new workspace
   in **New catalog**, so the two-step flow can be completed in place. Workspace validation is shared
@@ -16,12 +37,39 @@ and LakeHold follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- **Writing through MCP is gated by what a tool does, not by its name.** The `AllowWrites` gate
+  matched the literal tool name `execute`, so the tools added for the connector control plane were
+  reachable on a deployment with writes turned off — including one that runs a connector, which for a
+  full-snapshot definition replaces its target table. Both the discovery filter and the call filter
+  now read each tool's own `readOnly` annotation, and the mutating tools check the setting themselves
+  as well, so a tool registered later is covered the moment it exists rather than when somebody
+  remembers to extend a list. A test asserts over the whole advertised set for the same reason.
+  `run_connector` and `retry_connector` are also annotated destructive now, because they are.
 - The workspace-administration feature is now **Users** end to end: `UsersComponent`, the
   `lh-users` selector, the `users` navigation destination, page copy, API descriptions, and operator
   documentation all use the same name instead of retaining internal **People** identifiers.
 
 ### Fixed
 
+- **The Kafka Avro adapter approved one host and could read from another.** Its destination check
+  parsed the broker list and confirmed the gateway was configured, but never resolved the shared
+  outbound egress policy the other four adapters resolve — so neither the brokers nor the Schema
+  Registry were checked against the operator's allow-list, and nothing required a connector's
+  policy-approved `endpointUrl` to be the registry it actually read. The policy now covers every
+  broker and the registry, at creation and on every read, and a definition whose endpoint and
+  registry name different hosts is refused by the HTTP validator and by the durable model.
+- **A Kafka tombstone stopped a connector permanently.** A null-valued record was staged as a literal
+  `null`, which fails an incremental connector's own key and not-null gates; the batch failed, so no
+  offset was committed, so the next run read the same record and failed the same way. Tombstones now
+  advance the offset without staging a row.
+- **A broker that went away could replace a run's real outcome.** Releasing the consumer happened in
+  a `finally` with nothing catching it, and closing a Kafka consumer talks to the broker — so in the
+  case that most often caused the failure, tearing down threw over the top of the failure that had
+  already been handled and recorded. Release is best-effort and logged now.
+- **The Workbench reported a connector run that needed an operator as a clean run.** The
+  publication-without-acknowledgement outcome arrives on a `202`, which the panel treated as any
+  other success and then discarded the body. It now reports the run's own status, and shows the
+  pending acknowledgement as something to act on.
 - **An unhealthy query planner disappeared instead of explaining itself.** A configured planner that
   failed discovery — a missed one-second deadline, a planner key the API and the compiler disagree
   on, a container still starting — was dropped from `/query-languages` with the only trace in the
