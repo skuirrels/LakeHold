@@ -30,6 +30,22 @@ export class ManagedConnectorsComponent implements OnChanges {
   protected supports(kind: string): boolean { return this.kind() === kind; }
 
   /**
+   * `endpointUrl` is one column carrying four meanings: a complete resource URL for REST, a channel
+   * address for gRPC, a fixed API base for HubSpot, and a `postgresql://` connection URI. Changing
+   * the adapter therefore changes what the field *is*, so carrying the previous value across is
+   * always wrong — the server would reject it on the scheme rule alone.
+   */
+  protected chooseKind(value: string): void {
+    if (value === this.kind()) return;
+    this.kind.set(value);
+    this.endpoint.set(
+      value === 'hubspot' ? 'https://api.hubapi.com' : value === 'postgresql' ? 'postgresql://' : 'https://');
+  }
+
+  /** REST and gRPC read their response whole; only the paging adapters use this. */
+  protected pages(): boolean { return !this.supports('rest') && !this.supports('grpc'); }
+
+  /**
    * Health as three states rather than one sentence. A pending source acknowledgement and a failed
    * run both need an operator; a paused connector does not, and rendering all three as the same grey
    * prose is how the one that needs acting on gets scanned past.

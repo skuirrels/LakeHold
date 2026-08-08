@@ -181,6 +181,52 @@ describe('ManagedConnectorsComponent', () => {
     expect(fixture.nativeElement.querySelector('[role="alert"]')?.textContent).toContain('keys are required');
   });
 
+  // `endpointUrl` means something different per adapter — a resource URL, a channel address, a
+  // fixed API base, a connection URI — so a value carried across an adapter change is one the
+  // server refuses on its scheme rule. HubSpot's base is the case that fails most quietly.
+  it('replaces the endpoint when the adapter changes rather than carrying the old meaning across', async () => {
+    await mount();
+
+    click('Add connector');
+    const component = fixture.componentInstance as unknown as {
+      endpoint: { (): string; set(value: string): void };
+      chooseKind(value: string): void;
+    };
+    component.endpoint.set('https://source.example.test/v1/orders');
+
+    component.chooseKind('hubspot');
+    expect(component.endpoint()).toBe('https://api.hubapi.com');
+
+    component.chooseKind('postgresql');
+    expect(component.endpoint()).toBe('postgresql://');
+
+    component.chooseKind('rest');
+    expect(component.endpoint()).toBe('https://');
+  });
+
+  // REST and gRPC read their response whole; only the paging adapters consult it. Offering the
+  // field on an adapter that ignores it is a setting an administrator can tune with no effect.
+  it('offers page size only to the adapters that page', async () => {
+    await mount();
+
+    click('Add connector');
+    const component = fixture.componentInstance as unknown as { chooseKind(value: string): void };
+    const pageSize = () =>
+      [...fixture.nativeElement.querySelectorAll('.field > span')].some(
+        (span: HTMLElement) => span.textContent?.includes('Page size'),
+      );
+
+    expect(pageSize()).toBe(false);
+
+    component.chooseKind('postgresql');
+    fixture.detectChanges();
+    expect(pageSize()).toBe(true);
+
+    component.chooseKind('grpc');
+    fixture.detectChanges();
+    expect(pageSize()).toBe(false);
+  });
+
   it('surfaces a failed load instead of showing an empty catalog', async () => {
     api.failures.set('listConnectors', 'the control plane is unreachable');
     await mount();

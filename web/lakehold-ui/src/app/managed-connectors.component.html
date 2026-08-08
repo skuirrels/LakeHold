@@ -20,7 +20,7 @@
   </div>
 
   @if (showCreate()) {
-    <div class="panel">
+    <div class="panel editor">
       <header>
         <h2>{{ editing() ? 'Edit connector' : 'New connector' }}</h2>
         <p>
@@ -34,7 +34,7 @@
         <div class="fields">
           <label class="field">
             <span>Adapter</span>
-            <select [value]="kind()" (change)="kind.set($any($event.target).value)">
+            <select [value]="kind()" (change)="chooseKind($any($event.target).value)">
               <option value="rest">REST</option>
               <option value="grpc">gRPC</option>
               <option value="postgresql">PostgreSQL</option>
@@ -94,14 +94,16 @@
       <div class="section">
         <h3>Quality gates and mapping</h3>
         <div class="fields">
-          <label class="field">
-            <span>Page size</span>
-            <input
-              type="number"
-              [value]="pageSize()"
-              (input)="pageSize.set($any($event.target).value)"
-            />
-          </label>
+          @if (pages()) {
+            <label class="field">
+              <span>Page size</span>
+              <input
+                type="number"
+                [value]="pageSize()"
+                (input)="pageSize.set($any($event.target).value)"
+              />
+            </label>
+          }
           <label class="field">
             <span>Required columns <small>comma-separated</small></span>
             <input [value]="required()" (input)="required.set($any($event.target).value)" />
@@ -134,8 +136,13 @@
               <input [value]="group()" (input)="group.set($any($event.target).value)" />
             </label>
             <label class="field">
-              <span>HTTPS Schema Registry</span>
-              <input type="url" [value]="registry()" (input)="registry.set($any($event.target).value)" />
+              <span>HTTPS Schema Registry <small>this is the connector's endpoint</small></span>
+              <input
+                type="url"
+                placeholder="https://registry.example.com"
+                [value]="registry()"
+                (input)="registry.set($any($event.target).value)"
+              />
             </label>
             <label class="field">
               <span>Keys <small>comma-separated</small></span>
@@ -164,8 +171,12 @@
           <h3>PostgreSQL source</h3>
           <div class="fields">
             <label class="field wide">
-              <span>PostgreSQL URL</span>
-              <input [value]="endpoint()" (input)="endpoint.set($any($event.target).value)" />
+              <span>PostgreSQL URL <small>host and database only — credentials are references below</small></span>
+              <input
+                placeholder="postgresql://erp-db.example.com/erp"
+                [value]="endpoint()"
+                (input)="endpoint.set($any($event.target).value)"
+              />
             </label>
             <label class="field">
               <span>Source table <small>schema.table</small></span>
@@ -195,12 +206,36 @@
         </div>
       } @else {
         <div class="section">
-          <h3>{{ supports('hubspot') ? 'HubSpot source' : 'Source' }}</h3>
+          <h3>{{ supports('hubspot') ? 'HubSpot source' : supports('grpc') ? 'gRPC source' : 'REST source' }}</h3>
           <div class="fields">
-            <label class="field wide">
-              <span>Endpoint URL</span>
-              <input type="url" [value]="endpoint()" (input)="endpoint.set($any($event.target).value)" />
-            </label>
+            @if (supports('hubspot')) {
+              <!-- Fixed by the adapter, which builds its own paths under this base. Editable, it is
+                   only a way to save a definition the server refuses. -->
+              <label class="field wide">
+                <span>HubSpot API base <small>fixed — the adapter builds its own paths</small></span>
+                <input type="url" readonly [value]="endpoint()" />
+              </label>
+            } @else if (supports('grpc')) {
+              <label class="field wide">
+                <span>gRPC server address <small>channel address, not a method path</small></span>
+                <input
+                  type="url"
+                  placeholder="https://source.example.com:443"
+                  [value]="endpoint()"
+                  (input)="endpoint.set($any($event.target).value)"
+                />
+              </label>
+            } @else {
+              <label class="field wide">
+                <span>Endpoint URL <small>the complete resource URL — one GET, read whole</small></span>
+                <input
+                  type="url"
+                  placeholder="https://source.example.com/v1/orders"
+                  [value]="endpoint()"
+                  (input)="endpoint.set($any($event.target).value)"
+                />
+              </label>
+            }
             @if (supports('hubspot')) {
               <label class="field">
                 <span>Properties <small>comma-separated</small></span>

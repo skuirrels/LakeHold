@@ -122,6 +122,13 @@ code {
   color: var(--text-faint);
 }
 
+/* Reads as a stated fact rather than an empty box somebody should fill in. */
+.field input[readonly] {
+  color: var(--text-muted);
+  background: var(--surface-0);
+  cursor: default;
+}
+
 /* A checkbox belongs beside its label, not above it, so it opts out of the stacked field grid. */
 .toggle {
   display: flex;
