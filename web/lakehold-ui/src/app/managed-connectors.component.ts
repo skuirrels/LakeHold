@@ -24,9 +24,17 @@ export class ManagedConnectorsComponent implements OnChanges {
   // A protected Schema Registry uses HTTP Basic, which is a different protocol from the broker's
   // SASL. Round-tripping these separately is what stops an edit from silently dropping them.
   protected readonly registryUsernameReference = signal(''); protected readonly registryPasswordReference = signal('');
+  protected readonly pendingRetireId = signal<number | null>(null);
 
   ngOnChanges(): void { this.reload(); }
-  protected reload(): void { if (!this.tenant() || !this.catalog()) return; this.loading.set(true); this.api.listConnectors(this.tenant(), this.catalog()).subscribe({ next: x => { this.connectors.set(x); this.loading.set(false); }, error: (e: Error) => { this.error.set(e.message); this.loading.set(false); } }); }
+  protected reload(): void {
+    if (!this.tenant() || !this.catalog()) return;
+    // An armed "Confirm retire" belongs to the list it was armed against. Left armed across a
+    // reload or a catalog change, the second click retires whoever holds that id in the new one.
+    this.pendingRetireId.set(null);
+    this.loading.set(true);
+    this.api.listConnectors(this.tenant(), this.catalog()).subscribe({ next: x => { this.connectors.set(x); this.loading.set(false); }, error: (e: Error) => { this.error.set(e.message); this.loading.set(false); } });
+  }
   protected supports(kind: string): boolean { return this.kind() === kind; }
 
   /**
@@ -87,7 +95,16 @@ export class ManagedConnectorsComponent implements OnChanges {
   protected cancelEdit(): void { this.showCreate.set(false); this.editing.set(null); this.kind.set('rest'); this.name.set(''); this.description.set(''); this.owner.set('administrator'); this.tags.set(''); this.endpoint.set('https://'); this.targetSchema.set('main'); this.targetTable.set(''); this.enabled.set(true); this.schedule.set(''); this.pageSize.set('100'); this.keys.set(''); this.required.set(''); this.notNull.set(''); this.mappings.set(''); this.sourceTable.set(''); this.cursorColumn.set(''); this.cursorType.set('int64'); this.properties.set(''); this.brokers.set(''); this.topic.set(''); this.group.set('lakehold'); this.registry.set(''); this.authKind.set('none'); this.secretReference.set(''); this.usernameReference.set(''); this.passwordReference.set(''); this.registryUsernameReference.set(''); this.registryPasswordReference.set(''); }
   protected inspect(c: DataConnector): void { this.selected.set(c); this.diagnosticsLoading.set(true); this.api.listConnectorRuns(this.tenant(), this.catalog(), c.id).subscribe({ next: x => { this.runs.set(x); this.diagnosticsLoading.set(false); }, error: (e: Error) => { this.error.set(e.message); this.diagnosticsLoading.set(false); } }); this.api.listConnectorDeadLetters(this.tenant(), this.catalog(), c.id).subscribe({ next: x => this.deadLetters.set(x), error: (e: Error) => this.error.set(e.message) }); }
   protected retry(c: DataConnector): void { this.execute(this.api.retryConnector(this.tenant(), this.catalog(), c.id, c.version), c.name); }
-  protected remove(c: DataConnector): void { if (confirm(`Retire '${c.name}'? This does not delete its governed table.`)) this.lifecycle(this.api.deleteConnector(this.tenant(), this.catalog(), c.id, c.version), `Connector '${c.name}' retired.`); }
+  /**
+   * Arms, then retires — the same two-click shape member administration uses, rather than a native
+   * `confirm()`. A modal dialog blocks the whole renderer and is styled by the browser rather than
+   * the app; arming puts the warning on the control being pressed, where it is read.
+   */
+  protected remove(c: DataConnector): void {
+    if (this.busy()) return;
+    if (this.pendingRetireId() !== c.id) { this.pendingRetireId.set(c.id); return; }
+    this.lifecycle(this.api.deleteConnector(this.tenant(), this.catalog(), c.id, c.version), `Connector '${c.name}' retired.`);
+  }
   protected toggle(c: DataConnector): void { this.lifecycle(c.pausedUtc ? this.api.resumeConnector(this.tenant(), this.catalog(), c.id, c.version) : this.api.pauseConnector(this.tenant(), this.catalog(), c.id, c.version), 'Connector state updated.'); }
   protected run(c: DataConnector): void { this.execute(this.api.runConnector(this.tenant(), this.catalog(), c.id), c.name); }
 

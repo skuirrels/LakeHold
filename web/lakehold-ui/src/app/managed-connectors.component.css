@@ -233,6 +233,24 @@ code {
   color: var(--error);
 }
 
+/* Only once armed. A destructive control that looks destructive before it is armed trains people
+   to ignore the colour. */
+.btn-danger.confirm {
+  color: var(--error);
+  background: color-mix(in srgb, var(--error) 14%, transparent);
+  border-color: var(--error);
+  font-weight: 600;
+}
+
+.hint {
+  margin: 0;
+  padding: 14px 22px;
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-faint);
+}
+
 /* Health is the column an operator scans, so each state gets its own colour rather than all three
    arriving as identical grey sentences. */
 .state {

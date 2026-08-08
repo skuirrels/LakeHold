@@ -373,9 +373,10 @@
                     <button
                       class="btn btn-sm btn-danger"
                       type="button"
+                      [class.confirm]="pendingRetireId() === connector.id"
                       [disabled]="busy()"
                       (click)="remove(connector)"
-                    >Retire</button>
+                    >{{ pendingRetireId() === connector.id ? 'Confirm retire' : 'Retire' }}</button>
                   </div>
                 </td>
               </tr>
@@ -383,6 +384,13 @@
           </tbody>
         </table>
       </div>
+
+      <!-- The caveat the dismissed confirm() dialog used to carry. It is the substance of the
+           warning, so it belongs on the page rather than only in a modal nobody re-reads. -->
+      <p class="hint">
+        <strong>Retire</strong> discards the connector definition and its schedule. It does not drop
+        the governed table or the rows already published to it.
+      </p>
     </div>
   }
 
