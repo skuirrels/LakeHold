@@ -64,13 +64,26 @@ URL** is `http://localhost:5399` without `/mcp` under System Settings:
 ```bash
 codex mcp add lakehold \
   --url http://localhost:5399/mcp \
-  --oauth-client-id lakehold-mcp \
-  --oauth-resource http://localhost:5399/mcp
+  --oauth-client-id lakehold-mcp
 codex mcp login lakehold
 
 claude mcp add --transport http --client-id lakehold-mcp \
   lakehold http://localhost:5399/mcp
 claude mcp login lakehold
+```
+
+The Codex client id is required so Codex uses the pre-registered public client instead of attempting
+dynamic registration, which this development realm does not allow. Do not also pass
+`--oauth-resource`: LakeHold advertises the exact resource in its protected-resource metadata, and
+supplying it explicitly makes Codex send the same `resource` parameter twice. Keycloak rejects that
+request as `invalid_request: duplicated parameter`.
+
+If a checkout upgraded from a version without `lakehold-mcp` shows **Client not found**, recreate
+only the development Keycloak container so the current realm is imported; LakeHold's PostgreSQL,
+catalog, and MinIO data are not removed:
+
+```bash
+docker compose up -d --force-recreate --wait keycloak
 ```
 
 Use `analyst` / `lakehold` in the browser. That account owns the seeded `demo` workspace; `admin`
