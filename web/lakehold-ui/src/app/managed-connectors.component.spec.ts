@@ -181,6 +181,80 @@ describe('ManagedConnectorsComponent', () => {
     expect(fixture.nativeElement.querySelector('[role="alert"]')?.textContent).toContain('keys are required');
   });
 
+  // `endpointUrl` means something different per adapter — a resource URL, a channel address, a
+  // fixed API base, a connection URI — so a value carried across an adapter change is one the
+  // server refuses on its scheme rule. HubSpot's base is the case that fails most quietly.
+  it('replaces the endpoint when the adapter changes rather than carrying the old meaning across', async () => {
+    await mount();
+
+    click('Add connector');
+    const component = fixture.componentInstance as unknown as {
+      endpoint: { (): string; set(value: string): void };
+      chooseKind(value: string): void;
+    };
+    component.endpoint.set('https://source.example.test/v1/orders');
+
+    component.chooseKind('hubspot');
+    expect(component.endpoint()).toBe('https://api.hubapi.com');
+
+    component.chooseKind('postgresql');
+    expect(component.endpoint()).toBe('postgresql://');
+
+    component.chooseKind('rest');
+    expect(component.endpoint()).toBe('https://');
+  });
+
+  // REST and gRPC read their response whole; only the paging adapters consult it. Offering the
+  // field on an adapter that ignores it is a setting an administrator can tune with no effect.
+  it('offers page size only to the adapters that page', async () => {
+    await mount();
+
+    click('Add connector');
+    const component = fixture.componentInstance as unknown as { chooseKind(value: string): void };
+    const pageSize = () =>
+      [...fixture.nativeElement.querySelectorAll('.field > span')].some(
+        (span: HTMLElement) => span.textContent?.includes('Page size'),
+      );
+
+    expect(pageSize()).toBe(false);
+
+    component.chooseKind('postgresql');
+    fixture.detectChanges();
+    expect(pageSize()).toBe(true);
+
+    component.chooseKind('grpc');
+    fixture.detectChanges();
+    expect(pageSize()).toBe(false);
+  });
+
+  it('arms Retire before it retires, rather than deleting on one click', async () => {
+    api.connectors = [dataConnector({ id: 9, version: 12, name: 'orders' })];
+    await mount();
+
+    click('Retire');
+    expect(api.countOf('deleteConnector')).toBe(0);
+
+    click('Confirm retire');
+    expect(api.lastArgs('deleteConnector')).toEqual(['acme', 'analytics', 9, 12]);
+  });
+
+  // An armed row belongs to the list it was armed against. Left armed across a reload, the second
+  // click retires whoever holds that id in the new list — a different connector entirely.
+  it('disarms Retire when the list is reloaded underneath it', async () => {
+    api.connectors = [dataConnector({ id: 9, name: 'orders' })];
+    await mount();
+
+    click('Retire');
+    api.connectors = [dataConnector({ id: 9, name: 'invoices' })];
+    click('Refresh');
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(text()).not.toContain('Confirm retire');
+    click('Retire');
+    expect(api.countOf('deleteConnector')).toBe(0);
+  });
+
   it('surfaces a failed load instead of showing an empty catalog', async () => {
     api.failures.set('listConnectors', 'the control plane is unreachable');
     await mount();

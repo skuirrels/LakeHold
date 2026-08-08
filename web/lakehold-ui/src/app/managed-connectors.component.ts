@@ -7,7 +7,7 @@ import { DataConnector, DataConnectorDefinitionRequest, DataConnectorExecution, 
  * One administrator form for every registered connector kind. It persists precisely the same
  * definition exposed to MCP; secret fields are references only and are never populated with values.
  */
-@Component({ selector: 'lh-managed-connectors', changeDetection: ChangeDetectionStrategy.OnPush, templateUrl: './managed-connectors.component.html', styleUrl: './admin-page.css' })
+@Component({ selector: 'lh-managed-connectors', changeDetection: ChangeDetectionStrategy.OnPush, templateUrl: './managed-connectors.component.html', styleUrls: ['./admin-page.css', './managed-connectors.component.css'] })
 export class ManagedConnectorsComponent implements OnChanges {
   private readonly api = inject(LakehouseService);
   readonly tenant = input.required<string>(); readonly catalog = input.required<string>();
@@ -24,10 +24,55 @@ export class ManagedConnectorsComponent implements OnChanges {
   // A protected Schema Registry uses HTTP Basic, which is a different protocol from the broker's
   // SASL. Round-tripping these separately is what stops an edit from silently dropping them.
   protected readonly registryUsernameReference = signal(''); protected readonly registryPasswordReference = signal('');
+  protected readonly pendingRetireId = signal<number | null>(null);
 
   ngOnChanges(): void { this.reload(); }
-  protected reload(): void { if (!this.tenant() || !this.catalog()) return; this.loading.set(true); this.api.listConnectors(this.tenant(), this.catalog()).subscribe({ next: x => { this.connectors.set(x); this.loading.set(false); }, error: (e: Error) => { this.error.set(e.message); this.loading.set(false); } }); }
+  protected reload(): void {
+    if (!this.tenant() || !this.catalog()) return;
+    // An armed "Confirm retire" belongs to the list it was armed against. Left armed across a
+    // reload or a catalog change, the second click retires whoever holds that id in the new one.
+    this.pendingRetireId.set(null);
+    this.loading.set(true);
+    this.api.listConnectors(this.tenant(), this.catalog()).subscribe({ next: x => { this.connectors.set(x); this.loading.set(false); }, error: (e: Error) => { this.error.set(e.message); this.loading.set(false); } });
+  }
   protected supports(kind: string): boolean { return this.kind() === kind; }
+
+  /**
+   * `endpointUrl` is one column carrying four meanings: a complete resource URL for REST, a channel
+   * address for gRPC, a fixed API base for HubSpot, and a `postgresql://` connection URI. Changing
+   * the adapter therefore changes what the field *is*, so carrying the previous value across is
+   * always wrong — the server would reject it on the scheme rule alone.
+   */
+  protected chooseKind(value: string): void {
+    if (value === this.kind()) return;
+    this.kind.set(value);
+    this.endpoint.set(
+      value === 'hubspot' ? 'https://api.hubapi.com' : value === 'postgresql' ? 'postgresql://' : 'https://');
+  }
+
+  /** REST and gRPC read their response whole; only the paging adapters use this. */
+  protected pages(): boolean { return !this.supports('rest') && !this.supports('grpc'); }
+
+  /**
+   * Health as three states rather than one sentence. A pending source acknowledgement and a failed
+   * run both need an operator; a paused connector does not, and rendering all three as the same grey
+   * prose is how the one that needs acting on gets scanned past.
+   */
+  protected health(c: DataConnector): 'ready' | 'paused' | 'attention' {
+    if (c.sourceAcknowledgementPendingUtc || c.lastError) return 'attention';
+    return c.pausedUtc ? 'paused' : 'ready';
+  }
+
+  protected healthLabel(c: DataConnector): string {
+    const health = this.health(c);
+    return health === 'attention' ? 'Needs attention' : health === 'paused' ? 'Paused' : 'Ready';
+  }
+
+  protected healthDetail(c: DataConnector): string | null {
+    if (c.sourceAcknowledgementPendingUtc) return 'Source acknowledgement pending — retry required.';
+    return c.lastError || null;
+  }
+
   protected list(value: string): string[] { return value.split(',').map(x => x.trim()).filter(Boolean); }
   protected save(): void {
     if (this.busy()) return;
@@ -50,7 +95,16 @@ export class ManagedConnectorsComponent implements OnChanges {
   protected cancelEdit(): void { this.showCreate.set(false); this.editing.set(null); this.kind.set('rest'); this.name.set(''); this.description.set(''); this.owner.set('administrator'); this.tags.set(''); this.endpoint.set('https://'); this.targetSchema.set('main'); this.targetTable.set(''); this.enabled.set(true); this.schedule.set(''); this.pageSize.set('100'); this.keys.set(''); this.required.set(''); this.notNull.set(''); this.mappings.set(''); this.sourceTable.set(''); this.cursorColumn.set(''); this.cursorType.set('int64'); this.properties.set(''); this.brokers.set(''); this.topic.set(''); this.group.set('lakehold'); this.registry.set(''); this.authKind.set('none'); this.secretReference.set(''); this.usernameReference.set(''); this.passwordReference.set(''); this.registryUsernameReference.set(''); this.registryPasswordReference.set(''); }
   protected inspect(c: DataConnector): void { this.selected.set(c); this.diagnosticsLoading.set(true); this.api.listConnectorRuns(this.tenant(), this.catalog(), c.id).subscribe({ next: x => { this.runs.set(x); this.diagnosticsLoading.set(false); }, error: (e: Error) => { this.error.set(e.message); this.diagnosticsLoading.set(false); } }); this.api.listConnectorDeadLetters(this.tenant(), this.catalog(), c.id).subscribe({ next: x => this.deadLetters.set(x), error: (e: Error) => this.error.set(e.message) }); }
   protected retry(c: DataConnector): void { this.execute(this.api.retryConnector(this.tenant(), this.catalog(), c.id, c.version), c.name); }
-  protected remove(c: DataConnector): void { if (confirm(`Retire '${c.name}'? This does not delete its governed table.`)) this.lifecycle(this.api.deleteConnector(this.tenant(), this.catalog(), c.id, c.version), `Connector '${c.name}' retired.`); }
+  /**
+   * Arms, then retires — the same two-click shape member administration uses, rather than a native
+   * `confirm()`. A modal dialog blocks the whole renderer and is styled by the browser rather than
+   * the app; arming puts the warning on the control being pressed, where it is read.
+   */
+  protected remove(c: DataConnector): void {
+    if (this.busy()) return;
+    if (this.pendingRetireId() !== c.id) { this.pendingRetireId.set(c.id); return; }
+    this.lifecycle(this.api.deleteConnector(this.tenant(), this.catalog(), c.id, c.version), `Connector '${c.name}' retired.`);
+  }
   protected toggle(c: DataConnector): void { this.lifecycle(c.pausedUtc ? this.api.resumeConnector(this.tenant(), this.catalog(), c.id, c.version) : this.api.pauseConnector(this.tenant(), this.catalog(), c.id, c.version), 'Connector state updated.'); }
   protected run(c: DataConnector): void { this.execute(this.api.runConnector(this.tenant(), this.catalog(), c.id), c.name); }
 
