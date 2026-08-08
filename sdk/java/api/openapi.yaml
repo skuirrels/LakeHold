@@ -17596,28 +17596,36 @@ components:
       example:
         nextCursor: nextCursor
         items:
-        - catalogName: catalogName
+        - actorKind: actorKind
           tokenId: 5
+          origin: origin
           tokenName: tokenName
           language: language
-          id: 0
+          actorName: actorName
           startedUtc: 2000-01-23T04:56:07.000+00:00
-          rowCount: 1
           error: error
           sql: sql
+          catalogName: catalogName
+          id: 0
+          rowCount: 1
           elapsedMilliseconds: 6.027456183070403
           succeeded: true
-        - catalogName: catalogName
+          memberId: 5
+        - actorKind: actorKind
           tokenId: 5
+          origin: origin
           tokenName: tokenName
           language: language
-          id: 0
+          actorName: actorName
           startedUtc: 2000-01-23T04:56:07.000+00:00
-          rowCount: 1
           error: error
           sql: sql
+          catalogName: catalogName
+          id: 0
+          rowCount: 1
           elapsedMilliseconds: 6.027456183070403
           succeeded: true
+          memberId: 5
       properties:
         items:
           items:
@@ -19070,17 +19078,21 @@ components:
       - truncated
     QueryRunDto:
       example:
-        catalogName: catalogName
+        actorKind: actorKind
         tokenId: 5
+        origin: origin
         tokenName: tokenName
         language: language
-        id: 0
+        actorName: actorName
         startedUtc: 2000-01-23T04:56:07.000+00:00
-        rowCount: 1
         error: error
         sql: sql
+        catalogName: catalogName
+        id: 0
+        rowCount: 1
         elapsedMilliseconds: 6.027456183070403
         succeeded: true
+        memberId: 5
       properties:
         id:
           format: int32
@@ -19111,6 +19123,17 @@ components:
           type: integer
         tokenName:
           nullable: true
+          type: string
+        memberId:
+          format: int32
+          nullable: true
+          type: integer
+        actorKind:
+          type: string
+        actorName:
+          nullable: true
+          type: string
+        origin:
           type: string
       required:
       - catalogName
@@ -19526,6 +19549,7 @@ components:
         mcpEnabled: true
         mcpRoute: mcpRoute
         mcpAllowWrites: true
+        mcpAllowOperatorCommands: true
         mcpPublicBaseUrl: mcpPublicBaseUrl
         mcpMaxRowsPerResult: 0
         updatedUtc: 2000-01-23T04:56:07.000+00:00
@@ -19534,6 +19558,8 @@ components:
         mcpEnabled:
           type: boolean
         mcpAllowWrites:
+          type: boolean
+        mcpAllowOperatorCommands:
           type: boolean
         mcpMaxRowsPerResult:
           format: int32
@@ -20190,6 +20216,7 @@ components:
       example:
         mcpEnabled: true
         mcpAllowWrites: true
+        mcpAllowOperatorCommands: true
         mcpPublicBaseUrl: mcpPublicBaseUrl
         mcpMaxRowsPerResult: 0
         version: 6
@@ -20207,6 +20234,9 @@ components:
         version:
           format: int32
           type: integer
+        mcpAllowOperatorCommands:
+          nullable: true
+          type: boolean
       required:
       - mcpAllowWrites
       - mcpEnabled

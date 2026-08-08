@@ -28,6 +28,7 @@ namespace Lakehold.Sdk.Model
     /// <summary>
     /// UpdateSystemSettingsRequest
     /// </summary>
+    [JsonConverter(typeof(UpdateSystemSettingsRequestJsonConverter))]
     public partial class UpdateSystemSettingsRequest : IValidatableObject
     {
         /// <summary>
@@ -38,14 +39,16 @@ namespace Lakehold.Sdk.Model
         /// <param name="mcpMaxRowsPerResult">mcpMaxRowsPerResult</param>
         /// <param name="varVersion">varVersion</param>
         /// <param name="mcpPublicBaseUrl">mcpPublicBaseUrl</param>
+        /// <param name="mcpAllowOperatorCommands">mcpAllowOperatorCommands</param>
         [JsonConstructor]
-        public UpdateSystemSettingsRequest(bool mcpEnabled, bool mcpAllowWrites, int mcpMaxRowsPerResult, int varVersion, string? mcpPublicBaseUrl = default)
+        public UpdateSystemSettingsRequest(bool mcpEnabled, bool mcpAllowWrites, int mcpMaxRowsPerResult, int varVersion, string? mcpPublicBaseUrl = default, Option<bool?> mcpAllowOperatorCommands = default)
         {
             McpEnabled = mcpEnabled;
             McpAllowWrites = mcpAllowWrites;
             McpMaxRowsPerResult = mcpMaxRowsPerResult;
             VarVersion = varVersion;
             McpPublicBaseUrl = mcpPublicBaseUrl;
+            McpAllowOperatorCommandsOption = mcpAllowOperatorCommands;
             OnCreated();
         }
 
@@ -82,6 +85,19 @@ namespace Lakehold.Sdk.Model
         public string? McpPublicBaseUrl { get; set; }
 
         /// <summary>
+        /// Used to track the state of McpAllowOperatorCommands
+        /// </summary>
+        [JsonIgnore]
+        [global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]
+        public Option<bool?> McpAllowOperatorCommandsOption { get; private set; }
+
+        /// <summary>
+        /// Gets or Sets McpAllowOperatorCommands
+        /// </summary>
+        [JsonPropertyName("mcpAllowOperatorCommands")]
+        public bool? McpAllowOperatorCommands { get { return this.McpAllowOperatorCommandsOption; } set { this.McpAllowOperatorCommandsOption = new(value); } }
+
+        /// <summary>
         /// Returns the string presentation of the object
         /// </summary>
         /// <returns>String presentation of the object</returns>
@@ -94,6 +110,7 @@ namespace Lakehold.Sdk.Model
             sb.Append("  McpMaxRowsPerResult: ").Append(McpMaxRowsPerResult).Append("\n");
             sb.Append("  VarVersion: ").Append(VarVersion).Append("\n");
             sb.Append("  McpPublicBaseUrl: ").Append(McpPublicBaseUrl).Append("\n");
+            sb.Append("  McpAllowOperatorCommands: ").Append(McpAllowOperatorCommands).Append("\n");
             sb.Append("}\n");
             return sb.ToString();
         }
@@ -136,6 +153,7 @@ namespace Lakehold.Sdk.Model
             Option<int?> mcpMaxRowsPerResult = default;
             Option<int?> varVersion = default;
             Option<string?> mcpPublicBaseUrl = default;
+            Option<bool?> mcpAllowOperatorCommands = default;
 
             while (utf8JsonReader.Read())
             {
@@ -166,6 +184,9 @@ namespace Lakehold.Sdk.Model
                             break;
                         case "mcpPublicBaseUrl":
                             mcpPublicBaseUrl = new Option<string?>(utf8JsonReader.GetString());
+                            break;
+                        case "mcpAllowOperatorCommands":
+                            mcpAllowOperatorCommands = new Option<bool?>(utf8JsonReader.TokenType == JsonTokenType.Null ? (bool?)null : utf8JsonReader.GetBoolean());
                             break;
                         default:
                             break;
@@ -200,7 +221,7 @@ namespace Lakehold.Sdk.Model
             if (varVersion.IsSet && varVersion.Value == null)
                 throw new ArgumentNullException(nameof(varVersion), "Property is not nullable for class UpdateSystemSettingsRequest.");
 
-            return new UpdateSystemSettingsRequest(mcpEnabled.Value!.Value!, mcpAllowWrites.Value!.Value!, mcpMaxRowsPerResult.Value!.Value!, varVersion.Value!.Value!, mcpPublicBaseUrl.Value!);
+            return new UpdateSystemSettingsRequest(mcpEnabled.Value!.Value!, mcpAllowWrites.Value!.Value!, mcpMaxRowsPerResult.Value!.Value!, varVersion.Value!.Value!, mcpPublicBaseUrl.Value!, mcpAllowOperatorCommands);
         }
 
         /// <summary>
@@ -237,6 +258,12 @@ namespace Lakehold.Sdk.Model
                 writer.WriteString("mcpPublicBaseUrl", updateSystemSettingsRequest.McpPublicBaseUrl);
             else
                 writer.WriteNull("mcpPublicBaseUrl");
+
+            if (updateSystemSettingsRequest.McpAllowOperatorCommandsOption.IsSet)
+                if (updateSystemSettingsRequest.McpAllowOperatorCommandsOption.Value != null)
+                    writer.WriteBoolean("mcpAllowOperatorCommands", updateSystemSettingsRequest.McpAllowOperatorCommandsOption.Value!.Value);
+                else
+                    writer.WriteNull("mcpAllowOperatorCommands");
         }
     }
 }

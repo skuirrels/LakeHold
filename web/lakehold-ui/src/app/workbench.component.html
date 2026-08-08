@@ -529,9 +529,10 @@
                               {{ run.language ?? 'sql' }} · {{ run.rowCount }} rows · {{ run.elapsedMilliseconds.toFixed(0) }} ms
                               ·
                               {{ formatTime(run.startedUtc) }}
-                              @if (run.tokenName) {
-                                · <span class="history-token">{{ run.tokenName }}</span>
+                              @if (run.actorName) {
+                                · <span class="history-token">{{ run.actorName }}</span>
                               }
+                              · {{ run.origin }}
                             </span>
                           </button>
                         </li>

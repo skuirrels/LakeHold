@@ -182,6 +182,62 @@ public sealed class PublicApiContractTests
         Assert.Equal(["pageSize"], sourceSettings.Required);
     }
 
+    [Fact]
+    public void Additive_system_settings_input_remains_optional_in_the_public_schema()
+    {
+        var response = RequiredSchema(
+            "mcpEnabled",
+            "mcpAllowWrites",
+            "mcpAllowOperatorCommands",
+            "version");
+        var request = RequiredSchema(
+            "mcpEnabled",
+            "mcpAllowWrites",
+            "mcpAllowOperatorCommands",
+            "version");
+        var document = new OpenApiDocument
+        {
+            Components = new OpenApiComponents
+            {
+                Schemas = new Dictionary<string, IOpenApiSchema>(StringComparer.Ordinal)
+                {
+                    ["SystemSettingsDto"] = response,
+                    ["UpdateSystemSettingsRequest"] = request,
+                },
+            },
+        };
+
+        PublicApiOpenApi.PreserveAdditiveSystemSettingsCompatibility(document);
+
+        Assert.Equal(["mcpEnabled", "mcpAllowWrites", "version"], response.Required);
+        Assert.Equal(["mcpEnabled", "mcpAllowWrites", "version"], request.Required);
+    }
+
+    [Fact]
+    public void Additive_query_audit_fields_remain_optional_in_the_public_schema()
+    {
+        var queryRun = RequiredSchema(
+            "id",
+            "memberId",
+            "actorKind",
+            "actorName",
+            "origin");
+        var document = new OpenApiDocument
+        {
+            Components = new OpenApiComponents
+            {
+                Schemas = new Dictionary<string, IOpenApiSchema>(StringComparer.Ordinal)
+                {
+                    ["QueryRunDto"] = queryRun,
+                },
+            },
+        };
+
+        PublicApiOpenApi.PreserveAdditiveQueryAuditCompatibility(document);
+
+        Assert.Equal(["id"], queryRun.Required);
+    }
+
     private static OpenApiSchema RequiredSchema(params string[] properties) => new()
     {
         Required = new HashSet<string>(properties, StringComparer.Ordinal),

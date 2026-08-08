@@ -20,7 +20,7 @@ Three kinds of caller, three mechanisms:
 |---|---|---|
 | **Users** | Browser sign-in at your identity provider | A membership row you manage under **Users** |
 | **Clients** — BI tools, scripts, SDKs, the PostgreSQL wire endpoint | An API token (`lkh_…`) | The role and catalog scope baked into that token |
-| **Agents** — MCP clients such as Claude or Codex | An API token, always required | The same, plus an operator switch for writes |
+| **Agents** — MCP clients such as Claude or Codex | An API token, or OAuth authorization code with PKCE as a person | The token role or the person's membership, plus operator switches for writes and operator commands |
 
 ## Part 1 — Running a production node for the first time
 
@@ -126,9 +126,10 @@ browser never receives an identity-provider token; what it holds afterwards is L
 
 Set `LAKEHOLD_OIDC_AUDIENCE`, and make the provider put that value in the access token's audience.
 
-**Leaving it empty disables audience validation**, which accepts *every* token that issuer minted —
-including one issued to a different application sharing the realm. LakeHold logs a warning at
-start-up when this is the case. Treat it as an error in production.
+This value is required whenever an authority is configured. LakeHold refuses to start without it;
+accepting every token minted by the issuer is not a supported mode. Ordinary API and Workbench bearer
+tokens must carry this audience. MCP bearer tokens must instead carry the exact MCP resource URL
+advertised by protected-resource metadata, for example `https://lakehold.example.com/mcp`.
 
 ### 3. Two or three claims
 
@@ -170,7 +171,7 @@ The development realm, its two seeded users, and how to give either the other ca
 
 ## Part 4 — Clients and agents
 
-Both use API tokens. Issue them under **Users → API tokens**, or over HTTP:
+Both can use API tokens. Issue them under **Users → API tokens**, or over HTTP:
 
 ```bash
 curl -X POST https://<your-host>/api/tenants/<workspace>/tokens \
@@ -198,7 +199,80 @@ have two independent gates: the instance-level *Allow write commands* switch, an
 role. A read-only agent token produces a read-only *attachment*, so a write fails in the engine
 rather than in a check the agent might talk its way around.
 
-Give each agent its own token with a short expiry, so revoking one does not disturb the others.
+Give each machine agent its own token with a short expiry, so revoking one does not disturb the
+others. To let an interactive agent sign in **as the person operating it**, register a second public,
+PKCE-only OIDC client and set:
+
+```bash
+LAKEHOLD_OIDC_MCP_CLIENT_ID=lakehold-mcp
+```
+
+The registration has no client secret. Allow the loopback callback URIs your MCP client documents,
+emit the same membership claims as the Workbench client, and configure the access-token audience as
+the public MCP endpoint. Behind a proxy, first save the externally reachable **Public base URL** in
+System Settings; it is required for the resource identifier and callback discovery to be truthful.
+LakeHold advertises `scopes_supported`, the resource URL, and an optional `client_id` extension from
+its RFC 9728 document. Configure clients that support a pre-registered OAuth id explicitly; for
+example, Codex accepts it together with the RFC 8707 resource parameter:
+
+```bash
+codex mcp add lakehold \
+  --url https://lakehold.example.com/mcp \
+  --oauth-client-id lakehold-mcp \
+  --oauth-resource https://lakehold.example.com/mcp
+codex mcp login lakehold
+```
+
+When scopes are required, pass them to `codex mcp login` with `--scopes`. The client sends the exact
+resource URL as the RFC 8707 `resource` parameter on both authorization and token requests.
+
+Claude Code also accepts a pre-registered public client. It discovers the resource and authorization
+server from LakeHold's protected-resource metadata, so it does not need a separate resource flag:
+
+```bash
+claude mcp add --transport http --client-id lakehold-mcp \
+  lakehold https://lakehold.example.com/mcp
+claude mcp login lakehold
+```
+
+If `claude mcp login` is not available in the installed version, open Claude Code, run `/mcp`, select
+`lakehold`, and authenticate there. Do not pass `--client-secret`: this registration is public and
+PKCE-only.
+
+For the bundled development stack, the exact commands are:
+
+```bash
+codex mcp add lakehold \
+  --url http://localhost:5399/mcp \
+  --oauth-client-id lakehold-mcp \
+  --oauth-resource http://localhost:5399/mcp
+codex mcp login lakehold
+
+claude mcp add --transport http --client-id lakehold-mcp \
+  lakehold http://localhost:5399/mcp
+claude mcp login lakehold
+```
+
+Sign in as `analyst` with password `lakehold` to reach the seeded `demo` workspace. The complete
+smoke-test prompt, API-token alternative, and troubleshooting steps are in [`MCP.md`](MCP.md#connecting-a-client).
+
+Provider setup:
+
+- **Keycloak:** create an OpenID Connect client, enable Standard flow, select public client
+  authentication, require PKCE `S256`, add the client's loopback redirect patterns, and add an
+  audience mapper for the complete MCP endpoint URL. Copy the Workbench tenant, role, and groups
+  protocol mappers. The bundled development realm includes `lakehold-mcp` as a worked example.
+- **Microsoft Entra:** create a separate app registration, add the MCP client's loopback URI under
+  the mobile/desktop public-client platform, enable public-client flows, and expose or map the MCP
+  resource audience plus the claims LakeHold uses. Use its Application (client) ID as
+  `McpClientId`; do not create a secret for the native/public client.
+- **Okta:** create a Native Application using Authorization Code and Refresh Token, require PKCE,
+  register the client's loopback sign-in redirects, and add an authorization-server audience and
+  claims matching the MCP endpoint and LakeHold membership contract.
+
+The `client_id` metadata member is an extension, so clients may ignore it; configure those clients
+with the same id explicitly. Dynamic client registration is not required and may remain disabled at
+the provider.
 
 ### Connecting a BI tool
 

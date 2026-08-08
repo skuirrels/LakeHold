@@ -362,8 +362,9 @@ Bearer clients use JWT validation; the Workbench uses authorization code + PKCE 
 session cookie. Absent an authority, the whole path stays off and the air-gapped story is unchanged.
 
 Mapping an identity to capability is the real work, not protocol validation. A configured claim/value
-grants instance administration; otherwise a claim names the tenant and an optional role claim narrows
-capability. Add a `TenantMember` table only if per-user membership is needed.
+grants instance administration. Tenant users resolve through a durable `TenantMember` keyed by issuer
+and subject. A tenant and role claim can admit the first arrival, but after that the membership row's
+role and status are authoritative and can be administered under **Users**.
 
 Both schemes coexist: tokens for machines, OIDC for humans, one `ILakeholdPrincipal` behind both so
 nothing downstream knows the difference.
@@ -411,11 +412,12 @@ SCRAM-SHA-256 remains the better mechanism and stays a follow-up.
 
 ## Audit
 
-`QueryRun` now records who ran a statement as well as what ran: `TokenId` is nullable — for the
-pre-auth history that already existed — and carries no foreign key, so revoking or deleting a token
-never takes its audit trail down with it. The history API returns the id and, best-effort, the
-token's label; the workbench shows it beside each run. Half an audit trail is the kind of thing that
-passes review until the day it matters.
+`QueryRun` now records who ran a statement as well as what ran. Exactly one of `TokenId` or
+`MemberId` identifies an API token or OIDC member; system and legacy activity has neither. Neither
+identity column has a foreign key, so revoking or deleting a token or member never removes its audit
+trail. `ActorKind` preserves that classification and `Origin` distinguishes Workbench, REST, PgWire,
+MCP, import, and connector execution. The history API and Workbench show the resolved actor and
+origin.
 
 ---
 
@@ -450,8 +452,10 @@ mean. It is written for someone operating a deployment rather than someone chang
 | `Lakehold:Auth:DemoCatalog` | empty | The single catalog exposed inside `DemoTenant`, attached read-only. |
 | `Lakehold:BootstrapToken` | unset | Pre-seeds the first instance token instead of minting one. Only read when the token table is empty. A secret — set it through the environment, never `appsettings.json`. |
 | `Lakehold:Oidc:Authority` | empty | OIDC issuer. **Empty disables OIDC entirely**, which is what keeps an air-gapped install free of an identity-provider dependency. |
-| `Lakehold:Oidc:Audience` | empty | Audience a JWT must carry. Empty skips audience validation. |
+| `Lakehold:Oidc:Audience` | empty | Audience API and Workbench JWTs must carry. Required whenever `Authority` is set; startup fails if it is empty. MCP JWTs are request-bound to the advertised MCP resource URL instead. |
 | `Lakehold:Oidc:ClientId` | empty | Enables Workbench browser login. Register `/auth/callback` at the provider. |
+| `Lakehold:Oidc:McpClientId` | empty | Optional public, PKCE-only client pre-registered for interactive MCP login. |
+| `Lakehold:Oidc:McpScopes` | `Scopes` | Optional MCP-specific scopes advertised in protected-resource metadata. |
 | `Lakehold:Oidc:ClientSecret` | empty | Optional confidential-client secret. Set through environment/secret store only. |
 | `Lakehold:Oidc:RequireHttpsMetadata` | `true` | Only relax against a local IdP. |
 | `Lakehold:Oidc:TenantClaim` | `tenant` | Claim naming the tenant a human belongs to. |
@@ -635,7 +639,7 @@ access. With no authority configured the whole path stays off.
 
 The supplied Compose files expose these as the `.env` names
 `LAKEHOLD_OIDC_AUTHORITY`, `LAKEHOLD_OIDC_AUDIENCE`, `LAKEHOLD_OIDC_CLIENT_ID`,
-`LAKEHOLD_OIDC_CLIENT_SECRET`, `LAKEHOLD_OIDC_TENANT_CLAIM`,
+`LAKEHOLD_OIDC_MCP_CLIENT_ID`, `LAKEHOLD_OIDC_CLIENT_SECRET`, `LAKEHOLD_OIDC_TENANT_CLAIM`,
 `LAKEHOLD_OIDC_ROLE_CLAIM`, `LAKEHOLD_OIDC_SYSTEM_ADMIN_CLAIM`, and
 `LAKEHOLD_OIDC_SYSTEM_ADMIN_VALUE`. A local HTTP-only identity provider may additionally set
 `LAKEHOLD_OIDC_REQUIRE_HTTPS_METADATA=false`; production should leave it true.
@@ -646,7 +650,6 @@ The supplied Compose files expose these as the `.env` names
 - **Rate limiting and lockout** on HTTP authentication attempts. The wire endpoint counts failures
   (`lakehold.pgwire.auth.failures`); the HTTP path does not yet.
 - **SCRAM-SHA-256** for the wire endpoint, which would remove the cleartext requirement.
-- **Per-user membership** (`TenantMember`). The OIDC mapping is a single claim until someone asks.
 - **Row and column security**, which stays on the far roadmap and is likely generated views rather
   than an engine feature.
 
@@ -662,7 +665,7 @@ Each step ships on its own and leaves the product working:
 | 3b | Provisioning endpoints for tenants and catalogs | A fresh deployment can be set up with only the bootstrap token | Done |
 | 4 | Workbench sends credentials | API-token fallback plus HttpOnly OIDC browser session | Done |
 | 5 | Read-only attachment, pool key includes mode | `INSERT` refused by the engine | Done |
-| 6 | `QueryRun.TokenId` and history surfacing | Audit shows the principal | Done |
+| 6 | Token/member actor and origin audit plus history surfacing | Audit shows the principal and entry path | Done |
 | 7 | Wire endpoint on the token store | Revocation closes both surfaces | Done |
 | 8 | OIDC | Browser login and JWT validation; tenant/admin claim mapped to a principal | Done |
 | 9 | Roles | Maintenance restricted to owners | Done |
@@ -702,19 +705,21 @@ add anything. Everything after is depth.
 - **Step 5** — a read-only principal produces a read-only attachment: `LakehouseService` narrows the
   descriptor and `DucklingPool` now keys sessions by catalog **and attachment mode**, so a read-only
   and a read-write session for one catalog cannot collide. `EvictAsync` drops both modes.
-- **Step 6** — `QueryRun.TokenId` (nullable, no foreign key, so pre-auth history survives and a
-  revoked token does not take its audit trail with it), threaded through the HTTP and wire paths and
-  surfaced in the history API and panel. `AdditiveSchema.EnsureModelColumnsAsync` applies the column
-  to existing databases.
+- **Step 6** — mutually exclusive `QueryRun.TokenId` / `MemberId`, plus `ActorKind` and `Origin`,
+  threaded through Workbench, REST, PgWire, MCP, import, connectors, and saved-query execution and
+  surfaced in the history API and panel. Identity columns have no foreign key, so deletion or
+  revocation does not remove audit history; PostgreSQL migrations and DuckDB compatibility defaults
+  apply the additive fields to existing databases.
 - **Step 7** — `Lakehold:PgWire:AllowTokenAuthentication` accepts an API token as the password,
   verified against the same store, so **revoking a credential closes the BI tool and the API
   together**. It uses the cleartext exchange by necessity (a hashed store cannot answer MD5's
   challenge) and the API refuses to start with it enabled outside TLS. Configured `TenantPasswords`
   keep working alongside it.
 - **Step 8** — `LakeholdOidcOptions`, standard JWT bearer validation, and browser authorization code
-  are wired only when an authority is configured. `OidcPrincipal` maps either a system-admin claim
-  to instance scope or tenant/role claims to tenant scope. Shared PostgreSQL data-protection keys
-  keep the browser session multi-node safe.
+  are wired only when an authority is configured. `MemberDirectory` maps a system-admin claim to
+  instance scope or resolves a tenant user through the durable issuer/subject membership. The first
+  tenant/role claim may admit a member; subsequent authorization comes from the row. Shared
+  PostgreSQL data-protection keys keep the browser session multi-node safe.
 - **Step 9** — `TokenRole` (`Owner`/`Editor`/`Reader`) on the token and the principal. Maintenance,
   backup restore, and eject are owner operations (`Capability.TenantOwner`); a reviewed single-table
   data restore is `Capability.TenantWrite`; token management requires
@@ -747,5 +752,3 @@ That is a bounded exposure a reviewer can see, rather than a global fallback to 
   endpoint still counts failures. A lockout is the obvious next control.
 - **SCRAM-SHA-256** for the wire endpoint, rather than cleartext-over-TLS, remains the better
   long-term mechanism.
-- **Per-user membership** (`TenantMember`) is deliberately not built: the OIDC mapping is a single
-  claim until someone asks for more.

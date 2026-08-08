@@ -2,6 +2,7 @@ using System.Globalization;
 using Lakehold.Api.Auth;
 using Lakehold.Api.Importing;
 using Lakehold.ControlPlane.Data;
+using Lakehold.ControlPlane.Model;
 using Lakehold.ControlPlane.Security;
 using Lakehold.Engine.Catalog;
 using Microsoft.AspNetCore.Mvc;
@@ -110,7 +111,7 @@ public static class TabularImportEndpoints
                     request.AutomaticMode,
                     request.Options,
                     request.Worksheet,
-                    principal.TokenId,
+                    QueryAuditContext.From(principal, QueryOrigin.Import),
                     cancellationToken)
                 .ConfigureAwait(false);
             return Results.Ok(TabularImportDto.From(result));

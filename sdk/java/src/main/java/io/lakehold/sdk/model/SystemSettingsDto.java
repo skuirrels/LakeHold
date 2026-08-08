@@ -61,6 +61,11 @@ public class SystemSettingsDto {
   @jakarta.annotation.Nonnull
   private Boolean mcpAllowWrites;
 
+  public static final String SERIALIZED_NAME_MCP_ALLOW_OPERATOR_COMMANDS = "mcpAllowOperatorCommands";
+  @SerializedName(SERIALIZED_NAME_MCP_ALLOW_OPERATOR_COMMANDS)
+  @jakarta.annotation.Nullable
+  private Boolean mcpAllowOperatorCommands;
+
   public static final String SERIALIZED_NAME_MCP_MAX_ROWS_PER_RESULT = "mcpMaxRowsPerResult";
   @SerializedName(SERIALIZED_NAME_MCP_MAX_ROWS_PER_RESULT)
   @jakarta.annotation.Nonnull
@@ -124,6 +129,25 @@ public class SystemSettingsDto {
 
   public void setMcpAllowWrites(@jakarta.annotation.Nonnull Boolean mcpAllowWrites) {
     this.mcpAllowWrites = mcpAllowWrites;
+  }
+
+
+  public SystemSettingsDto mcpAllowOperatorCommands(@jakarta.annotation.Nullable Boolean mcpAllowOperatorCommands) {
+    this.mcpAllowOperatorCommands = mcpAllowOperatorCommands;
+    return this;
+  }
+
+  /**
+   * Get mcpAllowOperatorCommands
+   * @return mcpAllowOperatorCommands
+   */
+  @jakarta.annotation.Nullable
+  public Boolean getMcpAllowOperatorCommands() {
+    return mcpAllowOperatorCommands;
+  }
+
+  public void setMcpAllowOperatorCommands(@jakarta.annotation.Nullable Boolean mcpAllowOperatorCommands) {
+    this.mcpAllowOperatorCommands = mcpAllowOperatorCommands;
   }
 
 
@@ -278,6 +302,7 @@ public class SystemSettingsDto {
     SystemSettingsDto systemSettingsDto = (SystemSettingsDto) o;
     return Objects.equals(this.mcpEnabled, systemSettingsDto.mcpEnabled) &&
         Objects.equals(this.mcpAllowWrites, systemSettingsDto.mcpAllowWrites) &&
+        Objects.equals(this.mcpAllowOperatorCommands, systemSettingsDto.mcpAllowOperatorCommands) &&
         Objects.equals(this.mcpMaxRowsPerResult, systemSettingsDto.mcpMaxRowsPerResult) &&
         Objects.equals(this.mcpPublicBaseUrl, systemSettingsDto.mcpPublicBaseUrl) &&
         Objects.equals(this.mcpRoute, systemSettingsDto.mcpRoute) &&
@@ -288,7 +313,7 @@ public class SystemSettingsDto {
 
   @Override
   public int hashCode() {
-    return Objects.hash(mcpEnabled, mcpAllowWrites, mcpMaxRowsPerResult, mcpPublicBaseUrl, mcpRoute, version, updatedUtc, additionalProperties);
+    return Objects.hash(mcpEnabled, mcpAllowWrites, mcpAllowOperatorCommands, mcpMaxRowsPerResult, mcpPublicBaseUrl, mcpRoute, version, updatedUtc, additionalProperties);
   }
 
   @Override
@@ -297,6 +322,7 @@ public class SystemSettingsDto {
     sb.append("class SystemSettingsDto {\n");
     sb.append("    mcpEnabled: ").append(toIndentedString(mcpEnabled)).append("\n");
     sb.append("    mcpAllowWrites: ").append(toIndentedString(mcpAllowWrites)).append("\n");
+    sb.append("    mcpAllowOperatorCommands: ").append(toIndentedString(mcpAllowOperatorCommands)).append("\n");
     sb.append("    mcpMaxRowsPerResult: ").append(toIndentedString(mcpMaxRowsPerResult)).append("\n");
     sb.append("    mcpPublicBaseUrl: ").append(toIndentedString(mcpPublicBaseUrl)).append("\n");
     sb.append("    mcpRoute: ").append(toIndentedString(mcpRoute)).append("\n");
@@ -324,7 +350,7 @@ public class SystemSettingsDto {
 
   static {
     // a set of all properties/fields (JSON key names)
-    openapiFields = new HashSet<String>(Arrays.asList("mcpEnabled", "mcpAllowWrites", "mcpMaxRowsPerResult", "mcpPublicBaseUrl", "mcpRoute", "version", "updatedUtc"));
+    openapiFields = new HashSet<String>(Arrays.asList("mcpEnabled", "mcpAllowWrites", "mcpAllowOperatorCommands", "mcpMaxRowsPerResult", "mcpPublicBaseUrl", "mcpRoute", "version", "updatedUtc"));
 
     // a set of required properties/fields (JSON key names)
     openapiRequiredFields = new HashSet<String>(Arrays.asList("mcpEnabled", "mcpAllowWrites", "mcpMaxRowsPerResult", "mcpPublicBaseUrl", "mcpRoute", "version", "updatedUtc"));

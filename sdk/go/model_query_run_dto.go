@@ -32,6 +32,10 @@ type QueryRunDto struct {
 	Error NullableString `json:"error"`
 	TokenId NullableInt32 `json:"tokenId"`
 	TokenName NullableString `json:"tokenName"`
+	MemberId NullableInt32 `json:"memberId,omitempty"`
+	ActorKind *string `json:"actorKind,omitempty"`
+	ActorName NullableString `json:"actorName,omitempty"`
+	Origin *string `json:"origin,omitempty"`
 	AdditionalProperties map[string]interface{}
 }
 
@@ -335,6 +339,154 @@ func (o *QueryRunDto) SetTokenName(v string) {
 	o.TokenName.Set(&v)
 }
 
+// GetMemberId returns the MemberId field value if set, zero value otherwise (both if not set or set to explicit null).
+func (o *QueryRunDto) GetMemberId() int32 {
+	if o == nil || IsNil(o.MemberId.Get()) {
+		var ret int32
+		return ret
+	}
+	return *o.MemberId.Get()
+}
+
+// GetMemberIdOk returns a tuple with the MemberId field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+// NOTE: If the value is an explicit nil, `nil, true` will be returned
+func (o *QueryRunDto) GetMemberIdOk() (*int32, bool) {
+	if o == nil {
+		return nil, false
+	}
+	return o.MemberId.Get(), o.MemberId.IsSet()
+}
+
+// HasMemberId returns a boolean if a field has been set.
+func (o *QueryRunDto) HasMemberId() bool {
+	if o != nil && o.MemberId.IsSet() {
+		return true
+	}
+
+	return false
+}
+
+// SetMemberId gets a reference to the given NullableInt32 and assigns it to the MemberId field.
+func (o *QueryRunDto) SetMemberId(v int32) {
+	o.MemberId.Set(&v)
+}
+// SetMemberIdNil sets the value for MemberId to be an explicit nil
+func (o *QueryRunDto) SetMemberIdNil() {
+	o.MemberId.Set(nil)
+}
+
+// UnsetMemberId ensures that no value is present for MemberId, not even an explicit nil
+func (o *QueryRunDto) UnsetMemberId() {
+	o.MemberId.Unset()
+}
+
+// GetActorKind returns the ActorKind field value if set, zero value otherwise.
+func (o *QueryRunDto) GetActorKind() string {
+	if o == nil || IsNil(o.ActorKind) {
+		var ret string
+		return ret
+	}
+	return *o.ActorKind
+}
+
+// GetActorKindOk returns a tuple with the ActorKind field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *QueryRunDto) GetActorKindOk() (*string, bool) {
+	if o == nil || IsNil(o.ActorKind) {
+		return nil, false
+	}
+	return o.ActorKind, true
+}
+
+// HasActorKind returns a boolean if a field has been set.
+func (o *QueryRunDto) HasActorKind() bool {
+	if o != nil && !IsNil(o.ActorKind) {
+		return true
+	}
+
+	return false
+}
+
+// SetActorKind gets a reference to the given string and assigns it to the ActorKind field.
+func (o *QueryRunDto) SetActorKind(v string) {
+	o.ActorKind = &v
+}
+
+// GetActorName returns the ActorName field value if set, zero value otherwise (both if not set or set to explicit null).
+func (o *QueryRunDto) GetActorName() string {
+	if o == nil || IsNil(o.ActorName.Get()) {
+		var ret string
+		return ret
+	}
+	return *o.ActorName.Get()
+}
+
+// GetActorNameOk returns a tuple with the ActorName field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+// NOTE: If the value is an explicit nil, `nil, true` will be returned
+func (o *QueryRunDto) GetActorNameOk() (*string, bool) {
+	if o == nil {
+		return nil, false
+	}
+	return o.ActorName.Get(), o.ActorName.IsSet()
+}
+
+// HasActorName returns a boolean if a field has been set.
+func (o *QueryRunDto) HasActorName() bool {
+	if o != nil && o.ActorName.IsSet() {
+		return true
+	}
+
+	return false
+}
+
+// SetActorName gets a reference to the given NullableString and assigns it to the ActorName field.
+func (o *QueryRunDto) SetActorName(v string) {
+	o.ActorName.Set(&v)
+}
+// SetActorNameNil sets the value for ActorName to be an explicit nil
+func (o *QueryRunDto) SetActorNameNil() {
+	o.ActorName.Set(nil)
+}
+
+// UnsetActorName ensures that no value is present for ActorName, not even an explicit nil
+func (o *QueryRunDto) UnsetActorName() {
+	o.ActorName.Unset()
+}
+
+// GetOrigin returns the Origin field value if set, zero value otherwise.
+func (o *QueryRunDto) GetOrigin() string {
+	if o == nil || IsNil(o.Origin) {
+		var ret string
+		return ret
+	}
+	return *o.Origin
+}
+
+// GetOriginOk returns a tuple with the Origin field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *QueryRunDto) GetOriginOk() (*string, bool) {
+	if o == nil || IsNil(o.Origin) {
+		return nil, false
+	}
+	return o.Origin, true
+}
+
+// HasOrigin returns a boolean if a field has been set.
+func (o *QueryRunDto) HasOrigin() bool {
+	if o != nil && !IsNil(o.Origin) {
+		return true
+	}
+
+	return false
+}
+
+// SetOrigin gets a reference to the given string and assigns it to the Origin field.
+func (o *QueryRunDto) SetOrigin(v string) {
+	o.Origin = &v
+}
+
 func (o QueryRunDto) MarshalJSON() ([]byte, error) {
 	toSerialize,err := o.ToMap()
 	if err != nil {
@@ -356,6 +508,18 @@ func (o QueryRunDto) ToMap() (map[string]interface{}, error) {
 	toSerialize["error"] = o.Error.Get()
 	toSerialize["tokenId"] = o.TokenId.Get()
 	toSerialize["tokenName"] = o.TokenName.Get()
+	if o.MemberId.IsSet() {
+		toSerialize["memberId"] = o.MemberId.Get()
+	}
+	if !IsNil(o.ActorKind) {
+		toSerialize["actorKind"] = o.ActorKind
+	}
+	if o.ActorName.IsSet() {
+		toSerialize["actorName"] = o.ActorName.Get()
+	}
+	if !IsNil(o.Origin) {
+		toSerialize["origin"] = o.Origin
+	}
 
 	for key, value := range o.AdditionalProperties {
 		toSerialize[key] = value
@@ -420,6 +584,10 @@ func (o *QueryRunDto) UnmarshalJSON(data []byte) (err error) {
 		delete(additionalProperties, "error")
 		delete(additionalProperties, "tokenId")
 		delete(additionalProperties, "tokenName")
+		delete(additionalProperties, "memberId")
+		delete(additionalProperties, "actorKind")
+		delete(additionalProperties, "actorName")
+		delete(additionalProperties, "origin")
 		o.AdditionalProperties = additionalProperties
 	}
 

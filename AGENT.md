@@ -73,8 +73,9 @@ integration.
   identity reaches is a `TenantMember` row administered under **Users**. A `tenant` claim is
   honoured only once, to admit a first arrival; after that the row wins, so a provider re-asserting
   a stale role cannot undo a decision made here. Instance administration stays a provider claim by
-  design, so a workspace owner cannot promote themselves. Note that an empty `Lakehold:Oidc:Audience`
-  accepts every token that issuer minted.
+  design, so a workspace owner cannot promote themselves. `Lakehold:Oidc:Audience` is required when
+  an authority is configured; startup fails closed when it is empty. MCP JWTs are additionally bound
+  to the exact resource URL advertised by protected-resource metadata.
 - `docs/PUBLIC-API.md`: the phased spec for the public HTTP control API and first-party Java, Go,
   .NET, and Python SDKs — time travel and the whole lakehouse. Builds on `docs/AUTHENTICATION.md`
   (auth is its gate); the cross-cutting API conventions (versioning, `problem+json`, pagination,
@@ -86,9 +87,11 @@ integration.
   SDK, semantic, and enterprise-consumption plan. A partial connector or unpublished client must not
   be described there as completing P1.
 - `docs/MCP.md`: the phased spec and running record for the MCP server under `src/Lakehold.Api/Mcp/`.
-  Phases 1-5 have landed: five read-only tools, a schema resource, and optional writes. Development
-  enables it by default; instance-level System Settings persist live controls in PostgreSQL and use
-  the existing public tenant-token endpoint to mint scoped client credentials. Records
+  Phases 1-5 and the full-control extension have landed: catalog, snapshot, CDC, physical-storage,
+  profiling, query-history, saved-query, connector, and snapshot-bound maintenance tools plus schema
+  and snapshot resources. Mutating tools and operator commands have independent runtime gates.
+  Development enables MCP by default; instance-level System Settings persist live controls in
+  PostgreSQL and the existing public tenant-token endpoint mints scoped client credentials. Records
   why the dependency is the MCP C# SDK and *not* Microsoft Agent
   Framework (LakeHold is the server, not the agent), which tools are deliberately withheld from an
   agent and why, and how to connect Claude Code and Codex. Read it before adding an agent-reachable

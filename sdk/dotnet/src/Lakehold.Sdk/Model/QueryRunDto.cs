@@ -28,6 +28,7 @@ namespace Lakehold.Sdk.Model
     /// <summary>
     /// QueryRunDto
     /// </summary>
+    [JsonConverter(typeof(QueryRunDtoJsonConverter))]
     public partial class QueryRunDto : IValidatableObject
     {
         /// <summary>
@@ -44,8 +45,12 @@ namespace Lakehold.Sdk.Model
         /// <param name="error">error</param>
         /// <param name="tokenId">tokenId</param>
         /// <param name="tokenName">tokenName</param>
+        /// <param name="memberId">memberId</param>
+        /// <param name="actorKind">actorKind</param>
+        /// <param name="actorName">actorName</param>
+        /// <param name="origin">origin</param>
         [JsonConstructor]
-        public QueryRunDto(int id, string catalogName, string sql, string language, DateTime startedUtc, double elapsedMilliseconds, int rowCount, bool succeeded, string? error = default, int? tokenId = default, string? tokenName = default)
+        public QueryRunDto(int id, string catalogName, string sql, string language, DateTime startedUtc, double elapsedMilliseconds, int rowCount, bool succeeded, string? error = default, int? tokenId = default, string? tokenName = default, Option<int?> memberId = default, Option<string?> actorKind = default, Option<string?> actorName = default, Option<string?> origin = default)
         {
             Id = id;
             CatalogName = catalogName;
@@ -58,6 +63,10 @@ namespace Lakehold.Sdk.Model
             Error = error;
             TokenId = tokenId;
             TokenName = tokenName;
+            MemberIdOption = memberId;
+            ActorKindOption = actorKind;
+            ActorNameOption = actorName;
+            OriginOption = origin;
             OnCreated();
         }
 
@@ -130,6 +139,58 @@ namespace Lakehold.Sdk.Model
         public string? TokenName { get; set; }
 
         /// <summary>
+        /// Used to track the state of MemberId
+        /// </summary>
+        [JsonIgnore]
+        [global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]
+        public Option<int?> MemberIdOption { get; private set; }
+
+        /// <summary>
+        /// Gets or Sets MemberId
+        /// </summary>
+        [JsonPropertyName("memberId")]
+        public int? MemberId { get { return this.MemberIdOption; } set { this.MemberIdOption = new(value); } }
+
+        /// <summary>
+        /// Used to track the state of ActorKind
+        /// </summary>
+        [JsonIgnore]
+        [global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]
+        public Option<string?> ActorKindOption { get; private set; }
+
+        /// <summary>
+        /// Gets or Sets ActorKind
+        /// </summary>
+        [JsonPropertyName("actorKind")]
+        public string? ActorKind { get { return this.ActorKindOption; } set { this.ActorKindOption = new(value); } }
+
+        /// <summary>
+        /// Used to track the state of ActorName
+        /// </summary>
+        [JsonIgnore]
+        [global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]
+        public Option<string?> ActorNameOption { get; private set; }
+
+        /// <summary>
+        /// Gets or Sets ActorName
+        /// </summary>
+        [JsonPropertyName("actorName")]
+        public string? ActorName { get { return this.ActorNameOption; } set { this.ActorNameOption = new(value); } }
+
+        /// <summary>
+        /// Used to track the state of Origin
+        /// </summary>
+        [JsonIgnore]
+        [global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]
+        public Option<string?> OriginOption { get; private set; }
+
+        /// <summary>
+        /// Gets or Sets Origin
+        /// </summary>
+        [JsonPropertyName("origin")]
+        public string? Origin { get { return this.OriginOption; } set { this.OriginOption = new(value); } }
+
+        /// <summary>
         /// Returns the string presentation of the object
         /// </summary>
         /// <returns>String presentation of the object</returns>
@@ -148,6 +209,10 @@ namespace Lakehold.Sdk.Model
             sb.Append("  Error: ").Append(Error).Append("\n");
             sb.Append("  TokenId: ").Append(TokenId).Append("\n");
             sb.Append("  TokenName: ").Append(TokenName).Append("\n");
+            sb.Append("  MemberId: ").Append(MemberId).Append("\n");
+            sb.Append("  ActorKind: ").Append(ActorKind).Append("\n");
+            sb.Append("  ActorName: ").Append(ActorName).Append("\n");
+            sb.Append("  Origin: ").Append(Origin).Append("\n");
             sb.Append("}\n");
             return sb.ToString();
         }
@@ -201,6 +266,10 @@ namespace Lakehold.Sdk.Model
             Option<string?> error = default;
             Option<int?> tokenId = default;
             Option<string?> tokenName = default;
+            Option<int?> memberId = default;
+            Option<string?> actorKind = default;
+            Option<string?> actorName = default;
+            Option<string?> origin = default;
 
             while (utf8JsonReader.Read())
             {
@@ -249,6 +318,18 @@ namespace Lakehold.Sdk.Model
                             break;
                         case "tokenName":
                             tokenName = new Option<string?>(utf8JsonReader.GetString());
+                            break;
+                        case "memberId":
+                            memberId = new Option<int?>(utf8JsonReader.TokenType == JsonTokenType.Null ? (int?)null : utf8JsonReader.GetInt32());
+                            break;
+                        case "actorKind":
+                            actorKind = new Option<string?>(utf8JsonReader.GetString()!);
+                            break;
+                        case "actorName":
+                            actorName = new Option<string?>(utf8JsonReader.GetString());
+                            break;
+                        case "origin":
+                            origin = new Option<string?>(utf8JsonReader.GetString()!);
                             break;
                         default:
                             break;
@@ -313,7 +394,13 @@ namespace Lakehold.Sdk.Model
             if (succeeded.IsSet && succeeded.Value == null)
                 throw new ArgumentNullException(nameof(succeeded), "Property is not nullable for class QueryRunDto.");
 
-            return new QueryRunDto(id.Value!.Value!, catalogName.Value!, sql.Value!, language.Value!, startedUtc.Value!.Value!, elapsedMilliseconds.Value!.Value!, rowCount.Value!.Value!, succeeded.Value!.Value!, error.Value!, tokenId.Value!, tokenName.Value!);
+            if (actorKind.IsSet && actorKind.Value == null)
+                throw new ArgumentNullException(nameof(actorKind), "Property is not nullable for class QueryRunDto.");
+
+            if (origin.IsSet && origin.Value == null)
+                throw new ArgumentNullException(nameof(origin), "Property is not nullable for class QueryRunDto.");
+
+            return new QueryRunDto(id.Value!.Value!, catalogName.Value!, sql.Value!, language.Value!, startedUtc.Value!.Value!, elapsedMilliseconds.Value!.Value!, rowCount.Value!.Value!, succeeded.Value!.Value!, error.Value!, tokenId.Value!, tokenName.Value!, memberId, actorKind, actorName, origin);
         }
 
         /// <summary>
@@ -347,6 +434,12 @@ namespace Lakehold.Sdk.Model
             if (queryRunDto.Language == null)
                 throw new ArgumentNullException(nameof(queryRunDto.Language), "Property is required for class QueryRunDto.");
 
+            if (queryRunDto.ActorKindOption.IsSet && queryRunDto.ActorKind == null)
+                throw new ArgumentNullException(nameof(queryRunDto.ActorKind), "Property is required for class QueryRunDto.");
+
+            if (queryRunDto.OriginOption.IsSet && queryRunDto.Origin == null)
+                throw new ArgumentNullException(nameof(queryRunDto.Origin), "Property is required for class QueryRunDto.");
+
             writer.WriteNumber("id", queryRunDto.Id);
 
             writer.WriteString("catalogName", queryRunDto.CatalogName);
@@ -377,6 +470,24 @@ namespace Lakehold.Sdk.Model
                 writer.WriteString("tokenName", queryRunDto.TokenName);
             else
                 writer.WriteNull("tokenName");
+
+            if (queryRunDto.MemberIdOption.IsSet)
+                if (queryRunDto.MemberIdOption.Value != null)
+                    writer.WriteNumber("memberId", queryRunDto.MemberIdOption.Value!.Value);
+                else
+                    writer.WriteNull("memberId");
+
+            if (queryRunDto.ActorKindOption.IsSet)
+                writer.WriteString("actorKind", queryRunDto.ActorKind);
+
+            if (queryRunDto.ActorNameOption.IsSet)
+                if (queryRunDto.ActorNameOption.Value != null)
+                    writer.WriteString("actorName", queryRunDto.ActorName);
+                else
+                    writer.WriteNull("actorName");
+
+            if (queryRunDto.OriginOption.IsSet)
+                writer.WriteString("origin", queryRunDto.Origin);
         }
     }
 }

@@ -1,5 +1,7 @@
 using System.ComponentModel;
 using Lakehold.ControlPlane.Data;
+using Lakehold.ControlPlane.Model;
+using Lakehold.ControlPlane.Security;
 using Lakehold.Engine.Catalog;
 using ModelContextProtocol;
 using ModelContextProtocol.Server;
@@ -75,7 +77,14 @@ public sealed class LakeholdWriteTools(LakehouseService lakehouse, IHttpContextA
         try
         {
             var result = await lakehouse
-                .ExecuteAsync(tenant, catalog, sql, cancellationToken, readOnly: false, principal.TokenId)
+                .ExecuteAsync(
+                    tenant,
+                    catalog,
+                    sql,
+                    cancellationToken,
+                    readOnly: false,
+                    principal.TokenId,
+                    audit: QueryAuditContext.From(principal, QueryOrigin.Mcp))
                 .ConfigureAwait(false);
 
             return new McpExecuteResult(result.RowsAffected, result.Rows.Count);

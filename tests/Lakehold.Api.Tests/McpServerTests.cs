@@ -148,7 +148,29 @@ public sealed class McpServerTests : IAsyncLifetime
         var names = (await client.ListToolsAsync()).Select(t => t.Name).OrderBy(n => n).ToArray();
 
         Assert.Equal(
-            ["describe_schema", "get_connector", "get_snapshot", "list_changes", "list_connector_dead_letters", "list_connector_runs", "list_connectors", "list_snapshots", "list_tenants", "query", "query_snapshot", "validate_connector"],
+            [
+                "describe_schema",
+                "execute_saved_query",
+                "get_column_distribution",
+                "get_connector",
+                "get_saved_query",
+                "get_snapshot",
+                "get_storage",
+                "get_table_detail",
+                "get_table_profile",
+                "list_changes",
+                "list_connector_dead_letters",
+                "list_connector_runs",
+                "list_connectors",
+                "list_saved_queries",
+                "list_snapshots",
+                "list_storage_files",
+                "list_tenants",
+                "query",
+                "query_history",
+                "query_snapshot",
+                "validate_connector",
+            ],
             names);
     }
 
@@ -262,6 +284,7 @@ public sealed class McpServerTests : IAsyncLifetime
                 .SaveAsync(
                     enabled: true,
                     allowWrites: false,
+                    allowOperatorCommands: false,
                     maxRowsPerResult: 2,
                     publicBaseUrl: null,
                     expectedVersion: 0,
@@ -290,6 +313,7 @@ public sealed class McpServerTests : IAsyncLifetime
                 .SaveAsync(
                     enabled: true,
                     allowWrites: false,
+                    allowOperatorCommands: false,
                     maxRowsPerResult: 5,
                     publicBaseUrl: null,
                     expectedVersion: 1,

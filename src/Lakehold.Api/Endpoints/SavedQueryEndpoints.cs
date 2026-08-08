@@ -225,7 +225,10 @@ public static class SavedQueryEndpoints
                     id,
                     principal.TokenId,
                     recordHistory: !principal.IsDemo,
-                    cancellationToken)
+                    cancellationToken,
+                    QueryAuditContext.From(
+                        principal,
+                        http.IsLegacyApiRequest() ? QueryOrigin.Workbench : QueryOrigin.Rest))
                 .ConfigureAwait(false);
             return TypedResults.Ok(QueryResponse.From(
                 result.Result,
@@ -262,6 +265,7 @@ public static class SavedQueryEndpoints
     {
         try
         {
+            var principal = http.GetLakeholdPrincipal();
             var query = await savedQueries
                 .PublishAsync(
                     tenantSlug,
@@ -270,8 +274,11 @@ public static class SavedQueryEndpoints
                     request?.Revision ?? 0,
                     request?.Schema ?? string.Empty,
                     request?.ViewName ?? string.Empty,
-                    http.GetLakeholdPrincipal().TokenId,
-                    cancellationToken)
+                    principal.TokenId,
+                    cancellationToken,
+                    QueryAuditContext.From(
+                        principal,
+                        http.IsLegacyApiRequest() ? QueryOrigin.Workbench : QueryOrigin.Rest))
                 .ConfigureAwait(false);
             return TypedResults.Ok(ToDto(query));
         }
@@ -308,14 +315,18 @@ public static class SavedQueryEndpoints
     {
         try
         {
+            var principal = http.GetLakeholdPrincipal();
             var query = await savedQueries
                 .UnpublishAsync(
                     tenantSlug,
                     catalogName,
                     id,
                     revision,
-                    http.GetLakeholdPrincipal().TokenId,
-                    cancellationToken)
+                    principal.TokenId,
+                    cancellationToken,
+                    QueryAuditContext.From(
+                        principal,
+                        http.IsLegacyApiRequest() ? QueryOrigin.Workbench : QueryOrigin.Rest))
                 .ConfigureAwait(false);
             return TypedResults.Ok(ToDto(query));
         }

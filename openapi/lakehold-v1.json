@@ -24909,6 +24909,25 @@
               "null",
               "string"
             ]
+          },
+          "memberId": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "actorKind": {
+            "type": "string"
+          },
+          "actorName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "origin": {
+            "type": "string"
           }
         }
       },
@@ -25382,6 +25401,9 @@
             "type": "boolean"
           },
           "mcpAllowWrites": {
+            "type": "boolean"
+          },
+          "mcpAllowOperatorCommands": {
             "type": "boolean"
           },
           "mcpMaxRowsPerResult": {
@@ -25967,6 +25989,12 @@
           "version": {
             "type": "integer",
             "format": "int32"
+          },
+          "mcpAllowOperatorCommands": {
+            "type": [
+              "null",
+              "boolean"
+            ]
           }
         }
       },

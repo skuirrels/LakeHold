@@ -152,6 +152,7 @@ public sealed record BrowserSessionDto(
 public sealed record SystemSettingsDto(
     bool McpEnabled,
     bool McpAllowWrites,
+    bool McpAllowOperatorCommands,
     int McpMaxRowsPerResult,
     string McpPublicBaseUrl,
     string McpRoute,
@@ -164,7 +165,8 @@ public sealed record UpdateSystemSettingsRequest(
     bool McpAllowWrites,
     int McpMaxRowsPerResult,
     string? McpPublicBaseUrl,
-    int Version);
+    int Version,
+    bool? McpAllowOperatorCommands = null);
 
 /// <summary>
 ///     Where this node places Parquet data, and which storage profiles it can authenticate with.
@@ -853,6 +855,10 @@ public sealed record MaintenanceDto(string Operation, string Detail, double Elap
 ///     The label of that credential when it still exists, for a readable audit trail; null when the
 ///     run was anonymous or the token has since been deleted.
 /// </param>
+/// <param name="MemberId">The tenant member who ran the statement, when it was a person.</param>
+/// <param name="ActorKind">Whether the actor was an API token, member, system process, or unknown.</param>
+/// <param name="ActorName">Best-effort current display label for the token or member.</param>
+/// <param name="Origin">Transport or subsystem through which the statement entered LakeHold.</param>
 public sealed record QueryRunDto(
     int Id,
     string CatalogName,
@@ -864,7 +870,11 @@ public sealed record QueryRunDto(
     bool Succeeded,
     string? Error,
     int? TokenId,
-    string? TokenName);
+    string? TokenName,
+    int? MemberId,
+    string ActorKind,
+    string? ActorName,
+    string Origin);
 
 /// <summary>A backup generation available to restore.</summary>
 /// <param name="Complete">

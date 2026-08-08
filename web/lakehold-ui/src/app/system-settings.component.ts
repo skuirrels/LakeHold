@@ -46,6 +46,7 @@ export class SystemSettingsComponent implements OnInit {
   protected readonly settings = signal<SystemSettings | null>(null);
   protected readonly enabled = signal(false);
   protected readonly allowWrites = signal(false);
+  protected readonly allowOperatorCommands = signal(false);
   protected readonly maxRows = signal(200);
   protected readonly publicBaseUrl = signal('');
   protected readonly loading = signal(true);
@@ -72,6 +73,7 @@ export class SystemSettingsComponent implements OnInit {
       .saveSystemSettings({
         mcpEnabled: this.enabled(),
         mcpAllowWrites: this.allowWrites(),
+        mcpAllowOperatorCommands: this.allowOperatorCommands(),
         mcpMaxRowsPerResult: this.maxRows(),
         mcpPublicBaseUrl: this.publicBaseUrl().trim(),
         version: current.version,
@@ -120,6 +122,7 @@ export class SystemSettingsComponent implements OnInit {
     this.settings.set(settings);
     this.enabled.set(settings.mcpEnabled);
     this.allowWrites.set(settings.mcpAllowWrites);
+    this.allowOperatorCommands.set(settings.mcpAllowOperatorCommands);
     this.maxRows.set(settings.mcpMaxRowsPerResult);
     this.publicBaseUrl.set(settings.mcpPublicBaseUrl);
   }

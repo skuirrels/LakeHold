@@ -182,6 +182,26 @@ public sealed class StorageEndpointsTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Maintenance_apply_refuses_a_snapshot_that_changed_after_review()
+    {
+        var reviewed = Assert.Single(
+            await _service.GetSnapshotsAsync("acme", "analytics", 1, default)).SnapshotId;
+        await Sql("CREATE TABLE advanced_after_maintenance_plan (id INTEGER)");
+
+        var exception = await Assert.ThrowsAsync<ArgumentException>(() =>
+            _service.RunMaintenanceAsync(
+                "acme",
+                "analytics",
+                "compact",
+                apply: true,
+                expectedCurrentSnapshotId: reviewed,
+                cancellationToken: default));
+
+        Assert.Contains("after this maintenance was reviewed", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("no maintenance was applied", exception.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public async Task A_single_file_is_never_called_fragmented_however_small_it_is()
     {
         await _service.RunMaintenanceAsync("acme", "analytics", "flush", apply: true, cancellationToken: default);

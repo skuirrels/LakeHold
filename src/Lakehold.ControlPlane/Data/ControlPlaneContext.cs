@@ -320,6 +320,14 @@ public sealed class ControlPlaneContext(DbContextOptions<ControlPlaneContext> op
             entity.Property(r => r.CatalogName).HasMaxLength(63);
             entity.Property(r => r.Language).HasMaxLength(32).HasDefaultValue("sql");
             entity.Property(r => r.Error).HasMaxLength(4000);
+            entity.Property(r => r.ActorKind)
+                .HasConversion<string>()
+                .HasMaxLength(32)
+                .HasDefaultValue(QueryActorKind.Unknown);
+            entity.Property(r => r.Origin)
+                .HasConversion<string>()
+                .HasMaxLength(32)
+                .HasDefaultValue(QueryOrigin.Unknown);
 
             // The history panel always reads newest-first within a tenant.
             entity.HasIndex(r => new { r.TenantId, r.StartedUtc });

@@ -28,6 +28,7 @@ namespace Lakehold.Sdk.Model
     /// <summary>
     /// SystemSettingsDto
     /// </summary>
+    [JsonConverter(typeof(SystemSettingsDtoJsonConverter))]
     public partial class SystemSettingsDto : IValidatableObject
     {
         /// <summary>
@@ -39,9 +40,10 @@ namespace Lakehold.Sdk.Model
         /// <param name="mcpPublicBaseUrl">mcpPublicBaseUrl</param>
         /// <param name="mcpRoute">mcpRoute</param>
         /// <param name="varVersion">varVersion</param>
+        /// <param name="mcpAllowOperatorCommands">mcpAllowOperatorCommands</param>
         /// <param name="updatedUtc">updatedUtc</param>
         [JsonConstructor]
-        public SystemSettingsDto(bool mcpEnabled, bool mcpAllowWrites, int mcpMaxRowsPerResult, string mcpPublicBaseUrl, string mcpRoute, int varVersion, DateTime? updatedUtc = default)
+        public SystemSettingsDto(bool mcpEnabled, bool mcpAllowWrites, int mcpMaxRowsPerResult, string mcpPublicBaseUrl, string mcpRoute, int varVersion, Option<bool?> mcpAllowOperatorCommands = default, DateTime? updatedUtc = default)
         {
             McpEnabled = mcpEnabled;
             McpAllowWrites = mcpAllowWrites;
@@ -49,6 +51,7 @@ namespace Lakehold.Sdk.Model
             McpPublicBaseUrl = mcpPublicBaseUrl;
             McpRoute = mcpRoute;
             VarVersion = varVersion;
+            McpAllowOperatorCommandsOption = mcpAllowOperatorCommands;
             UpdatedUtc = updatedUtc;
             OnCreated();
         }
@@ -92,6 +95,19 @@ namespace Lakehold.Sdk.Model
         public int VarVersion { get; set; }
 
         /// <summary>
+        /// Used to track the state of McpAllowOperatorCommands
+        /// </summary>
+        [JsonIgnore]
+        [global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]
+        public Option<bool?> McpAllowOperatorCommandsOption { get; private set; }
+
+        /// <summary>
+        /// Gets or Sets McpAllowOperatorCommands
+        /// </summary>
+        [JsonPropertyName("mcpAllowOperatorCommands")]
+        public bool? McpAllowOperatorCommands { get { return this.McpAllowOperatorCommandsOption; } set { this.McpAllowOperatorCommandsOption = new(value); } }
+
+        /// <summary>
         /// Gets or Sets UpdatedUtc
         /// </summary>
         [JsonPropertyName("updatedUtc")]
@@ -111,6 +127,7 @@ namespace Lakehold.Sdk.Model
             sb.Append("  McpPublicBaseUrl: ").Append(McpPublicBaseUrl).Append("\n");
             sb.Append("  McpRoute: ").Append(McpRoute).Append("\n");
             sb.Append("  VarVersion: ").Append(VarVersion).Append("\n");
+            sb.Append("  McpAllowOperatorCommands: ").Append(McpAllowOperatorCommands).Append("\n");
             sb.Append("  UpdatedUtc: ").Append(UpdatedUtc).Append("\n");
             sb.Append("}\n");
             return sb.ToString();
@@ -160,6 +177,7 @@ namespace Lakehold.Sdk.Model
             Option<string?> mcpPublicBaseUrl = default;
             Option<string?> mcpRoute = default;
             Option<int?> varVersion = default;
+            Option<bool?> mcpAllowOperatorCommands = default;
             Option<DateTime?> updatedUtc = default;
 
             while (utf8JsonReader.Read())
@@ -194,6 +212,9 @@ namespace Lakehold.Sdk.Model
                             break;
                         case "version":
                             varVersion = new Option<int?>(utf8JsonReader.TokenType == JsonTokenType.Null ? (int?)null : utf8JsonReader.GetInt32());
+                            break;
+                        case "mcpAllowOperatorCommands":
+                            mcpAllowOperatorCommands = new Option<bool?>(utf8JsonReader.TokenType == JsonTokenType.Null ? (bool?)null : utf8JsonReader.GetBoolean());
                             break;
                         case "updatedUtc":
                             updatedUtc = new Option<DateTime?>(JsonSerializer.Deserialize<DateTime?>(ref utf8JsonReader, jsonSerializerOptions));
@@ -243,7 +264,10 @@ namespace Lakehold.Sdk.Model
             if (varVersion.IsSet && varVersion.Value == null)
                 throw new ArgumentNullException(nameof(varVersion), "Property is not nullable for class SystemSettingsDto.");
 
-            return new SystemSettingsDto(mcpEnabled.Value!.Value!, mcpAllowWrites.Value!.Value!, mcpMaxRowsPerResult.Value!.Value!, mcpPublicBaseUrl.Value!, mcpRoute.Value!, varVersion.Value!.Value!, updatedUtc.Value!);
+            if (mcpAllowOperatorCommands.IsSet && mcpAllowOperatorCommands.Value == null)
+                throw new ArgumentNullException(nameof(mcpAllowOperatorCommands), "Property is not nullable for class SystemSettingsDto.");
+
+            return new SystemSettingsDto(mcpEnabled.Value!.Value!, mcpAllowWrites.Value!.Value!, mcpMaxRowsPerResult.Value!.Value!, mcpPublicBaseUrl.Value!, mcpRoute.Value!, varVersion.Value!.Value!, mcpAllowOperatorCommands, updatedUtc.Value!);
         }
 
         /// <summary>
@@ -285,6 +309,9 @@ namespace Lakehold.Sdk.Model
             writer.WriteString("mcpRoute", systemSettingsDto.McpRoute);
 
             writer.WriteNumber("version", systemSettingsDto.VarVersion);
+
+            if (systemSettingsDto.McpAllowOperatorCommandsOption.IsSet)
+                writer.WriteBoolean("mcpAllowOperatorCommands", systemSettingsDto.McpAllowOperatorCommandsOption.Value!.Value);
 
             if (systemSettingsDto.UpdatedUtc != null)
                 writer.WriteString("updatedUtc", systemSettingsDto.UpdatedUtc.Value.ToString(UpdatedUtcFormat));

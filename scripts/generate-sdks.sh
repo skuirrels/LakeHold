@@ -59,7 +59,10 @@ for model in \
     DataConnectorAuthenticationRequest \
     DataConnectorDto \
     DataConnectorSourceSettingsDto \
-    DataConnectorSourceSettingsRequest; do
+    DataConnectorSourceSettingsRequest \
+    QueryRunDto \
+    SystemSettingsDto \
+    UpdateSystemSettingsRequest; do
     perl -0pi -e "s/(    public partial class ${model} : IValidatableObject)/    [JsonConverter(typeof(${model}JsonConverter))]\\n\$1/" \
         "${temporary}/dotnet/src/Lakehold.Sdk/Model/${model}.cs"
 done
@@ -121,7 +124,10 @@ for model in \
     DataConnectorAuthenticationRequest \
     DataConnectorDto \
     DataConnectorSourceSettingsDto \
-    DataConnectorSourceSettingsRequest; do
+    DataConnectorSourceSettingsRequest \
+    QueryRunDto \
+    SystemSettingsDto \
+    UpdateSystemSettingsRequest; do
     grep -Fq "[JsonConverter(typeof(${model}JsonConverter))]" \
         "${temporary}/dotnet/src/Lakehold.Sdk/Model/${model}.cs"
 done

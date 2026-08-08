@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
+using Lakehold.Api.Mcp;
+using Microsoft.Extensions.Options;
 
 namespace Lakehold.Api.Auth;
 
@@ -67,7 +69,7 @@ public static class BrowserAuthentication
                     options.MetadataAddress = oidc.MetadataAddress;
                 }
 
-                ConfigureAudience(options, oidc.Audience);
+                ConfigureAudience(options, oidc);
             });
 
         if (oidc.BrowserLoginEnabled)
@@ -104,15 +106,35 @@ public static class BrowserAuthentication
         return services;
     }
 
-    private static void ConfigureAudience(JwtBearerOptions options, string audience)
+    private static void ConfigureAudience(JwtBearerOptions options, LakeholdOidcOptions oidc)
     {
-        if (audience.Length > 0)
+        // Audience is request-specific: ordinary API and Workbench calls target the configured API
+        // audience, while RFC 8707 makes an MCP access token target the MCP resource URI itself.
+        // Signature, issuer, lifetime, and every other token check remain owned by JwtBearer.
+        options.TokenValidationParameters.ValidateAudience = false;
+        options.Events = new JwtBearerEvents
         {
-            options.Audience = audience;
-        }
-        else
-        {
-            options.TokenValidationParameters.ValidateAudience = false;
-        }
+            OnTokenValidated = async context =>
+            {
+                var expected = oidc.Audience;
+                var mcp = context.HttpContext.RequestServices
+                    .GetRequiredService<IOptions<McpOptions>>()
+                    .Value;
+
+                if (context.HttpContext.Request.Path.StartsWithSegments(mcp.Route))
+                {
+                    var settings = await context.HttpContext.RequestServices
+                        .GetRequiredService<McpRuntimeSettingsStore>()
+                        .GetAsync(context.HttpContext.RequestAborted)
+                        .ConfigureAwait(false);
+                    expected = McpResourceMetadata.AbsoluteResourceUri(context.HttpContext, settings);
+                }
+
+                if (!LakeholdAudience.Matches(context.Principal!, expected))
+                {
+                    context.Fail("The access token was not issued for this resource.");
+                }
+            },
+        };
     }
 }

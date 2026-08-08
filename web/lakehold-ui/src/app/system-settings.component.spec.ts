@@ -77,6 +77,27 @@ describe('SystemSettingsComponent', () => {
     expect(fixture.nativeElement.textContent).toContain('no restart is required');
   });
 
+  it('round-trips the operator-command setting', async () => {
+    api.systemSettings.mcpAllowOperatorCommands = true;
+    await mount();
+
+    const toggles = fixture.nativeElement.querySelectorAll(
+      'input[type="checkbox"]',
+    ) as NodeListOf<HTMLInputElement>;
+    expect(toggles[2].checked).toBe(true);
+
+    toggles[2].checked = false;
+    toggles[2].dispatchEvent(new Event('change'));
+    (fixture.nativeElement.querySelector('form.settings-card') as HTMLFormElement).dispatchEvent(
+      new Event('submit'),
+    );
+    await fixture.whenStable();
+
+    expect(api.lastArgs('saveSystemSettings')?.[0]).toEqual(
+      expect.objectContaining({ mcpAllowOperatorCommands: false }),
+    );
+  });
+
   it('does not hide a save conflict', async () => {
     api.failures.set('saveSystemSettings', 'System settings changed since they were loaded.');
     await mount();

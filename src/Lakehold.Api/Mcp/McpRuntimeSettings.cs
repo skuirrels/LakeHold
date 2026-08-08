@@ -9,6 +9,7 @@ namespace Lakehold.Api.Mcp;
 public sealed record McpRuntimeSettings(
     bool Enabled,
     bool AllowWrites,
+    bool AllowOperatorCommands,
     int MaxRowsPerResult,
     string PublicBaseUrl,
     string Route,
@@ -70,6 +71,7 @@ public sealed class McpRuntimeSettingsStore(
     public async Task<McpRuntimeSettings> SaveAsync(
         bool enabled,
         bool allowWrites,
+        bool? allowOperatorCommands,
         int maxRowsPerResult,
         string? publicBaseUrl,
         int expectedVersion,
@@ -80,6 +82,7 @@ public sealed class McpRuntimeSettingsStore(
         var row = await context.SystemSettings
             .SingleOrDefaultAsync(s => s.Id == SingletonId, cancellationToken)
             .ConfigureAwait(false);
+        var isNew = row is null;
 
         if (row is null)
         {
@@ -105,8 +108,14 @@ public sealed class McpRuntimeSettingsStore(
             row.ConcurrencyVersion++;
         }
 
+        var effectiveOperatorCommands = allowOperatorCommands
+            ?? (isNew
+                ? bootstrap.Value.AllowOperatorCommands
+                : row.McpAllowOperatorCommands);
+
         row.McpEnabled = enabled;
         row.McpAllowWrites = allowWrites;
+        row.McpAllowOperatorCommands = effectiveOperatorCommands;
         row.McpMaxRowsPerResult = maxRowsPerResult;
         row.McpPublicBaseUrl = normalizedBaseUrl.Length == 0 ? null : normalizedBaseUrl;
         row.UpdatedUtc = clock.GetUtcNow();
@@ -137,6 +146,7 @@ public sealed class McpRuntimeSettingsStore(
         new(
             options.Enabled,
             options.AllowWrites,
+            options.AllowOperatorCommands,
             options.MaxRowsPerResult,
             options.PublicBaseUrl,
             options.Route,
@@ -147,6 +157,7 @@ public sealed class McpRuntimeSettingsStore(
         new(
             settings.McpEnabled,
             settings.McpAllowWrites,
+            settings.McpAllowOperatorCommands,
             settings.McpMaxRowsPerResult,
             settings.McpPublicBaseUrl ?? string.Empty,
             route,

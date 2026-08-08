@@ -23,6 +23,8 @@ public sealed class SystemSettings
 
     public bool McpAllowWrites { get; set; }
 
+    public bool McpAllowOperatorCommands { get; set; }
+
     public int McpMaxRowsPerResult { get; set; }
 
     public string? McpPublicBaseUrl { get; set; }
@@ -1486,7 +1488,40 @@ public sealed class QueryRun
     /// </summary>
     public int? TokenId { get; set; }
 
+    /// <summary>
+    ///     The tenant member who ran the statement. Nullable and deliberately not a foreign key so
+    ///     removing a member never removes or invalidates their audit history.
+    /// </summary>
+    public int? MemberId { get; set; }
+
+    /// <summary>Kind of actor responsible for the run.</summary>
+    public QueryActorKind ActorKind { get; set; }
+
+    /// <summary>Transport or subsystem through which the run entered LakeHold.</summary>
+    public QueryOrigin Origin { get; set; }
+
     public Tenant Tenant { get; set; } = null!;
+}
+
+/// <summary>Stable audit classification for the identity behind a query run.</summary>
+public enum QueryActorKind
+{
+    Unknown,
+    ApiToken,
+    Member,
+    System,
+}
+
+/// <summary>Stable audit classification for the entry point that submitted a query run.</summary>
+public enum QueryOrigin
+{
+    Unknown,
+    Workbench,
+    Rest,
+    PgWire,
+    Mcp,
+    Import,
+    Connector,
 }
 
 /// <summary>What an <see cref="ApiToken"/> may do — its capability, kept distinct from its subject.</summary>

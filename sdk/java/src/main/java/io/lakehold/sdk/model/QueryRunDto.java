@@ -22,6 +22,7 @@ import com.google.gson.stream.JsonWriter;
 import java.io.IOException;
 import java.time.OffsetDateTime;
 import java.util.Arrays;
+import org.openapitools.jackson.nullable.JsonNullable;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -105,6 +106,26 @@ public class QueryRunDto {
   @SerializedName(SERIALIZED_NAME_TOKEN_NAME)
   @jakarta.annotation.Nullable
   private String tokenName;
+
+  public static final String SERIALIZED_NAME_MEMBER_ID = "memberId";
+  @SerializedName(SERIALIZED_NAME_MEMBER_ID)
+  @jakarta.annotation.Nullable
+  private Integer memberId;
+
+  public static final String SERIALIZED_NAME_ACTOR_KIND = "actorKind";
+  @SerializedName(SERIALIZED_NAME_ACTOR_KIND)
+  @jakarta.annotation.Nullable
+  private String actorKind;
+
+  public static final String SERIALIZED_NAME_ACTOR_NAME = "actorName";
+  @SerializedName(SERIALIZED_NAME_ACTOR_NAME)
+  @jakarta.annotation.Nullable
+  private String actorName;
+
+  public static final String SERIALIZED_NAME_ORIGIN = "origin";
+  @SerializedName(SERIALIZED_NAME_ORIGIN)
+  @jakarta.annotation.Nullable
+  private String origin;
 
   public QueryRunDto() {
   }
@@ -317,6 +338,82 @@ public class QueryRunDto {
     this.tokenName = tokenName;
   }
 
+
+  public QueryRunDto memberId(@jakarta.annotation.Nullable Integer memberId) {
+    this.memberId = memberId;
+    return this;
+  }
+
+  /**
+   * Get memberId
+   * @return memberId
+   */
+  @jakarta.annotation.Nullable
+  public Integer getMemberId() {
+    return memberId;
+  }
+
+  public void setMemberId(@jakarta.annotation.Nullable Integer memberId) {
+    this.memberId = memberId;
+  }
+
+
+  public QueryRunDto actorKind(@jakarta.annotation.Nullable String actorKind) {
+    this.actorKind = actorKind;
+    return this;
+  }
+
+  /**
+   * Get actorKind
+   * @return actorKind
+   */
+  @jakarta.annotation.Nullable
+  public String getActorKind() {
+    return actorKind;
+  }
+
+  public void setActorKind(@jakarta.annotation.Nullable String actorKind) {
+    this.actorKind = actorKind;
+  }
+
+
+  public QueryRunDto actorName(@jakarta.annotation.Nullable String actorName) {
+    this.actorName = actorName;
+    return this;
+  }
+
+  /**
+   * Get actorName
+   * @return actorName
+   */
+  @jakarta.annotation.Nullable
+  public String getActorName() {
+    return actorName;
+  }
+
+  public void setActorName(@jakarta.annotation.Nullable String actorName) {
+    this.actorName = actorName;
+  }
+
+
+  public QueryRunDto origin(@jakarta.annotation.Nullable String origin) {
+    this.origin = origin;
+    return this;
+  }
+
+  /**
+   * Get origin
+   * @return origin
+   */
+  @jakarta.annotation.Nullable
+  public String getOrigin() {
+    return origin;
+  }
+
+  public void setOrigin(@jakarta.annotation.Nullable String origin) {
+    this.origin = origin;
+  }
+
   /**
    * A container for additional, undeclared properties.
    * This is a holder for any undeclared properties as specified with
@@ -382,13 +479,28 @@ public class QueryRunDto {
         Objects.equals(this.succeeded, queryRunDto.succeeded) &&
         Objects.equals(this.error, queryRunDto.error) &&
         Objects.equals(this.tokenId, queryRunDto.tokenId) &&
-        Objects.equals(this.tokenName, queryRunDto.tokenName)&&
+        Objects.equals(this.tokenName, queryRunDto.tokenName) &&
+        Objects.equals(this.memberId, queryRunDto.memberId) &&
+        Objects.equals(this.actorKind, queryRunDto.actorKind) &&
+        Objects.equals(this.actorName, queryRunDto.actorName) &&
+        Objects.equals(this.origin, queryRunDto.origin)&&
         Objects.equals(this.additionalProperties, queryRunDto.additionalProperties);
+  }
+
+  private static <T> boolean equalsNullable(JsonNullable<T> a, JsonNullable<T> b) {
+    return a == b || (a != null && b != null && a.isPresent() && b.isPresent() && Objects.deepEquals(a.get(), b.get()));
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(id, catalogName, sql, language, startedUtc, elapsedMilliseconds, rowCount, succeeded, error, tokenId, tokenName, additionalProperties);
+    return Objects.hash(id, catalogName, sql, language, startedUtc, elapsedMilliseconds, rowCount, succeeded, error, tokenId, tokenName, memberId, actorKind, actorName, origin, additionalProperties);
+  }
+
+  private static <T> int hashCodeNullable(JsonNullable<T> a) {
+    if (a == null) {
+      return 1;
+    }
+    return a.isPresent() ? Arrays.deepHashCode(new Object[]{a.get()}) : 31;
   }
 
   @Override
@@ -406,6 +518,10 @@ public class QueryRunDto {
     sb.append("    error: ").append(toIndentedString(error)).append("\n");
     sb.append("    tokenId: ").append(toIndentedString(tokenId)).append("\n");
     sb.append("    tokenName: ").append(toIndentedString(tokenName)).append("\n");
+    sb.append("    memberId: ").append(toIndentedString(memberId)).append("\n");
+    sb.append("    actorKind: ").append(toIndentedString(actorKind)).append("\n");
+    sb.append("    actorName: ").append(toIndentedString(actorName)).append("\n");
+    sb.append("    origin: ").append(toIndentedString(origin)).append("\n");
     sb.append("    additionalProperties: ").append(toIndentedString(additionalProperties)).append("\n");
     sb.append("}");
     return sb.toString();
@@ -428,7 +544,7 @@ public class QueryRunDto {
 
   static {
     // a set of all properties/fields (JSON key names)
-    openapiFields = new HashSet<String>(Arrays.asList("id", "catalogName", "sql", "language", "startedUtc", "elapsedMilliseconds", "rowCount", "succeeded", "error", "tokenId", "tokenName"));
+    openapiFields = new HashSet<String>(Arrays.asList("id", "catalogName", "sql", "language", "startedUtc", "elapsedMilliseconds", "rowCount", "succeeded", "error", "tokenId", "tokenName", "memberId", "actorKind", "actorName", "origin"));
 
     // a set of required properties/fields (JSON key names)
     openapiRequiredFields = new HashSet<String>(Arrays.asList("id", "catalogName", "sql", "language", "startedUtc", "elapsedMilliseconds", "rowCount", "succeeded", "error", "tokenId", "tokenName"));
@@ -468,6 +584,15 @@ public class QueryRunDto {
       }
       if ((jsonObj.get("tokenName") != null && !jsonObj.get("tokenName").isJsonNull()) && !jsonObj.get("tokenName").isJsonPrimitive()) {
         throw new IllegalArgumentException(String.format("Expected the field `tokenName` to be a primitive type in the JSON string but got `%s`", jsonObj.get("tokenName").toString()));
+      }
+      if ((jsonObj.get("actorKind") != null && !jsonObj.get("actorKind").isJsonNull()) && !jsonObj.get("actorKind").isJsonPrimitive()) {
+        throw new IllegalArgumentException(String.format("Expected the field `actorKind` to be a primitive type in the JSON string but got `%s`", jsonObj.get("actorKind").toString()));
+      }
+      if ((jsonObj.get("actorName") != null && !jsonObj.get("actorName").isJsonNull()) && !jsonObj.get("actorName").isJsonPrimitive()) {
+        throw new IllegalArgumentException(String.format("Expected the field `actorName` to be a primitive type in the JSON string but got `%s`", jsonObj.get("actorName").toString()));
+      }
+      if ((jsonObj.get("origin") != null && !jsonObj.get("origin").isJsonNull()) && !jsonObj.get("origin").isJsonPrimitive()) {
+        throw new IllegalArgumentException(String.format("Expected the field `origin` to be a primitive type in the JSON string but got `%s`", jsonObj.get("origin").toString()));
       }
   }
 

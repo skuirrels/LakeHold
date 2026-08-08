@@ -148,6 +148,8 @@ public sealed class PostgresControlPlaneMigrationTests
                     "20260802231302_AddPublicApiFoundation",
                     "20260804090107_AddTenantMembership",
                     "20260808123000_AddConnectorSourceAcknowledgementRecovery",
+                    "20260808200345_AddQueryActorAudit",
+                    "20260808201021_AddMcpOperatorCommands",
                 ],
                 await context.Database.GetAppliedMigrationsAsync());
             Assert.Equal(0, await context.DataProtectionKeys.CountAsync());

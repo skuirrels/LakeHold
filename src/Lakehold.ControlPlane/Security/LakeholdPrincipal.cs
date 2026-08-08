@@ -27,6 +27,9 @@ public interface ILakeholdPrincipal
     /// <summary>Id of the token this principal was resolved from, for audit; null when unauthenticated.</summary>
     int? TokenId { get; }
 
+    /// <summary>Id of the tenant member this principal was resolved from, for audit.</summary>
+    int? MemberId { get; }
+
     /// <summary>The role this principal holds within its tenant.</summary>
     TokenRole Role { get; }
 
@@ -54,7 +57,8 @@ public sealed record LakeholdPrincipal(
     bool IsReadOnly,
     int? TokenId,
     TokenRole Role = TokenRole.Owner,
-    bool IsDemo = false) : ILakeholdPrincipal
+    bool IsDemo = false,
+    int? MemberId = null) : ILakeholdPrincipal
 {
     /// <summary>
     ///     A credential-less visitor constrained to one tenant and catalog and attached read-only,
@@ -71,4 +75,77 @@ public sealed record LakeholdPrincipal(
         TokenId: null,
         Role: TokenRole.Reader,
         IsDemo: true);
+}
+
+/// <summary>
+///     Audit identity passed into the execution boundary. Keeping actor and origin together prevents
+///     each transport from independently deciding which audit columns to populate.
+/// </summary>
+public readonly record struct QueryAuditContext
+{
+    private QueryAuditContext(
+        int? tokenId,
+        int? memberId,
+        QueryActorKind actorKind,
+        QueryOrigin origin)
+    {
+        TokenId = tokenId;
+        MemberId = memberId;
+        ActorKind = actorKind;
+        Origin = origin;
+    }
+
+    public int? TokenId { get; }
+
+    public int? MemberId { get; }
+
+    public QueryActorKind ActorKind { get; }
+
+    public QueryOrigin Origin { get; }
+
+    /// <summary>Builds a mutually exclusive actor record from an authenticated principal.</summary>
+    public static QueryAuditContext From(ILakeholdPrincipal principal, QueryOrigin origin)
+    {
+        ArgumentNullException.ThrowIfNull(principal);
+        if (principal.TokenId is not null && principal.MemberId is not null)
+        {
+            throw new InvalidOperationException("A query actor cannot be both an API token and a tenant member.");
+        }
+
+        var kind = principal.MemberId is not null
+            ? QueryActorKind.Member
+            : principal.TokenId is not null
+                ? QueryActorKind.ApiToken
+                : principal.Scope == TokenScope.Instance
+                    ? QueryActorKind.System
+                    : QueryActorKind.Unknown;
+        return new QueryAuditContext(principal.TokenId, principal.MemberId, kind, origin);
+    }
+
+    /// <summary>Backwards-compatible context for callers that only carried a token id.</summary>
+    public static QueryAuditContext FromToken(int? tokenId, QueryOrigin origin = QueryOrigin.Unknown) =>
+        new(tokenId, null, tokenId is null ? QueryActorKind.Unknown : QueryActorKind.ApiToken, origin);
+
+    /// <summary>
+    ///     Resolves a backwards-compatible token argument and the richer context without allowing
+    ///     the two representations of the same actor to disagree.
+    /// </summary>
+    public static QueryAuditContext Resolve(
+        int? tokenId,
+        QueryAuditContext? audit,
+        QueryOrigin defaultOrigin = QueryOrigin.Unknown)
+    {
+        if (audit is null)
+        {
+            return FromToken(tokenId, defaultOrigin);
+        }
+
+        if (audit.Value.TokenId != tokenId)
+        {
+            throw new InvalidOperationException(
+                "The query audit context does not match the supplied API token id.");
+        }
+
+        return audit.Value;
+    }
 }

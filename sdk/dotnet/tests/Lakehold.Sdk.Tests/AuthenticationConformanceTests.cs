@@ -99,6 +99,58 @@ public sealed class AuthenticationConformanceTests
     }
 
     [Fact]
+    public void AdditiveMcpAndAuditModelsSupportOlderPayloads()
+    {
+        var settings = JsonSerializer.Deserialize<SystemSettingsDto>(
+            """
+            {
+              "mcpEnabled":true,
+              "mcpAllowWrites":false,
+              "mcpMaxRowsPerResult":200,
+              "mcpPublicBaseUrl":"",
+              "mcpRoute":"/mcp",
+              "version":1,
+              "updatedUtc":null
+            }
+            """,
+            SerializerOptions);
+        var update = JsonSerializer.Deserialize<UpdateSystemSettingsRequest>(
+            """
+            {
+              "mcpEnabled":true,
+              "mcpAllowWrites":false,
+              "mcpMaxRowsPerResult":200,
+              "mcpPublicBaseUrl":"",
+              "version":1
+            }
+            """,
+            SerializerOptions);
+        var run = JsonSerializer.Deserialize<QueryRunDto>(
+            """
+            {
+              "id":7,
+              "catalogName":"analytics",
+              "sql":"select 1",
+              "language":"sql",
+              "startedUtc":"2026-08-08T20:00:00Z",
+              "elapsedMilliseconds":1.5,
+              "rowCount":1,
+              "succeeded":true,
+              "error":null,
+              "tokenId":null,
+              "tokenName":null
+            }
+            """,
+            SerializerOptions);
+
+        Assert.Null(settings?.McpAllowOperatorCommands);
+        Assert.Null(update?.McpAllowOperatorCommands);
+        Assert.Null(run?.MemberId);
+        Assert.Null(run?.ActorKind);
+        Assert.Null(run?.Origin);
+    }
+
+    [Fact]
     public async Task OrDefaultOperationsDoNotTurnCallerCancellationIntoNull()
     {
         using var cancellation = new CancellationTokenSource();

@@ -58,6 +58,7 @@ services:
       Lakehold__Oidc__Authority: ${LAKEHOLD_OIDC_AUTHORITY:-}
       Lakehold__Oidc__Audience: ${LAKEHOLD_OIDC_AUDIENCE:-}
       Lakehold__Oidc__ClientId: ${LAKEHOLD_OIDC_CLIENT_ID:-}
+      Lakehold__Oidc__McpClientId: ${LAKEHOLD_OIDC_MCP_CLIENT_ID:-}
       Lakehold__Oidc__ClientSecret: ${LAKEHOLD_OIDC_CLIENT_SECRET:-}
       Lakehold__Oidc__RequireHttpsMetadata: ${LAKEHOLD_OIDC_REQUIRE_HTTPS_METADATA:-true}
       Lakehold__Oidc__TenantClaim: ${LAKEHOLD_OIDC_TENANT_CLAIM:-tenant}

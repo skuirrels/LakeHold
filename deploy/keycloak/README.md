@@ -48,9 +48,34 @@ names** are the contract, and they are what any other provider has to emit:
 so editing one without the other fails the build rather than producing a login that silently lands
 back on the sign-in panel.
 
-The `lakehold-audience` mapper puts `lakehold-workbench` in the access token's audience. Without it
-`Lakehold:Oidc:Audience` would have to be empty, which disables audience validation and accepts every
-token the realm issued — including one minted for a different application.
+The `lakehold-audience` mapper puts `lakehold-workbench` in the Workbench access token's audience.
+LakeHold refuses to start with an authority but no configured API audience. The separate public
+`lakehold-mcp` client requires PKCE and emits `http://localhost:5399/mcp` as its access-token audience,
+matching the protected resource reached through the development Workbench proxy. It repeats the
+membership claim mappers because an MCP token is resolved to the same durable member row as a browser
+session.
+
+## Testing an MCP login
+
+Start the stack with `make dev`, leave it running, then connect either client from a second terminal
+to the Workbench origin. On a reused development database, confirm MCP is enabled and **Public base
+URL** is `http://localhost:5399` without `/mcp` under System Settings:
+
+```bash
+codex mcp add lakehold \
+  --url http://localhost:5399/mcp \
+  --oauth-client-id lakehold-mcp \
+  --oauth-resource http://localhost:5399/mcp
+codex mcp login lakehold
+
+claude mcp add --transport http --client-id lakehold-mcp \
+  lakehold http://localhost:5399/mcp
+claude mcp login lakehold
+```
+
+Use `analyst` / `lakehold` in the browser. That account owns the seeded `demo` workspace; `admin`
+is intentionally instance-only. See [`docs/MCP.md`](../../docs/MCP.md#connecting-a-client) for the
+smoke-test prompt, API-token setup, production URLs, and troubleshooting.
 
 ## Replacing it
 

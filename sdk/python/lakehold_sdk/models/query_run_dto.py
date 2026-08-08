@@ -38,7 +38,11 @@ class QueryRunDto(BaseModel):
     error: Optional[StrictStr]
     token_id: Optional[StrictInt] = Field(alias="tokenId")
     token_name: Optional[StrictStr] = Field(alias="tokenName")
-    __properties: ClassVar[List[str]] = ["id", "catalogName", "sql", "language", "startedUtc", "elapsedMilliseconds", "rowCount", "succeeded", "error", "tokenId", "tokenName"]
+    member_id: Optional[StrictInt] = Field(default=None, alias="memberId")
+    actor_kind: Optional[StrictStr] = Field(default=None, alias="actorKind")
+    actor_name: Optional[StrictStr] = Field(default=None, alias="actorName")
+    origin: Optional[StrictStr] = None
+    __properties: ClassVar[List[str]] = ["id", "catalogName", "sql", "language", "startedUtc", "elapsedMilliseconds", "rowCount", "succeeded", "error", "tokenId", "tokenName", "memberId", "actorKind", "actorName", "origin"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -93,6 +97,16 @@ class QueryRunDto(BaseModel):
         if self.token_name is None and "token_name" in self.model_fields_set:
             _dict['tokenName'] = None
 
+        # set to None if member_id (nullable) is None
+        # and model_fields_set contains the field
+        if self.member_id is None and "member_id" in self.model_fields_set:
+            _dict['memberId'] = None
+
+        # set to None if actor_name (nullable) is None
+        # and model_fields_set contains the field
+        if self.actor_name is None and "actor_name" in self.model_fields_set:
+            _dict['actorName'] = None
+
         return _dict
 
     @classmethod
@@ -115,7 +129,11 @@ class QueryRunDto(BaseModel):
             "succeeded": obj.get("succeeded"),
             "error": obj.get("error"),
             "tokenId": obj.get("tokenId"),
-            "tokenName": obj.get("tokenName")
+            "tokenName": obj.get("tokenName"),
+            "memberId": obj.get("memberId"),
+            "actorKind": obj.get("actorKind"),
+            "actorName": obj.get("actorName"),
+            "origin": obj.get("origin")
         })
         return _obj
 

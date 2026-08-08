@@ -1,6 +1,7 @@
 using Lakehold.ControlPlane.Data;
 using Lakehold.Engine.Catalog;
 using Microsoft.Extensions.Options;
+using Lakehold.ControlPlane.Security;
 
 namespace Lakehold.Api.Importing;
 
@@ -34,7 +35,7 @@ public sealed class TabularUploadService(
         bool automaticMode,
         CsvReadOptions readOptions,
         string? worksheet,
-        int? tokenId,
+        QueryAuditContext audit,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(content);
@@ -97,7 +98,8 @@ public sealed class TabularUploadService(
                     readOptions,
                     worksheet,
                     cancellationToken,
-                    tokenId)
+                    audit.TokenId,
+                    audit)
                 .ConfigureAwait(false);
         }
         finally

@@ -16,7 +16,7 @@ public sealed class LakeholdOidcOptions
     /// </summary>
     public string Authority { get; set; } = string.Empty;
 
-    /// <summary>The audience a token must carry to be accepted. Empty skips audience validation.</summary>
+    /// <summary>The audience a token must carry to be accepted by the HTTP API and Workbench.</summary>
     public string Audience { get; set; } = string.Empty;
 
     /// <summary>
@@ -48,8 +48,8 @@ public sealed class LakeholdOidcOptions
     public bool RequireHttpsMetadata { get; set; } = true;
 
     /// <summary>
-    ///     Claim naming the tenant a human belongs to. The simplest honest mapping — a single claim —
-    ///     with a <c>TenantMember</c> table deferred until per-user membership is actually asked for.
+    ///     Claim naming the tenant used to admit a first-time human. After admission, the durable
+    ///     <c>TenantMember</c> row is authoritative for role and status.
     /// </summary>
     public string TenantClaim { get; set; } = "tenant";
 
@@ -65,9 +65,47 @@ public sealed class LakeholdOidcOptions
     /// <summary>Additional scopes requested by the browser sign-in flow.</summary>
     public string[] Scopes { get; set; } = [];
 
+    /// <summary>
+    ///     Public, PKCE-only client registered for MCP clients at the configured identity provider.
+    ///     Empty leaves MCP clients to use dynamic registration or explicit client configuration.
+    /// </summary>
+    public string McpClientId { get; set; } = string.Empty;
+
+    /// <summary>
+    ///     Scopes requested by MCP clients. Empty reuses <see cref="Scopes"/> so the membership
+    ///     claims needed by <c>MemberDirectory</c> are not accidentally omitted.
+    /// </summary>
+    public string[] McpScopes { get; set; } = [];
+
     /// <summary>Whether an authority is configured at all.</summary>
-    public bool Enabled => Authority.Length > 0;
+    public bool Enabled => !string.IsNullOrWhiteSpace(Authority);
 
     /// <summary>Whether interactive browser sign-in has enough configuration to run.</summary>
-    public bool BrowserLoginEnabled => Enabled && ClientId.Length > 0;
+    public bool BrowserLoginEnabled => Enabled && !string.IsNullOrWhiteSpace(ClientId);
+
+    /// <summary>The normalized scopes advertised for the MCP resource.</summary>
+    public IReadOnlyList<string> EffectiveMcpScopes =>
+        (McpScopes.Length > 0 ? McpScopes : Scopes)
+        .Where(scope => !string.IsNullOrWhiteSpace(scope))
+        .Select(scope => scope.Trim())
+        .Distinct(StringComparer.Ordinal)
+        .ToArray();
+
+    /// <summary>Refuses an issuer configuration that cannot prove a token was issued for LakeHold.</summary>
+    public void ValidateForStartup()
+    {
+        if (Authority.Length > 0 && !Enabled)
+        {
+            throw new InvalidOperationException(
+                "Lakehold:Oidc:Authority cannot contain only whitespace. Remove it to disable OIDC.");
+        }
+
+        if (Enabled && string.IsNullOrWhiteSpace(Audience))
+        {
+            throw new InvalidOperationException(
+                "Lakehold:Oidc:Audience is required when Lakehold:Oidc:Authority is configured. "
+                + "Set it to this deployment's API or Workbench audience; MCP tokens are additionally "
+                + "validated against the advertised MCP resource identifier.");
+        }
+    }
 }

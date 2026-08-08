@@ -73,7 +73,8 @@ public sealed class MemberDirectory(ControlPlaneContext context, TimeProvider cl
                 CatalogName: null,
                 IsReadOnly: false,
                 TokenId: null,
-                Role: TokenRole.Owner);
+                Role: TokenRole.Owner,
+                MemberId: null);
         }
 
         var issuer = contract.Issuer;
@@ -106,7 +107,8 @@ public sealed class MemberDirectory(ControlPlaneContext context, TimeProvider cl
             CatalogName: null,
             IsReadOnly: member.Role == TokenRole.Reader,
             TokenId: null,
-            Role: member.Role);
+            Role: member.Role,
+            MemberId: member.Id);
     }
 
     /// <summary>

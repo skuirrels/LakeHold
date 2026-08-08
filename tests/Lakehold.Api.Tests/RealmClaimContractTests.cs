@@ -64,7 +64,7 @@ public sealed class RealmClaimContractTests
     public void The_client_the_realm_registers_is_the_client_the_stack_presents()
     {
         using var realm = JsonDocument.Parse(File.ReadAllText(RealmPath()));
-        var client = realm.RootElement.GetProperty("clients").EnumerateArray().Single();
+        var client = Client(realm, "lakehold-workbench");
         var clientId = client.GetProperty("clientId").GetString();
 
         var compose = File.ReadAllText(Path.Combine(RepositoryRoot, "compose.yaml"));
@@ -87,7 +87,7 @@ public sealed class RealmClaimContractTests
     public void The_redirect_uri_the_realm_allows_is_the_one_the_workbench_uses()
     {
         using var realm = JsonDocument.Parse(File.ReadAllText(RealmPath()));
-        var redirects = realm.RootElement.GetProperty("clients").EnumerateArray().Single()
+        var redirects = Client(realm, "lakehold-workbench")
             .GetProperty("redirectUris")
             .EnumerateArray()
             .Select(u => u.GetString())
@@ -99,16 +99,50 @@ public sealed class RealmClaimContractTests
         Assert.Contains(redirects, uri => uri!.Contains(":5399", StringComparison.Ordinal));
     }
 
+    [Fact]
+    public void The_mcp_client_is_public_pkce_only_and_targets_the_mcp_resource()
+    {
+        using var realm = JsonDocument.Parse(File.ReadAllText(RealmPath()));
+        var client = Client(realm, "lakehold-mcp");
+
+        Assert.True(client.GetProperty("publicClient").GetBoolean());
+        Assert.Equal(
+            "S256",
+            client.GetProperty("attributes").GetProperty("pkce.code.challenge.method").GetString());
+        var redirects = client.GetProperty("redirectUris")
+            .EnumerateArray()
+            .Select(redirect => redirect.GetString())
+            .ToArray();
+        Assert.Contains("http://127.0.0.1:*", redirects);
+        Assert.Contains("http://localhost:*", redirects);
+
+        var audience = client.GetProperty("protocolMappers")
+            .EnumerateArray()
+            .Single(mapper => mapper.GetProperty("protocolMapper").GetString() == "oidc-audience-mapper")
+            .GetProperty("config")
+            .GetProperty("included.custom.audience")
+            .GetString();
+        Assert.Equal("http://localhost:5399/mcp", audience);
+
+        var compose = File.ReadAllText(Path.Combine(RepositoryRoot, "compose.yaml"));
+        Assert.Contains("Lakehold__Oidc__McpClientId: ${LAKEHOLD_OIDC_MCP_CLIENT_ID:-lakehold-mcp}", compose, StringComparison.Ordinal);
+    }
+
     private static string[] RealmClaimNames()
     {
         using var realm = JsonDocument.Parse(File.ReadAllText(RealmPath()));
-        return realm.RootElement.GetProperty("clients").EnumerateArray().Single()
+        return Client(realm, "lakehold-workbench")
             .GetProperty("protocolMappers")
             .EnumerateArray()
             .Where(m => m.GetProperty("config").TryGetProperty("claim.name", out _))
             .Select(m => m.GetProperty("config").GetProperty("claim.name").GetString()!)
             .ToArray();
     }
+
+    private static JsonElement Client(JsonDocument realm, string clientId) =>
+        realm.RootElement.GetProperty("clients")
+            .EnumerateArray()
+            .Single(client => client.GetProperty("clientId").GetString() == clientId);
 
     private static string RealmPath()
         => Path.Combine(RepositoryRoot, "deploy", "keycloak", "lakehold-realm.json");

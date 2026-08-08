@@ -9,6 +9,8 @@ namespace Lakehold.Api.Mcp;
 /// <summary>Registration and mapping for the Model Context Protocol endpoint.</summary>
 public static class McpExtensions
 {
+    internal const string OperatorCommandMetadata = "lakehold/operator-command";
+
     /// <summary>Registers the MCP server and its runtime-filtered tools.</summary>
     public static IHostApplicationBuilder AddLakeholdMcp(this IHostApplicationBuilder builder)
     {
@@ -25,6 +27,9 @@ public static class McpExtensions
             .AddMcpServer()
             .WithHttpTransport()
             .WithTools<LakeholdTools>()
+            .WithTools<LakeholdInspectionTools>()
+            .WithTools<LakeholdSavedQueryTools>()
+            .WithTools<LakeholdMaintenanceTools>()
             .WithTools<LakeholdWriteTools>()
             .WithTools<LakeholdConnectorTools>()
             .WithResources<LakeholdResources>()
@@ -39,6 +44,16 @@ public static class McpExtensions
                         .GetRequiredService<McpRuntimeSettingsStore>()
                         .GetAsync(cancellationToken)
                         .ConfigureAwait(false);
+
+                    if (!settings.AllowOperatorCommands)
+                    {
+                        foreach (var operatorCommand in result.Tools
+                                     .Where(tool => IsOperatorCommand(tool.Meta))
+                                     .ToArray())
+                        {
+                            result.Tools.Remove(operatorCommand);
+                        }
+                    }
 
                     if (!settings.AllowWrites)
                     {
@@ -68,15 +83,19 @@ public static class McpExtensions
                     // cache calls it by name. Resolve the same annotation the list filter reads, so
                     // discovery and enforcement cannot describe different surfaces.
                     var tools = services.GetRequiredService<IOptions<McpServerOptions>>().Value.ToolCollection;
-                    if (tools is not null
-                        && tools.TryGetPrimitive(context.Params.Name, out var tool)
-                        && tool.ProtocolTool.Annotations?.ReadOnlyHint is not true)
+                    if (tools is not null && tools.TryGetPrimitive(context.Params.Name, out var tool))
                     {
                         var settings = await services
                             .GetRequiredService<McpRuntimeSettingsStore>()
                             .GetAsync(cancellationToken)
                             .ConfigureAwait(false);
-                        if (!settings.AllowWrites)
+                        if (IsOperatorCommand(tool.ProtocolTool.Meta) && !settings.AllowOperatorCommands)
+                        {
+                            throw new McpException(
+                                "Operator commands are disabled in LakeHold System Settings.");
+                        }
+
+                        if (tool.ProtocolTool.Annotations?.ReadOnlyHint is not true && !settings.AllowWrites)
                         {
                             throw new McpException(
                                 "Writing through MCP is disabled in LakeHold System Settings.");
@@ -89,6 +108,12 @@ public static class McpExtensions
 
         return builder;
     }
+
+    private static bool IsOperatorCommand(System.Text.Json.Nodes.JsonObject? metadata) =>
+        metadata is not null
+        && metadata.TryGetPropertyValue(OperatorCommandMetadata, out var value)
+        && value is not null
+        && value.GetValue<bool>();
 
     /// <summary>Maps the MCP endpoint; the request filter applies the current enabled setting.</summary>
     /// <remarks>

@@ -53,30 +53,11 @@ internal static class McpCaller
     ///     exists (invariant 19).
     /// </remarks>
     public static ILakeholdPrincipal Authorize(IHttpContextAccessor accessor, string tenant, string catalog)
-    {
-        var principal = Principal(accessor);
-        var decision = CapabilityPolicy.Evaluate(principal, Capability.TenantData, tenant, catalog);
-
-        return decision.Outcome switch
-        {
-            CapabilityOutcome.Allowed => principal,
-            CapabilityOutcome.Forbidden => throw new McpException(decision.Detail ?? "Forbidden."),
-            _ => throw new McpException($"Catalog '{catalog}' was not found for tenant '{tenant}'."),
-        };
-    }
+        => AuthorizeCapability(accessor, Capability.TenantData, tenant, catalog);
 
     /// <summary>Resolves the principal and enforces the administrator capability for connector control-plane work.</summary>
     public static ILakeholdPrincipal AuthorizeOwner(IHttpContextAccessor accessor, string tenant, string catalog)
-    {
-        var principal = Principal(accessor);
-        var decision = CapabilityPolicy.Evaluate(principal, Capability.TenantOwner, tenant, catalog);
-        return decision.Outcome switch
-        {
-            CapabilityOutcome.Allowed => principal,
-            CapabilityOutcome.Forbidden => throw new McpException(decision.Detail ?? "Forbidden."),
-            _ => throw new McpException($"Catalog '{catalog}' was not found for tenant '{tenant}'."),
-        };
-    }
+        => AuthorizeCapability(accessor, Capability.TenantOwner, tenant, catalog);
 
     /// <summary>
     ///     The administrator capability plus the operator's write opt-in, for a tool that changes
@@ -94,6 +75,60 @@ internal static class McpCaller
     {
         var principal = AuthorizeOwner(accessor, tenant, catalog);
         if (!Settings(accessor).AllowWrites)
+        {
+            throw new McpException("Writing through MCP is disabled in LakeHold System Settings.");
+        }
+
+        return principal;
+    }
+
+    /// <summary>Enforces ordinary tenant-write capability plus the shared MCP write opt-in.</summary>
+    public static ILakeholdPrincipal AuthorizeForWrite(
+        IHttpContextAccessor accessor,
+        string tenant,
+        string catalog)
+    {
+        var principal = AuthorizeCapability(accessor, Capability.TenantWrite, tenant, catalog);
+
+        if (!Settings(accessor).AllowWrites)
+        {
+            throw new McpException("Writing through MCP is disabled in LakeHold System Settings.");
+        }
+
+        return principal;
+    }
+
+    private static ILakeholdPrincipal AuthorizeCapability(
+        IHttpContextAccessor accessor,
+        Capability capability,
+        string tenant,
+        string catalog)
+    {
+        var principal = Principal(accessor);
+        var decision = CapabilityPolicy.Evaluate(principal, capability, tenant, catalog);
+        return decision.Outcome switch
+        {
+            CapabilityOutcome.Allowed => principal,
+            CapabilityOutcome.Forbidden => throw new McpException(decision.Detail ?? "Forbidden."),
+            _ => throw new McpException($"Catalog '{catalog}' was not found for tenant '{tenant}'."),
+        };
+    }
+
+    /// <summary>Enforces the explicit operator-command tier on top of tenant-owner access.</summary>
+    public static ILakeholdPrincipal AuthorizeOperator(
+        IHttpContextAccessor accessor,
+        string tenant,
+        string catalog,
+        bool requireWrites)
+    {
+        var principal = AuthorizeOwner(accessor, tenant, catalog);
+        var settings = Settings(accessor);
+        if (!settings.AllowOperatorCommands)
+        {
+            throw new McpException("Operator commands are disabled in LakeHold System Settings.");
+        }
+
+        if (requireWrites && !settings.AllowWrites)
         {
             throw new McpException("Writing through MCP is disabled in LakeHold System Settings.");
         }

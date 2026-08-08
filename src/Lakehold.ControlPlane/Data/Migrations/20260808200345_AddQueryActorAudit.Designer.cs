@@ -3,6 +3,7 @@ using System;
 using Lakehold.ControlPlane.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Lakehold.ControlPlane.Data.Migrations
 {
     [DbContext(typeof(ControlPlaneContext))]
-    partial class ControlPlaneContextModelSnapshot : ModelSnapshot
+    [Migration("20260808200345_AddQueryActorAudit")]
+    partial class AddQueryActorAudit
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -870,9 +873,6 @@ namespace Lakehold.ControlPlane.Data.Migrations
                     b.Property<int>("ConcurrencyVersion")
                         .IsConcurrencyToken()
                         .HasColumnType("integer");
-
-                    b.Property<bool>("McpAllowOperatorCommands")
-                        .HasColumnType("boolean");
 
                     b.Property<bool>("McpAllowWrites")
                         .HasColumnType("boolean");

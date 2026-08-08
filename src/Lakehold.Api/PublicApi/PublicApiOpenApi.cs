@@ -47,6 +47,28 @@ public static class PublicApiOpenApi
             "schemaRegistryUrl");
     }
 
+    /// <summary>
+    /// Keeps the new operator-command input optional so clients generated from the previous
+    /// settings contract can still save the fields they know without disabling that tier.
+    /// </summary>
+    public static void PreserveAdditiveSystemSettingsCompatibility(OpenApiDocument document)
+    {
+        ArgumentNullException.ThrowIfNull(document);
+        RemoveRequired(document, "SystemSettingsDto", "mcpAllowOperatorCommands");
+        RemoveRequired(document, "UpdateSystemSettingsRequest", "mcpAllowOperatorCommands");
+    }
+
+    /// <summary>
+    /// Keeps new audit attribution fields additive for older generated clients. The server always
+    /// emits them, while clients built from earlier contracts may construct history DTOs without
+    /// knowing those fields exist.
+    /// </summary>
+    public static void PreserveAdditiveQueryAuditCompatibility(OpenApiDocument document)
+    {
+        ArgumentNullException.ThrowIfNull(document);
+        RemoveRequired(document, "QueryRunDto", "memberId", "actorKind", "actorName", "origin");
+    }
+
     private static void RemoveRequired(OpenApiDocument document, string schemaName, params string[] properties)
     {
         if (document.Components?.Schemas?.TryGetValue(schemaName, out var schema) != true

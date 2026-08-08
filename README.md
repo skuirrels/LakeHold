@@ -271,6 +271,29 @@ Same URLs either way. The dev server proxies `/api`, `/mcp`, and MCP authorizati
 nothing sets it. DuckDB caches the same extension set, including `excel`, under the host user's
 normal `~/.duckdb/extensions` directory.
 
+### Connect an AI agent locally
+
+The development realm includes a public PKCE client for MCP. Leave `make dev` running, open a second
+terminal, and connect Codex or Claude Code to the Workbench origin. On a reused database, first check
+**System Settings**: MCP is enabled and **Public base URL** is `http://localhost:5399` without `/mcp`.
+Complete the browser login as `analyst` / `lakehold`:
+
+```bash
+codex mcp add lakehold \
+  --url http://localhost:5399/mcp \
+  --oauth-client-id lakehold-mcp \
+  --oauth-resource http://localhost:5399/mcp
+codex mcp login lakehold
+
+claude mcp add --transport http --client-id lakehold-mcp \
+  lakehold http://localhost:5399/mcp
+claude mcp login lakehold
+```
+
+Then ask the agent to list reachable workspaces, describe `demo` / `analytics`, and run
+`SELECT 42 AS answer`. See [`docs/MCP.md`](docs/MCP.md#connecting-a-client) for verification,
+API-token automation, production setup, tool gates, and troubleshooting.
+
 ---
 
 ## Architecture

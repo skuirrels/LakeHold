@@ -116,6 +116,7 @@ public sealed class McpAuthenticationFilterTests : IAsyncLifetime
                 .SaveAsync(
                     enabled: false,
                     allowWrites: false,
+                    allowOperatorCommands: false,
                     maxRowsPerResult: 200,
                     publicBaseUrl: null,
                     expectedVersion: 0,
@@ -136,6 +137,7 @@ public sealed class McpAuthenticationFilterTests : IAsyncLifetime
                 .SaveAsync(
                     enabled: true,
                     allowWrites: false,
+                    allowOperatorCommands: false,
                     maxRowsPerResult: 200,
                     publicBaseUrl: null,
                     expectedVersion: 1,
@@ -156,6 +158,7 @@ public sealed class McpAuthenticationFilterTests : IAsyncLifetime
         var saved = await store.SaveAsync(
             enabled: true,
             allowWrites: false,
+            allowOperatorCommands: false,
             maxRowsPerResult: 200,
             publicBaseUrl: longestValid,
             expectedVersion: 0,
@@ -167,11 +170,39 @@ public sealed class McpAuthenticationFilterTests : IAsyncLifetime
             store.SaveAsync(
                 enabled: true,
                 allowWrites: false,
+                allowOperatorCommands: false,
                 maxRowsPerResult: 200,
                 publicBaseUrl: longestValid + "a",
                 expectedVersion: saved.Version,
                 CancellationToken.None));
         Assert.Contains("2048", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task An_older_settings_client_does_not_disable_operator_commands()
+    {
+        await using var scope = _services.CreateAsyncScope();
+        var store = scope.ServiceProvider.GetRequiredService<McpRuntimeSettingsStore>();
+        var enabled = await store.SaveAsync(
+            enabled: true,
+            allowWrites: true,
+            allowOperatorCommands: true,
+            maxRowsPerResult: 200,
+            publicBaseUrl: null,
+            expectedVersion: 0,
+            CancellationToken.None);
+
+        var savedByOlderClient = await store.SaveAsync(
+            enabled: true,
+            allowWrites: false,
+            allowOperatorCommands: null,
+            maxRowsPerResult: 100,
+            publicBaseUrl: null,
+            expectedVersion: enabled.Version,
+            CancellationToken.None);
+
+        Assert.True(savedByOlderClient.AllowOperatorCommands);
+        Assert.False(savedByOlderClient.AllowWrites);
     }
 
     [Theory]

@@ -1,6 +1,7 @@
 using Lakehold.ControlPlane.Data;
 using Lakehold.Engine.Execution;
 using Lakehold.Querying;
+using Lakehold.ControlPlane.Security;
 
 namespace Lakehold.Api.Querying;
 
@@ -25,7 +26,7 @@ public sealed class QueryExecutionCoordinator(
         string language,
         string source,
         bool callerReadOnly,
-        int? tokenId,
+        QueryAuditContext audit,
         bool recordHistory,
         CancellationToken cancellationToken)
     {
@@ -38,11 +39,12 @@ public sealed class QueryExecutionCoordinator(
             plan.Sql,
             cancellationToken,
             readOnly: callerReadOnly || !string.Equals(language, "sql", StringComparison.Ordinal),
-            tokenId,
+            audit.TokenId,
             recordHistory,
             parameters,
             language,
-            source).ConfigureAwait(false);
+            source,
+            audit).ConfigureAwait(false);
 
         return new PlannedQueryResult(result, plan);
     }
