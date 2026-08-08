@@ -546,6 +546,118 @@ public sealed class SystemStorageEndpointTests : IAsyncLifetime
         }
     }
 
+    /// <summary>
+    ///     A deployment that keeps its data on disk while still configuring a bucket profile for
+    ///     individually placed catalogs. Ordinary, and until this was fixed it could not create a
+    ///     catalog at its own default location.
+    /// </summary>
+    private static LakehouseOptions LocalRootWithBucketProfile()
+    {
+        var options = new LakehouseOptions
+        {
+            DataRoot = "/var/lib/lakehold/data",
+            DefaultStorageProfile = "primary",
+        };
+        options.StorageProfiles["primary"] = new ParquetStorageProfileOptions
+        {
+            Kind = ParquetStorageKind.S3,
+            KeyId = S3Key,
+            Secret = S3Secret,
+        };
+        return options;
+    }
+
+    [Fact]
+    public void A_local_data_root_is_not_refused_because_a_default_profile_exists()
+    {
+        // DefaultStorageProfile is documented as the profile a *remote* path uses when it does not
+        // name one. Applying it to a derived local path and then refusing the result meant this
+        // deployment could create no catalog at all through the default, and the refusal named a
+        // profile the caller had never mentioned.
+        var resolved = Resolve(LocalRootWithBucketProfile(), new ResolveStoragePathRequest("acme", "analytics"));
+
+        Assert.Equal("/var/lib/lakehold/data/acme/analytics", resolved.DataPath);
+        Assert.Equal("Local", resolved.Kind);
+        Assert.Null(resolved.StorageProfile);
+    }
+
+    [Fact]
+    public void An_explicit_local_path_still_ignores_the_default_profile()
+    {
+        var resolved = Resolve(
+            LocalRootWithBucketProfile(),
+            new ResolveStoragePathRequest("acme", "analytics", "/mnt/lakehold/analytics"));
+
+        Assert.Equal("/mnt/lakehold/analytics", resolved.DataPath);
+        Assert.Null(resolved.StorageProfile);
+    }
+
+    [Fact]
+    public void Naming_a_profile_against_a_local_path_is_still_refused()
+    {
+        // The fix is about a default the caller never asked for. Asking for a bucket profile and
+        // being given a local path anyway is a real mistake, and silently dropping the profile would
+        // leave an operator believing their data had gone to the bucket.
+        var problem = ResolveProblem(
+            LocalRootWithBucketProfile(),
+            new ResolveStoragePathRequest("acme", "analytics", "/mnt/lakehold/analytics", "primary"));
+
+        Assert.Contains("must not select an object-storage profile", problem, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void A_remote_path_still_falls_back_to_the_deployment_default()
+    {
+        // The other half of the same rule: the default must still apply where it was always meant to.
+        var resolved = Resolve(
+            LocalRootWithBucketProfile(),
+            new ResolveStoragePathRequest("acme", "analytics", "s3://bucket/prefix"));
+
+        Assert.Equal("S3", resolved.Kind);
+        Assert.Equal("primary", resolved.StorageProfile);
+    }
+
+    [Fact]
+    public async Task A_catalog_is_actually_created_under_a_local_root_beside_a_default_profile()
+    {
+        // The preview agreeing is not the claim; the create succeeding is. This is the request that
+        // used to fail, run against a real control plane.
+        var root = Path.Combine(_root, "local-default");
+        var options = LocalRootWithBucketProfile();
+        options.DataRoot = root;
+
+        await using var scope = _app.Services.CreateAsyncScope();
+        var context = scope.ServiceProvider.GetRequiredService<ControlPlaneContext>();
+
+        var created = await AdminEndpoints.CreateCatalogAsync(
+            "acme",
+            new CreateCatalogRequest("onlocaldisk"),
+            context,
+            Microsoft.Extensions.Options.Options.Create(options),
+            TimeProvider.System,
+            default);
+
+        var catalog = Assert.IsType<Created<CatalogDto>>(((INestedHttpResult)created).Result).Value!;
+        Assert.Equal(Path.Combine(root, "acme", "onlocaldisk"), catalog.DataPath);
+        Assert.Equal("Local", catalog.StorageKind);
+        Assert.Null(catalog.StorageProfile);
+    }
+
+    private static ResolvedStoragePathDto Resolve(LakehouseOptions options, ResolveStoragePathRequest request)
+    {
+        var result = SystemSettingsEndpoints.ResolveStoragePath(
+            request, Microsoft.Extensions.Options.Options.Create(options));
+        return Assert.IsType<Microsoft.AspNetCore.Http.HttpResults.Ok<ResolvedStoragePathDto>>(result).Value!;
+    }
+
+    private static string ResolveProblem(LakehouseOptions options, ResolveStoragePathRequest request)
+    {
+        var result = SystemSettingsEndpoints.ResolveStoragePath(
+            request, Microsoft.Extensions.Options.Options.Create(options));
+        var problem = Assert.IsAssignableFrom<Microsoft.AspNetCore.Http.HttpResults.ProblemHttpResult>(result);
+        return problem.ProblemDetails.Detail ?? string.Empty;
+    }
+
     private static SystemStorageDto Read(LakehouseOptions options)
     {
         var result = SystemSettingsEndpoints.GetStorage(
