@@ -148,7 +148,7 @@ small {
 
 .mode label:has(input:checked) {
   border-color: color-mix(in srgb, var(--accent) 70%, var(--border));
-  background: color-mix(in srgb, var(--accent) 7%, var(--surface-2));
+  background: var(--accent-surface-soft);
 }
 
 .mode label > span {

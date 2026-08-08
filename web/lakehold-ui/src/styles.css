@@ -81,6 +81,17 @@
   --ok-line: rgb(var(--ok-rgb) / 0.4);
   --ok-line-quiet: rgb(var(--ok-rgb) / 0.35);
 
+  /* Selected and highlighted surfaces, as tokens rather than as a mix written at each call site.
+     `color-mix(accent into a grey)` reads as "tint this surface", but what it actually does depends
+     on which of the two is lighter — and that flips between palettes. Mixing amber into a near-black
+     control surface lightens it into a warm highlight; mixing the light palette's bronze into a grey
+     one darkens it *towards the text colour sitting on it*, which is how a selected item ends up
+     dark-on-dark. Each palette therefore names the surface it wants instead of deriving it. */
+  --accent-surface: color-mix(in srgb, var(--accent) 9%, var(--surface-2));
+  --accent-surface-soft: color-mix(in srgb, var(--accent) 7%, var(--surface-2));
+  --accent-surface-line: color-mix(in srgb, var(--accent) 18%, var(--border));
+  --error-surface: color-mix(in srgb, var(--error) 7%, var(--surface-2));
+
   /* The panel banners and the import confirmation use a grass green rather than the teal of --ok.
      Kept as its own role rather than folded into the one above, because at 40% the two hues are
      plainly different and merging them would repaint a dark surface that is not in scope here. */
@@ -131,7 +142,11 @@
 
   --text: #10171f;
   --text-muted: #45566b;
-  --text-faint: #64748b;
+  /* Both of these are set against the *darkest* surface they land on, not against white. `--surface-2`
+     and `--surface-3` are the control greys, and a tone chosen to clear 4.5:1 on the page surface
+     alone drops under it the moment the same text sits on a button, an input, or the selected
+     navigation item. */
+  --text-faint: #5b6a80;
 
   --accent: #8a5a00;
   --info: #1a5fb4;
@@ -162,6 +177,14 @@
   --warn-notice-text: #7a5205;
   --warn-notice-soft: rgb(150 89 10 / 0.07);
   --warn-notice-line: rgb(150 89 10 / 0.32);
+
+  /* Tinted toward the panel rather than into the control grey, so a selected row reads as raised.
+     Mixed into `--surface-1` — white here — which is what keeps the bronze above from darkening the
+     very surface its own label has to be legible against. */
+  --accent-surface: color-mix(in srgb, var(--accent) 10%, var(--surface-1));
+  --accent-surface-soft: color-mix(in srgb, var(--accent) 7%, var(--surface-1));
+  --accent-surface-line: color-mix(in srgb, var(--accent) 32%, var(--border));
+  --error-surface: color-mix(in srgb, var(--error) 7%, var(--surface-1));
 
   --ok-banner-soft: rgb(15 122 95 / 0.08);
   --ok-banner-line: rgb(15 122 95 / 0.4);

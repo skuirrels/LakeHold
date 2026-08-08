@@ -88,8 +88,8 @@
 
 .nav-item.active {
   color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 9%, var(--surface-2));
-  border-color: color-mix(in srgb, var(--accent) 18%, var(--border));
+  background: var(--accent-surface);
+  border-color: var(--accent-surface-line);
 }
 
 .nav-item svg {
