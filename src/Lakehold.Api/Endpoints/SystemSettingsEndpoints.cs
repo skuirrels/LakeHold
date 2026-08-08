@@ -65,6 +65,7 @@ public static class SystemSettingsEndpoints
             var settings = await store.SaveAsync(
                     request.McpEnabled,
                     request.McpAllowWrites,
+                    request.McpAllowOperatorCommands,
                     request.McpMaxRowsPerResult,
                     request.McpPublicBaseUrl,
                     request.Version,
@@ -226,6 +227,7 @@ public static class SystemSettingsEndpoints
         new(
             settings.Enabled,
             settings.AllowWrites,
+            settings.AllowOperatorCommands,
             settings.MaxRowsPerResult,
             settings.PublicBaseUrl,
             settings.Route,

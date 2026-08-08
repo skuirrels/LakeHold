@@ -1,6 +1,8 @@
 using Lakehold.Api.Auth;
 using Microsoft.Extensions.Options;
 using ModelContextProtocol.Authentication;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 
 namespace Lakehold.Api.Mcp;
 
@@ -32,6 +34,13 @@ public static class McpResourceMetadata
     /// <summary>The well-known path RFC 9728 reserves for this document.</summary>
     public const string Path = "/.well-known/oauth-protected-resource";
 
+    /// <summary>Returns the RFC 9728 path-suffixed location for an MCP route.</summary>
+    public static string PathForRoute(string route)
+    {
+        var normalized = "/" + route.Trim().Trim('/');
+        return normalized == "/" ? Path : Path + normalized;
+    }
+
     /// <summary>Maps the metadata document when OIDC is configured.</summary>
     /// <remarks>
     ///     Deliberately outside the MCP route group and unauthenticated: a client reads this
@@ -48,19 +57,31 @@ public static class McpResourceMetadata
             return app;
         }
 
-        app.MapGet(Path, async (
+        var mcp = app.ServiceProvider.GetRequiredService<IOptions<McpOptions>>().Value;
+        async Task<IResult> DescribeAsync(
                 HttpContext http,
                 McpRuntimeSettingsStore store,
-                CancellationToken cancellationToken) =>
-            {
-                var settings = await store.GetAsync(cancellationToken).ConfigureAwait(false);
-                return settings.Enabled
-                    ? Results.Json(Describe(http, settings, oidc))
-                    : Results.NotFound();
-            })
+                CancellationToken cancellationToken)
+        {
+            var settings = await store.GetAsync(cancellationToken).ConfigureAwait(false);
+            return settings.Enabled
+                ? Results.Json(DescribeDocument(http, settings, oidc))
+                : Results.NotFound();
+        }
+
+        app.MapGet(Path, DescribeAsync)
             .WithTags("Lakehouse")
             .WithSummary("OAuth 2.0 Protected Resource Metadata for the MCP endpoint (RFC 9728).")
             .AllowAnonymous();
+
+        var pathSpecific = PathForRoute(mcp.Route);
+        if (!string.Equals(pathSpecific, Path, StringComparison.Ordinal))
+        {
+            app.MapGet(pathSpecific, DescribeAsync)
+                .WithTags("Lakehouse")
+                .WithSummary("Path-specific OAuth 2.0 Protected Resource Metadata for the MCP endpoint (RFC 9728).")
+                .AllowAnonymous();
+        }
 
         return app;
     }
@@ -79,6 +100,14 @@ public static class McpResourceMetadata
         ArgumentNullException.ThrowIfNull(http);
         ArgumentNullException.ThrowIfNull(settings);
         return Absolute(http, settings.PublicBaseUrl, Path).ToString();
+    }
+
+    /// <summary>The exact RFC 8707 resource identifier an MCP access token must target.</summary>
+    public static string AbsoluteResourceUri(HttpContext http, McpRuntimeSettings settings)
+    {
+        ArgumentNullException.ThrowIfNull(http);
+        ArgumentNullException.ThrowIfNull(settings);
+        return Absolute(http, settings.PublicBaseUrl, settings.Route).ToString();
     }
 
     /// <summary>
@@ -121,6 +150,7 @@ public static class McpResourceMetadata
             // Header only. Lakehold reads a bearer from the Authorization header and nowhere else —
             // never a query parameter, which would put a credential in access logs and referrers.
             BearerMethodsSupported = ["header"],
+            ScopesSupported = oidc.EffectiveMcpScopes.ToArray(),
             ResourceName = "Lakehold MCP",
         };
 
@@ -133,6 +163,23 @@ public static class McpResourceMetadata
             Resource = Absolute(http, mcp.PublicBaseUrl, mcp.Route).ToString(),
             AuthorizationServers = [oidc.Authority],
             BearerMethodsSupported = ["header"],
+            ScopesSupported = oidc.EffectiveMcpScopes.ToArray(),
             ResourceName = "Lakehold MCP",
         };
+
+    private static JsonObject DescribeDocument(
+        HttpContext http,
+        McpRuntimeSettings mcp,
+        LakeholdOidcOptions oidc)
+    {
+        var document = JsonSerializer.SerializeToNode(Describe(http, mcp, oidc))!.AsObject();
+        if (!string.IsNullOrWhiteSpace(oidc.McpClientId))
+        {
+            // RFC 9728 permits extension members. MCP clients that support an operator-declared
+            // registration can use this id; others safely ignore the member and follow DCR.
+            document["client_id"] = oidc.McpClientId;
+        }
+
+        return document;
+    }
 }

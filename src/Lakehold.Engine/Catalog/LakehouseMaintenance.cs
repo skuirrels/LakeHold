@@ -158,6 +158,14 @@ public static class LakehouseMaintenance
         Duckling duckling,
         LakehouseOptions options,
         CancellationToken cancellationToken)
+        => BackupCatalogAsync(duckling, options, expectedCurrentSnapshotId: null, cancellationToken);
+
+    /// <summary>Exports metadata only if the reviewed catalog snapshot is still current.</summary>
+    public static Task<MaintenanceResult> BackupCatalogAsync(
+        Duckling duckling,
+        LakehouseOptions options,
+        long? expectedCurrentSnapshotId,
+        CancellationToken cancellationToken)
         => RunAsync(
             duckling,
             "backup",
@@ -172,10 +180,21 @@ public static class LakehouseMaintenance
                     : string.Empty;
                 return $"exported {r.TableCount} metadata table(s){size} to {r.Location}{pruned}{retention}";
             },
+            expectedCurrentSnapshotId,
+            commitMessage: null,
             cancellationToken);
 
     /// <summary>Writes inlined commits out as Parquet data files.</summary>
-    public static Task<MaintenanceResult> FlushInlinedDataAsync(Duckling duckling, CancellationToken cancellationToken)
+    public static Task<MaintenanceResult> FlushInlinedDataAsync(
+        Duckling duckling,
+        CancellationToken cancellationToken)
+        => FlushInlinedDataAsync(duckling, expectedCurrentSnapshotId: null, cancellationToken);
+
+    /// <summary>Writes inlined rows only if the reviewed catalog snapshot is still current.</summary>
+    public static Task<MaintenanceResult> FlushInlinedDataAsync(
+        Duckling duckling,
+        long? expectedCurrentSnapshotId,
+        CancellationToken cancellationToken)
         => RunAsync(
             duckling,
             "flush",
@@ -192,14 +211,24 @@ public static class LakehouseMaintenance
 
                 return $"flushed {rows.ToString(CultureInfo.InvariantCulture)} inlined row(s) to Parquet";
             },
-            cancellationToken,
-            commitMessage: "lakehold maintenance: flush inlined data");
+            expectedCurrentSnapshotId,
+            commitMessage: "lakehold maintenance: flush inlined data",
+            cancellationToken);
 
     /// <summary>
     ///     Merges adjacent small Parquet files into larger ones. Small-file proliferation is the
     ///     dominant cause of slow scans in an append-heavy lakehouse.
     /// </summary>
-    public static Task<MaintenanceResult> CompactAsync(Duckling duckling, CancellationToken cancellationToken)
+    public static Task<MaintenanceResult> CompactAsync(
+        Duckling duckling,
+        CancellationToken cancellationToken)
+        => CompactAsync(duckling, expectedCurrentSnapshotId: null, cancellationToken);
+
+    /// <summary>Compacts files only if the reviewed catalog snapshot is still current.</summary>
+    public static Task<MaintenanceResult> CompactAsync(
+        Duckling duckling,
+        long? expectedCurrentSnapshotId,
+        CancellationToken cancellationToken)
         => RunAsync(
             duckling,
             "compact",
@@ -214,8 +243,9 @@ public static class LakehouseMaintenance
                 var created = results.Sum(r => r.FilesCreated);
                 return $"merged {processed} file(s) into {created}";
             },
-            cancellationToken,
-            commitMessage: "lakehold maintenance: compact adjacent files");
+            expectedCurrentSnapshotId,
+            commitMessage: "lakehold maintenance: compact adjacent files",
+            cancellationToken);
 
     /// <summary>
     ///     Drops snapshots older than <paramref name="olderThan"/>, bounding time-travel history and
@@ -230,6 +260,16 @@ public static class LakehouseMaintenance
         DateTimeOffset olderThan,
         bool dryRun,
         CancellationToken cancellationToken)
+        => ExpireSnapshotsAsync(
+            duckling, olderThan, dryRun, expectedCurrentSnapshotId: null, cancellationToken);
+
+    /// <summary>Expires snapshots only if the reviewed catalog snapshot is still current.</summary>
+    public static Task<MaintenanceResult> ExpireSnapshotsAsync(
+        Duckling duckling,
+        DateTimeOffset olderThan,
+        bool dryRun,
+        long? expectedCurrentSnapshotId,
+        CancellationToken cancellationToken)
         => RunAsync(
             duckling,
             "expire",
@@ -240,6 +280,8 @@ public static class LakehouseMaintenance
                 var verb = dryRun ? "would expire" : "expired";
                 return $"{verb} {expired.Count} snapshot(s) committed before {olderThan:u}";
             },
+            expectedCurrentSnapshotId,
+            commitMessage: null,
             cancellationToken);
 
     /// <summary>
@@ -255,6 +297,16 @@ public static class LakehouseMaintenance
         DateTimeOffset olderThan,
         bool dryRun,
         CancellationToken cancellationToken)
+        => CleanupOldFilesAsync(
+            duckling, olderThan, dryRun, expectedCurrentSnapshotId: null, cancellationToken);
+
+    /// <summary>Deletes old files only if the reviewed catalog snapshot is still current.</summary>
+    public static Task<MaintenanceResult> CleanupOldFilesAsync(
+        Duckling duckling,
+        DateTimeOffset olderThan,
+        bool dryRun,
+        long? expectedCurrentSnapshotId,
+        CancellationToken cancellationToken)
         => RunAsync(
             duckling,
             "cleanup",
@@ -265,6 +317,8 @@ public static class LakehouseMaintenance
                 var verb = dryRun ? "would delete" : "deleted";
                 return $"{verb} {files.Count} unreferenced file(s)";
             },
+            expectedCurrentSnapshotId,
+            commitMessage: null,
             cancellationToken);
 
     /// <param name="commitMessage">
@@ -277,18 +331,49 @@ public static class LakehouseMaintenance
         string operation,
         bool dryRun,
         Func<Duckling, CancellationToken, Task<string>> action,
-        CancellationToken cancellationToken,
-        string? commitMessage = null)
+        long? expectedCurrentSnapshotId,
+        string? commitMessage,
+        CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(duckling);
 
         var startedAt = TimeProvider.System.GetTimestamp();
+        async Task<string> RunGuardedAsync(CancellationToken ct)
+        {
+            if (expectedCurrentSnapshotId is { } expected)
+            {
+                var current = await CurrentSnapshotUnguardedAsync(duckling, ct).ConfigureAwait(false);
+                if (current != expected)
+                {
+                    throw new ArgumentException(
+                        $"The catalog advanced from snapshot {expected.ToString(CultureInfo.InvariantCulture)} "
+                        + $"to {current.ToString(CultureInfo.InvariantCulture)} after this maintenance was reviewed. "
+                        + "Review a fresh plan; no maintenance was applied.");
+                }
+            }
+
+            return await action(duckling, ct).ConfigureAwait(false);
+        }
+
         var detail = commitMessage is null
-            ? await duckling.InvokeAsync(ct => action(duckling, ct), cancellationToken).ConfigureAwait(false)
+            ? await duckling.InvokeAsync(RunGuardedAsync, cancellationToken).ConfigureAwait(false)
             : await duckling
-                .InvokeLabelledAsync(commitMessage, ct => action(duckling, ct), cancellationToken)
+                .InvokeLabelledAsync(commitMessage, RunGuardedAsync, cancellationToken)
                 .ConfigureAwait(false);
 
         return new MaintenanceResult(operation, detail, TimeProvider.System.GetElapsedTime(startedAt), dryRun);
+    }
+
+    private static async Task<long> CurrentSnapshotUnguardedAsync(
+        Duckling duckling,
+        CancellationToken cancellationToken)
+    {
+        var result = await duckling
+            .ExecuteUnguardedAsync(
+                "SELECT coalesce(max(snapshot_id), 0) FROM ducklake_snapshots("
+                + $"{SqlIdentifier.Literal(duckling.Catalog.CatalogName)})",
+                cancellationToken)
+            .ConfigureAwait(false);
+        return Convert.ToInt64(result.Rows.Single()[0], CultureInfo.InvariantCulture);
     }
 }

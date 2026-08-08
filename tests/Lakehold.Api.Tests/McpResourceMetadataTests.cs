@@ -48,6 +48,55 @@ public sealed class McpResourceMetadataTests
     }
 
     [Fact]
+    public async Task Canonical_and_path_suffixed_locations_serve_identical_documents()
+    {
+        await using var app = await StartAsync(
+            authority: "https://idp.example.com",
+            route: "/agent/mcp");
+        using var client = app.GetTestClient();
+
+        var canonical = await client.GetStringAsync(McpResourceMetadata.Path);
+        var suffixed = await client.GetStringAsync(McpResourceMetadata.Path + "/agent/mcp");
+
+        Assert.Equal(canonical, suffixed);
+        using var document = JsonDocument.Parse(suffixed);
+        Assert.EndsWith("/agent/mcp", document.RootElement.GetProperty("resource").GetString());
+    }
+
+    [Fact]
+    public async Task A_root_mcp_route_maps_the_canonical_document_only_once()
+    {
+        await using var app = await StartAsync(
+            authority: "https://idp.example.com",
+            route: "/");
+        using var client = app.GetTestClient();
+
+        using var response = await client.GetAsync(McpResourceMetadata.Path);
+
+        response.EnsureSuccessStatusCode();
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.EndsWith("/", document.RootElement.GetProperty("resource").GetString());
+    }
+
+    [Fact]
+    public async Task The_document_advertises_mcp_scopes_and_the_declared_public_client()
+    {
+        await using var app = await StartAsync(
+            authority: "https://idp.example.com",
+            scopes: ["openid", "profile", "lakehold.member"],
+            mcpClientId: "lakehold-mcp");
+        using var client = app.GetTestClient();
+
+        using var document = JsonDocument.Parse(await client.GetStringAsync(McpResourceMetadata.Path));
+        var root = document.RootElement;
+
+        Assert.Equal("lakehold-mcp", root.GetProperty("client_id").GetString());
+        Assert.Equal(
+            ["openid", "profile", "lakehold.member"],
+            root.GetProperty("scopes_supported").EnumerateArray().Select(item => item.GetString()));
+    }
+
+    [Fact]
     public async Task The_document_needs_no_credential_to_read()
     {
         // A client reads this *because* it has no credential yet, so requiring one would be circular.
@@ -138,6 +187,7 @@ public sealed class McpResourceMetadataTests
                 .SaveAsync(
                     enabled: true,
                     allowWrites: false,
+                    allowOperatorCommands: false,
                     maxRowsPerResult: 200,
                     publicBaseUrl: "https://new.example.com",
                     expectedVersion: 0,
@@ -151,7 +201,12 @@ public sealed class McpResourceMetadataTests
         Assert.Equal("https://new.example.com/mcp", json.RootElement.GetProperty("resource").GetString());
     }
 
-    private static async Task<WebApplication> StartAsync(string authority, string publicBaseUrl = "")
+    private static async Task<WebApplication> StartAsync(
+        string authority,
+        string publicBaseUrl = "",
+        string route = "/mcp",
+        string[]? scopes = null,
+        string mcpClientId = "")
     {
         var builder = WebApplication.CreateSlimBuilder();
         builder.WebHost.UseTestServer();
@@ -162,12 +217,19 @@ public sealed class McpResourceMetadataTests
         {
             ["Lakehold:Mcp:Enabled"] = "true",
             ["Lakehold:Mcp:PublicBaseUrl"] = publicBaseUrl,
+            ["Lakehold:Mcp:Route"] = route,
         });
 
         // Only the MCP surface and its options: the document and the challenge are decided before any
         // credential is resolved, so no control plane is needed to exercise either.
         builder.Services.Configure<McpOptions>(builder.Configuration.GetSection(McpOptions.SectionName));
-        builder.Services.Configure<LakeholdOidcOptions>(o => o.Authority = authority);
+        builder.Services.Configure<LakeholdOidcOptions>(options =>
+        {
+            options.Authority = authority;
+            options.Audience = "lakehold-api";
+            options.McpScopes = scopes ?? [];
+            options.McpClientId = mcpClientId;
+        });
         builder.Services.AddSingleton(TimeProvider.System);
         builder.Services.AddDbContext<ControlPlaneContext>(options =>
             options.UseDuckDB($"Data Source={controlPlanePath}"));

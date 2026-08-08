@@ -95,10 +95,11 @@ events and 5,000 customers, so there is something to run against before you load
 > straight back in as the same person. This surprises everyone once. Use a private window per user,
 > or sign out of Keycloak at http://localhost:5401 as well.
 
-**Machines, scripts, and agents use API tokens instead**, not browser sign-in. Paste one into the
-same dialog under **or use an API token**, or send it as `Authorization: Bearer lkh_…`. Issue tokens
-under **Users → API tokens**. Full detail — production first-run, adding users, swapping
-Keycloak for your own provider, and connecting clients and agents — is in the
+**Machines and unattended scripts use API tokens.** Interactive MCP agents may instead sign in as
+their operator through OIDC. Paste an API token into the same dialog under **or use an API token**,
+or send it as `Authorization: Bearer lkh_…`. Issue tokens under **Users → API tokens**. Full detail —
+production first-run, adding users, swapping Keycloak for your own provider, and connecting clients
+and agents — is in the
 [identity provider setup guide](https://github.com/skuirrels/LakeHold/blob/main/docs/IDENTITY-PROVIDER-SETUP.md).
 
 ### Build and test
@@ -124,7 +125,48 @@ it will not accept the demo reader that can publish a catalog to anonymous visit
 | **A Postgres client** | LakeHold speaks the PostgreSQL wire protocol, so `psql`, DBeaver, or Npgsql connect to a catalog with no driver or plugin. The user is the tenant and the database is the catalog.                                                                                                    | Existing SQL clients and streamed results.                            |
 | **.NET & EF Core**    | Through `DuckDB.EFCoreProvider` your application model and your lake tables are one model.                                                                                                                                                                                            | .NET applications on the same schema.                                 |
 | **The HTTP API**      | Minimal-API endpoints for queries, schemas, history, snapshots, maintenance, eject, backup/restore, and change-feed subscriptions.                                                                                                                                                    | Automation and integration.                                           |
-| **MCP**               | An authenticated Model Context Protocol server with tenant discovery, schema, snapshots, changes, query resources/tools, and optional operator-gated writes. Development enables it by default; an instance operator changes the live controls under System Settings with no restart. | AI agents that need discoverable, capability-scoped lakehouse access. |
+| **MCP**               | An authenticated Model Context Protocol server with catalog, time-travel, CDC, physical-inspection, audit-history, saved-query, connector, and snapshot-bound maintenance tools. Writes and operator commands are separately gated. Development enables it by default; an instance operator changes the live controls under System Settings with no restart. | AI agents that need discoverable, capability-scoped lakehouse access. |
+
+### Connect Codex or Claude Code as yourself
+
+An operator first enables MCP and sets the externally reachable **Public base URL** under System
+Settings. A fresh development stack already enables MCP and registers the public, PKCE-only
+`lakehold-mcp` client. Connect Codex to the Workbench origin:
+
+```bash
+codex mcp add lakehold \
+  --url http://localhost:5399/mcp \
+  --oauth-client-id lakehold-mcp \
+  --oauth-resource http://localhost:5399/mcp
+```
+
+Then start the browser login:
+
+```bash
+codex mcp login lakehold
+```
+
+Claude Code uses the same public client and discovers the resource from LakeHold's OAuth metadata:
+
+```bash
+claude mcp add --transport http --client-id lakehold-mcp \
+  lakehold http://localhost:5399/mcp
+claude mcp login lakehold
+```
+
+When the bundled Keycloak login opens, use `analyst` / `lakehold` to reach the seeded `demo`
+workspace. The `admin` account administers the instance and deliberately cannot query tenant data.
+For a production deployment, replace the URL and client id with those shown in **System Settings**
+and registered at the identity provider. If your provider requires scopes, add them to Codex login
+as a comma-separated list with `--scopes`.
+
+The authorization server signs you in; LakeHold resolves that identity to your membership row, so
+the agent receives your workspace role rather than a shared machine identity. The access token must
+target the exact MCP URL advertised by `/.well-known/oauth-protected-resource/mcp`. A deployment may
+still use an `lkh_…` API token instead for unattended automation; keep the secret in an environment
+variable and send it as the bearer header, never in committed configuration. See the full
+[`docs/MCP.md`](https://github.com/skuirrels/LakeHold/blob/main/docs/MCP.md#connecting-a-client) guide
+for token configuration, verification, and the complete tool inventory.
 
 ---
 
@@ -719,10 +761,10 @@ not yet a published general-purpose NuGet change-stream package.
 
 ## Authentication
 
-LakeHold authenticates with **API tokens**. A token names one tenant, may be narrowed to a single
-catalog, carries a role (`owner`, `editor`, `reader`), and can be revoked — which closes the HTTP API
-and the PostgreSQL wire endpoint together. Users sign in through your identity provider instead —
-see the [identity provider setup
+LakeHold accepts **API tokens** for machines and **OIDC identities** for people and interactive MCP
+agents. An API token names one tenant, may be narrowed to a single catalog, carries a role (`owner`,
+`editor`, `reader`), and can be revoked — which closes the HTTP API, MCP, and PostgreSQL wire endpoint
+together. Users sign in through your identity provider — see the [identity provider setup
 guide](https://github.com/skuirrels/LakeHold/blob/main/docs/IDENTITY-PROVIDER-SETUP.md).
 
 **A credential is required, in every configuration.** There is no switch that turns this off — the
@@ -817,8 +859,8 @@ Settings; they, and the owner of a workspace, admit users and issue, review, or 
 workspace's client credentials under Users.
 
 The token field remains the machine and break-glass path. A pasted token is held for that browser
-session only and sent as a bearer token on API calls. With neither OIDC nor a token, the workbench
-behaves anonymously only where the deployment has explicitly left authentication optional.
+session only and sent as a bearer token on API calls. With neither OIDC nor a token, only the
+explicitly configured demo tenant/catalog can be read anonymously; all other access is refused.
 
 When a deployment requires authentication and the browser has no usable token, the workbench says so
 and asks for one instead of showing empty pickers — the same panel that runs the first-workspace flow

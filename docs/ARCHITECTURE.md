@@ -349,7 +349,7 @@ readable by Spark, Trino, or Snowflake.
 | Postgres / BI wire protocol | ✅ | ✅ JDBC | ✅ | ✅ Flight/JDBC | ✅ Trino JDBC | ✅ built-in endpoint |
 | Native DuckDB remote protocol (Quack) | ⚠️ own hybrid client | — | — | — | — | ❌ decision open |
 | Managed ingestion connectors | ✅ Flights | ✅ | ✅ | ⚠️ | ❌ | ⚠️ REST/gRPC + PostgreSQL/HubSpot incremental |
-| AI / MCP / assistant | ✅ | ✅ Genie | ✅ Cortex | ✅ MCP server | ❌ | ✅ MCP server, read-only |
+| AI / MCP / assistant | ✅ | ✅ Genie | ✅ Cortex | ✅ MCP server | ❌ | ✅ MCP server, read tools + operator-gated writes |
 | Semantic layer / governed metrics for agents | ❌ | ✅ Metric Views | ✅ Semantic Views | ✅ | ⚠️ dbt/Cube | 🛠️ from EF model |
 | Row / column-level security | ❌ by design | ✅ | ✅ | ✅ | ⚠️ | 🛠️ specified, unscheduled |
 | Dual local↔cloud hybrid execution | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
@@ -614,9 +614,10 @@ checkpoints, replay-safe upsert, retries, schema contracts, and run lineage (`CO
 differentiation, as the matrix says; `psql`, DBeaver, and Npgsql work, while Power BI still awaits the
 type-catalogue shim — and **authentication and tenant identity** (`docs/AUTHENTICATION.md`): API
 tokens, provisioning, read-only capability by attachment, audit, wire convergence, OIDC, and roles.
-The authenticated MCP server (`docs/MCP.md`) is also shipped, with read tools/resources and
-operator-gated writes. Every surface requires a credential; MCP additionally refuses the demo
-identity, so it can never be reached anonymously.
+The authenticated MCP server (`docs/MCP.md`) is also shipped, with catalog, time-travel, CDC,
+physical-inspection, audit-history, saved-query, connector, and snapshot-bound maintenance tools.
+Mutating and operator tools are separately gated. Every surface requires a credential; MCP
+additionally refuses the demo identity, so it can never be reached anonymously.
 
 **Next** — complete and release the Java, Go, .NET, and Python SDK programme (USP 6), add an Iceberg
 REST Catalog endpoint (USP 5), and add read-only share links.

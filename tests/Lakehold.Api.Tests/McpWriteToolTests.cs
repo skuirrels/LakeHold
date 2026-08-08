@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Security.Claims;
 using DuckDB.EFCoreProvider.Extensions;
 using Lakehold.Api.Auth;
 using Lakehold.Api.Mcp;
@@ -36,6 +37,9 @@ public sealed class McpWriteToolTests : IAsyncLifetime
     private readonly List<WebApplication> _apps = [];
     private string _writerToken = null!;
     private string _readerToken = null!;
+    private const string MemberBearer = "member-test-token";
+    private const string WrongAudienceBearer = "wrong-audience-test-token";
+    private const string MemberSubject = "member-operator";
 
     public Task InitializeAsync()
     {
@@ -202,6 +206,75 @@ public sealed class McpWriteToolTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Mcp_records_exactly_one_token_actor_and_its_origin()
+    {
+        var app = await StartAsync(allowWrites: true);
+        await using var client = await ConnectAsync(app, _writerToken);
+
+        var result = await client.CallToolAsync(
+            "execute",
+            new Dictionary<string, object?>
+            {
+                ["tenant"] = "demo",
+                ["catalog"] = "analytics",
+                ["sql"] = "CREATE TABLE token_audit (i INTEGER)",
+            });
+        Assert.True(result.IsError is not true, Text(result));
+
+        await using var scope = app.Services.CreateAsyncScope();
+        var run = await scope.ServiceProvider.GetRequiredService<ControlPlaneContext>().QueryRuns
+            .AsNoTracking()
+            .SingleAsync(item => item.Sql == "CREATE TABLE token_audit (i INTEGER)");
+
+        Assert.NotNull(run.TokenId);
+        Assert.Null(run.MemberId);
+        Assert.Equal(QueryActorKind.ApiToken, run.ActorKind);
+        Assert.Equal(QueryOrigin.Mcp, run.Origin);
+    }
+
+    [Fact]
+    public async Task Mcp_records_exactly_one_member_actor_and_its_origin()
+    {
+        var app = await StartAsync(allowWrites: false);
+        await using var client = await ConnectAsync(app, MemberBearer);
+
+        var result = await client.CallToolAsync(
+            "query",
+            new Dictionary<string, object?>
+            {
+                ["tenant"] = "demo",
+                ["catalog"] = "analytics",
+                ["sql"] = "SELECT 42 AS answer",
+            });
+        Assert.True(result.IsError is not true, Text(result));
+
+        await using var scope = app.Services.CreateAsyncScope();
+        var run = await scope.ServiceProvider.GetRequiredService<ControlPlaneContext>().QueryRuns
+            .AsNoTracking()
+            .SingleAsync(item => item.Sql == "SELECT 42 AS answer");
+
+        Assert.Null(run.TokenId);
+        Assert.NotNull(run.MemberId);
+        Assert.Equal(QueryActorKind.Member, run.ActorKind);
+        Assert.Equal(QueryOrigin.Mcp, run.Origin);
+    }
+
+    [Fact]
+    public async Task Mcp_refuses_a_member_token_issued_for_another_resource_opaquely()
+    {
+        var app = await StartAsync(allowWrites: false);
+        using var client = app.GetTestClient();
+        client.DefaultRequestHeaders.Authorization =
+            new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", WrongAudienceBearer);
+
+        using var response = await client.PostAsync(new Uri("/mcp", UriKind.Relative), content: null);
+
+        Assert.Equal(System.Net.HttpStatusCode.Unauthorized, response.StatusCode);
+        Assert.Contains("resource_metadata", response.Headers.WwwAuthenticate.ToString(), StringComparison.Ordinal);
+        Assert.DoesNotContain("audience", await response.Content.ReadAsStringAsync(), StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public async Task Query_stays_read_only_even_where_writes_are_enabled()
     {
         // The read tool must never become a write path. Otherwise its read-only annotation is false
@@ -275,6 +348,7 @@ public sealed class McpWriteToolTests : IAsyncLifetime
                 .SaveAsync(
                     enabled: true,
                     allowWrites: true,
+                    allowOperatorCommands: false,
                     maxRowsPerResult: 200,
                     publicBaseUrl: null,
                     expectedVersion: 0,
@@ -289,6 +363,7 @@ public sealed class McpWriteToolTests : IAsyncLifetime
                 .SaveAsync(
                     enabled: true,
                     allowWrites: false,
+                    allowOperatorCommands: false,
                     maxRowsPerResult: 200,
                     publicBaseUrl: null,
                     expectedVersion: 1,
@@ -310,13 +385,60 @@ public sealed class McpWriteToolTests : IAsyncLifetime
         Assert.Contains("disabled", Text(blocked), StringComparison.OrdinalIgnoreCase);
     }
 
+    [Fact]
+    public async Task Operator_commands_are_discovered_and_enforced_from_the_same_tool_metadata()
+    {
+        var app = await StartAsync(allowWrites: true, allowOperatorCommands: false);
+        await using var client = await ConnectAsync(app, _writerToken);
+        Assert.DoesNotContain("plan_maintenance", (await client.ListToolsAsync()).Select(tool => tool.Name));
+
+        await using (var scope = app.Services.CreateAsyncScope())
+        {
+            await scope.ServiceProvider.GetRequiredService<McpRuntimeSettingsStore>()
+                .SaveAsync(
+                    enabled: true,
+                    allowWrites: true,
+                    allowOperatorCommands: true,
+                    maxRowsPerResult: 200,
+                    publicBaseUrl: null,
+                    expectedVersion: 0,
+                    CancellationToken.None);
+        }
+
+        Assert.Contains("plan_maintenance", (await client.ListToolsAsync()).Select(tool => tool.Name));
+
+        await using (var scope = app.Services.CreateAsyncScope())
+        {
+            await scope.ServiceProvider.GetRequiredService<McpRuntimeSettingsStore>()
+                .SaveAsync(
+                    enabled: true,
+                    allowWrites: true,
+                    allowOperatorCommands: false,
+                    maxRowsPerResult: 200,
+                    publicBaseUrl: null,
+                    expectedVersion: 1,
+                    CancellationToken.None);
+        }
+
+        var blocked = await client.CallToolAsync(
+            "plan_maintenance",
+            new Dictionary<string, object?>
+            {
+                ["tenant"] = "demo",
+                ["catalog"] = "analytics",
+                ["operation"] = "compact",
+            });
+        Assert.True(blocked.IsError);
+        Assert.Contains("disabled", Text(blocked), StringComparison.OrdinalIgnoreCase);
+    }
+
     private static JsonElement Payload(CallToolResult result) =>
         result.StructuredContent ?? JsonDocument.Parse(Text(result)).RootElement;
 
     private static string Text(CallToolResult result) =>
         string.Join(" ", result.Content.OfType<TextContentBlock>().Select(c => c.Text));
 
-    private async Task<WebApplication> StartAsync(bool allowWrites)
+    private async Task<WebApplication> StartAsync(bool allowWrites, bool allowOperatorCommands = false)
     {
         // Each case gets its own state root so catalogs and persisted runtime settings stay independent.
         var root = Path.Combine(_root, allowWrites ? "rw" : "ro", Guid.NewGuid().ToString("N"));
@@ -328,6 +450,8 @@ public sealed class McpWriteToolTests : IAsyncLifetime
         {
             ["Lakehold:Mcp:Enabled"] = "true",
             ["Lakehold:Mcp:AllowWrites"] = allowWrites ? "true" : "false",
+            ["Lakehold:Mcp:AllowOperatorCommands"] = allowOperatorCommands ? "true" : "false",
+            ["Lakehold:Mcp:PublicBaseUrl"] = "http://localhost",
         });
 
         builder.Services.AddDbContext<ControlPlaneContext>(
@@ -335,7 +459,11 @@ public sealed class McpWriteToolTests : IAsyncLifetime
         builder.Services.AddScoped<ApiTokenAuthenticator>();
         builder.Services.AddScoped<MemberDirectory>();
         builder.Services.AddSingleton(TimeProvider.System);
-        builder.Services.Configure<LakeholdOidcOptions>(_ => { });
+        builder.Services.Configure<LakeholdOidcOptions>(options =>
+        {
+            options.Authority = "https://idp.example.com/realms/lakehold";
+            options.Audience = "lakehold-api";
+        });
         builder.Services.Configure<LakehouseOptions>(o =>
         {
             o.MetadataRoot = Path.Combine(root, "catalogs");
@@ -347,6 +475,24 @@ public sealed class McpWriteToolTests : IAsyncLifetime
         builder.AddLakeholdMcp();
 
         var app = builder.Build();
+        app.Use(async (http, next) =>
+        {
+            var authorization = http.Request.Headers.Authorization.ToString();
+            if (authorization is "Bearer " + MemberBearer or "Bearer " + WrongAudienceBearer)
+            {
+                http.User = new ClaimsPrincipal(new ClaimsIdentity(
+                [
+                    new Claim("sub", MemberSubject),
+                    new Claim(
+                        "aud",
+                        authorization.EndsWith(MemberBearer, StringComparison.Ordinal)
+                            ? "http://localhost/mcp"
+                            : "another-client"),
+                ], "test"));
+            }
+
+            await next(http).ConfigureAwait(false);
+        });
         app.MapLakeholdMcp();
         await app.StartAsync();
         _apps.Add(app);
@@ -370,6 +516,17 @@ public sealed class McpWriteToolTests : IAsyncLifetime
             MetadataSource = Path.Combine(root, "catalogs", "analytics.ducklake"),
             DataPath = Path.Combine(root, "data", "analytics"),
             IsReadOnly = false,
+            CreatedUtc = DateTimeOffset.UtcNow,
+        });
+
+        context.TenantMembers.Add(new TenantMember
+        {
+            TenantId = demo.Id,
+            Issuer = "https://idp.example.com/realms/lakehold",
+            Subject = MemberSubject,
+            DisplayName = "Member Operator",
+            Role = TokenRole.Editor,
+            Status = MemberStatus.Active,
             CreatedUtc = DateTimeOffset.UtcNow,
         });
 

@@ -1,8 +1,8 @@
 # The MCP server
 
-`Lakehold.Api` exposes a Model Context Protocol (MCP) server that lets AI agents — Claude, ChatGPT,
-Copilot, or custom clients — explore a tenant's catalog and run SQL using the same credentials and
-capability rules as the rest of LakeHold.
+`Lakehold.Api` exposes a Model Context Protocol (MCP) server that lets AI agents — including Codex,
+Claude Code, and custom clients — explore a tenant's catalog and run SQL using the same credentials
+and capability rules as the rest of LakeHold.
 
 Like [`AUTHENTICATION.md`](AUTHENTICATION.md) and [`PUBLIC-API.md`](PUBLIC-API.md), this is a
 specification and a running record. It is written to be worked one step at a time: each step is
@@ -10,20 +10,17 @@ independently shippable and testable and leaves the product working. Nothing her
 invariant in `AGENT.md`; where a rule already exists, this document says how the MCP surface preserves
 it rather than restating why.
 
-**Status: Phases 1-5 have landed, bar two items that are blocked or have nothing to carry.** The
-capability rules live in one transport-neutral policy; the endpoint serves twelve read-only tools —
-`list_tenants`, `describe_schema`, `query`, `list_snapshots`, `get_snapshot`, `query_snapshot`,
-`list_changes`, and the connector control plane's read half (`list_connectors`, `get_connector`,
-`validate_connector`, `list_connector_runs`, `list_connector_dead_letters`) — plus schema and snapshot
-resources, behind a credential it always demands; it publishes RFC 9728 protected-resource metadata
-where OIDC is configured; and eight mutating tools — `execute` plus `create_connector`,
-`update_connector`, `retire_connector`, `run_connector`, `retry_connector`, `pause_connector`, and
-`resume_connector` — appear only where an operator has opted into writes. What remains is recorded
-under [Phases](#phases) with the reason rather than as an aspiration.
+**Status: the authenticated operator surface has landed, with the explicitly blocked contracts still
+withheld.** In addition to catalog discovery, SQL, snapshots, CDC, and managed connectors, an agent can
+inspect physical storage and query audit history, manage and execute saved queries, and run
+snapshot-bound two-step maintenance. OAuth metadata is served at both RFC 9728 locations, includes
+scopes and an optional pre-registered public client, and MCP JWTs are audience-bound to the exact
+resource URL. Backup/restore Tasks, import content, eject, token minting, and instance provisioning
+remain withheld for the reasons recorded below.
 
 It is enabled for `make dev` and the development Compose stack. Production configuration remains
-closed before first use. An instance operator can then change Enabled, Allow writes, maximum rows,
-and the public base URL under **Workbench → System Settings**; the shared PostgreSQL row takes effect
+closed before first use. An instance operator can then change Enabled, Allow writes, Allow operator
+commands, maximum rows, and the public base URL under **Workbench → System Settings**; the shared PostgreSQL row takes effect
 on the next request across every API node, without a restart.
 
 ## Why this, and why now
@@ -77,29 +74,17 @@ Agent Framework becomes the right tool for exactly one future feature: an in-pro
 Angular workbench, which would be an agent, and which would consume LakeHold's own MCP server like any
 other client. That is a UI product and a separate decision. It is out of scope here.
 
-## Version and timing
+## Version and protocol
 
 | | |
 |---|---|
-| MCP specification revision **2026-07-28** | final |
-| C# SDK **2.0.0-rc.1** | published 25 July 2026 |
-| SDK **2.0.0** stable | published; taken 3 August 2026 |
+| Transport | Streamable HTTP at `/mcp`; no stdio shim |
+| C# SDK | `ModelContextProtocol.AspNetCore` **2.0.0** |
+| OAuth discovery | RFC 9728 protected-resource metadata at both canonical locations |
 
-The 2026-07-28 revision is not a point release. Per secondary reporting — **still not verified against
-the specification text** — it removes sessions, drops the initialization handshake, deprecates three
-core features, rewrites authorization around OAuth 2.1 resource servers, and adds an extensions
-framework.
-
-The decision taken:
-
-1. **Nothing is written against SDK 1.4.x.** It tracks the superseded revision and would be legacy
-   within the week.
-2. **The dependency was `2.0.0-rc.1`**, taken deliberately on the basis that nothing here ships as
-   stable before the SDK does. The earlier concern that release-candidate analyzer diagnostics (the rc
-   notes cite `MCP9007`) would break a warnings-as-errors build did **not** materialise — the package
-   restores and builds with zero warnings, and `MCP9007` applies to a client-side OAuth API this
-   server does not use. **Settled 3 August 2026:** 2.0.0 stable published and was taken; the build
-   and the full backend suite pass on it.
+The dependency first landed on `2.0.0-rc.1` while the surface was under development and moved to
+stable `2.0.0` on 3 August 2026. The package restores and builds with warnings-as-errors, and the
+server is exercised through the SDK's own client over a real HTTP transport.
 
 The package reference carries this reasoning as a comment in `Directory.Packages.props`, because the
 version history is otherwise unexplained to a later reader.
@@ -178,10 +163,10 @@ Two credential schemes are accepted, and they coexist — the same shape `PgWire
 
 ### LakeHold API tokens
 
-An `lkh_`-prefixed token presented as `Authorization: Bearer`. This is what works today with Claude
-Code and any client that can set a header, it reuses `ApiTokenAuthenticator` unchanged, and revoking
-the token closes the agent's access and the API's together. The token names the tenant; a tool
-argument naming a different tenant is a **404**, never a 403 (invariant 19).
+An `lkh_`-prefixed token presented as `Authorization: Bearer`. Codex, Claude Code, and any client that
+can set a header can use it. It reuses `ApiTokenAuthenticator` unchanged, and revoking the token
+closes the agent's access and the API's together. The token names the tenant; a tool argument naming
+a different tenant is a **404**, never a 403 (invariant 19).
 
 ### OIDC, as an OAuth 2.1 resource server — shipped
 
@@ -234,6 +219,12 @@ wire endpoint does.
 | `get_snapshot` | `TenantData` | **Implemented in source.** Returns one retained snapshot by native id and refuses a missing id without inventing a second snapshot store |
 | `query_snapshot` | `TenantData` | **Implemented in source.** Bounded table preview at an exact retained snapshot through the same structural read-only attachment as REST; it does not present a materialized MCP result as streaming |
 | `list_changes` | `TenantData` | **Shipped.** The CDC feed, paged. Inclusive at both ends (invariant 18, verified behaviour 6), and the tool's *description* says so — an agent that assumes exclusivity skips a window. Omitting the upper bound reads to the newest snapshot, which is also what keeps a caller clear of verified behaviour 7, where a range ending before the table existed raises. The engine's complaint is forwarded verbatim when it does |
+| `get_storage`, `list_storage_files` | `TenantData` | **Shipped.** Read-only physical file counts and bounded file inventory, optionally at a snapshot |
+| `get_table_detail`, `get_table_profile`, `get_column_distribution` | `TenantData` | **Shipped.** Logical/storage detail and bounded profiling through the same inspection services as HTTP |
+| `query_history` | `TenantData` | **Shipped.** Catalog-scoped audit history including token/member actor and transport origin |
+| `list_saved_queries`, `get_saved_query`, `execute_saved_query` | `TenantData` | **Shipped.** Reusable definitions and structurally read-only execution |
+| `create_saved_query`, `update_saved_query`, `delete_saved_query`, `publish_saved_query`, `unpublish_saved_query` | `TenantWrite` | **Shipped behind Allow writes.** Uses optimistic revisions and the existing saved-query application service |
+| `plan_maintenance`, `apply_maintenance` | `TenantOwner` | **Shipped behind Allow operator commands.** Apply requires the exact snapshot id returned by plan; an intervening commit forces review again. Backup is excluded until Tasks and public operations share one job model |
 
 **Resources.** `lakehold://{tenant}/{catalog}/schema` carries the same information
 `describe_schema` returns, so a client can pin it as standing context instead of spending a tool call
@@ -250,25 +241,93 @@ no second path to get wrong.
 **Prompts** are not shipped — there is no workflow yet whose shape is worth freezing into the
 protocol.
 
-**Transport** is Streamable HTTP. Given the 2026-07-28 revision removes sessions, there is no
-server-side session state to design. A stdio shim is not shipped: LakeHold is a server, and remote MCP
-is what its clients speak.
+**Transport** is Streamable HTTP. LakeHold adds no application session state to MCP requests; tenant,
+capability, and audit context resolve from the credential on each call. A stdio shim is not shipped:
+LakeHold is a server, and remote MCP is what its clients speak.
 
 ### Connecting a client
 
-The endpoint speaks Streamable HTTP at `Lakehold:Mcp:Route` (default `/mcp`) and authenticates with
-an ordinary LakeHold API token in an `Authorization: Bearer` header. Issue one scoped to what the
-agent should reach — a catalog-narrowed, reader-role token is the right default, and it costs nothing
-because the surface forces a read-only attachment anyway:
+The endpoint speaks Streamable HTTP at `Lakehold:Mcp:Route` (default `/mcp`). An interactive agent can
+sign in through OAuth as its operator; unattended automation can use a LakeHold API token in an
+`Authorization: Bearer` header.
 
 First sign in through the configured identity provider as a system administrator (or use the
 break-glass instance credential), then enable MCP in **Workbench → System Settings**. A fresh
 development stack already has it enabled. The settings page shows a copyable endpoint on the
 Workbench origin; the development server proxies that path to the API, while direct access on
-`http://localhost:5200/mcp` remains available. Then open **Users** and, in its **API tokens** card,
-choose the workspace, narrow the credential to the catalog the agent needs, retain the reader default, and
-generate it. Existing credentials and their last-use state are listed below; revoking one closes its
-MCP and HTTP access. The plaintext is shown once. The equivalent public API call is:
+`http://localhost:5200/mcp` remains available. Behind a reverse proxy, save the externally reachable
+Workbench origin as **Public base URL** so OAuth metadata advertises the same MCP URL the client uses.
+
+#### Local OAuth smoke test
+
+Start the development stack:
+
+```bash
+make dev
+```
+
+Leave it running and use a second terminal for the client commands. If this development database has
+saved System Settings from an earlier run, confirm **Enabled** is on and **Public base URL** is exactly
+`http://localhost:5399` (the origin, without `/mcp`). Keep **Allow writes** and **Allow operator
+commands** off for the first smoke test.
+
+Use `http://localhost:5399/mcp`, not the container-only API address, for the easiest browser callback
+and metadata path. The bundled Keycloak realm has a public PKCE client named `lakehold-mcp`. When the
+browser opens, sign in as `analyst` with password `lakehold`; that identity owns the seeded `demo`
+workspace. The `admin` user administers the instance but deliberately cannot query tenant data.
+
+After connecting either client below, use this smoke-test prompt:
+
+> Using the LakeHold MCP server, list the workspaces and catalogs I can reach. Describe the schema of
+> tenant `demo`, catalog `analytics`, then run `SELECT 42 AS answer` there. Do not write anything.
+
+If the catalog has never been initialized, create a table once from the Workbench before using a
+reader: a read-only attachment cannot create the DuckLake metadata file.
+
+#### Claude Code — OAuth as the signed-in person
+
+Claude Code discovers LakeHold's authorization server from the RFC 9728 metadata. LakeHold uses a
+pre-registered public client, so pass its id without a secret:
+
+```bash
+claude mcp add --transport http --client-id lakehold-mcp \
+  lakehold http://localhost:5399/mcp
+claude mcp login lakehold
+claude mcp list
+```
+
+On Claude Code versions without `claude mcp login`, start `claude`, enter `/mcp`, select `lakehold`,
+and complete the browser login. For production, replace the URL and client id with the values shown
+by **System Settings** and registered at the identity provider. See Anthropic's
+[official Claude Code MCP reference](https://code.claude.com/docs/en/mcp) for client configuration
+and OAuth lifecycle details.
+
+#### Codex — OAuth as the signed-in person
+
+Codex needs the same public client id and exact RFC 8707 resource URL:
+
+```bash
+codex mcp add lakehold \
+  --url http://localhost:5399/mcp \
+  --oauth-client-id lakehold-mcp \
+  --oauth-resource http://localhost:5399/mcp
+codex mcp login lakehold
+codex mcp list
+```
+
+The Codex desktop app, CLI, and IDE extension share this MCP configuration. In the Codex terminal UI,
+`/mcp` shows the connection and its tools. If the provider requires explicit scopes, run
+`codex mcp login lakehold --scopes <scope-1>,<scope-2>`; otherwise LakeHold's protected-resource
+metadata supplies the configured MCP scopes. See the
+[official Codex MCP documentation](https://learn.chatgpt.com/docs/extend/mcp) for the shared
+configuration and client commands.
+
+#### API-token alternative
+
+For unattended use, open **Users → API tokens**, choose the workspace, narrow the credential to the
+catalog the agent needs, retain the reader default, and generate it. Existing credentials and their
+last-use state are listed below; revoking one closes its MCP and HTTP access. The plaintext is shown
+once. The equivalent public API call is:
 
 ```bash
 curl -X POST https://lakehold.example.com/api/tenants/demo/tokens \
@@ -278,14 +337,27 @@ curl -X POST https://lakehold.example.com/api/tenants/demo/tokens \
 ```
 
 Keep the token out of files that get committed. Every example below reads it from the environment.
+Launch the client from the shell where `LAKEHOLD_TOKEN` is set.
 
-#### Claude Code
+For Codex:
 
 ```bash
-claude mcp add --transport http lakehold https://lakehold.example.com/mcp --header "Authorization: Bearer $LAKEHOLD_TOKEN"
+export LAKEHOLD_TOKEN='lkh_...'
+codex mcp add lakehold-token \
+  --url http://localhost:5399/mcp \
+  --bearer-token-env-var LAKEHOLD_TOKEN
 ```
 
-Or check a project-scoped server into `.mcp.json` — note that `type` is **required** alongside `url`,
+For Claude Code, use environment expansion in its JSON configuration so the token itself is not
+written to the project file:
+
+```bash
+export LAKEHOLD_TOKEN='lkh_...'
+claude mcp add-json lakehold-token \
+  '{"type":"http","url":"http://localhost:5399/mcp","headers":{"Authorization":"Bearer ${LAKEHOLD_TOKEN}"}}'
+```
+
+The equivalent project-scoped `.mcp.json` entry is below. `type` is **required** alongside `url`,
 because an entry with a `url` and no `type` is read as a stdio server and skipped:
 
 ```json
@@ -293,25 +365,19 @@ because an entry with a `url` and no `type` is read as a stdio server and skippe
   "mcpServers": {
     "lakehold": {
       "type": "http",
-      "url": "https://lakehold.example.com/mcp",
+      "url": "http://localhost:5399/mcp",
       "headers": { "Authorization": "Bearer ${LAKEHOLD_TOKEN}" }
     }
   }
 }
 ```
 
-Verify with `claude mcp list`, then ask Claude to run a query:
-
-> Using the lakehold server, query tenant `demo`, catalog `analytics`: `SELECT count(*) FROM orders`
-
-#### Codex
-
-Codex reads `~/.codex/config.toml`. Point it at the same URL and let it take the token from the
-environment rather than from the file:
+Codex stores the equivalent configuration in `~/.codex/config.toml` or a trusted project's
+`.codex/config.toml`:
 
 ```toml
 [mcp_servers.lakehold]
-url = "https://lakehold.example.com/mcp"
+url = "http://localhost:5399/mcp"
 bearer_token_env_var = "LAKEHOLD_TOKEN"
 startup_timeout_sec = 10.0
 tool_timeout_sec = 60.0
@@ -334,9 +400,10 @@ but never written to therefore fails to attach, and the agent sees an engine err
 database in read-only mode rather than an empty catalog.
 
 This is not MCP-specific — a read-only *token* on the HTTP route behaves the same way — but MCP hits
-it far more often, because this surface is read-only always. Write to a catalog once (any statement
-that creates a table will do) before pointing an agent at it. Worth revisiting if provisioning is ever
-made to initialise the metadata file at creation time, which would remove the sharp edge entirely.
+it more often because discovery and inspection tools deliberately attach read-only. Write to a catalog
+once (any statement that creates a table will do) before pointing an agent at it. Worth revisiting if
+provisioning is ever made to initialise the metadata file at creation time, which would remove the
+sharp edge entirely.
 
 ### Reads and writes are different tools
 
@@ -388,9 +455,14 @@ rather than an additive one.
 
 The section that makes this document useful, in the same spirit as `POSTGRES-WIRE.md`.
 
+Maintenance is no longer in this table. `plan_maintenance` is a non-mutating review step and
+`apply_maintenance` rechecks the plan's snapshot before changing anything. Both require tenant-owner
+capability and the separate **Allow operator commands** switch; apply additionally requires **Allow
+write commands**. Backup and restore remain withheld because their long-running Tasks contract is
+still unresolved.
+
 | Not exposed | Why |
 |---|---|
-| Maintenance — `expire`, `cleanup`, `compact`, `flush` | Destructive operations are dry-run by default with an explicit apply path (invariant 10). That two-step contract does not survive translation into a one-shot tool call, and `TenantOwner` is not a capability to hand an agent by default |
 | Eject | Eject *is* the exit attestation. An agent minting a signed artifact that asserts the lakehouse is exportable inverts the point of the artifact (invariants 16, 17) |
 | Backup and restore | Long-running and destructive-adjacent; restore's refusal to overwrite (invariant 12) is a safety property that deserves a human |
 | Provisioning — create/delete tenants and catalogs | `Instance` capability. An MCP server that can create tenants is a liability, not a feature |
@@ -426,16 +498,10 @@ defeat the budget this option exists to keep, so the runtime settings snapshot b
 
 ## Audit
 
-Every statement executed through MCP is recorded in query history against the resolved principal,
-exactly as an HTTP query is — the tool passes the principal's token id down the same path the HTTP
-route does. Submitted SQL is already recorded by the existing audit path; nothing about agent-authored
-SQL changes what may be logged, and the prohibition on logging credentials is unchanged.
-
-**There is no MCP-origin marker yet**, and an earlier draft of this document claimed there was. Today
-an operator distinguishes agent traffic by *which token* ran the statement, which works because an
-agent is issued its own credential — but it is a convention rather than a guarantee, and it fails the
-moment a token is shared between an agent and a script. A first-class marker means a column on the
-query-history record and a migration; it belongs to a later phase, and is listed there.
+Every statement is recorded with exactly one actor: `TokenId` for an API token or `MemberId` for an
+OIDC person, never both. `ActorKind` preserves that classification and `Origin` distinguishes
+Workbench, REST, PgWire, MCP, import, and connector execution. Both fields and the nullable member id
+land through ordinary PostgreSQL migrations; removing a token or member cannot remove its audit row.
 
 ## Phases
 
@@ -449,9 +515,9 @@ above, which needs the published spec rather than the reporting summarising it.
 **Phase 2 — the server. Landed.** `ModelContextProtocol.AspNetCore` **2.0.0** (taken 3 August 2026;
 landed originally on `2.0.0-rc.1` under the deliberate decision that nothing here ships as stable
 before the SDK does) — see the note in `Directory.Packages.props`. The endpoint is hosted at `Lakehold:Mcp:Route`, guarded by
-`McpAuthenticationFilter`, and exposes exactly one tool: `query`, read-only. Outstanding from this
-phase: **protected-resource metadata (RFC 9728) is not served yet**, so OIDC-only clients that rely on
-discovery cannot find the authorization server. Bearer tokens work today; that is the gap.
+`McpAuthenticationFilter`, and began with exactly one tool: `query`, read-only. Protected-resource
+metadata now ships at both RFC 9728 locations, with the exact MCP resource audience, supported
+scopes, and the optional pre-registered public-client extension.
 
 **Phase 3 — discovery. Landed.** `list_tenants`, `describe_schema`, and the schema resource. The
 separately specified `list_catalogs` was dropped for the reason given in the tool table. An agent can
@@ -463,23 +529,18 @@ CDC, the two capabilities `COMPETITIVE-RESEARCH.md` says are genuinely ahead of 
 emit the same change vocabulary the REST feed and the webhooks use, so an agent and a webhook consumer
 do not read two names for one event.
 
-**Phase 5 — partly landed, partly blocked, and one item with nothing to carry.**
+**Phase 5 — landed, with long-running operations still intentionally withheld.**
 
 - **Writes behind an explicit runtime setting — landed.** Allow writes plus a read-write
   credential, as a separate `execute` tool for the annotation reason above.
 - **RFC 9728 protected-resource metadata — landed.** See the authentication section.
-- **An MCP-origin marker on query history — blocked, and not on anything MCP.** A run is attributed to
-  its token id today, which identifies agent traffic only by the convention that an agent gets its own
-  credential. A first-class marker means a column on `QueryRun`, and the control plane has no story for
-  that: `AdditiveSchema` creates *missing tables* on start-up and says in its own remarks that columns
-  added to an existing entity still need a real migration path. Adding one is a control-plane
-  infrastructure change affecting every entity and every existing deployment — the right size of work,
-  but not an MCP change, and it should not be smuggled in as one.
+- **Actor and origin attribution — landed.** Token and member actors are mutually exclusive, and MCP
+  is a first-class origin in both the API response and Workbench history.
 - **Tasks-based long-running operations — nothing to carry.** SDK 2.0's Tasks extension is the right
   mechanism for a long-running tool call, and this surface deliberately exposes no long-running
-  operation: maintenance, eject, backup, and restore are all withheld for the reasons above. Building
-  the mechanism before the operation would be speculative. When one is exposed, Tasks is how, and it
-  must be reconciled with `PUBLIC-API.md`'s `202`/`operationId` model rather than invented twice.
+  operation. The short maintenance commands use the snapshot-bound plan/apply contract; eject,
+  backup, and restore remain withheld. When a long-running operation is exposed, Tasks is how, and
+  it must be reconciled with `PUBLIC-API.md`'s `202`/`operationId` model rather than invented twice.
 - **The in-product assistant — a separate product.** An assistant in the Angular workbench is an agent
   that would consume this server like any other client. That is where Agent Framework returns, and it
   is a UI decision rather than a continuation of this document.
@@ -488,7 +549,7 @@ do not read two names for one event.
 
 The file values below are bootstrap defaults only. They are used until an instance operator saves
 System Settings. After that, the PostgreSQL singleton is authoritative for Enabled, PublicBaseUrl,
-AllowWrites, and MaxRowsPerResult. `Route` remains a startup setting because changing the mapped URL
+AllowWrites, AllowOperatorCommands, and MaxRowsPerResult. `Route` remains a startup setting because changing the mapped URL
 requires rebuilding the endpoint table.
 
 ```jsonc
@@ -499,6 +560,7 @@ requires rebuilding the endpoint table.
     "Route": "/mcp",
     "PublicBaseUrl": "",     // required behind a reverse proxy; see below
     "AllowWrites": false,    // bootstrap only; System Settings controls the live tool list
+    "AllowOperatorCommands": false, // maintenance tier; also requires writes to apply
     "MaxRowsPerResult": 200  // bootstrap only; the UI accepts 1..10,000
   }
 }
@@ -528,8 +590,8 @@ what is asserted is conformance rather than agreement with a hand-rolled fixture
   `L + 1` replays rather than skips. An unknown table forwards the engine's own complaint.
 - Every list-shaped tool honours the MCP page ceiling, asserted for changes and snapshots together.
 
-**`McpWriteToolTests`** — the write gates, each on its own host, because `AllowWrites` decides what is
-registered at start-up and so cannot vary within one server.
+**`McpWriteToolTests`** — the write and operator gates, read from shared runtime settings on every
+discovery and call so they can vary without restarting the server.
 - `execute` is **absent** unless the operator enables it, so an upgrade does not silently acquire an
   agent that can mutate the lakehouse.
 - **No** advertised tool is annotated non-read-only while writes are disabled. Asserted over the whole
@@ -579,7 +641,8 @@ directly.
 - An instance credential cannot query. Holds by construction through `CapabilityPolicy`, which is
   covered — but not yet asserted *over MCP*.
 - Cancellation propagating from the transport through the engine.
-- Query-history attribution asserted end to end.
+- ~~Query-history attribution asserted end to end.~~ Covered for both API-token and OIDC-member MCP
+  calls, including mutual exclusion and `Origin = Mcp`.
 - Verified behaviour 7 asserted directly: a range whose *explicit* end predates the table's creation.
   The tools default the end to the newest snapshot, so the trap is only reachable by passing
   `toSnapshot` deliberately, and that path is forwarded but not yet covered.
@@ -590,19 +653,15 @@ Shipping this is not done until:
 
 - ~~This document records what landed.~~ Done, and it records the gaps too.
 - ~~`AGENT.md` carries the invariant and the repository-map entry.~~ Done (invariant 21).
-- `ARCHITECTURE.md`'s matrix moves the AI / MCP row to ✅ and the roadmap moves it out of Next.
-  Currently ⚠️: the endpoint exists, the discovery tools do not.
-- `web/lakehold-ui/src/app/docs.content.md` gains a section — it is the single source for the in-app
-  page and the GitHub guide, so there is one place to edit, not two. **Outstanding**, and best written
-  once Phase 3 makes the surface usable enough to recommend.
-- `README.md` shows the connection snippet an agent client needs. **Outstanding**, same reason;
-  [Connecting a client](#connecting-a-client) above is the source to copy from.
+- ~~`ARCHITECTURE.md`'s matrix moves the AI / MCP row to ✅ and the roadmap moves it out of Next.~~
+  Done; it now names the read and operator-gated surfaces.
+- ~~`web/lakehold-ui/src/app/docs.content.md` gains a section.~~ Done; it includes local OAuth setup
+  for Codex and Claude Code and links back here for the complete tool and token reference.
+- ~~`README.md` shows the connection snippet an agent client needs.~~ Done; the quick start carries
+  the local commands and this document remains the full reference.
 
 ## Open questions
 
-- **The specification text is still unverified.** Everything above about sessions, the handshake, and
-  the authorization rewrite comes from secondary reporting. The SDK's behaviour is now exercised by
-  tests, which is not the same as having read the spec.
 - ~~.NET 10 target support in SDK 2.0.0.~~ Confirmed: the package ships a `net10.0` target, and the
   API builds and runs against it.
 - ~~When to move off `2.0.0-rc.1`.~~ Settled 3 August 2026: 2.0.0 stable published and the

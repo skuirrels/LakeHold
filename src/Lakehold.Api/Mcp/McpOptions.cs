@@ -58,6 +58,12 @@ public sealed class McpOptions
     public bool AllowWrites { get; set; }
 
     /// <summary>
+    ///     Whether higher-risk control-plane and maintenance tools are initially served. This is a
+    ///     separate opt-in from ordinary writes and is off by default.
+    /// </summary>
+    public bool AllowOperatorCommands { get; set; }
+
+    /// <summary>
     ///     Ceiling on rows a tool returns, applied on top of
     ///     <c>LakehouseOptions.MaxRowsPerResult</c> and deliberately far below it. Zero or less
     ///     applies no MCP-specific ceiling, leaving only the engine's — the same convention

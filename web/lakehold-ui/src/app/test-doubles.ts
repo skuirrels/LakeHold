@@ -245,6 +245,7 @@ export class FakeLakehouseService {
   systemSettings: SystemSettings = {
     mcpEnabled: true,
     mcpAllowWrites: false,
+    mcpAllowOperatorCommands: false,
     mcpMaxRowsPerResult: 200,
     mcpPublicBaseUrl: '',
     mcpRoute: '/mcp',

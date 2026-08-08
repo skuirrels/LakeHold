@@ -58,6 +58,7 @@ describe('LakehouseService', () => {
       .saveSystemSettings({
         mcpEnabled: true,
         mcpAllowWrites: false,
+        mcpAllowOperatorCommands: false,
         mcpMaxRowsPerResult: 250,
         mcpPublicBaseUrl: 'https://lakehold.example.com',
         version: 4,
@@ -69,6 +70,7 @@ describe('LakehouseService', () => {
     expect(request.request.body).toEqual({
       mcpEnabled: true,
       mcpAllowWrites: false,
+      mcpAllowOperatorCommands: false,
       mcpMaxRowsPerResult: 250,
       mcpPublicBaseUrl: 'https://lakehold.example.com',
       version: 4,

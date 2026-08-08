@@ -52,6 +52,21 @@
         />
       </label>
 
+      <label class="toggle-row">
+        <span>
+          <strong>Allow operator commands</strong>
+          <small>
+            Exposes snapshot-bound maintenance tools. Write commands must also be enabled, and the
+            caller still needs tenant-owner access.
+          </small>
+        </span>
+        <input
+          type="checkbox"
+          [checked]="allowOperatorCommands()"
+          (change)="allowOperatorCommands.set($any($event.target).checked)"
+        />
+      </label>
+
       <div class="field-grid">
         <label>
           <span>Maximum rows per MCP result</span>

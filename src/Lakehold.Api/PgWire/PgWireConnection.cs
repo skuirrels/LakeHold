@@ -364,7 +364,14 @@ internal sealed class PgWireConnection(
             if (StatementVerb.ReportsAffectedRows(trimmed))
             {
                 var executed = await lakehouse
-                    .ExecuteAsync(_tenant, _catalog, trimmed, cancellationToken, _readOnly, _tokenId)
+                    .ExecuteAsync(
+                        _tenant,
+                        _catalog,
+                        trimmed,
+                        cancellationToken,
+                        _readOnly,
+                        _tokenId,
+                        audit: QueryAuditContext.FromToken(_tokenId, QueryOrigin.PgWire))
                     .ConfigureAwait(false);
 
                 if (_describePending)
@@ -408,7 +415,8 @@ internal sealed class PgWireConnection(
                 options.MaxRows,
                 cancellationToken,
                 _readOnly,
-                _tokenId).ConfigureAwait(false);
+                _tokenId,
+                QueryAuditContext.FromToken(_tokenId, QueryOrigin.PgWire)).ConfigureAwait(false);
 
             await WriteCommandCompleteAsync(trimmed, columnCount, rows, cancellationToken).ConfigureAwait(false);
             return true;

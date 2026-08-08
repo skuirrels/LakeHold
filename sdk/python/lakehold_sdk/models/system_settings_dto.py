@@ -29,12 +29,13 @@ class SystemSettingsDto(BaseModel):
     """ # noqa: E501
     mcp_enabled: StrictBool = Field(alias="mcpEnabled")
     mcp_allow_writes: StrictBool = Field(alias="mcpAllowWrites")
+    mcp_allow_operator_commands: Optional[StrictBool] = Field(default=None, alias="mcpAllowOperatorCommands")
     mcp_max_rows_per_result: StrictInt = Field(alias="mcpMaxRowsPerResult")
     mcp_public_base_url: StrictStr = Field(alias="mcpPublicBaseUrl")
     mcp_route: StrictStr = Field(alias="mcpRoute")
     version: StrictInt
     updated_utc: Optional[datetime] = Field(alias="updatedUtc")
-    __properties: ClassVar[List[str]] = ["mcpEnabled", "mcpAllowWrites", "mcpMaxRowsPerResult", "mcpPublicBaseUrl", "mcpRoute", "version", "updatedUtc"]
+    __properties: ClassVar[List[str]] = ["mcpEnabled", "mcpAllowWrites", "mcpAllowOperatorCommands", "mcpMaxRowsPerResult", "mcpPublicBaseUrl", "mcpRoute", "version", "updatedUtc"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -93,6 +94,7 @@ class SystemSettingsDto(BaseModel):
         _obj = cls.model_validate({
             "mcpEnabled": obj.get("mcpEnabled"),
             "mcpAllowWrites": obj.get("mcpAllowWrites"),
+            "mcpAllowOperatorCommands": obj.get("mcpAllowOperatorCommands"),
             "mcpMaxRowsPerResult": obj.get("mcpMaxRowsPerResult"),
             "mcpPublicBaseUrl": obj.get("mcpPublicBaseUrl"),
             "mcpRoute": obj.get("mcpRoute"),

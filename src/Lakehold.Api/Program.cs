@@ -204,6 +204,8 @@ builder.Services.AddOpenApi(options =>
         PublicApiOpenApi.PruneUnusedSchemas(document);
         PublicApiOpenApi.PreserveAdditiveAccessCompatibility(document);
         PublicApiOpenApi.PreserveAdditiveConnectorCompatibility(document);
+        PublicApiOpenApi.PreserveAdditiveSystemSettingsCompatibility(document);
+        PublicApiOpenApi.PreserveAdditiveQueryAuditCompatibility(document);
 
         return Task.CompletedTask;
     });
@@ -334,6 +336,7 @@ builder.Services.AddScoped<MemberDirectory>();
 builder.Services.Configure<LakeholdOidcOptions>(builder.Configuration.GetSection(LakeholdOidcOptions.Section));
 var oidc = builder.Configuration.GetSection(LakeholdOidcOptions.Section).Get<LakeholdOidcOptions>()
     ?? new LakeholdOidcOptions();
+oidc.ValidateForStartup();
 builder.Services.AddLakeholdAuthentication(oidc);
 
 // Scheduled flush/backup/compact. A backup that depends on someone pressing a button is not a
@@ -588,21 +591,5 @@ await TokenBootstrap.EnsureBootstrapTokenAsync(
     builder.Configuration["Lakehold:BootstrapToken"],
     app.Logger,
     TimeProvider.System).ConfigureAwait(false);
-
-// An issuer with no audience accepts every token that issuer minted, including ones issued to a
-// different application in the same realm. That is a silent widening rather than a failure, so it
-// has to be said out loud. Refusing to start would break deployments that already run this way.
-if (oidc.Enabled && oidc.Audience.Length == 0)
-{
-    // CA1848: source-generated logging exists for hot paths. This runs once at start-up, so the
-    // delegate would add ceremony for no measurable gain.
-#pragma warning disable CA1848
-    app.Logger.LogWarning(
-        "Lakehold:Oidc:Authority is set but Lakehold:Oidc:Audience is empty, so audience validation "
-        + "is disabled and any token issued by that authority is accepted — including one minted for "
-        + "another client in the same realm. Set Lakehold:Oidc:Audience to this deployment's client "
-        + "or API identifier. See docs/AUTHENTICATION.md.");
-#pragma warning restore CA1848
-}
 
 await app.RunAsync().ConfigureAwait(false);

@@ -23,6 +23,7 @@ var _ MappedNullable = &SystemSettingsDto{}
 type SystemSettingsDto struct {
 	McpEnabled bool `json:"mcpEnabled"`
 	McpAllowWrites bool `json:"mcpAllowWrites"`
+	McpAllowOperatorCommands *bool `json:"mcpAllowOperatorCommands,omitempty"`
 	McpMaxRowsPerResult int32 `json:"mcpMaxRowsPerResult"`
 	McpPublicBaseUrl string `json:"mcpPublicBaseUrl"`
 	McpRoute string `json:"mcpRoute"`
@@ -103,6 +104,38 @@ func (o *SystemSettingsDto) GetMcpAllowWritesOk() (*bool, bool) {
 // SetMcpAllowWrites sets field value
 func (o *SystemSettingsDto) SetMcpAllowWrites(v bool) {
 	o.McpAllowWrites = v
+}
+
+// GetMcpAllowOperatorCommands returns the McpAllowOperatorCommands field value if set, zero value otherwise.
+func (o *SystemSettingsDto) GetMcpAllowOperatorCommands() bool {
+	if o == nil || IsNil(o.McpAllowOperatorCommands) {
+		var ret bool
+		return ret
+	}
+	return *o.McpAllowOperatorCommands
+}
+
+// GetMcpAllowOperatorCommandsOk returns a tuple with the McpAllowOperatorCommands field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *SystemSettingsDto) GetMcpAllowOperatorCommandsOk() (*bool, bool) {
+	if o == nil || IsNil(o.McpAllowOperatorCommands) {
+		return nil, false
+	}
+	return o.McpAllowOperatorCommands, true
+}
+
+// HasMcpAllowOperatorCommands returns a boolean if a field has been set.
+func (o *SystemSettingsDto) HasMcpAllowOperatorCommands() bool {
+	if o != nil && !IsNil(o.McpAllowOperatorCommands) {
+		return true
+	}
+
+	return false
+}
+
+// SetMcpAllowOperatorCommands gets a reference to the given bool and assigns it to the McpAllowOperatorCommands field.
+func (o *SystemSettingsDto) SetMcpAllowOperatorCommands(v bool) {
+	o.McpAllowOperatorCommands = &v
 }
 
 // GetMcpMaxRowsPerResult returns the McpMaxRowsPerResult field value
@@ -239,6 +272,9 @@ func (o SystemSettingsDto) ToMap() (map[string]interface{}, error) {
 	toSerialize := map[string]interface{}{}
 	toSerialize["mcpEnabled"] = o.McpEnabled
 	toSerialize["mcpAllowWrites"] = o.McpAllowWrites
+	if !IsNil(o.McpAllowOperatorCommands) {
+		toSerialize["mcpAllowOperatorCommands"] = o.McpAllowOperatorCommands
+	}
 	toSerialize["mcpMaxRowsPerResult"] = o.McpMaxRowsPerResult
 	toSerialize["mcpPublicBaseUrl"] = o.McpPublicBaseUrl
 	toSerialize["mcpRoute"] = o.McpRoute
@@ -295,6 +331,7 @@ func (o *SystemSettingsDto) UnmarshalJSON(data []byte) (err error) {
 	if err = json.Unmarshal(data, &additionalProperties); err == nil {
 		delete(additionalProperties, "mcpEnabled")
 		delete(additionalProperties, "mcpAllowWrites")
+		delete(additionalProperties, "mcpAllowOperatorCommands")
 		delete(additionalProperties, "mcpMaxRowsPerResult")
 		delete(additionalProperties, "mcpPublicBaseUrl")
 		delete(additionalProperties, "mcpRoute")

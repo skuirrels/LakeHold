@@ -2,6 +2,7 @@ using System.Text.Json;
 using Lakehold.ControlPlane.Data;
 using Lakehold.Engine.Catalog;
 using Lakehold.Engine.Execution;
+using Lakehold.ControlPlane.Security;
 
 namespace Lakehold.Api.PublicApi;
 
@@ -11,9 +12,26 @@ internal sealed class QueryNdjsonResult(
     string tenant,
     string catalog,
     string sql,
-    int? tokenId,
+    QueryAuditContext audit,
     ILogger logger) : IResult
 {
+    internal QueryNdjsonResult(
+        LakehouseService lakehouse,
+        string tenant,
+        string catalog,
+        string sql,
+        int? tokenId,
+        ILogger logger)
+        : this(
+            lakehouse,
+            tenant,
+            catalog,
+            sql,
+            QueryAuditContext.FromToken(tokenId, Lakehold.ControlPlane.Model.QueryOrigin.Rest),
+            logger)
+    {
+    }
+
     public async Task ExecuteAsync(HttpContext httpContext)
     {
         Prepare(httpContext.Response);
@@ -46,7 +64,8 @@ internal sealed class QueryNdjsonResult(
                     maxRows: 0,
                     httpContext.RequestAborted,
                     readOnly: true,
-                    tokenId)
+                    audit.TokenId,
+                    audit)
                 .ConfigureAwait(false);
 
             await Ndjson.WriteAsync(

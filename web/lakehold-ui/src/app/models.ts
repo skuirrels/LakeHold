@@ -45,6 +45,7 @@ export interface BrowserSession {
 export interface SystemSettings {
   mcpEnabled: boolean;
   mcpAllowWrites: boolean;
+  mcpAllowOperatorCommands: boolean;
   mcpMaxRowsPerResult: number;
   mcpPublicBaseUrl: string;
   mcpRoute: string;
@@ -55,6 +56,7 @@ export interface SystemSettings {
 export interface UpdateSystemSettings {
   mcpEnabled: boolean;
   mcpAllowWrites: boolean;
+  mcpAllowOperatorCommands: boolean;
   mcpMaxRowsPerResult: number;
   mcpPublicBaseUrl: string;
   version: number;
@@ -634,6 +636,12 @@ export interface QueryRun {
   tokenId: number | null;
   /** That credential's label when it still exists; null when anonymous or since deleted. */
   tokenName: string | null;
+  /** Tenant member responsible for the run, when the actor was a person. */
+  memberId: number | null;
+  actorKind: 'Unknown' | 'ApiToken' | 'Member' | 'System';
+  /** Current best-effort display label for the actor; the audit ids remain authoritative. */
+  actorName: string | null;
+  origin: 'Unknown' | 'Workbench' | 'Rest' | 'PgWire' | 'Mcp' | 'Import' | 'Connector';
 }
 
 export type MaintenanceOperation = 'flush' | 'compact' | 'backup' | 'expire' | 'cleanup';

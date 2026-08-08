@@ -316,7 +316,9 @@ public static class LakehouseEndpoints
                     language,
                     source,
                     principal.IsReadOnly,
-                    principal.TokenId,
+                    QueryAuditContext.From(
+                        principal,
+                        http.IsLegacyApiRequest() ? QueryOrigin.Workbench : QueryOrigin.Rest),
                     recordHistory: !principal.IsDemo,
                     cancellationToken)
                 .ConfigureAwait(false);
@@ -405,7 +407,7 @@ public static class LakehouseEndpoints
                 tenantSlug,
                 catalogName,
                 source,
-                principal.TokenId,
+                QueryAuditContext.From(principal, QueryOrigin.Rest),
                 loggerFactory.CreateLogger<QueryNdjsonResult>());
         }
         catch (CatalogNotFoundException ex)
@@ -878,7 +880,10 @@ public static class LakehouseEndpoints
                     snapshotId,
                     limit,
                     cancellationToken,
-                    principal.TokenId)
+                    principal.TokenId,
+                    QueryAuditContext.From(
+                        principal,
+                        http.IsLegacyApiRequest() ? QueryOrigin.Workbench : QueryOrigin.Rest))
                 .ConfigureAwait(false);
             return TypedResults.Ok(QueryResponse.From(result));
         }
@@ -1798,7 +1803,19 @@ public static class LakehouseEndpoints
                 r.TokenId,
                 // Left join by hand: the token may have been deleted, so its name is best-effort and
                 // the audit row survives without it.
-                context.ApiTokens.Where(t => t.Id == r.TokenId).Select(t => t.Name).FirstOrDefault()))
+                context.ApiTokens.Where(t => t.Id == r.TokenId).Select(t => t.Name).FirstOrDefault(),
+                r.MemberId,
+                r.ActorKind.ToString(),
+                r.MemberId != null
+                    ? context.TenantMembers
+                        .Where(member => member.Id == r.MemberId)
+                        .Select(member => member.DisplayName)
+                        .FirstOrDefault()
+                    : context.ApiTokens
+                        .Where(token => token.Id == r.TokenId)
+                        .Select(token => token.Name)
+                        .FirstOrDefault(),
+                r.Origin.ToString()))
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 

@@ -63,7 +63,11 @@ public sealed class McpAuthenticationFilter : IEndpointFilter
             .ResolveAsync(http.User, OidcPrincipal.ContractFor(oidc), http.RequestAborted)
             .ConfigureAwait(false) is { } member)
         {
-            principal = member;
+            var expectedAudience = McpResourceMetadata.AbsoluteResourceUri(http, settings);
+            if (LakeholdAudience.Matches(http.User, expectedAudience))
+            {
+                principal = member;
+            }
         }
 
         if (principal is null)

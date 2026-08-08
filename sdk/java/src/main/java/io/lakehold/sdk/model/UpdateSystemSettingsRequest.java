@@ -21,6 +21,7 @@ import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonWriter;
 import java.io.IOException;
 import java.util.Arrays;
+import org.openapitools.jackson.nullable.JsonNullable;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -74,6 +75,11 @@ public class UpdateSystemSettingsRequest {
   @SerializedName(SERIALIZED_NAME_VERSION)
   @jakarta.annotation.Nonnull
   private Integer version;
+
+  public static final String SERIALIZED_NAME_MCP_ALLOW_OPERATOR_COMMANDS = "mcpAllowOperatorCommands";
+  @SerializedName(SERIALIZED_NAME_MCP_ALLOW_OPERATOR_COMMANDS)
+  @jakarta.annotation.Nullable
+  private Boolean mcpAllowOperatorCommands;
 
   public UpdateSystemSettingsRequest() {
   }
@@ -172,6 +178,25 @@ public class UpdateSystemSettingsRequest {
     this.version = version;
   }
 
+
+  public UpdateSystemSettingsRequest mcpAllowOperatorCommands(@jakarta.annotation.Nullable Boolean mcpAllowOperatorCommands) {
+    this.mcpAllowOperatorCommands = mcpAllowOperatorCommands;
+    return this;
+  }
+
+  /**
+   * Get mcpAllowOperatorCommands
+   * @return mcpAllowOperatorCommands
+   */
+  @jakarta.annotation.Nullable
+  public Boolean getMcpAllowOperatorCommands() {
+    return mcpAllowOperatorCommands;
+  }
+
+  public void setMcpAllowOperatorCommands(@jakarta.annotation.Nullable Boolean mcpAllowOperatorCommands) {
+    this.mcpAllowOperatorCommands = mcpAllowOperatorCommands;
+  }
+
   /**
    * A container for additional, undeclared properties.
    * This is a holder for any undeclared properties as specified with
@@ -231,13 +256,25 @@ public class UpdateSystemSettingsRequest {
         Objects.equals(this.mcpAllowWrites, updateSystemSettingsRequest.mcpAllowWrites) &&
         Objects.equals(this.mcpMaxRowsPerResult, updateSystemSettingsRequest.mcpMaxRowsPerResult) &&
         Objects.equals(this.mcpPublicBaseUrl, updateSystemSettingsRequest.mcpPublicBaseUrl) &&
-        Objects.equals(this.version, updateSystemSettingsRequest.version)&&
+        Objects.equals(this.version, updateSystemSettingsRequest.version) &&
+        Objects.equals(this.mcpAllowOperatorCommands, updateSystemSettingsRequest.mcpAllowOperatorCommands)&&
         Objects.equals(this.additionalProperties, updateSystemSettingsRequest.additionalProperties);
+  }
+
+  private static <T> boolean equalsNullable(JsonNullable<T> a, JsonNullable<T> b) {
+    return a == b || (a != null && b != null && a.isPresent() && b.isPresent() && Objects.deepEquals(a.get(), b.get()));
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(mcpEnabled, mcpAllowWrites, mcpMaxRowsPerResult, mcpPublicBaseUrl, version, additionalProperties);
+    return Objects.hash(mcpEnabled, mcpAllowWrites, mcpMaxRowsPerResult, mcpPublicBaseUrl, version, mcpAllowOperatorCommands, additionalProperties);
+  }
+
+  private static <T> int hashCodeNullable(JsonNullable<T> a) {
+    if (a == null) {
+      return 1;
+    }
+    return a.isPresent() ? Arrays.deepHashCode(new Object[]{a.get()}) : 31;
   }
 
   @Override
@@ -249,6 +286,7 @@ public class UpdateSystemSettingsRequest {
     sb.append("    mcpMaxRowsPerResult: ").append(toIndentedString(mcpMaxRowsPerResult)).append("\n");
     sb.append("    mcpPublicBaseUrl: ").append(toIndentedString(mcpPublicBaseUrl)).append("\n");
     sb.append("    version: ").append(toIndentedString(version)).append("\n");
+    sb.append("    mcpAllowOperatorCommands: ").append(toIndentedString(mcpAllowOperatorCommands)).append("\n");
     sb.append("    additionalProperties: ").append(toIndentedString(additionalProperties)).append("\n");
     sb.append("}");
     return sb.toString();
@@ -271,7 +309,7 @@ public class UpdateSystemSettingsRequest {
 
   static {
     // a set of all properties/fields (JSON key names)
-    openapiFields = new HashSet<String>(Arrays.asList("mcpEnabled", "mcpAllowWrites", "mcpMaxRowsPerResult", "mcpPublicBaseUrl", "version"));
+    openapiFields = new HashSet<String>(Arrays.asList("mcpEnabled", "mcpAllowWrites", "mcpMaxRowsPerResult", "mcpPublicBaseUrl", "version", "mcpAllowOperatorCommands"));
 
     // a set of required properties/fields (JSON key names)
     openapiRequiredFields = new HashSet<String>(Arrays.asList("mcpEnabled", "mcpAllowWrites", "mcpMaxRowsPerResult", "mcpPublicBaseUrl", "version"));

@@ -66,6 +66,7 @@ services:
       Lakehold__Oidc__MetadataAddress: ${LAKEHOLD_OIDC_METADATA_ADDRESS:-http://keycloak:${KEYCLOAK_PORT:-5401}/realms/lakehold/.well-known/openid-configuration}
       Lakehold__Oidc__Audience: ${LAKEHOLD_OIDC_AUDIENCE:-lakehold-workbench}
       Lakehold__Oidc__ClientId: ${LAKEHOLD_OIDC_CLIENT_ID:-lakehold-workbench}
+      Lakehold__Oidc__McpClientId: ${LAKEHOLD_OIDC_MCP_CLIENT_ID:-lakehold-mcp}
       Lakehold__Oidc__ClientSecret: ${LAKEHOLD_OIDC_CLIENT_SECRET:-lakehold-development-client-secret}
       Lakehold__Oidc__RequireHttpsMetadata: ${LAKEHOLD_OIDC_REQUIRE_HTTPS_METADATA:-false}
       Lakehold__Oidc__TenantClaim: ${LAKEHOLD_OIDC_TENANT_CLAIM:-tenant}

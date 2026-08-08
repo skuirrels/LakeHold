@@ -31,7 +31,8 @@ class UpdateSystemSettingsRequest(BaseModel):
     mcp_max_rows_per_result: StrictInt = Field(alias="mcpMaxRowsPerResult")
     mcp_public_base_url: Optional[StrictStr] = Field(alias="mcpPublicBaseUrl")
     version: StrictInt
-    __properties: ClassVar[List[str]] = ["mcpEnabled", "mcpAllowWrites", "mcpMaxRowsPerResult", "mcpPublicBaseUrl", "version"]
+    mcp_allow_operator_commands: Optional[StrictBool] = Field(default=None, alias="mcpAllowOperatorCommands")
+    __properties: ClassVar[List[str]] = ["mcpEnabled", "mcpAllowWrites", "mcpMaxRowsPerResult", "mcpPublicBaseUrl", "version", "mcpAllowOperatorCommands"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -76,6 +77,11 @@ class UpdateSystemSettingsRequest(BaseModel):
         if self.mcp_public_base_url is None and "mcp_public_base_url" in self.model_fields_set:
             _dict['mcpPublicBaseUrl'] = None
 
+        # set to None if mcp_allow_operator_commands (nullable) is None
+        # and model_fields_set contains the field
+        if self.mcp_allow_operator_commands is None and "mcp_allow_operator_commands" in self.model_fields_set:
+            _dict['mcpAllowOperatorCommands'] = None
+
         return _dict
 
     @classmethod
@@ -92,7 +98,8 @@ class UpdateSystemSettingsRequest(BaseModel):
             "mcpAllowWrites": obj.get("mcpAllowWrites"),
             "mcpMaxRowsPerResult": obj.get("mcpMaxRowsPerResult"),
             "mcpPublicBaseUrl": obj.get("mcpPublicBaseUrl"),
-            "version": obj.get("version")
+            "version": obj.get("version"),
+            "mcpAllowOperatorCommands": obj.get("mcpAllowOperatorCommands")
         })
         return _obj
 

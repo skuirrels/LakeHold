@@ -7,6 +7,7 @@ using Lakehold.Engine.Configuration;
 using Lakehold.Engine.Telemetry;
 using Microsoft.Extensions.Options;
 using Lakehold.Engine.Execution;
+using Lakehold.ControlPlane.Security;
 
 namespace Lakehold.ControlPlane.Data;
 
@@ -45,7 +46,8 @@ public sealed class LakehouseService(
         bool recordHistory = true,
         IReadOnlyList<NamedQueryParameter>? parameters = null,
         string language = "sql",
-        string? source = null)
+        string? source = null,
+        QueryAuditContext? audit = null)
     {
         // The span carries tenant and catalog; the metrics deliberately do not. Per-tenant time
         // series would blow a metrics backend's cardinality budget on a multi-tenant node, and a slow
@@ -57,6 +59,7 @@ public sealed class LakehouseService(
 
         var (duckling, tenantId) = await ResolveAsync(tenantSlug, catalogName, cancellationToken, readOnly).ConfigureAwait(false);
 
+        var actor = QueryAuditContext.Resolve(tokenId, audit);
         var run = new QueryRun
         {
             TenantId = tenantId,
@@ -64,7 +67,10 @@ public sealed class LakehouseService(
             Sql = source ?? sql,
             Language = language,
             StartedUtc = DateTimeOffset.UtcNow,
-            TokenId = tokenId,
+            TokenId = actor.TokenId,
+            MemberId = actor.MemberId,
+            ActorKind = actor.ActorKind,
+            Origin = actor.Origin,
         };
 
         try
@@ -125,7 +131,8 @@ public sealed class LakehouseService(
         CsvReadOptions csvOptions,
         string? worksheet,
         CancellationToken cancellationToken,
-        int? tokenId = null)
+        int? tokenId = null,
+        QueryAuditContext? audit = null)
     {
         var validatedSchema = SqlIdentifier.Quote(schema);
         var validatedTable = SqlIdentifier.Quote(table);
@@ -139,6 +146,7 @@ public sealed class LakehouseService(
             .ConfigureAwait(false);
         var auditFileName = string.Concat(
             Path.GetFileName(fileName).Select(character => char.IsControl(character) ? ' ' : character));
+        var actor = QueryAuditContext.Resolve(tokenId, audit, QueryOrigin.Import);
         var run = new QueryRun
         {
             TenantId = tenantId,
@@ -149,7 +157,10 @@ public sealed class LakehouseService(
                   + $"{SqlIdentifier.QuoteName(validatedTable)} "
                   + $"AS SELECT * FROM read_{format.ToString().ToLowerInvariant()}('<uploaded file>');",
             StartedUtc = DateTimeOffset.UtcNow,
-            TokenId = tokenId,
+            TokenId = actor.TokenId,
+            MemberId = actor.MemberId,
+            ActorKind = actor.ActorKind,
+            Origin = actor.Origin,
         };
 
         try
@@ -279,6 +290,8 @@ public sealed class LakehouseService(
                   + $"CREATE OR REPLACE TABLE {SqlIdentifier.QuoteName(validatedSchema)}."
                   + $"{SqlIdentifier.QuoteName(validatedTable)} AS SELECT * FROM '<connector snapshot>';",
             StartedUtc = DateTimeOffset.UtcNow,
+            ActorKind = QueryActorKind.System,
+            Origin = QueryOrigin.Connector,
         };
 
         try
@@ -354,6 +367,8 @@ public sealed class LakehouseService(
                   + $"INSERT INTO {SqlIdentifier.QuoteName(validatedSchema)}."
                   + $"{SqlIdentifier.QuoteName(validatedTable)} BY NAME SELECT * FROM '<connector delta>';",
             StartedUtc = DateTimeOffset.UtcNow,
+            ActorKind = QueryActorKind.System,
+            Origin = QueryOrigin.Connector,
         };
 
         try
@@ -428,7 +443,8 @@ public sealed class LakehouseService(
         int maxRows,
         CancellationToken cancellationToken,
         bool readOnly = false,
-        int? tokenId = null)
+        int? tokenId = null,
+        QueryAuditContext? audit = null)
     {
         using var activity = LakeholdTelemetry.Source.StartActivity("lakehold.query");
         activity?.SetTag(LakeholdTelemetry.TenantKey, tenantSlug);
@@ -437,13 +453,17 @@ public sealed class LakehouseService(
 
         var (duckling, tenantId) = await ResolveAsync(tenantSlug, catalogName, cancellationToken, readOnly).ConfigureAwait(false);
 
+        var actor = QueryAuditContext.Resolve(tokenId, audit);
         var run = new QueryRun
         {
             TenantId = tenantId,
             CatalogName = catalogName,
             Sql = sql,
             StartedUtc = DateTimeOffset.UtcNow,
-            TokenId = tokenId,
+            TokenId = actor.TokenId,
+            MemberId = actor.MemberId,
+            ActorKind = actor.ActorKind,
+            Origin = actor.Origin,
         };
 
         try
@@ -643,7 +663,8 @@ public sealed class LakehouseService(
         long snapshotId,
         int limit,
         CancellationToken cancellationToken,
-        int? tokenId = null)
+        int? tokenId = null,
+        QueryAuditContext? audit = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(schema);
         ArgumentException.ThrowIfNullOrWhiteSpace(table);
@@ -660,7 +681,8 @@ public sealed class LakehouseService(
                 sql,
                 cancellationToken,
                 readOnly: true,
-                tokenId)
+                tokenId,
+                audit: audit)
             .ConfigureAwait(false);
         return new QueryResult
         {
@@ -706,11 +728,27 @@ public sealed class LakehouseService(
     ///     confirms. Expiry destroys time-travel history and cleanup deletes data files; neither is
     ///     recoverable, so the safe path is the default one.
     /// </param>
+    public Task<MaintenanceResult> RunMaintenanceAsync(
+        string tenantSlug,
+        string catalogName,
+        string operation,
+        bool apply,
+        CancellationToken cancellationToken)
+        => RunMaintenanceAsync(
+            tenantSlug,
+            catalogName,
+            operation,
+            apply,
+            expectedCurrentSnapshotId: null,
+            cancellationToken);
+
+    /// <summary>Runs maintenance only if the reviewed catalog snapshot is still current.</summary>
     public async Task<MaintenanceResult> RunMaintenanceAsync(
         string tenantSlug,
         string catalogName,
         string operation,
         bool apply,
+        long? expectedCurrentSnapshotId,
         CancellationToken cancellationToken)
     {
         using var activity = LakeholdTelemetry.Source.StartActivity("lakehold.maintenance");
@@ -722,7 +760,13 @@ public sealed class LakehouseService(
 
         try
         {
-            var result = await RunMaintenanceCoreAsync(tenantSlug, catalogName, operation, apply, cancellationToken)
+            var result = await RunMaintenanceCoreAsync(
+                    tenantSlug,
+                    catalogName,
+                    operation,
+                    apply,
+                    expectedCurrentSnapshotId,
+                    cancellationToken)
                 .ConfigureAwait(false);
 
             RecordMaintenance(startedAt, operation, apply, LakeholdTelemetry.OutcomeSuccess);
@@ -749,6 +793,7 @@ public sealed class LakehouseService(
         string catalogName,
         string operation,
         bool apply,
+        long? expectedCurrentSnapshotId,
         CancellationToken cancellationToken)
     {
         var (duckling, _) = await ResolveAsync(tenantSlug, catalogName, cancellationToken).ConfigureAwait(false);
@@ -783,14 +828,32 @@ public sealed class LakehouseService(
         return operation switch
         {
             // Non-destructive: they rewrite storage layout without dropping recoverable state.
-            "flush" => await LakehouseMaintenance.FlushInlinedDataAsync(duckling, cancellationToken).ConfigureAwait(false),
-            "compact" => await LakehouseMaintenance.CompactAsync(duckling, cancellationToken).ConfigureAwait(false),
-            "backup" => await LakehouseMaintenance.BackupCatalogAsync(duckling, _options, cancellationToken).ConfigureAwait(false),
+            "flush" => await LakehouseMaintenance
+                .FlushInlinedDataAsync(duckling, expectedCurrentSnapshotId, cancellationToken)
+                .ConfigureAwait(false),
+            "compact" => await LakehouseMaintenance
+                .CompactAsync(duckling, expectedCurrentSnapshotId, cancellationToken)
+                .ConfigureAwait(false),
+            "backup" => await LakehouseMaintenance
+                .BackupCatalogAsync(duckling, _options, expectedCurrentSnapshotId, cancellationToken)
+                .ConfigureAwait(false),
 
             "expire" => await LakehouseMaintenance
-                .ExpireSnapshotsAsync(duckling, retentionCutoff, dryRun: !apply, cancellationToken).ConfigureAwait(false),
+                .ExpireSnapshotsAsync(
+                    duckling,
+                    retentionCutoff,
+                    dryRun: !apply,
+                    expectedCurrentSnapshotId,
+                    cancellationToken)
+                .ConfigureAwait(false),
             "cleanup" => await LakehouseMaintenance
-                .CleanupOldFilesAsync(duckling, retentionCutoff, dryRun: !apply, cancellationToken).ConfigureAwait(false),
+                .CleanupOldFilesAsync(
+                    duckling,
+                    retentionCutoff,
+                    dryRun: !apply,
+                    expectedCurrentSnapshotId,
+                    cancellationToken)
+                .ConfigureAwait(false),
 
             _ => throw new ArgumentException(
                 $"Unknown maintenance operation '{operation}'. Expected flush, compact, backup, expire, or cleanup.",

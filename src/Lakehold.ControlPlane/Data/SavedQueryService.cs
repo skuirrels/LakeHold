@@ -3,6 +3,7 @@ using Lakehold.Engine.Catalog;
 using Lakehold.Engine.Execution;
 using Lakehold.Querying;
 using Microsoft.EntityFrameworkCore;
+using Lakehold.ControlPlane.Security;
 
 namespace Lakehold.ControlPlane.Data;
 
@@ -243,7 +244,8 @@ public sealed class SavedQueryService(
         int id,
         int? tokenId,
         bool recordHistory,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        QueryAuditContext? audit = null)
     {
         var execution = await ExecutePlannedAsync(
             tenantSlug,
@@ -251,7 +253,8 @@ public sealed class SavedQueryService(
             id,
             tokenId,
             recordHistory,
-            cancellationToken).ConfigureAwait(false);
+            cancellationToken,
+            audit).ConfigureAwait(false);
         return execution.Result;
     }
 
@@ -262,7 +265,8 @@ public sealed class SavedQueryService(
         int id,
         int? tokenId,
         bool recordHistory,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        QueryAuditContext? audit = null)
     {
         var query = await GetAsync(tenantSlug, catalogName, id, cancellationToken).ConfigureAwait(false);
         var plan = await PlanAsync(tenantSlug, catalogName, query.Language, query.Sql, cancellationToken)
@@ -277,7 +281,8 @@ public sealed class SavedQueryService(
             recordHistory,
             QueryPlanParameterMapper.Decode(plan),
             query.Language,
-            query.Sql).ConfigureAwait(false);
+            query.Sql,
+            audit).ConfigureAwait(false);
         return new SavedQueryExecutionResult(result, plan, query.Language);
     }
 
@@ -293,7 +298,8 @@ public sealed class SavedQueryService(
         string schema,
         string viewName,
         int? tokenId,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        QueryAuditContext? audit = null)
     {
         if (!SqlIdentifier.IsValid(schema) || !SqlIdentifier.IsValid(viewName))
         {
@@ -350,7 +356,14 @@ public sealed class SavedQueryService(
             // transport before this use case is reached. Identifier and one-statement validation
             // keep the composite DDL well-formed; they do not decide write authority.
             await lakehouse
-                .ExecuteAsync(tenantSlug, catalogName, statement, cancellationToken, readOnly: false, tokenId)
+                .ExecuteAsync(
+                    tenantSlug,
+                    catalogName,
+                    statement,
+                    cancellationToken,
+                    readOnly: false,
+                    tokenId,
+                    audit: audit)
                 .ConfigureAwait(false);
             viewChanged = true;
 
@@ -410,7 +423,8 @@ public sealed class SavedQueryService(
         int id,
         int expectedRevision,
         int? tokenId,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        QueryAuditContext? audit = null)
     {
         var query = await FindAsync(tenantSlug, catalogName, id, tracking: true, cancellationToken)
             .ConfigureAwait(false)
@@ -443,7 +457,8 @@ public sealed class SavedQueryService(
                     $"DROP VIEW IF EXISTS {target}",
                     cancellationToken,
                     readOnly: false,
-                    tokenId)
+                    tokenId,
+                    audit: audit)
                 .ConfigureAwait(false);
 
             query.PublishedSchema = null;

@@ -221,7 +221,8 @@ public sealed class LakeholdTools(
                     snapshotId,
                     bounded,
                     cancellationToken,
-                    principal.TokenId)
+                    principal.TokenId,
+                    QueryAuditContext.From(principal, QueryOrigin.Mcp))
                 .ConfigureAwait(false);
             return ToMcpQueryResult(result, settings.MaxRowsPerResult);
         }
@@ -370,7 +371,14 @@ public sealed class LakeholdTools(
         {
             // readOnly: true unconditionally — see the remarks above.
             var result = await lakehouse
-                .ExecuteAsync(tenant, catalog, sql, cancellationToken, readOnly: true, principal.TokenId)
+                .ExecuteAsync(
+                    tenant,
+                    catalog,
+                    sql,
+                    cancellationToken,
+                    readOnly: true,
+                    principal.TokenId,
+                    audit: QueryAuditContext.From(principal, QueryOrigin.Mcp))
                 .ConfigureAwait(false);
 
             // Zero or less means no MCP-specific ceiling. Applying Take(0) instead would return an

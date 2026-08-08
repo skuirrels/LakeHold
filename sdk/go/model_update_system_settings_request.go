@@ -25,6 +25,7 @@ type UpdateSystemSettingsRequest struct {
 	McpMaxRowsPerResult int32 `json:"mcpMaxRowsPerResult"`
 	McpPublicBaseUrl NullableString `json:"mcpPublicBaseUrl"`
 	Version int32 `json:"version"`
+	McpAllowOperatorCommands NullableBool `json:"mcpAllowOperatorCommands,omitempty"`
 	AdditionalProperties map[string]interface{}
 }
 
@@ -174,6 +175,48 @@ func (o *UpdateSystemSettingsRequest) SetVersion(v int32) {
 	o.Version = v
 }
 
+// GetMcpAllowOperatorCommands returns the McpAllowOperatorCommands field value if set, zero value otherwise (both if not set or set to explicit null).
+func (o *UpdateSystemSettingsRequest) GetMcpAllowOperatorCommands() bool {
+	if o == nil || IsNil(o.McpAllowOperatorCommands.Get()) {
+		var ret bool
+		return ret
+	}
+	return *o.McpAllowOperatorCommands.Get()
+}
+
+// GetMcpAllowOperatorCommandsOk returns a tuple with the McpAllowOperatorCommands field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+// NOTE: If the value is an explicit nil, `nil, true` will be returned
+func (o *UpdateSystemSettingsRequest) GetMcpAllowOperatorCommandsOk() (*bool, bool) {
+	if o == nil {
+		return nil, false
+	}
+	return o.McpAllowOperatorCommands.Get(), o.McpAllowOperatorCommands.IsSet()
+}
+
+// HasMcpAllowOperatorCommands returns a boolean if a field has been set.
+func (o *UpdateSystemSettingsRequest) HasMcpAllowOperatorCommands() bool {
+	if o != nil && o.McpAllowOperatorCommands.IsSet() {
+		return true
+	}
+
+	return false
+}
+
+// SetMcpAllowOperatorCommands gets a reference to the given NullableBool and assigns it to the McpAllowOperatorCommands field.
+func (o *UpdateSystemSettingsRequest) SetMcpAllowOperatorCommands(v bool) {
+	o.McpAllowOperatorCommands.Set(&v)
+}
+// SetMcpAllowOperatorCommandsNil sets the value for McpAllowOperatorCommands to be an explicit nil
+func (o *UpdateSystemSettingsRequest) SetMcpAllowOperatorCommandsNil() {
+	o.McpAllowOperatorCommands.Set(nil)
+}
+
+// UnsetMcpAllowOperatorCommands ensures that no value is present for McpAllowOperatorCommands, not even an explicit nil
+func (o *UpdateSystemSettingsRequest) UnsetMcpAllowOperatorCommands() {
+	o.McpAllowOperatorCommands.Unset()
+}
+
 func (o UpdateSystemSettingsRequest) MarshalJSON() ([]byte, error) {
 	toSerialize,err := o.ToMap()
 	if err != nil {
@@ -189,6 +232,9 @@ func (o UpdateSystemSettingsRequest) ToMap() (map[string]interface{}, error) {
 	toSerialize["mcpMaxRowsPerResult"] = o.McpMaxRowsPerResult
 	toSerialize["mcpPublicBaseUrl"] = o.McpPublicBaseUrl.Get()
 	toSerialize["version"] = o.Version
+	if o.McpAllowOperatorCommands.IsSet() {
+		toSerialize["mcpAllowOperatorCommands"] = o.McpAllowOperatorCommands.Get()
+	}
 
 	for key, value := range o.AdditionalProperties {
 		toSerialize[key] = value
@@ -241,6 +287,7 @@ func (o *UpdateSystemSettingsRequest) UnmarshalJSON(data []byte) (err error) {
 		delete(additionalProperties, "mcpMaxRowsPerResult")
 		delete(additionalProperties, "mcpPublicBaseUrl")
 		delete(additionalProperties, "version")
+		delete(additionalProperties, "mcpAllowOperatorCommands")
 		o.AdditionalProperties = additionalProperties
 	}
 
