@@ -71,6 +71,7 @@ echo "==> running every backend test with integrations required"
 dotnet test "$repo_root/Lakehold.slnx" \
   --no-build \
   --maxcpucount:1 \
+  --filter 'FullyQualifiedName!~KafkaAvroProxyFixtureTests' \
   --logger trx \
   --results-directory "$test_results"
 
@@ -78,6 +79,9 @@ if grep -R -q 'outcome="NotExecuted"' "$test_results"; then
   echo "error: at least one backend test was skipped"
   exit 1
 fi
+
+echo "==> proving Kafka Avro through trusted proxy gateways"
+"$repo_root/scripts/test-kafka-avro-proxy.sh"
 
 echo "==> starting a fresh seeded application for browser journeys"
 docker compose -p "$compose_project" "${compose_files[@]}" \

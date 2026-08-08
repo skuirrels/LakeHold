@@ -56,12 +56,7 @@ jobs:
         run: dotnet test Lakehold.slnx --no-build
 
       - name: Verify Kafka Avro through trusted proxy gateways
-        run: |
-          set -euo pipefail
-          fixture=tests/fixtures/kafka-avro-proxy/compose.yaml
-          trap 'docker compose -f "$fixture" down -v --remove-orphans' EXIT
-          docker compose -f "$fixture" up -d --wait kafka schema-registry schema-registry-tls socks-gateway registry-proxy
-          docker compose -f "$fixture" run --rm lakehold-connector-test
+        run: ./scripts/test-kafka-avro-proxy.sh
 
   frontend:
     name: Build and unit test the website
