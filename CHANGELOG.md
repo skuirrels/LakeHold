@@ -7,6 +7,11 @@ and LakeHold follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-08-08
+
+An ingestion release. LakeHold reads Kafka, and the connector platform stops being something you can
+only reach over HTTP.
+
 ### Added
 
 - **Kafka Avro ingestion**, as a fifth built-in managed connector. It consumes a bounded window of
@@ -21,10 +26,14 @@ and LakeHold follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   tombstone advances the offset without staging a row.
 - **`.avro` object-container upload** alongside CSV and XLSX, reading the file's own embedded writer
   schema. This is a developer import path and is unrelated to Kafka wire-format ingestion.
-- **Managed connectors in the Workbench.** The connector platform was previously HTTP-only. The same
-  durable definitions are now administered from a workbench panel and from MCP, all three going
-  through one validation boundary, so an agent cannot save a definition the administrator UI would
-  refuse.
+- **Managed connectors in the Workbench, and through MCP.** The connector platform was previously
+  HTTP-only. The same durable definitions are now administered from a workbench panel and from a set
+  of MCP tools, all three going through one validation boundary, so an agent cannot save a definition
+  the administrator UI would refuse. Reading a connector is read-only; creating, editing, retiring,
+  running, retrying, pausing, and resuming a connector sit behind **Allow write commands** in System
+  Settings with `execute`, and `run_connector` is annotated destructive because for a full-snapshot
+  definition a run replaces the target table. Secret *references* are accepted on every surface;
+  secret values are not.
 - **A recovery state for a publication whose source was never acknowledged.** When LakeHold commits
   a batch to DuckLake but the source acknowledgement then fails, the run is recorded as
   `published-source-acknowledgement-pending` rather than as either a success or a failure, and the
@@ -38,39 +47,16 @@ and LakeHold follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Changed
 
 - **Writing through MCP is gated by what a tool does, not by its name.** The `AllowWrites` gate
-  matched the literal tool name `execute`, so the tools added for the connector control plane were
-  reachable on a deployment with writes turned off — including one that runs a connector, which for a
-  full-snapshot definition replaces its target table. Both the discovery filter and the call filter
-  now read each tool's own `readOnly` annotation, and the mutating tools check the setting themselves
-  as well, so a tool registered later is covered the moment it exists rather than when somebody
-  remembers to extend a list. A test asserts over the whole advertised set for the same reason.
-  `run_connector` and `retry_connector` are also annotated destructive now, because they are.
+  matched the literal tool name `execute`. It now reads each tool's own `readOnly` annotation, in
+  both the discovery filter and the call filter, so a mutating tool added later is covered the moment
+  it is registered rather than when somebody remembers to extend a list. No tool that was reachable
+  in 2.0.2 changes behaviour; this is what lets the connector tools above ship gated.
 - The workspace-administration feature is now **Users** end to end: `UsersComponent`, the
   `lh-users` selector, the `users` navigation destination, page copy, API descriptions, and operator
   documentation all use the same name instead of retaining internal **People** identifiers.
 
 ### Fixed
 
-- **The Kafka Avro adapter approved one host and could read from another.** Its destination check
-  parsed the broker list and confirmed the gateway was configured, but never resolved the shared
-  outbound egress policy the other four adapters resolve — so neither the brokers nor the Schema
-  Registry were checked against the operator's allow-list, and nothing required a connector's
-  policy-approved `endpointUrl` to be the registry it actually read. The policy now covers every
-  broker and the registry, at creation and on every read, and a definition whose endpoint and
-  registry name different hosts is refused by the HTTP validator and by the durable model.
-- **A Kafka tombstone stopped a connector permanently.** A null-valued record was staged as a literal
-  `null`, which fails an incremental connector's own key and not-null gates; the batch failed, so no
-  offset was committed, so the next run read the same record and failed the same way. Tombstones now
-  advance the offset without staging a row, proven against a real broker: the fixture topic opens
-  with a tombstone, and a one-row read has to pass it and still return the record behind it.
-- **A broker that went away could replace a run's real outcome.** Releasing the consumer happened in
-  a `finally` with nothing catching it, and closing a Kafka consumer talks to the broker — so in the
-  case that most often caused the failure, tearing down threw over the top of the failure that had
-  already been handled and recorded. Release is best-effort and logged now.
-- **The Workbench reported a connector run that needed an operator as a clean run.** The
-  publication-without-acknowledgement outcome arrives on a `202`, which the panel treated as any
-  other success and then discarded the body. It now reports the run's own status, and shows the
-  pending acknowledgement as something to act on.
 - **An unhealthy query planner disappeared instead of explaining itself.** A configured planner that
   failed discovery — a missed one-second deadline, a planner key the API and the compiler disagree
   on, a container still starting — was dropped from `/query-languages` with the only trace in the
@@ -307,7 +293,8 @@ works the way every instruction says it does.
 - Production API and web container images for Linux amd64 and arm64, Compose deployment, health
   checks, telemetry, and a reproducible end-to-end test suite.
 
-[Unreleased]: https://github.com/skuirrels/LakeHold/compare/v2.0.2...HEAD
+[Unreleased]: https://github.com/skuirrels/LakeHold/compare/v2.1.0...HEAD
+[2.1.0]: https://github.com/skuirrels/LakeHold/compare/v2.0.2...v2.1.0
 [2.0.2]: https://github.com/skuirrels/LakeHold/compare/v2.0.1...v2.0.2
 [2.0.1]: https://github.com/skuirrels/LakeHold/compare/v2.0.0...v2.0.1
 [2.0.0]: https://github.com/skuirrels/LakeHold/compare/v1.4.0...v2.0.0
