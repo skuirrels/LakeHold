@@ -199,14 +199,26 @@ test.describe('disposable operator simulation', () => {
       const tools = await mcp(ownerToken, 'tools/list', {});
       const names = tools.result.tools.map((tool: { name: string }) => tool.name).sort();
       expect(names).toEqual([
+        'create_connector',
         'describe_schema',
         'execute',
+        'get_connector',
         'get_snapshot',
         'list_changes',
+        'list_connector_dead_letters',
+        'list_connector_runs',
+        'list_connectors',
         'list_snapshots',
         'list_tenants',
+        'pause_connector',
         'query',
         'query_snapshot',
+        'resume_connector',
+        'retire_connector',
+        'retry_connector',
+        'run_connector',
+        'update_connector',
+        'validate_connector',
       ]);
 
       const query = await mcp(ownerToken, 'tools/call', {
