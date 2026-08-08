@@ -113,7 +113,7 @@
     width: min(280px, calc(100vw - 40px));
     height: auto;
     opacity: 1;
-    box-shadow: 16px 0 32px rgb(0 0 0 / 0.4);
+    box-shadow: var(--shadow-drawer);
     transition: transform 150ms ease;
   }
 

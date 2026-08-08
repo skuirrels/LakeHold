@@ -9,7 +9,7 @@
   display: grid;
   place-items: center;
   padding: 24px;
-  background: rgb(3 7 13 / 0.72);
+  background: var(--scrim-strong);
   backdrop-filter: blur(3px);
 }
 
@@ -21,7 +21,7 @@
   background: var(--surface-1);
   border: 1px solid var(--border-strong);
   border-radius: 10px;
-  box-shadow: 0 24px 72px rgb(0 0 0 / 0.55);
+  box-shadow: var(--shadow-dialog);
 }
 
 header,
@@ -210,8 +210,8 @@ form footer {
   display: grid;
   place-items: center;
   flex-shrink: 0;
-  color: #07110a;
-  background: #72d98b;
+  color: var(--on-ok-mark);
+  background: var(--ok-mark-fill);
   border-radius: 50%;
   font-weight: 800;
 }
@@ -238,9 +238,9 @@ form footer {
   gap: 3px;
   margin: 0 20px 10px;
   padding: 10px 12px;
-  color: #f1c76d;
-  background: rgb(241 199 109 / 0.08);
-  border: 1px solid rgb(241 199 109 / 0.28);
+  color: var(--warn-notice-text);
+  background: var(--warn-notice-soft);
+  border: 1px solid var(--warn-notice-line);
   border-radius: 7px;
   font-size: 12px;
 }

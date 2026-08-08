@@ -1,12 +1,13 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { BrandMarkComponent } from './brand-mark.component';
+import { ThemeToggleComponent } from './theme-toggle.component';
 
 /** Marketing surface: the value proposition, stated with its trade-offs. */
 @Component({
   selector: 'lh-landing',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [BrandMarkComponent, RouterLink],
+  imports: [BrandMarkComponent, RouterLink, ThemeToggleComponent],
   template: `
     <!--
       The header sits outside \`.landing\` so the sticky bar's surface reaches the viewport edges.
@@ -46,6 +47,7 @@ import { BrandMarkComponent } from './brand-mark.component';
             </svg>
           </a>
           <a class="btn btn-primary nav-workbench" routerLink="/workbench">Open workbench →</a>
+          <lh-theme-toggle />
         </nav>
       </div>
     </header>

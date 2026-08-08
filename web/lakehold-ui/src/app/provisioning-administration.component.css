@@ -72,9 +72,9 @@ button {
   padding: 7px 13px;
   font: inherit;
   font-size: 13px;
-  color: var(--on-accent, #1b1b1b);
-  background: var(--accent);
-  border: 1px solid var(--accent);
+  color: var(--on-accent);
+  background: var(--accent-fill);
+  border: 1px solid var(--accent-fill);
   border-radius: var(--radius-sm, 6px);
   cursor: pointer;
 }

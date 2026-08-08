@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { BrandMarkComponent } from './brand-mark.component';
+import { ThemeToggleComponent } from './theme-toggle.component';
 import { MarkdownPage } from './markdown-page';
 import content from '../../../../docs/LINQ_WORKBENCH.md';
 
@@ -8,7 +9,7 @@ import content from '../../../../docs/LINQ_WORKBENCH.md';
 @Component({
   selector: 'lh-linq-workbench-docs',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [BrandMarkComponent, RouterLink],
+  imports: [BrandMarkComponent, RouterLink, ThemeToggleComponent],
   templateUrl: './linq-workbench-docs.component.html',
   styleUrls: ['./markdown-page.css', './site-header.css', './docs.component.css'],
 })

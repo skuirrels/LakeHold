@@ -105,5 +105,5 @@
 }
 
 .nav-links a.btn-primary {
-  color: #241c05;
+  color: var(--on-accent);
 }

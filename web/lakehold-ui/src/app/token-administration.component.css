@@ -114,9 +114,9 @@ button {
 
 .create,
 .copy {
-  border-color: var(--accent);
-  background: var(--accent);
-  color: var(--bg);
+  border-color: var(--accent-fill);
+  background: var(--accent-fill);
+  color: var(--on-accent);
 }
 
 button:disabled {

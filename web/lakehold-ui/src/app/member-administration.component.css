@@ -149,9 +149,9 @@ select {
 }
 
 .btn-primary {
-  color: var(--on-accent, #1b1b1b);
-  background: var(--accent);
-  border-color: var(--accent);
+  color: var(--on-accent);
+  background: var(--accent-fill);
+  border-color: var(--accent-fill);
 }
 
 /* Only once armed. A destructive control that looks destructive before it is armed trains people

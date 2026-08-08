@@ -138,7 +138,7 @@
     border-radius: var(--radius-sm);
     padding: 4px;
     margin-top: 4px;
-    box-shadow: 0 12px 28px rgb(0 0 0 / 0.5);
+    box-shadow: var(--shadow-picker);
     /* The picker is a popover, so it is display:none when closed; the discrete transition is what
        lets the fade run on open instead of being skipped. */
     opacity: 0;
@@ -233,7 +233,7 @@
 }
 
 .btn-active {
-  border-color: var(--accent, #ffc857);
+  border-color: var(--accent);
   color: var(--text);
 }
 
@@ -250,7 +250,7 @@
   background: var(--surface-1);
   border: 1px solid var(--border);
   border-radius: 8px;
-  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35);
+  box-shadow: var(--shadow-popover);
 }
 
 .credential-popover .field {
@@ -580,9 +580,9 @@
 }
 
 .error-banner {
-  background: rgba(240, 97, 109, 0.1);
-  border: 1px solid rgba(240, 97, 109, 0.4);
-  color: #ffb3b9;
+  background: var(--error-soft);
+  border: 1px solid var(--error-line);
+  color: var(--error-text);
 }
 
 .error-banner strong {
@@ -602,9 +602,9 @@
 /* A dry-run result is neither success nor failure — it is a decision point, so it reads as a
    warning rather than a confirmation. */
 .dry-banner {
-  background: rgba(240, 167, 66, 0.1);
-  border: 1px solid rgba(240, 167, 66, 0.45);
-  color: #ffd9a3;
+  background: var(--warn-soft);
+  border: 1px solid var(--warn-line);
+  color: var(--warn-text);
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -628,18 +628,18 @@
 .btn-danger {
   background: var(--error);
   border-color: var(--error);
-  color: #2b0508;
+  color: var(--on-error);
   font-weight: 600;
 }
 
 .btn-danger:hover:not(:disabled) {
-  background: #ff7f89;
-  border-color: #ff7f89;
+  background: var(--error-hover);
+  border-color: var(--error-hover);
 }
 
 .ok-banner {
-  background: rgba(78, 201, 165, 0.1);
-  border: 1px solid rgba(78, 201, 165, 0.4);
+  background: var(--ok-soft);
+  border: 1px solid var(--ok-line);
   color: var(--ok);
   font-family: var(--mono);
   font-size: 12px;
@@ -720,7 +720,7 @@
     z-index: 32;
     height: auto;
     opacity: 1;
-    box-shadow: 16px 0 32px rgb(0 0 0 / 0.4);
+    box-shadow: var(--shadow-drawer);
     transition: transform 150ms ease;
   }
 
@@ -747,7 +747,7 @@
     inset: 56px 0 0;
     z-index: 31;
     display: block;
-    background: rgb(0 0 0 / 0.55);
+    background: var(--scrim);
     opacity: 0;
     pointer-events: none;
     transition: opacity 150ms ease;

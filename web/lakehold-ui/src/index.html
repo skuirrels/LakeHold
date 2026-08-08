@@ -23,6 +23,28 @@
   <meta name="theme-color" content="#ffc857">
 
   <!--
+    The palette, applied before the first paint.
+    Every page here is prerendered dark, because the server has no way to know what this visitor
+    chose. `ThemeService` would put that right, but only once the bundle has parsed and booted —
+    long enough for a visitor on the light theme to be shown a full dark page first. Reading the one
+    key it owns synchronously in the head closes that window; the service remains the only writer.
+    Absent, wrong, or unreadable storage all leave the document on the dark default already in
+    `styles.css`, so this can only ever move a page towards what was asked for.
+  -->
+  <script>
+    (function () {
+      try {
+        var stored = localStorage.getItem('lakehold.theme');
+        if (stored === 'light' || stored === 'dark') {
+          document.documentElement.setAttribute('data-theme', stored);
+        }
+      } catch (error) {
+        /* Storage denied (Safari private browsing throws on access): the default is correct. */
+      }
+    })();
+  </script>
+
+  <!--
     Per-route description, canonical, Open Graph, and JSON-LD tags are written by `SeoService` and
     baked into each prerendered page. What stays here is only what is true of every page.
 

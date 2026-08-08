@@ -506,6 +506,41 @@ literals rather than the bare-identifier allow-list. Names containing dots, rese
 or quotes therefore target the object selected in the catalog across Browse, Changes, Compare, and
 Restore.
 
+## Light and dark
+
+**Landed.** Both surfaces — the public website and the Workbench — carry a light palette alongside the
+dark one, switched by an icon at the right-hand end of every header (`lh-theme-toggle`).
+
+The rule that makes this maintainable is that **there is exactly one place a colour may be defined**:
+the token blocks at the top of `src/styles.css`. `:root` is dark and is what a document with no
+`data-theme` attribute gets, so a page that never runs JavaScript renders precisely what it always
+did; `:root[data-theme='light']` re-points the same names and adds no rules of its own. A literal
+hex or `rgba()` written into a component sheet is invisible to that block and will stay dark on
+white, which is why the tints are now derived from per-role channel triples (`--accent-rgb`,
+`--error-rgb`, `--warn-rgb`, `--ok-rgb`) rather than repeated at four alphas per file.
+
+Two distinctions the light palette forced into the open, and neither is cosmetic:
+
+- **Accent as a fill is not accent as text.** On a dark surface the brand amber works as both, so
+  they were the same token. On white, 13px amber type fails contrast while an amber *button* is the
+  thing that keeps the product recognisable. `--accent` is therefore the text role and darkens in
+  light; `--accent-fill` is the button role and does not move. A new filled control must use
+  `--accent-fill` with `--on-accent`, never `--accent` with `--surface-0`.
+- **Scrims, insets, and shadows are palette, not decoration.** Black at 40–72% is what lifts a dialog
+  off a dark page and what reads as grime on a light one. They are tokens (`--scrim`, `--scrim-strong`,
+  `--inset-surface`, `--shadow-*`) for the same reason the colours are.
+
+The palette is remembered in `localStorage` under `lakehold.theme` and applied by `ThemeService`,
+which is the only writer. Because every page is prerendered dark — the server cannot know what this
+visitor chose — a short script in `index.html` reads that one key synchronously in the head so a
+light-theme visitor is not shown a dark page first. Absent, unreadable, or unrecognised storage all
+leave the document on the dark default.
+
+**The default is dark, deliberately, and not the operating system's preference.** Dark is what the
+product shipped with and what its screenshots and documentation describe; following the OS would
+silently repaint every existing install for anyone whose machine is light. Light is opt-in, and the
+choice persists. Changing that is one constant in `theme.service.ts`.
+
 ## Test plan
 
 Two suites: `tests/Lakehold.Engine.Tests/` for the engine, following `CatalogBackup`'s precedent, and
