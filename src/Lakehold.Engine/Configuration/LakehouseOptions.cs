@@ -83,7 +83,7 @@ public sealed class LakehouseOptions
     /// <summary>
     ///     DuckDB extensions loaded into every compute session, in order.
     /// </summary>
-    public IList<string> Extensions { get; } = ["ducklake", "httpfs", "json", "parquet", "excel"];
+    public IList<string> Extensions { get; } = ["ducklake", "httpfs", "json", "parquet", "excel", "avro"];
 
     /// <summary>
     ///     Memory ceiling applied per compute session. Bounds a single tenant's blast radius

@@ -62,6 +62,43 @@ public sealed class AuthenticationConformanceTests
     }
 
     [Fact]
+    public void AdditiveConnectorModelsSupportDirectDeserialization()
+    {
+        var authentication = JsonSerializer.Deserialize<DataConnectorAuthenticationDto>(
+            """
+            {
+              "kind":"none",
+              "secretReference":null,
+              "usernameSecretReference":null,
+              "passwordSecretReference":null,
+              "clientIdSecretReference":null,
+              "clientSecretReference":null,
+              "refreshTokenSecretReference":null,
+              "clientCertificateSecretReference":null,
+              "certificatePasswordSecretReference":null,
+              "customHeaderName":null
+            }
+            """,
+            SerializerOptions);
+        var settings = JsonSerializer.Deserialize<DataConnectorSourceSettingsDto>(
+            """
+            {
+              "sourceTable":null,
+              "cursorColumn":null,
+              "cursorType":null,
+              "pageSize":100,
+              "properties":[],
+              "cursorIsCommitMonotonic":false
+            }
+            """,
+            SerializerOptions);
+
+        Assert.Equal("none", authentication?.Kind);
+        Assert.Equal(100, settings?.PageSize);
+        Assert.Null(settings?.KafkaBootstrapServers);
+    }
+
+    [Fact]
     public async Task OrDefaultOperationsDoNotTurnCallerCancellationIntoNull()
     {
         using var cancellation = new CancellationTokenSource();

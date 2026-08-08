@@ -235,7 +235,7 @@ export class LandingComponent {
       body: 'PostgreSQL control and metadata, DuckDB compute, open Parquet, tenant identity, audit, time travel, maintenance, backup, and verified eject.',
     },
     {
-      status: 'Shipped in v1.3.0',
+      status: 'Current connector platform',
       title: 'Managed ingestion foundation',
       body: 'Bounded REST and gRPC full snapshots with schedules, quality contracts, target ownership, fenced publication, telemetry, and retained run evidence.',
     },
@@ -284,9 +284,9 @@ export class LandingComponent {
     {
       tag: 'Ingestion',
       title: 'Managed full-snapshot and incremental connectors',
-      body: 'REST/gRPC snapshots and PostgreSQL/HubSpot incremental adapters share durable schedules, checkpoints, retry/dead-letter lifecycle, mappings, schema policy, external secret references, quality gates, bounded scratch space, safe egress, target ownership, and atomic DuckLake publication.',
+      body: 'REST/gRPC snapshots plus PostgreSQL, HubSpot, and Kafka Avro adapters share durable schedules, checkpoints, retry/dead-letter lifecycle, mappings, schema policy, external secret references, quality gates, bounded scratch space, safe egress, target ownership, and atomic DuckLake publication.',
       caveat:
-        'Shipped in v1.3.0. Four built-in adapters are not a broad production-certified connector ecosystem, and post-release deployment evidence remains separate from source verification.',
+        'Five built-in adapters are not a broad production-certified connector ecosystem. Kafka Avro uses a Confluent-compatible Registry and deployment-owned egress gateways; it is at-least-once, not generic CDC or exactly-once.',
     },
     {
       tag: 'Security',
@@ -364,7 +364,7 @@ export class LandingComponent {
       title: 'A broad production-certified connector catalogue',
       body: 'The versioned source SDK, resumable reads, retry/dead-letter lifecycle, mappings, schema policy, external secrets, PostgreSQL, and HubSpot Contacts are implemented. The next connector milestone is a separately distributed and production-certified catalogue driven by demand.',
       caveat:
-        'The current SDK lives in the API assembly and the built-in catalogue contains four adapters; no partner ecosystem or broad SaaS coverage is claimed.',
+        'The current SDK lives in the API assembly and the built-in catalogue contains five adapters; no partner ecosystem or broad SaaS coverage is claimed.',
     },
     {
       tag: 'Interop',

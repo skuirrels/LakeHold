@@ -97,10 +97,10 @@
       } @else {
         <form (submit)="$event.preventDefault(); submit()">
           <label class="file-field">
-            <span>CSV or XLSX file</span>
+            <span>CSV, XLSX, or Avro file</span>
             <input
               type="file"
-              accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+              accept=".csv,.xlsx,.avro,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/avro,application/vnd.apache.avro"
               required
               (change)="chooseFile($event)"
             />
@@ -264,6 +264,13 @@
                 <small>Leave empty to import the first worksheet.</small>
               </label>
             </div>
+          }
+
+          @if (fileFormat() === 'avro') {
+            <p class="import-note">
+              LakeHold reads standard Avro object-container files with an embedded writer schema.
+              Kafka and schema-registry event streams are configured separately as managed connectors.
+            </p>
           }
 
           @if (error(); as message) {

@@ -99,6 +99,8 @@ internal static class ConnectorSecretAccessPolicy
                 authentication.RefreshTokenSecretReference,
                 authentication.ClientCertificateSecretReference,
                 authentication.CertificatePasswordSecretReference,
+                authentication.SchemaRegistryUsernameSecretReference,
+                authentication.SchemaRegistryPasswordSecretReference,
             }
             .Where(reference => reference is not null)
             .Select(reference => reference!);

@@ -1,0 +1,136 @@
+# Disposable integration fixture; credentials are test-only and never deployment credentials.
+services:
+  kafka:
+    image: confluentinc/cp-kafka:7.7.1
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:29093
+      KAFKA_LISTENERS: INTERNAL://:9092,EXTERNAL://:19092,CONTROLLER://:29093
+      # A fixed private fixture address ensures Kafka's advertised listener is followed through
+      # SOCKS rather than silently falling back to a direct host connection.
+      # The deployment-owned TCP gateway has this listener locally; its tunnel reaches this
+      # private broker through SOCKS. This also makes advertised-listener traversal observable.
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:9092,EXTERNAL://127.0.0.1:19092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+    healthcheck:
+      test: ["CMD", "kafka-topics", "--bootstrap-server", "kafka:9092", "--list"]
+      interval: 3s
+      timeout: 5s
+      retries: 30
+    networks:
+      kafka-avro-net:
+        ipv4_address: 172.31.240.10
+  schema-registry:
+    image: confluentinc/cp-schema-registry:7.7.1
+    depends_on: { kafka: { condition: service_healthy } }
+    environment:
+      SCHEMA_REGISTRY_HOST_NAME: schema-registry
+      SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8081
+      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: PLAINTEXT://kafka:9092
+      # Confluent's documented Jetty JAAS/property-file BASIC authentication configuration.
+      SCHEMA_REGISTRY_AUTHENTICATION_METHOD: BASIC
+      SCHEMA_REGISTRY_AUTHENTICATION_REALM: SchemaRegistry-Props
+      SCHEMA_REGISTRY_AUTHENTICATION_ROLES: SR-USER
+      SCHEMA_REGISTRY_OPTS: -Djava.security.auth.login.config=/etc/schema-registry/schema-registry.jaas.conf
+    volumes:
+      - ./schema-registry.jaas.conf:/etc/schema-registry/schema-registry.jaas.conf:ro
+      - ./schema-registry-users.properties:/etc/schema-registry/schema-registry-users.properties:ro
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS -u lakehold-fixture:lakehold-fixture-password http://localhost:8081/subjects >/dev/null"]
+      interval: 3s
+      timeout: 5s
+      retries: 30
+    networks:
+      kafka-avro-net:
+        ipv4_address: 172.31.240.11
+  schema-registry-tls:
+    image: alpine:3.20.6
+    depends_on: { schema-registry: { condition: service_started } }
+    ports: ["127.0.0.1::8443"]
+    volumes:
+      - ./certs:/certs
+    command: >-
+      sh -ec 'apk add --no-cache nginx openssl >/dev/null;
+      rm -f /certs/ca.key /certs/ca.pem /certs/ca.srl /certs/registry.key /certs/registry.csr /certs/registry.pem /certs/registry.ext;
+      openssl req -x509 -newkey rsa:2048 -nodes -keyout /certs/ca.key -out /certs/ca.pem -days 2 -subj "/CN=LakeHold fixture CA";
+      openssl req -newkey rsa:2048 -nodes -keyout /certs/registry.key -out /certs/registry.csr -subj "/CN=172.31.240.12";
+      printf "subjectAltName=IP:172.31.240.12\\nextendedKeyUsage=serverAuth\\n" >/certs/registry.ext;
+      openssl x509 -req -in /certs/registry.csr -CA /certs/ca.pem -CAkey /certs/ca.key -CAcreateserial -out /certs/registry.pem -days 2 -extfile /certs/registry.ext;
+      printf "events {} http { server { listen 8443 ssl; ssl_certificate /certs/registry.pem; ssl_certificate_key /certs/registry.key; location / { proxy_pass http://schema-registry:8081; } } }" >/etc/nginx/nginx.conf;
+      nginx -g "daemon off;"'
+    networks:
+      kafka-avro-net:
+        ipv4_address: 172.31.240.12
+  socks-gateway:
+    image: alpine:3.20.6
+    command: >-
+      sh -ec 'apk add --no-cache dante-server >/dev/null;
+      printf "logoutput: stderr\\ninternal: 0.0.0.0 port = 1080\\nexternal: eth0\\nmethod: none\\nclient pass { from: 0.0.0.0/0 to: 0.0.0.0/0 }\\nsocks pass { from: 0.0.0.0/0 to: 0.0.0.0/0 }\\n" >/etc/sockd.conf;
+      sockd -f /etc/sockd.conf'
+    ports: ["127.0.0.1::1080"]
+    networks:
+      kafka-avro-net:
+        ipv4_address: 172.31.240.13
+  registry-proxy:
+    image: alpine:3.20.6
+    command: >-
+      sh -ec 'apk add --no-cache tinyproxy >/dev/null;
+      printf "Port 8888\\nLogLevel Connect\\nAllow 0.0.0.0/0\\n" >/etc/tinyproxy/tinyproxy.conf;
+      tinyproxy -d'
+    ports: ["127.0.0.1::8888"]
+    networks:
+      kafka-avro-net:
+        ipv4_address: 172.31.240.14
+  # Publishes the topic's first record as a tombstone — a null value, which is what a keyed topic
+  # writes for a delete. It must land at offset 0, before the Avro record, or a bounded read would
+  # stop on its row budget without ever reaching it. Plain console producer, not the Avro one: a
+  # tombstone carries no payload to serialise, which is precisely the case under test.
+  tombstone-producer:
+    image: confluentinc/cp-kafka:7.7.1
+    depends_on: { kafka: { condition: service_healthy } }
+    entrypoint: []
+    command: ["/bin/sh", "-ec", "echo 'Publishing fixture tombstone'; echo 'lifecycle-1:NULL' | kafka-console-producer --bootstrap-server kafka:9092 --topic lakehold-avro-proxy-test --property parse.key=true --property key.separator=: --property null.marker=NULL; echo 'Fixture tombstone published'"]
+    restart: "no"
+    networks:
+      kafka-avro-net:
+        ipv4_address: 172.31.240.17
+  avro-producer:
+    image: confluentinc/cp-schema-registry:7.7.1
+    depends_on:
+      schema-registry: { condition: service_started }
+      tombstone-producer: { condition: service_completed_successfully }
+    entrypoint: []
+    command: ["/bin/sh", "-ec", "echo 'Publishing fixture Avro lifecycle record'; echo '{\"id\":1,\"state\":\"accepted\"}' | kafka-avro-console-producer --bootstrap-server kafka:9092 --topic lakehold-avro-proxy-test --property value.schema='{\"type\":\"record\",\"name\":\"Lifecycle\",\"fields\":[{\"name\":\"id\",\"type\":\"long\"},{\"name\":\"state\",\"type\":\"string\"}]}' --property schema.registry.url=http://schema-registry:8081 --property basic.auth.credentials.source=USER_INFO --property basic.auth.user.info=lakehold-fixture:lakehold-fixture-password; echo 'Fixture Avro lifecycle record published'"]
+    restart: "no"
+    networks:
+      kafka-avro-net:
+        ipv4_address: 172.31.240.15
+  lakehold-connector-test:
+    image: mcr.microsoft.com/dotnet/sdk:10.0
+    depends_on:
+      avro-producer:
+        condition: service_completed_successfully
+    environment:
+      LAKEHOLD_KAFKA_FIXTURE_RUNNING: "1"
+      NODE_OPTIONS: --no-experimental-webstorage
+    volumes:
+      - ../../..:/src
+      - ./certs:/fixture-certs:ro
+    working_dir: /src
+    command: >-
+      sh -ec 'cp /fixture-certs/ca.pem /usr/local/share/ca-certificates/lakehold-fixture-ca.crt && update-ca-certificates && dotnet test tests/Lakehold.Api.Tests/Lakehold.Api.Tests.csproj --filter FullyQualifiedName~KafkaAvroProxyFixtureTests --logger "console;verbosity=detailed"'
+    restart: "no"
+    networks:
+      kafka-avro-net:
+        ipv4_address: 172.31.240.16
+
+networks:
+  kafka-avro-net:
+    ipam:
+      config:
+        - subnet: 172.31.240.0/24

@@ -50,6 +50,8 @@ type DataConnectorDto struct {
 	NextRunUtc NullableTime `json:"nextRunUtc"`
 	LastCompletedUtc NullableTime `json:"lastCompletedUtc"`
 	LastError NullableString `json:"lastError"`
+	SourceAcknowledgementPendingUtc NullableTime `json:"sourceAcknowledgementPendingUtc,omitempty"`
+	SourceAcknowledgementError NullableString `json:"sourceAcknowledgementError,omitempty"`
 	ConsecutiveFailures int32 `json:"consecutiveFailures"`
 	MaxAttempts int32 `json:"maxAttempts"`
 	RetryBaseSeconds int32 `json:"retryBaseSeconds"`
@@ -831,6 +833,90 @@ func (o *DataConnectorDto) SetLastError(v string) {
 	o.LastError.Set(&v)
 }
 
+// GetSourceAcknowledgementPendingUtc returns the SourceAcknowledgementPendingUtc field value if set, zero value otherwise (both if not set or set to explicit null).
+func (o *DataConnectorDto) GetSourceAcknowledgementPendingUtc() time.Time {
+	if o == nil || IsNil(o.SourceAcknowledgementPendingUtc.Get()) {
+		var ret time.Time
+		return ret
+	}
+	return *o.SourceAcknowledgementPendingUtc.Get()
+}
+
+// GetSourceAcknowledgementPendingUtcOk returns a tuple with the SourceAcknowledgementPendingUtc field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+// NOTE: If the value is an explicit nil, `nil, true` will be returned
+func (o *DataConnectorDto) GetSourceAcknowledgementPendingUtcOk() (*time.Time, bool) {
+	if o == nil {
+		return nil, false
+	}
+	return o.SourceAcknowledgementPendingUtc.Get(), o.SourceAcknowledgementPendingUtc.IsSet()
+}
+
+// HasSourceAcknowledgementPendingUtc returns a boolean if a field has been set.
+func (o *DataConnectorDto) HasSourceAcknowledgementPendingUtc() bool {
+	if o != nil && o.SourceAcknowledgementPendingUtc.IsSet() {
+		return true
+	}
+
+	return false
+}
+
+// SetSourceAcknowledgementPendingUtc gets a reference to the given NullableTime and assigns it to the SourceAcknowledgementPendingUtc field.
+func (o *DataConnectorDto) SetSourceAcknowledgementPendingUtc(v time.Time) {
+	o.SourceAcknowledgementPendingUtc.Set(&v)
+}
+// SetSourceAcknowledgementPendingUtcNil sets the value for SourceAcknowledgementPendingUtc to be an explicit nil
+func (o *DataConnectorDto) SetSourceAcknowledgementPendingUtcNil() {
+	o.SourceAcknowledgementPendingUtc.Set(nil)
+}
+
+// UnsetSourceAcknowledgementPendingUtc ensures that no value is present for SourceAcknowledgementPendingUtc, not even an explicit nil
+func (o *DataConnectorDto) UnsetSourceAcknowledgementPendingUtc() {
+	o.SourceAcknowledgementPendingUtc.Unset()
+}
+
+// GetSourceAcknowledgementError returns the SourceAcknowledgementError field value if set, zero value otherwise (both if not set or set to explicit null).
+func (o *DataConnectorDto) GetSourceAcknowledgementError() string {
+	if o == nil || IsNil(o.SourceAcknowledgementError.Get()) {
+		var ret string
+		return ret
+	}
+	return *o.SourceAcknowledgementError.Get()
+}
+
+// GetSourceAcknowledgementErrorOk returns a tuple with the SourceAcknowledgementError field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+// NOTE: If the value is an explicit nil, `nil, true` will be returned
+func (o *DataConnectorDto) GetSourceAcknowledgementErrorOk() (*string, bool) {
+	if o == nil {
+		return nil, false
+	}
+	return o.SourceAcknowledgementError.Get(), o.SourceAcknowledgementError.IsSet()
+}
+
+// HasSourceAcknowledgementError returns a boolean if a field has been set.
+func (o *DataConnectorDto) HasSourceAcknowledgementError() bool {
+	if o != nil && o.SourceAcknowledgementError.IsSet() {
+		return true
+	}
+
+	return false
+}
+
+// SetSourceAcknowledgementError gets a reference to the given NullableString and assigns it to the SourceAcknowledgementError field.
+func (o *DataConnectorDto) SetSourceAcknowledgementError(v string) {
+	o.SourceAcknowledgementError.Set(&v)
+}
+// SetSourceAcknowledgementErrorNil sets the value for SourceAcknowledgementError to be an explicit nil
+func (o *DataConnectorDto) SetSourceAcknowledgementErrorNil() {
+	o.SourceAcknowledgementError.Set(nil)
+}
+
+// UnsetSourceAcknowledgementError ensures that no value is present for SourceAcknowledgementError, not even an explicit nil
+func (o *DataConnectorDto) UnsetSourceAcknowledgementError() {
+	o.SourceAcknowledgementError.Unset()
+}
+
 // GetConsecutiveFailures returns the ConsecutiveFailures field value
 func (o *DataConnectorDto) GetConsecutiveFailures() int32 {
 	if o == nil {
@@ -1114,6 +1200,12 @@ func (o DataConnectorDto) ToMap() (map[string]interface{}, error) {
 	toSerialize["nextRunUtc"] = o.NextRunUtc.Get()
 	toSerialize["lastCompletedUtc"] = o.LastCompletedUtc.Get()
 	toSerialize["lastError"] = o.LastError.Get()
+	if o.SourceAcknowledgementPendingUtc.IsSet() {
+		toSerialize["sourceAcknowledgementPendingUtc"] = o.SourceAcknowledgementPendingUtc.Get()
+	}
+	if o.SourceAcknowledgementError.IsSet() {
+		toSerialize["sourceAcknowledgementError"] = o.SourceAcknowledgementError.Get()
+	}
 	toSerialize["consecutiveFailures"] = o.ConsecutiveFailures
 	toSerialize["maxAttempts"] = o.MaxAttempts
 	toSerialize["retryBaseSeconds"] = o.RetryBaseSeconds
@@ -1234,6 +1326,8 @@ func (o *DataConnectorDto) UnmarshalJSON(data []byte) (err error) {
 		delete(additionalProperties, "nextRunUtc")
 		delete(additionalProperties, "lastCompletedUtc")
 		delete(additionalProperties, "lastError")
+		delete(additionalProperties, "sourceAcknowledgementPendingUtc")
+		delete(additionalProperties, "sourceAcknowledgementError")
 		delete(additionalProperties, "consecutiveFailures")
 		delete(additionalProperties, "maxAttempts")
 		delete(additionalProperties, "retryBaseSeconds")

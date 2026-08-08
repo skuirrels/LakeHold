@@ -830,7 +830,7 @@ public class LakehouseApi {
     public APIdeleteApiV1TenantsTenantSlugCatalogsCatalogNameCdcConsumersIdIntRequest deleteApiV1TenantsTenantSlugCatalogsCatalogNameCdcConsumersIdInt(@jakarta.annotation.Nonnull String tenantSlug, @jakarta.annotation.Nonnull String catalogName, @jakarta.annotation.Nonnull Integer id) {
         return new APIdeleteApiV1TenantsTenantSlugCatalogsCatalogNameCdcConsumersIdIntRequest(tenantSlug, catalogName, id);
     }
-    private okhttp3.Call deleteApiV1TenantsTenantSlugCatalogsCatalogNameConnectorsIdIntCall(@jakarta.annotation.Nonnull String tenantSlug, @jakarta.annotation.Nonnull String catalogName, @jakarta.annotation.Nonnull Integer id, final ApiCallback _callback) throws ApiException {
+    private okhttp3.Call deleteApiV1TenantsTenantSlugCatalogsCatalogNameConnectorsIdIntCall(@jakarta.annotation.Nonnull String tenantSlug, @jakarta.annotation.Nonnull String catalogName, @jakarta.annotation.Nonnull Integer id, @jakarta.annotation.Nullable Integer version, final ApiCallback _callback) throws ApiException {
         String basePath = null;
         // Operation Servers
         String[] localBasePaths = new String[] {  };
@@ -858,6 +858,10 @@ public class LakehouseApi {
         Map<String, String> localVarCookieParams = new HashMap<String, String>();
         Map<String, Object> localVarFormParams = new HashMap<String, Object>();
 
+        if (version != null) {
+            localVarQueryParams.addAll(localVarApiClient.parameterToPair("version", version));
+        }
+
         final String[] localVarAccepts = {
             "application/problem+json"
         };
@@ -878,7 +882,7 @@ public class LakehouseApi {
     }
 
     @SuppressWarnings("rawtypes")
-    private okhttp3.Call deleteApiV1TenantsTenantSlugCatalogsCatalogNameConnectorsIdIntValidateBeforeCall(@jakarta.annotation.Nonnull String tenantSlug, @jakarta.annotation.Nonnull String catalogName, @jakarta.annotation.Nonnull Integer id, final ApiCallback _callback) throws ApiException {
+    private okhttp3.Call deleteApiV1TenantsTenantSlugCatalogsCatalogNameConnectorsIdIntValidateBeforeCall(@jakarta.annotation.Nonnull String tenantSlug, @jakarta.annotation.Nonnull String catalogName, @jakarta.annotation.Nonnull Integer id, @jakarta.annotation.Nullable Integer version, final ApiCallback _callback) throws ApiException {
         // verify the required parameter 'tenantSlug' is set
         if (tenantSlug == null) {
             throw new ApiException("Missing the required parameter 'tenantSlug' when calling deleteApiV1TenantsTenantSlugCatalogsCatalogNameConnectorsIdInt(Async)");
@@ -894,19 +898,19 @@ public class LakehouseApi {
             throw new ApiException("Missing the required parameter 'id' when calling deleteApiV1TenantsTenantSlugCatalogsCatalogNameConnectorsIdInt(Async)");
         }
 
-        return deleteApiV1TenantsTenantSlugCatalogsCatalogNameConnectorsIdIntCall(tenantSlug, catalogName, id, _callback);
+        return deleteApiV1TenantsTenantSlugCatalogsCatalogNameConnectorsIdIntCall(tenantSlug, catalogName, id, version, _callback);
 
     }
 
 
-    private ApiResponse<Void> deleteApiV1TenantsTenantSlugCatalogsCatalogNameConnectorsIdIntWithHttpInfo(@jakarta.annotation.Nonnull String tenantSlug, @jakarta.annotation.Nonnull String catalogName, @jakarta.annotation.Nonnull Integer id) throws ApiException {
-        okhttp3.Call localVarCall = deleteApiV1TenantsTenantSlugCatalogsCatalogNameConnectorsIdIntValidateBeforeCall(tenantSlug, catalogName, id, null);
+    private ApiResponse<Void> deleteApiV1TenantsTenantSlugCatalogsCatalogNameConnectorsIdIntWithHttpInfo(@jakarta.annotation.Nonnull String tenantSlug, @jakarta.annotation.Nonnull String catalogName, @jakarta.annotation.Nonnull Integer id, @jakarta.annotation.Nullable Integer version) throws ApiException {
+        okhttp3.Call localVarCall = deleteApiV1TenantsTenantSlugCatalogsCatalogNameConnectorsIdIntValidateBeforeCall(tenantSlug, catalogName, id, version, null);
         return localVarApiClient.execute(localVarCall);
     }
 
-    private okhttp3.Call deleteApiV1TenantsTenantSlugCatalogsCatalogNameConnectorsIdIntAsync(@jakarta.annotation.Nonnull String tenantSlug, @jakarta.annotation.Nonnull String catalogName, @jakarta.annotation.Nonnull Integer id, final ApiCallback<Void> _callback) throws ApiException {
+    private okhttp3.Call deleteApiV1TenantsTenantSlugCatalogsCatalogNameConnectorsIdIntAsync(@jakarta.annotation.Nonnull String tenantSlug, @jakarta.annotation.Nonnull String catalogName, @jakarta.annotation.Nonnull Integer id, @jakarta.annotation.Nullable Integer version, final ApiCallback<Void> _callback) throws ApiException {
 
-        okhttp3.Call localVarCall = deleteApiV1TenantsTenantSlugCatalogsCatalogNameConnectorsIdIntValidateBeforeCall(tenantSlug, catalogName, id, _callback);
+        okhttp3.Call localVarCall = deleteApiV1TenantsTenantSlugCatalogsCatalogNameConnectorsIdIntValidateBeforeCall(tenantSlug, catalogName, id, version, _callback);
         localVarApiClient.executeAsync(localVarCall, _callback);
         return localVarCall;
     }
@@ -918,11 +922,23 @@ public class LakehouseApi {
         private final String catalogName;
         @jakarta.annotation.Nonnull
         private final Integer id;
+        @jakarta.annotation.Nullable
+        private Integer version;
 
         private APIdeleteApiV1TenantsTenantSlugCatalogsCatalogNameConnectorsIdIntRequest(@jakarta.annotation.Nonnull String tenantSlug, @jakarta.annotation.Nonnull String catalogName, @jakarta.annotation.Nonnull Integer id) {
             this.tenantSlug = tenantSlug;
             this.catalogName = catalogName;
             this.id = id;
+        }
+
+        /**
+         * Set version
+         * @param version  (optional)
+         * @return APIdeleteApiV1TenantsTenantSlugCatalogsCatalogNameConnectorsIdIntRequest
+         */
+        public APIdeleteApiV1TenantsTenantSlugCatalogsCatalogNameConnectorsIdIntRequest version(@jakarta.annotation.Nullable Integer version) {
+            this.version = version;
+            return this;
         }
 
         /**
@@ -952,7 +968,7 @@ public class LakehouseApi {
          </table>
          */
         public okhttp3.Call buildCall(final ApiCallback _callback) throws ApiException {
-            return deleteApiV1TenantsTenantSlugCatalogsCatalogNameConnectorsIdIntCall(tenantSlug, catalogName, id, _callback);
+            return deleteApiV1TenantsTenantSlugCatalogsCatalogNameConnectorsIdIntCall(tenantSlug, catalogName, id, version, _callback);
         }
 
         /**
@@ -980,7 +996,7 @@ public class LakehouseApi {
          </table>
          */
         public void execute() throws ApiException {
-            deleteApiV1TenantsTenantSlugCatalogsCatalogNameConnectorsIdIntWithHttpInfo(tenantSlug, catalogName, id);
+            deleteApiV1TenantsTenantSlugCatalogsCatalogNameConnectorsIdIntWithHttpInfo(tenantSlug, catalogName, id, version);
         }
 
         /**
@@ -1009,7 +1025,7 @@ public class LakehouseApi {
          </table>
          */
         public ApiResponse<Void> executeWithHttpInfo() throws ApiException {
-            return deleteApiV1TenantsTenantSlugCatalogsCatalogNameConnectorsIdIntWithHttpInfo(tenantSlug, catalogName, id);
+            return deleteApiV1TenantsTenantSlugCatalogsCatalogNameConnectorsIdIntWithHttpInfo(tenantSlug, catalogName, id, version);
         }
 
         /**
@@ -1039,7 +1055,7 @@ public class LakehouseApi {
          </table>
          */
         public okhttp3.Call executeAsync(final ApiCallback<Void> _callback) throws ApiException {
-            return deleteApiV1TenantsTenantSlugCatalogsCatalogNameConnectorsIdIntAsync(tenantSlug, catalogName, id, _callback);
+            return deleteApiV1TenantsTenantSlugCatalogsCatalogNameConnectorsIdIntAsync(tenantSlug, catalogName, id, version, _callback);
         }
     }
 
@@ -13163,7 +13179,7 @@ public class LakehouseApi {
     }
 
     /**
-     * Uploads a CSV or XLSX file and creates a new DuckLake table.
+     * Uploads a CSV, XLSX, or Avro file and creates a new DuckLake table.
      *
      * @param tenantSlug  (required)
      * @param catalogName  (required)

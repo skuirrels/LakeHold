@@ -328,6 +328,8 @@ public sealed record DataConnectorDto(
     DateTimeOffset? NextRunUtc,
     DateTimeOffset? LastCompletedUtc,
     string? LastError,
+    DateTimeOffset? SourceAcknowledgementPendingUtc,
+    string? SourceAcknowledgementError,
     int ConsecutiveFailures,
     int MaxAttempts,
     int RetryBaseSeconds,
@@ -371,6 +373,8 @@ public sealed record DataConnectorDto(
         connector.NextRunUtc,
         connector.LastCompletedUtc,
         connector.LastError,
+        connector.SourceAcknowledgementPendingUtc,
+        connector.SourceAcknowledgementError,
         connector.ConsecutiveFailures,
         connector.MaxAttempts,
         connector.RetryBaseSeconds,
@@ -389,7 +393,11 @@ public sealed record DataConnectorSourceSettingsDto(
     string? CursorType,
     int PageSize,
     IReadOnlyList<string> Properties,
-    bool CursorIsCommitMonotonic)
+    bool CursorIsCommitMonotonic,
+    string? KafkaBootstrapServers,
+    string? KafkaTopic,
+    string? KafkaConsumerGroup,
+    string? SchemaRegistryUrl)
 {
     public static DataConnectorSourceSettingsDto From(DataConnectorSourceSettings settings) => new(
         settings.SourceTable,
@@ -397,7 +405,11 @@ public sealed record DataConnectorSourceSettingsDto(
         settings.CursorType,
         settings.PageSize,
         settings.Properties ?? [],
-        settings.CursorIsCommitMonotonic);
+        settings.CursorIsCommitMonotonic,
+        settings.KafkaBootstrapServers,
+        settings.KafkaTopic,
+        settings.KafkaConsumerGroup,
+        settings.SchemaRegistryUrl);
 }
 
 public sealed record DataConnectorAuthenticationDto(
@@ -410,7 +422,9 @@ public sealed record DataConnectorAuthenticationDto(
     string? RefreshTokenSecretReference,
     string? ClientCertificateSecretReference,
     string? CertificatePasswordSecretReference,
-    string? CustomHeaderName)
+    string? CustomHeaderName,
+    string? SchemaRegistryUsernameSecretReference,
+    string? SchemaRegistryPasswordSecretReference)
 {
     public static DataConnectorAuthenticationDto From(DataConnectorAuthentication authentication) => new(
         authentication.Kind switch
@@ -421,6 +435,7 @@ public sealed record DataConnectorAuthenticationDto(
             DataConnectorAuthenticationKind.MutualTls => "mtls",
             DataConnectorAuthenticationKind.CustomHeader => "custom-header",
             DataConnectorAuthenticationKind.PostgreSqlPassword => "postgresql-password",
+            DataConnectorAuthenticationKind.KafkaSaslPlain => "kafka-sasl-plain",
             _ => throw new ArgumentOutOfRangeException(nameof(authentication)),
         },
         authentication.SecretReference,
@@ -431,7 +446,9 @@ public sealed record DataConnectorAuthenticationDto(
         authentication.RefreshTokenSecretReference,
         authentication.ClientCertificateSecretReference,
         authentication.CertificatePasswordSecretReference,
-        authentication.CustomHeaderName);
+        authentication.CustomHeaderName,
+        authentication.SchemaRegistryUsernameSecretReference,
+        authentication.SchemaRegistryPasswordSecretReference);
 }
 
 public sealed record DataConnectorFieldMappingDto(string Source, string Target, string Transform)
@@ -486,7 +503,11 @@ public sealed record DataConnectorSourceSettingsRequest(
     string? CursorType = null,
     int PageSize = 100,
     IReadOnlyList<string>? Properties = null,
-    bool CursorIsCommitMonotonic = false);
+    bool CursorIsCommitMonotonic = false,
+    string? KafkaBootstrapServers = null,
+    string? KafkaTopic = null,
+    string? KafkaConsumerGroup = null,
+    string? SchemaRegistryUrl = null);
 
 /// <summary>Approved authentication mode and secret references; secret values are never accepted.</summary>
 public sealed record DataConnectorAuthenticationRequest(
@@ -499,7 +520,9 @@ public sealed record DataConnectorAuthenticationRequest(
     string? RefreshTokenSecretReference = null,
     string? ClientCertificateSecretReference = null,
     string? CertificatePasswordSecretReference = null,
-    string? CustomHeaderName = null);
+    string? CustomHeaderName = null,
+    string? SchemaRegistryUsernameSecretReference = null,
+    string? SchemaRegistryPasswordSecretReference = null);
 
 /// <summary>Declarative top-level field rename and bounded transformation.</summary>
 public sealed record DataConnectorFieldMappingRequest(string Source, string Target, string Transform = "none");
@@ -526,7 +549,12 @@ public sealed record DataConnectorRunDto(
     public static DataConnectorRunDto From(DataConnectorRun run) => new(
         run.Id,
         run.Trigger.ToString().ToLowerInvariant(),
-        run.Status.ToString().ToLowerInvariant(),
+        run.Status switch
+        {
+            DataConnectorRunStatus.PublishedAwaitingSourceAcknowledgement =>
+                "published-source-acknowledgement-pending",
+            _ => run.Status.ToString().ToLowerInvariant(),
+        },
         run.StartedUtc,
         run.CompletedUtc,
         run.RowsRead,

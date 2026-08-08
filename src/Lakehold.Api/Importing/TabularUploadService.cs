@@ -80,7 +80,7 @@ public sealed class TabularUploadService(
 
                 if (written == 0)
                 {
-                    throw new ArgumentException("Choose a non-empty CSV or XLSX file.");
+                    throw new ArgumentException("Choose a non-empty CSV, XLSX, or Avro file.");
                 }
             }
 

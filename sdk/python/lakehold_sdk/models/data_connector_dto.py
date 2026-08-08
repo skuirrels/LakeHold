@@ -59,6 +59,8 @@ class DataConnectorDto(BaseModel):
     next_run_utc: Optional[datetime] = Field(alias="nextRunUtc")
     last_completed_utc: Optional[datetime] = Field(alias="lastCompletedUtc")
     last_error: Optional[StrictStr] = Field(alias="lastError")
+    source_acknowledgement_pending_utc: Optional[datetime] = Field(default=None, alias="sourceAcknowledgementPendingUtc")
+    source_acknowledgement_error: Optional[StrictStr] = Field(default=None, alias="sourceAcknowledgementError")
     consecutive_failures: StrictInt = Field(alias="consecutiveFailures")
     max_attempts: StrictInt = Field(alias="maxAttempts")
     retry_base_seconds: StrictInt = Field(alias="retryBaseSeconds")
@@ -69,7 +71,7 @@ class DataConnectorDto(BaseModel):
     version: StrictInt
     created_utc: datetime = Field(alias="createdUtc")
     updated_utc: datetime = Field(alias="updatedUtc")
-    __properties: ClassVar[List[str]] = ["id", "name", "description", "owner", "tags", "kind", "adapterId", "adapterVersion", "readMode", "endpointUrl", "credentialEnvironmentVariable", "restResponseFormat", "sourceSettings", "authentication", "fieldMappings", "schemaPolicy", "keyColumns", "checkpoint", "checkpointVersion", "targetSchema", "targetTable", "minimumRows", "requiredColumns", "notNullColumns", "enabled", "refreshIntervalSeconds", "nextRunUtc", "lastCompletedUtc", "lastError", "consecutiveFailures", "maxAttempts", "retryBaseSeconds", "retryMaxSeconds", "pausedUtc", "targetProvisioned", "archivedUtc", "version", "createdUtc", "updatedUtc"]
+    __properties: ClassVar[List[str]] = ["id", "name", "description", "owner", "tags", "kind", "adapterId", "adapterVersion", "readMode", "endpointUrl", "credentialEnvironmentVariable", "restResponseFormat", "sourceSettings", "authentication", "fieldMappings", "schemaPolicy", "keyColumns", "checkpoint", "checkpointVersion", "targetSchema", "targetTable", "minimumRows", "requiredColumns", "notNullColumns", "enabled", "refreshIntervalSeconds", "nextRunUtc", "lastCompletedUtc", "lastError", "sourceAcknowledgementPendingUtc", "sourceAcknowledgementError", "consecutiveFailures", "maxAttempts", "retryBaseSeconds", "retryMaxSeconds", "pausedUtc", "targetProvisioned", "archivedUtc", "version", "createdUtc", "updatedUtc"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -157,6 +159,16 @@ class DataConnectorDto(BaseModel):
         if self.last_error is None and "last_error" in self.model_fields_set:
             _dict['lastError'] = None
 
+        # set to None if source_acknowledgement_pending_utc (nullable) is None
+        # and model_fields_set contains the field
+        if self.source_acknowledgement_pending_utc is None and "source_acknowledgement_pending_utc" in self.model_fields_set:
+            _dict['sourceAcknowledgementPendingUtc'] = None
+
+        # set to None if source_acknowledgement_error (nullable) is None
+        # and model_fields_set contains the field
+        if self.source_acknowledgement_error is None and "source_acknowledgement_error" in self.model_fields_set:
+            _dict['sourceAcknowledgementError'] = None
+
         # set to None if paused_utc (nullable) is None
         # and model_fields_set contains the field
         if self.paused_utc is None and "paused_utc" in self.model_fields_set:
@@ -208,6 +220,8 @@ class DataConnectorDto(BaseModel):
             "nextRunUtc": obj.get("nextRunUtc"),
             "lastCompletedUtc": obj.get("lastCompletedUtc"),
             "lastError": obj.get("lastError"),
+            "sourceAcknowledgementPendingUtc": obj.get("sourceAcknowledgementPendingUtc"),
+            "sourceAcknowledgementError": obj.get("sourceAcknowledgementError"),
             "consecutiveFailures": obj.get("consecutiveFailures"),
             "maxAttempts": obj.get("maxAttempts"),
             "retryBaseSeconds": obj.get("retryBaseSeconds"),

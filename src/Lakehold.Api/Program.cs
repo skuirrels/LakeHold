@@ -203,6 +203,7 @@ builder.Services.AddOpenApi(options =>
         PublicApiOpenApi.NormalizeNumericSchemas(document);
         PublicApiOpenApi.PruneUnusedSchemas(document);
         PublicApiOpenApi.PreserveAdditiveAccessCompatibility(document);
+        PublicApiOpenApi.PreserveAdditiveConnectorCompatibility(document);
 
         return Task.CompletedTask;
     });
@@ -436,8 +437,10 @@ builder.Services.AddScoped<IDataConnectorSource, GrpcDataConnectorSource>();
 builder.Services.AddScoped<IDataConnectorSource, PostgreSqlDataConnectorSource>();
 builder.Services.AddSingleton<HubSpotRequestLimiter>();
 builder.Services.AddScoped<IDataConnectorSource, HubSpotContactsDataConnectorSource>();
+builder.Services.AddScoped<IDataConnectorSource, KafkaAvroDataConnectorSource>();
 builder.Services.AddScoped<DataConnectorSourceResolver>();
 builder.Services.AddScoped<ConnectorRunner>();
+builder.Services.AddScoped<ConnectorExecutionService>();
 if (builder.Configuration.GetSection(ConnectorOptions.SectionName).Get<ConnectorOptions>()?.Enabled ?? true)
 {
     builder.Services.AddHostedService<ConnectorWorker>();

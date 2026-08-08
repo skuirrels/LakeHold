@@ -141,7 +141,7 @@ The boundaries matter:
   Workbench and HTTP queries, PostgreSQL wire SQL, EF Core, MCP, scoped identity, audit, time travel,
   CDC, maintenance, backup/restore, and verified eject.
 - **Shipped in v1.3.0:** managed REST/gRPC full snapshots, PostgreSQL and
-  HubSpot incremental adapters, commit-fenced checkpoints, replay-safe upsert, retries/dead letters,
+  HubSpot and Kafka Avro incremental adapters, commit-fenced checkpoints, replay-safe upsert, retries/dead letters,
   mappings, schema policy, external secret references, safe egress, telemetry, and retained lineage.
 - **Not complete:** a broad production-certified adapter ecosystem, catalog search and
   classification, end-to-end lineage, governed semantic metrics, Power BI compatibility, and live

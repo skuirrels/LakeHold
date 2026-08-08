@@ -4383,7 +4383,7 @@ paths:
               style: simple
       security:
       - bearerAuth: []
-      summary: Uploads a CSV or XLSX file and creates a new DuckLake table.
+      summary: "Uploads a CSV, XLSX, or Avro file and creates a new DuckLake table."
       tags:
       - Lakehouse
   /api/v1/tenants/{tenantSlug}/catalogs/{catalogName}/imports/csv:
@@ -6989,6 +6989,14 @@ paths:
           format: int32
           type: integer
         style: simple
+      - explode: true
+        in: query
+        name: version
+        required: false
+        schema:
+          format: int32
+          type: integer
+        style: form
       responses:
         "400":
           content:
@@ -17134,8 +17142,10 @@ components:
           readMode: readMode
           authentication:
             clientIdSecretReference: clientIdSecretReference
+            schemaRegistryPasswordSecretReference: schemaRegistryPasswordSecretReference
             kind: kind
             passwordSecretReference: passwordSecretReference
+            schemaRegistryUsernameSecretReference: schemaRegistryUsernameSecretReference
             usernameSecretReference: usernameSecretReference
             secretReference: secretReference
             customHeaderName: customHeaderName
@@ -17144,13 +17154,18 @@ components:
             clientCertificateSecretReference: clientCertificateSecretReference
             certificatePasswordSecretReference: certificatePasswordSecretReference
           owner: owner
+          sourceAcknowledgementPendingUtc: 2000-01-23T04:56:07.000+00:00
           pausedUtc: 2000-01-23T04:56:07.000+00:00
           targetTable: targetTable
           sourceSettings:
+            schemaRegistryUrl: schemaRegistryUrl
             sourceTable: sourceTable
+            kafkaTopic: kafkaTopic
             cursorType: cursorType
             pageSize: 1
             cursorIsCommitMonotonic: true
+            kafkaConsumerGroup: kafkaConsumerGroup
+            kafkaBootstrapServers: kafkaBootstrapServers
             cursorColumn: cursorColumn
             properties:
             - properties
@@ -17163,6 +17178,7 @@ components:
           - tags
           schemaPolicy: schemaPolicy
           maxAttempts: 9
+          sourceAcknowledgementError: sourceAcknowledgementError
           archivedUtc: 2000-01-23T04:56:07.000+00:00
           name: name
           requiredColumns:
@@ -17205,8 +17221,10 @@ components:
           readMode: readMode
           authentication:
             clientIdSecretReference: clientIdSecretReference
+            schemaRegistryPasswordSecretReference: schemaRegistryPasswordSecretReference
             kind: kind
             passwordSecretReference: passwordSecretReference
+            schemaRegistryUsernameSecretReference: schemaRegistryUsernameSecretReference
             usernameSecretReference: usernameSecretReference
             secretReference: secretReference
             customHeaderName: customHeaderName
@@ -17215,13 +17233,18 @@ components:
             clientCertificateSecretReference: clientCertificateSecretReference
             certificatePasswordSecretReference: certificatePasswordSecretReference
           owner: owner
+          sourceAcknowledgementPendingUtc: 2000-01-23T04:56:07.000+00:00
           pausedUtc: 2000-01-23T04:56:07.000+00:00
           targetTable: targetTable
           sourceSettings:
+            schemaRegistryUrl: schemaRegistryUrl
             sourceTable: sourceTable
+            kafkaTopic: kafkaTopic
             cursorType: cursorType
             pageSize: 1
             cursorIsCommitMonotonic: true
+            kafkaConsumerGroup: kafkaConsumerGroup
+            kafkaBootstrapServers: kafkaBootstrapServers
             cursorColumn: cursorColumn
             properties:
             - properties
@@ -17234,6 +17257,7 @@ components:
           - tags
           schemaPolicy: schemaPolicy
           maxAttempts: 9
+          sourceAcknowledgementError: sourceAcknowledgementError
           archivedUtc: 2000-01-23T04:56:07.000+00:00
           name: name
           requiredColumns:
@@ -17563,8 +17587,10 @@ components:
     DataConnectorAuthenticationDto:
       example:
         clientIdSecretReference: clientIdSecretReference
+        schemaRegistryPasswordSecretReference: schemaRegistryPasswordSecretReference
         kind: kind
         passwordSecretReference: passwordSecretReference
+        schemaRegistryUsernameSecretReference: schemaRegistryUsernameSecretReference
         usernameSecretReference: usernameSecretReference
         secretReference: secretReference
         customHeaderName: customHeaderName
@@ -17602,6 +17628,12 @@ components:
         customHeaderName:
           nullable: true
           type: string
+        schemaRegistryUsernameSecretReference:
+          nullable: true
+          type: string
+        schemaRegistryPasswordSecretReference:
+          nullable: true
+          type: string
       required:
       - certificatePasswordSecretReference
       - clientCertificateSecretReference
@@ -17616,8 +17648,10 @@ components:
     DataConnectorAuthenticationRequest:
       example:
         clientIdSecretReference: clientIdSecretReference
+        schemaRegistryPasswordSecretReference: schemaRegistryPasswordSecretReference
         kind: none
         passwordSecretReference: passwordSecretReference
+        schemaRegistryUsernameSecretReference: schemaRegistryUsernameSecretReference
         usernameSecretReference: usernameSecretReference
         secretReference: secretReference
         customHeaderName: customHeaderName
@@ -17656,6 +17690,12 @@ components:
         customHeaderName:
           nullable: true
           type: string
+        schemaRegistryUsernameSecretReference:
+          nullable: true
+          type: string
+        schemaRegistryPasswordSecretReference:
+          nullable: true
+          type: string
     DataConnectorDefinitionRequest:
       example:
         credentialEnvironmentVariable: credentialEnvironmentVariable
@@ -17684,8 +17724,10 @@ components:
         readMode: readMode
         authentication:
           clientIdSecretReference: clientIdSecretReference
+          schemaRegistryPasswordSecretReference: schemaRegistryPasswordSecretReference
           kind: none
           passwordSecretReference: passwordSecretReference
+          schemaRegistryUsernameSecretReference: schemaRegistryUsernameSecretReference
           usernameSecretReference: usernameSecretReference
           secretReference: secretReference
           customHeaderName: customHeaderName
@@ -17696,10 +17738,14 @@ components:
         owner: owner
         targetTable: targetTable
         sourceSettings:
+          schemaRegistryUrl: schemaRegistryUrl
           sourceTable: sourceTable
+          kafkaTopic: kafkaTopic
           cursorType: cursorType
           pageSize: 5
           cursorIsCommitMonotonic: false
+          kafkaConsumerGroup: kafkaConsumerGroup
+          kafkaBootstrapServers: kafkaBootstrapServers
           cursorColumn: cursorColumn
           properties:
           - properties
@@ -17851,8 +17897,10 @@ components:
         readMode: readMode
         authentication:
           clientIdSecretReference: clientIdSecretReference
+          schemaRegistryPasswordSecretReference: schemaRegistryPasswordSecretReference
           kind: kind
           passwordSecretReference: passwordSecretReference
+          schemaRegistryUsernameSecretReference: schemaRegistryUsernameSecretReference
           usernameSecretReference: usernameSecretReference
           secretReference: secretReference
           customHeaderName: customHeaderName
@@ -17861,13 +17909,18 @@ components:
           clientCertificateSecretReference: clientCertificateSecretReference
           certificatePasswordSecretReference: certificatePasswordSecretReference
         owner: owner
+        sourceAcknowledgementPendingUtc: 2000-01-23T04:56:07.000+00:00
         pausedUtc: 2000-01-23T04:56:07.000+00:00
         targetTable: targetTable
         sourceSettings:
+          schemaRegistryUrl: schemaRegistryUrl
           sourceTable: sourceTable
+          kafkaTopic: kafkaTopic
           cursorType: cursorType
           pageSize: 1
           cursorIsCommitMonotonic: true
+          kafkaConsumerGroup: kafkaConsumerGroup
+          kafkaBootstrapServers: kafkaBootstrapServers
           cursorColumn: cursorColumn
           properties:
           - properties
@@ -17880,6 +17933,7 @@ components:
         - tags
         schemaPolicy: schemaPolicy
         maxAttempts: 9
+        sourceAcknowledgementError: sourceAcknowledgementError
         archivedUtc: 2000-01-23T04:56:07.000+00:00
         name: name
         requiredColumns:
@@ -17968,6 +18022,13 @@ components:
           nullable: true
           type: string
         lastError:
+          nullable: true
+          type: string
+        sourceAcknowledgementPendingUtc:
+          format: date-time
+          nullable: true
+          type: string
+        sourceAcknowledgementError:
           nullable: true
           type: string
         consecutiveFailures:
@@ -18185,10 +18246,14 @@ components:
       - trigger
     DataConnectorSourceSettingsDto:
       example:
+        schemaRegistryUrl: schemaRegistryUrl
         sourceTable: sourceTable
+        kafkaTopic: kafkaTopic
         cursorType: cursorType
         pageSize: 1
         cursorIsCommitMonotonic: true
+        kafkaConsumerGroup: kafkaConsumerGroup
+        kafkaBootstrapServers: kafkaBootstrapServers
         cursorColumn: cursorColumn
         properties:
         - properties
@@ -18212,6 +18277,18 @@ components:
           type: array
         cursorIsCommitMonotonic:
           type: boolean
+        kafkaBootstrapServers:
+          nullable: true
+          type: string
+        kafkaTopic:
+          nullable: true
+          type: string
+        kafkaConsumerGroup:
+          nullable: true
+          type: string
+        schemaRegistryUrl:
+          nullable: true
+          type: string
       required:
       - cursorColumn
       - cursorIsCommitMonotonic
@@ -18221,10 +18298,14 @@ components:
       - sourceTable
     DataConnectorSourceSettingsRequest:
       example:
+        schemaRegistryUrl: schemaRegistryUrl
         sourceTable: sourceTable
+        kafkaTopic: kafkaTopic
         cursorType: cursorType
         pageSize: 5
         cursorIsCommitMonotonic: false
+        kafkaConsumerGroup: kafkaConsumerGroup
+        kafkaBootstrapServers: kafkaBootstrapServers
         cursorColumn: cursorColumn
         properties:
         - properties
@@ -18251,6 +18332,18 @@ components:
         cursorIsCommitMonotonic:
           default: false
           type: boolean
+        kafkaBootstrapServers:
+          nullable: true
+          type: string
+        kafkaTopic:
+          nullable: true
+          type: string
+        kafkaConsumerGroup:
+          nullable: true
+          type: string
+        schemaRegistryUrl:
+          nullable: true
+          type: string
     DataFileDto:
       example:
         deleteFile: deleteFile
@@ -19773,8 +19866,10 @@ components:
           readMode: readMode
           authentication:
             clientIdSecretReference: clientIdSecretReference
+            schemaRegistryPasswordSecretReference: schemaRegistryPasswordSecretReference
             kind: none
             passwordSecretReference: passwordSecretReference
+            schemaRegistryUsernameSecretReference: schemaRegistryUsernameSecretReference
             usernameSecretReference: usernameSecretReference
             secretReference: secretReference
             customHeaderName: customHeaderName
@@ -19785,10 +19880,14 @@ components:
           owner: owner
           targetTable: targetTable
           sourceSettings:
+            schemaRegistryUrl: schemaRegistryUrl
             sourceTable: sourceTable
+            kafkaTopic: kafkaTopic
             cursorType: cursorType
             pageSize: 5
             cursorIsCommitMonotonic: false
+            kafkaConsumerGroup: kafkaConsumerGroup
+            kafkaBootstrapServers: kafkaBootstrapServers
             cursorColumn: cursorColumn
             properties:
             - properties

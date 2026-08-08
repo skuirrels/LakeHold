@@ -112,7 +112,7 @@ public sealed class LakehouseService(
         }
     }
 
-    /// <summary>Imports an uploaded CSV or XLSX scratch file into a new table and records the operation.</summary>
+    /// <summary>Imports an uploaded CSV, XLSX, or Avro scratch file into a new table and records the operation.</summary>
     public async Task<TabularImportResult> ImportTabularAsync(
         string tenantSlug,
         string catalogName,
@@ -193,7 +193,7 @@ public sealed class LakehouseService(
                     activity?.SetTag("lakehold.import.automatic_fallback", true);
                 }
             }
-            else
+            else if (format == TabularFileFormat.Xlsx)
             {
                 result = await TabularImporter
                     .ImportXlsxAsync(
@@ -203,6 +203,18 @@ public sealed class LakehouseService(
                         validatedSchema,
                         validatedTable,
                         worksheet,
+                        cancellationToken)
+                        .ConfigureAwait(false);
+            }
+            else
+            {
+                result = await TabularImporter
+                    .ImportAvroAsync(
+                        duckling,
+                        filePath,
+                        fileName,
+                        validatedSchema,
+                        validatedTable,
                         cancellationToken)
                     .ConfigureAwait(false);
             }

@@ -47,6 +47,7 @@ import { SavedQueriesPanelComponent } from './saved-queries-panel.component';
 import { SchedulePanelComponent } from './schedule-panel.component';
 import { StoragePanelComponent } from './storage-panel.component';
 import { SystemSettingsComponent } from './system-settings.component';
+import { ManagedConnectorsComponent } from './managed-connectors.component';
 import {
   WorkbenchDestination,
   WorkbenchNavigationComponent,
@@ -104,6 +105,7 @@ type BottomTab =
     SchedulePanelComponent,
     StoragePanelComponent,
     SystemSettingsComponent,
+    ManagedConnectorsComponent,
     WorkbenchNavigationComponent,
   ],
   templateUrl: './workbench.component.html',
@@ -809,6 +811,7 @@ export class WorkbenchComponent {
         break;
       case 'users':
       case 'settings':
+      case 'connectors':
         // Full-width administration pages: the catalog panel has nothing to say beside them.
         this.contextPanelOpen.set(false);
         break;

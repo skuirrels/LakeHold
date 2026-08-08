@@ -10,6 +10,7 @@ public enum TabularFileFormat
 {
     Csv,
     Xlsx,
+    Avro,
 }
 
 /// <summary>The newline convention explicitly supplied to DuckDB's CSV reader.</summary>
@@ -137,6 +138,34 @@ public static class TabularImporter
             $"lakehold xlsx import: {validatedSchema}.{validatedTable}",
             storeRejects: false,
             (path, _, _) => BuildXlsxReader(path, normalizedSheet),
+            cancellationToken);
+    }
+
+    /// <summary>Imports an Avro object-container file with its embedded writer schema.</summary>
+    public static Task<TabularImportResult> ImportAvroAsync(
+        Duckling duckling,
+        string filePath,
+        string fileName,
+        string schema,
+        string table,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(duckling);
+        ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
+        ArgumentException.ThrowIfNullOrWhiteSpace(fileName);
+
+        var validatedSchema = SqlIdentifier.Quote(schema);
+        var validatedTable = SqlIdentifier.Quote(table);
+        return ImportAsync(
+            duckling,
+            filePath,
+            fileName,
+            validatedSchema,
+            validatedTable,
+            TabularFileFormat.Avro,
+            $"lakehold avro import: {validatedSchema}.{validatedTable}",
+            storeRejects: false,
+            (path, _, _) => $"read_avro({SqlIdentifier.Literal(path)})",
             cancellationToken);
     }
 

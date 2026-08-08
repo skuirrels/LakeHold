@@ -122,6 +122,18 @@
     <button
       type="button"
       class="nav-item"
+      aria-label="Managed connectors"
+      [title]="open() ? null : 'Managed connectors'"
+      [class.active]="destination() === 'connectors'"
+      [attr.aria-current]="destination() === 'connectors' ? 'page' : null"
+      (click)="navigate.emit('connectors')"
+    >
+      <svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="5" cy="10" r="2" /><circle cx="15" cy="5" r="2" /><circle cx="15" cy="15" r="2" /><path d="M7 10h3M11 10l2.5-4M11 10l2.5 4" /></svg>
+      <span>Connectors</span>
+    </button>
+    <button
+      type="button"
+      class="nav-item"
       aria-label="Users"
       [title]="open() ? null : 'Users'"
       [class.active]="destination() === 'users'"

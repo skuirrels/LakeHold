@@ -139,12 +139,16 @@ public sealed class McpServerTests : IAsyncLifetime
     {
         // Maintenance, eject, provisioning, and token minting are deliberately absent (docs/MCP.md).
         // Asserting the whole set means adding a tool is a decision, not an accident.
+        //
+        // This host leaves writes disabled, which is the default, so the set is the read-only
+        // surface: `execute` and the mutating half of the connector control plane are gated behind
+        // Allow writes and proved absent in McpWriteToolTests.
         await using var client = await ConnectAsync(_demoToken);
 
         var names = (await client.ListToolsAsync()).Select(t => t.Name).OrderBy(n => n).ToArray();
 
         Assert.Equal(
-            ["describe_schema", "get_snapshot", "list_changes", "list_snapshots", "list_tenants", "query", "query_snapshot"],
+            ["describe_schema", "get_connector", "get_snapshot", "list_changes", "list_connector_dead_letters", "list_connector_runs", "list_connectors", "list_snapshots", "list_tenants", "query", "query_snapshot", "validate_connector"],
             names);
     }
 

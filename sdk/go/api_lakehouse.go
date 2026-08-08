@@ -774,6 +774,12 @@ type ApiDeleteApiV1TenantsTenantSlugCatalogsCatalogNameConnectorsIdIntRequest st
 	tenantSlug string
 	catalogName string
 	id int32
+	version *int32
+}
+
+func (r ApiDeleteApiV1TenantsTenantSlugCatalogsCatalogNameConnectorsIdIntRequest) Version(version int32) ApiDeleteApiV1TenantsTenantSlugCatalogsCatalogNameConnectorsIdIntRequest {
+	r.version = &version
+	return r
 }
 
 func (r ApiDeleteApiV1TenantsTenantSlugCatalogsCatalogNameConnectorsIdIntRequest) Execute() (*http.Response, error) {
@@ -821,6 +827,9 @@ func (a *LakehouseAPIService) DeleteApiV1TenantsTenantSlugCatalogsCatalogNameCon
 	localVarQueryParams := url.Values{}
 	localVarFormParams := url.Values{}
 
+	if r.version != nil {
+		parameterAddToHeaderOrQuery(localVarQueryParams, "version", r.version, "form", "")
+	}
 	// to determine the Content-Type header
 	localVarHTTPContentTypes := []string{}
 
@@ -13464,7 +13473,7 @@ func (r ApiPostApiV1TenantsTenantSlugCatalogsCatalogNameImportsFilesRequest) Exe
 }
 
 /*
-PostApiV1TenantsTenantSlugCatalogsCatalogNameImportsFiles Uploads a CSV or XLSX file and creates a new DuckLake table.
+PostApiV1TenantsTenantSlugCatalogsCatalogNameImportsFiles Uploads a CSV, XLSX, or Avro file and creates a new DuckLake table.
 
  @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
  @param tenantSlug

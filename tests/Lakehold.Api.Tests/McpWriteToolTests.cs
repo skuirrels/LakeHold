@@ -93,6 +93,84 @@ public sealed class McpWriteToolTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task No_mutating_tool_is_advertised_unless_the_operator_enables_writes()
+    {
+        // The gate is the tool's own read-only annotation, not a list of names. Asserting over every
+        // advertised tool means adding a mutating tool cannot quietly land outside the gate, which is
+        // how the connector control plane first shipped reachable with writes disabled.
+        var app = await StartAsync(allowWrites: false);
+        await using var client = await ConnectAsync(app, _writerToken);
+
+        var tools = await client.ListToolsAsync();
+
+        Assert.NotEmpty(tools);
+        Assert.All(tools, tool => Assert.True(
+            tool.ProtocolTool.Annotations?.ReadOnlyHint,
+            $"'{tool.Name}' is advertised while writes are disabled but is not annotated read-only."));
+    }
+
+    [Theory]
+    [InlineData("execute")]
+    [InlineData("create_connector")]
+    [InlineData("update_connector")]
+    [InlineData("retire_connector")]
+    [InlineData("run_connector")]
+    [InlineData("retry_connector")]
+    [InlineData("pause_connector")]
+    [InlineData("resume_connector")]
+    public async Task A_mutating_tool_is_refused_by_name_while_writes_are_disabled(string tool)
+    {
+        // Removing a tool from discovery is not enforcement. A client with a cached tool list calls
+        // it by name, so the call has to fail too — and fail before the tool does any work.
+        var app = await StartAsync(allowWrites: false);
+        await using var client = await ConnectAsync(app, _writerToken);
+
+        var arguments = new Dictionary<string, object?>
+        {
+            ["tenant"] = "demo",
+            ["catalog"] = "analytics",
+            ["sql"] = "CREATE TABLE writes_are_disabled (id INTEGER)",
+            ["id"] = 1,
+            ["version"] = 1,
+            ["definition"] = null,
+        };
+
+        // A refusal reaches the caller either as a protocol error or as an error result, depending on
+        // where in the pipeline it is raised. Both are refusals; neither may be a completed write.
+        string message;
+        try
+        {
+            var result = await client.CallToolAsync(tool, arguments);
+            Assert.True(result.IsError, $"'{tool}' was executed while writes are disabled.");
+            message = Text(result);
+        }
+        catch (Exception exception)
+        {
+            message = exception.Message;
+        }
+
+        Assert.Contains("disabled", message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Enabling_writes_advertises_the_connector_control_plane_as_mutating()
+    {
+        var app = await StartAsync(allowWrites: true);
+        await using var client = await ConnectAsync(app, _writerToken);
+
+        var tools = await client.ListToolsAsync();
+
+        // A connector run replaces a full-snapshot target, so the annotation a client uses to decide
+        // whether to ask a human has to say so.
+        var run = Assert.Single(tools, t => t.Name == "run_connector");
+        Assert.False(run.ProtocolTool.Annotations?.ReadOnlyHint);
+        Assert.True(run.ProtocolTool.Annotations?.DestructiveHint);
+
+        var list = Assert.Single(tools, t => t.Name == "list_connectors");
+        Assert.True(list.ProtocolTool.Annotations?.ReadOnlyHint);
+    }
+
+    [Fact]
     public async Task A_read_write_credential_can_write_when_the_operator_allows_it()
     {
         var app = await StartAsync(allowWrites: true);

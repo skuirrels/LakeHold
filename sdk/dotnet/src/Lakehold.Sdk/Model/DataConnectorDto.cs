@@ -28,6 +28,7 @@ namespace Lakehold.Sdk.Model
     /// <summary>
     /// DataConnectorDto
     /// </summary>
+    [JsonConverter(typeof(DataConnectorDtoJsonConverter))]
     public partial class DataConnectorDto : IValidatableObject
     {
         /// <summary>
@@ -70,10 +71,12 @@ namespace Lakehold.Sdk.Model
         /// <param name="nextRunUtc">nextRunUtc</param>
         /// <param name="lastCompletedUtc">lastCompletedUtc</param>
         /// <param name="lastError">lastError</param>
+        /// <param name="sourceAcknowledgementPendingUtc">sourceAcknowledgementPendingUtc</param>
+        /// <param name="sourceAcknowledgementError">sourceAcknowledgementError</param>
         /// <param name="pausedUtc">pausedUtc</param>
         /// <param name="archivedUtc">archivedUtc</param>
         [JsonConstructor]
-        public DataConnectorDto(int id, string name, string owner, List<string> tags, string kind, string adapterId, int adapterVersion, string readMode, string endpointUrl, string restResponseFormat, DataConnectorSourceSettingsDto sourceSettings, DataConnectorAuthenticationDto authentication, List<DataConnectorFieldMappingDto> fieldMappings, string schemaPolicy, List<string> keyColumns, long checkpointVersion, string targetSchema, string targetTable, long minimumRows, List<string> requiredColumns, List<string> notNullColumns, bool enabled, int consecutiveFailures, int maxAttempts, int retryBaseSeconds, int retryMaxSeconds, bool targetProvisioned, int varVersion, DateTime createdUtc, DateTime updatedUtc, string? description = default, string? credentialEnvironmentVariable = default, string? checkpoint = default, int? refreshIntervalSeconds = default, DateTime? nextRunUtc = default, DateTime? lastCompletedUtc = default, string? lastError = default, DateTime? pausedUtc = default, DateTime? archivedUtc = default)
+        public DataConnectorDto(int id, string name, string owner, List<string> tags, string kind, string adapterId, int adapterVersion, string readMode, string endpointUrl, string restResponseFormat, DataConnectorSourceSettingsDto sourceSettings, DataConnectorAuthenticationDto authentication, List<DataConnectorFieldMappingDto> fieldMappings, string schemaPolicy, List<string> keyColumns, long checkpointVersion, string targetSchema, string targetTable, long minimumRows, List<string> requiredColumns, List<string> notNullColumns, bool enabled, int consecutiveFailures, int maxAttempts, int retryBaseSeconds, int retryMaxSeconds, bool targetProvisioned, int varVersion, DateTime createdUtc, DateTime updatedUtc, string? description = default, string? credentialEnvironmentVariable = default, string? checkpoint = default, int? refreshIntervalSeconds = default, DateTime? nextRunUtc = default, DateTime? lastCompletedUtc = default, string? lastError = default, Option<DateTime?> sourceAcknowledgementPendingUtc = default, Option<string?> sourceAcknowledgementError = default, DateTime? pausedUtc = default, DateTime? archivedUtc = default)
         {
             Id = id;
             Name = name;
@@ -112,6 +115,8 @@ namespace Lakehold.Sdk.Model
             NextRunUtc = nextRunUtc;
             LastCompletedUtc = lastCompletedUtc;
             LastError = lastError;
+            SourceAcknowledgementPendingUtcOption = sourceAcknowledgementPendingUtc;
+            SourceAcknowledgementErrorOption = sourceAcknowledgementError;
             PausedUtc = pausedUtc;
             ArchivedUtc = archivedUtc;
             OnCreated();
@@ -342,6 +347,32 @@ namespace Lakehold.Sdk.Model
         public string? LastError { get; set; }
 
         /// <summary>
+        /// Used to track the state of SourceAcknowledgementPendingUtc
+        /// </summary>
+        [JsonIgnore]
+        [global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]
+        public Option<DateTime?> SourceAcknowledgementPendingUtcOption { get; private set; }
+
+        /// <summary>
+        /// Gets or Sets SourceAcknowledgementPendingUtc
+        /// </summary>
+        [JsonPropertyName("sourceAcknowledgementPendingUtc")]
+        public DateTime? SourceAcknowledgementPendingUtc { get { return this.SourceAcknowledgementPendingUtcOption; } set { this.SourceAcknowledgementPendingUtcOption = new(value); } }
+
+        /// <summary>
+        /// Used to track the state of SourceAcknowledgementError
+        /// </summary>
+        [JsonIgnore]
+        [global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]
+        public Option<string?> SourceAcknowledgementErrorOption { get; private set; }
+
+        /// <summary>
+        /// Gets or Sets SourceAcknowledgementError
+        /// </summary>
+        [JsonPropertyName("sourceAcknowledgementError")]
+        public string? SourceAcknowledgementError { get { return this.SourceAcknowledgementErrorOption; } set { this.SourceAcknowledgementErrorOption = new(value); } }
+
+        /// <summary>
         /// Gets or Sets PausedUtc
         /// </summary>
         [JsonPropertyName("pausedUtc")]
@@ -398,6 +429,8 @@ namespace Lakehold.Sdk.Model
             sb.Append("  NextRunUtc: ").Append(NextRunUtc).Append("\n");
             sb.Append("  LastCompletedUtc: ").Append(LastCompletedUtc).Append("\n");
             sb.Append("  LastError: ").Append(LastError).Append("\n");
+            sb.Append("  SourceAcknowledgementPendingUtc: ").Append(SourceAcknowledgementPendingUtc).Append("\n");
+            sb.Append("  SourceAcknowledgementError: ").Append(SourceAcknowledgementError).Append("\n");
             sb.Append("  PausedUtc: ").Append(PausedUtc).Append("\n");
             sb.Append("  ArchivedUtc: ").Append(ArchivedUtc).Append("\n");
             sb.Append("}\n");
@@ -439,6 +472,11 @@ namespace Lakehold.Sdk.Model
         /// The format to use to serialize LastCompletedUtc
         /// </summary>
         public static string LastCompletedUtcFormat { get; set; } = "yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fffffffK";
+
+        /// <summary>
+        /// The format to use to serialize SourceAcknowledgementPendingUtc
+        /// </summary>
+        public static string SourceAcknowledgementPendingUtcFormat { get; set; } = "yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fffffffK";
 
         /// <summary>
         /// The format to use to serialize PausedUtc
@@ -504,6 +542,8 @@ namespace Lakehold.Sdk.Model
             Option<DateTime?> nextRunUtc = default;
             Option<DateTime?> lastCompletedUtc = default;
             Option<string?> lastError = default;
+            Option<DateTime?> sourceAcknowledgementPendingUtc = default;
+            Option<string?> sourceAcknowledgementError = default;
             Option<DateTime?> pausedUtc = default;
             Option<DateTime?> archivedUtc = default;
 
@@ -632,6 +672,12 @@ namespace Lakehold.Sdk.Model
                             break;
                         case "lastError":
                             lastError = new Option<string?>(utf8JsonReader.GetString());
+                            break;
+                        case "sourceAcknowledgementPendingUtc":
+                            sourceAcknowledgementPendingUtc = new Option<DateTime?>(JsonSerializer.Deserialize<DateTime?>(ref utf8JsonReader, jsonSerializerOptions));
+                            break;
+                        case "sourceAcknowledgementError":
+                            sourceAcknowledgementError = new Option<string?>(utf8JsonReader.GetString());
                             break;
                         case "pausedUtc":
                             pausedUtc = new Option<DateTime?>(JsonSerializer.Deserialize<DateTime?>(ref utf8JsonReader, jsonSerializerOptions));
@@ -852,7 +898,7 @@ namespace Lakehold.Sdk.Model
             if (updatedUtc.IsSet && updatedUtc.Value == null)
                 throw new ArgumentNullException(nameof(updatedUtc), "Property is not nullable for class DataConnectorDto.");
 
-            return new DataConnectorDto(id.Value!.Value!, name.Value!, owner.Value!, tags.Value!, kind.Value!, adapterId.Value!, adapterVersion.Value!.Value!, readMode.Value!, endpointUrl.Value!, restResponseFormat.Value!, sourceSettings.Value!, authentication.Value!, fieldMappings.Value!, schemaPolicy.Value!, keyColumns.Value!, checkpointVersion.Value!.Value!, targetSchema.Value!, targetTable.Value!, minimumRows.Value!.Value!, requiredColumns.Value!, notNullColumns.Value!, enabled.Value!.Value!, consecutiveFailures.Value!.Value!, maxAttempts.Value!.Value!, retryBaseSeconds.Value!.Value!, retryMaxSeconds.Value!.Value!, targetProvisioned.Value!.Value!, varVersion.Value!.Value!, createdUtc.Value!.Value!, updatedUtc.Value!.Value!, description.Value!, credentialEnvironmentVariable.Value!, checkpoint.Value!, refreshIntervalSeconds.Value!, nextRunUtc.Value!, lastCompletedUtc.Value!, lastError.Value!, pausedUtc.Value!, archivedUtc.Value!);
+            return new DataConnectorDto(id.Value!.Value!, name.Value!, owner.Value!, tags.Value!, kind.Value!, adapterId.Value!, adapterVersion.Value!.Value!, readMode.Value!, endpointUrl.Value!, restResponseFormat.Value!, sourceSettings.Value!, authentication.Value!, fieldMappings.Value!, schemaPolicy.Value!, keyColumns.Value!, checkpointVersion.Value!.Value!, targetSchema.Value!, targetTable.Value!, minimumRows.Value!.Value!, requiredColumns.Value!, notNullColumns.Value!, enabled.Value!.Value!, consecutiveFailures.Value!.Value!, maxAttempts.Value!.Value!, retryBaseSeconds.Value!.Value!, retryMaxSeconds.Value!.Value!, targetProvisioned.Value!.Value!, varVersion.Value!.Value!, createdUtc.Value!.Value!, updatedUtc.Value!.Value!, description.Value!, credentialEnvironmentVariable.Value!, checkpoint.Value!, refreshIntervalSeconds.Value!, nextRunUtc.Value!, lastCompletedUtc.Value!, lastError.Value!, sourceAcknowledgementPendingUtc, sourceAcknowledgementError, pausedUtc.Value!, archivedUtc.Value!);
         }
 
         /// <summary>
@@ -1022,6 +1068,18 @@ namespace Lakehold.Sdk.Model
                 writer.WriteString("lastError", dataConnectorDto.LastError);
             else
                 writer.WriteNull("lastError");
+
+            if (dataConnectorDto.SourceAcknowledgementPendingUtcOption.IsSet)
+                if (dataConnectorDto.SourceAcknowledgementPendingUtcOption.Value != null)
+                    writer.WriteString("sourceAcknowledgementPendingUtc", dataConnectorDto.SourceAcknowledgementPendingUtcOption.Value!.Value.ToString(SourceAcknowledgementPendingUtcFormat));
+                else
+                    writer.WriteNull("sourceAcknowledgementPendingUtc");
+
+            if (dataConnectorDto.SourceAcknowledgementErrorOption.IsSet)
+                if (dataConnectorDto.SourceAcknowledgementErrorOption.Value != null)
+                    writer.WriteString("sourceAcknowledgementError", dataConnectorDto.SourceAcknowledgementError);
+                else
+                    writer.WriteNull("sourceAcknowledgementError");
 
             if (dataConnectorDto.PausedUtc != null)
                 writer.WriteString("pausedUtc", dataConnectorDto.PausedUtc.Value.ToString(PausedUtcFormat));

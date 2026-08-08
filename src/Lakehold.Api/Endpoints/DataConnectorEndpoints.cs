@@ -196,12 +196,13 @@ public static class DataConnectorEndpoints
         string tenantSlug,
         string catalogName,
         int id,
+        int? version,
         DataConnectorService connectors,
         CancellationToken cancellationToken)
     {
         try
         {
-            await connectors.DeleteAsync(tenantSlug, catalogName, id, cancellationToken).ConfigureAwait(false);
+            await connectors.DeleteAsync(tenantSlug, catalogName, id, version, cancellationToken).ConfigureAwait(false);
             return Results.NoContent();
         }
         catch (CatalogNotFoundException ex)
@@ -224,7 +225,12 @@ public static class DataConnectorEndpoints
     {
         try
         {
-            _ = await connectors.GetAsync(tenantSlug, catalogName, id, cancellationToken).ConfigureAwait(false);
+            var connector = await connectors.GetAsync(tenantSlug, catalogName, id, cancellationToken).ConfigureAwait(false);
+            if (connector.SourceAcknowledgementPendingUtc is not null)
+            {
+                return Results.Conflict(
+                    "The last published batch is awaiting source acknowledgement. Use the explicit retry operation to recover and replay it safely.");
+            }
         }
         catch (CatalogNotFoundException ex)
         {
@@ -259,6 +265,9 @@ public static class DataConnectorEndpoints
             ConnectorExecutionFailureKind.PublicationState => Results.Json(
                 response,
                 statusCode: StatusCodes.Status500InternalServerError),
+            ConnectorExecutionFailureKind.SourceAcknowledgementPending => Results.Json(
+                response,
+                statusCode: StatusCodes.Status202Accepted),
             _ => throw new InvalidOperationException("Unknown connector execution outcome."),
         };
     }
@@ -411,7 +420,11 @@ public static class DataConnectorEndpoints
         }
     }
 
-    private static async Task<(DataConnectorDefinition? Definition, string? Error)> ValidateAsync(
+    /// <summary>
+    /// Builds the one approved connector definition.  The HTTP API and MCP control plane both call
+    /// this boundary so an agent cannot create a connector the administrator UI could not save.
+    /// </summary>
+    internal static async Task<(DataConnectorDefinition? Definition, string? Error)> ValidateAsync(
         string tenantSlug,
         string catalogName,
         DataConnectorDefinitionRequest request,
@@ -424,7 +437,7 @@ public static class DataConnectorEndpoints
             || !Enum.TryParse<DataConnectorKind>(request.Kind, ignoreCase: true, out var kind)
             || !Enum.IsDefined(kind))
         {
-            return (null, "Connector kind must be 'rest', 'grpc', 'postgresql', or 'hubspot'.");
+            return (null, "Connector kind must be 'rest', 'grpc', 'postgresql', 'hubspot', or 'kafkaavro'.");
         }
 
         var format = request.RestResponseFormat?.Trim().ToLowerInvariant() switch
@@ -460,6 +473,12 @@ public static class DataConnectorEndpoints
                 || !string.Equals(endpoint.DnsSafeHost, "api.hubapi.com", StringComparison.OrdinalIgnoreCase)))
         {
             return (null, "HubSpot connector endpoints must use https://api.hubapi.com.");
+        }
+
+        if (kind == DataConnectorKind.KafkaAvro
+            && endpoint.Scheme != Uri.UriSchemeHttps)
+        {
+            return (null, "Kafka Avro connectors use an HTTPS Confluent-compatible schema registry endpoint.");
         }
 
         var policyEndpoint = kind == DataConnectorKind.PostgreSql
@@ -502,17 +521,55 @@ public static class DataConnectorEndpoints
             return (null, platform.Error);
         }
 
+        if (kind == DataConnectorKind.KafkaAvro)
+        {
+            try
+            {
+                if (!options.TryGetKafkaEgressGateway(out _, out var gatewayError))
+                {
+                    return (null, gatewayError);
+                }
+
+                var registryUri = new Uri(platform.Definition!.SourceSettings.SchemaRegistryUrl!, UriKind.Absolute);
+                if (!IsSameOrigin(endpoint, registryUri))
+                {
+                    // The policy above approved `endpoint`. The adapter reads from
+                    // `schemaRegistryUrl`. Letting the two differ would approve one host and
+                    // contact another.
+                    return (null,
+                        "A Kafka Avro connector's endpoint URL must name the same host and port as schemaRegistryUrl.");
+                }
+
+                var kafkaDestinationError = await ValidateKafkaDestinationsAsync(
+                        platform.Definition.SourceSettings.KafkaBootstrapServers!,
+                        registryUri,
+                        options,
+                        cancellationToken)
+                    .ConfigureAwait(false);
+                if (kafkaDestinationError is not null)
+                {
+                    return (null, kafkaDestinationError);
+                }
+            }
+            catch (ArgumentException ex)
+            {
+                return (null, ex.Message);
+            }
+        }
+
+        var credentialHosts = kind == DataConnectorKind.KafkaAvro
+            ? GetKafkaBootstrapHosts(platform.Definition!.SourceSettings.KafkaBootstrapServers!)
+                .Append(new Uri(platform.Definition.SourceSettings.SchemaRegistryUrl!, UriKind.Absolute).DnsSafeHost)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray()
+            : [endpoint.DnsSafeHost];
         var unboundReference = ConnectorSecretAccessPolicy.References(platform.Definition!.Authentication)
-            .FirstOrDefault(reference => !ConnectorSecretAccessPolicy.IsAllowed(
-                options,
-                tenantSlug,
-                catalogName,
-                reference,
-                endpoint.DnsSafeHost));
+            .FirstOrDefault(reference => credentialHosts.Any(host => !ConnectorSecretAccessPolicy.IsAllowed(
+                options, tenantSlug, catalogName, reference, host)));
         if (unboundReference is not null)
         {
             return (null,
-                "Every connector credential must have an operator-approved binding for this tenant, catalog, and destination host.");
+                "Every connector credential must have an operator-approved binding for this tenant, catalog, and every destination host.");
         }
 
         return (new DataConnectorDefinition(
@@ -545,6 +602,7 @@ public static class DataConnectorEndpoints
             DataConnectorKind.Grpc => "lakehold.grpc",
             DataConnectorKind.PostgreSql => "lakehold.postgresql",
             DataConnectorKind.HubSpot => "lakehold.hubspot-contacts",
+            DataConnectorKind.KafkaAvro => "lakehold.kafka-avro",
             _ => throw new ArgumentOutOfRangeException(nameof(kind)),
         };
         var adapterId = string.IsNullOrWhiteSpace(request.AdapterId) ? expectedAdapter : request.AdapterId.Trim();
@@ -649,6 +707,19 @@ public static class DataConnectorEndpoints
             return (null, "HubSpot page size cannot exceed 200 and properties must be at most 100 valid internal names.");
         }
 
+        if (kind == DataConnectorKind.KafkaAvro
+            && (string.IsNullOrWhiteSpace(settings.KafkaBootstrapServers)
+                || string.IsNullOrWhiteSpace(settings.KafkaTopic)
+                || string.IsNullOrWhiteSpace(settings.KafkaConsumerGroup)
+                || string.IsNullOrWhiteSpace(settings.SchemaRegistryUrl)
+                || !Uri.TryCreate(settings.SchemaRegistryUrl, UriKind.Absolute, out var registry)
+                || registry.Scheme != Uri.UriSchemeHttps))
+        {
+            return (null,
+                "Kafka Avro connectors require kafkaBootstrapServers, kafkaTopic, kafkaConsumerGroup, and an HTTPS schemaRegistryUrl.");
+        }
+
+
         var mappings = new List<DataConnectorFieldMapping>();
         foreach (var mapping in request.FieldMappings ?? [])
         {
@@ -716,11 +787,98 @@ public static class DataConnectorEndpoints
                 settings.CursorType,
                 settings.PageSize,
                 settings.Properties,
-                settings.CursorIsCommitMonotonic),
+                settings.CursorIsCommitMonotonic,
+                settings.KafkaBootstrapServers,
+                settings.KafkaTopic,
+                settings.KafkaConsumerGroup,
+                settings.SchemaRegistryUrl),
             authentication.Authentication!,
             request.MaxAttempts,
             request.RetryBaseSeconds,
             request.RetryMaxSeconds), null);
+    }
+
+    /// <summary>
+    /// Applies the shared outbound egress policy to every host this adapter actually contacts —
+    /// each broker in the bootstrap list and the Schema Registry — and requires the deployment
+    /// gateway. The gateway is a second control, not a substitute: invariant 23 requires an adapter
+    /// to reuse the shared policy, and every other adapter resolves it in its own read path.
+    /// </summary>
+    internal static async Task<string?> ValidateKafkaDestinationsAsync(
+        string bootstrapServers,
+        Uri registry,
+        ConnectorOptions options,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(registry);
+        ArgumentNullException.ThrowIfNull(options);
+        if (!options.TryGetKafkaEgressGateway(out _, out var gatewayError))
+        {
+            return gatewayError;
+        }
+
+        var registryResolution = await OutboundDestinationPolicy
+            .ResolveAsync(registry, options, "Connector schema registry", cancellationToken)
+            .ConfigureAwait(false);
+        if (registryResolution.Error is not null)
+        {
+            return registryResolution.Error;
+        }
+
+        foreach (var host in GetKafkaBootstrapHosts(bootstrapServers))
+        {
+            // A broker address carries no scheme, so the host is presented to the policy the same
+            // way a PostgreSQL connector endpoint's host is. The allow-list and address checks are
+            // the part that matters; the wire protocol is not HTTPS either way.
+            var brokerResolution = await OutboundDestinationPolicy
+                .ResolveAsync(
+                    new UriBuilder(Uri.UriSchemeHttps, host).Uri,
+                    options,
+                    "Connector Kafka broker",
+                    cancellationToken)
+                .ConfigureAwait(false);
+            if (brokerResolution.Error is not null)
+            {
+                return brokerResolution.Error;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// True when two URLs name the same origin. A Kafka Avro connector's approved endpoint and its
+    /// registry setting must agree here, or the policy would approve one host while the adapter
+    /// contacted another.
+    /// </summary>
+    internal static bool IsSameOrigin(Uri left, Uri right) =>
+        string.Equals(
+            left.GetLeftPart(UriPartial.Authority),
+            right.GetLeftPart(UriPartial.Authority),
+            StringComparison.OrdinalIgnoreCase);
+
+    internal static IReadOnlyList<string> GetKafkaBootstrapHosts(string bootstrapServers)
+    {
+        var entries = bootstrapServers.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+        if (entries.Length == 0 || entries.Length > 32)
+        {
+            throw new ArgumentException("Kafka bootstrap servers must contain between one and 32 host:port entries.");
+        }
+
+        var hosts = new List<string>(entries.Length);
+        foreach (var entry in entries)
+        {
+            if (!Uri.TryCreate($"kafka://{entry}", UriKind.Absolute, out var endpoint)
+                || endpoint.Port is < 1 or > 65535
+                || string.IsNullOrWhiteSpace(endpoint.DnsSafeHost)
+                || !string.IsNullOrEmpty(endpoint.UserInfo)
+                || endpoint.AbsolutePath != "/")
+            {
+                throw new ArgumentException("Kafka bootstrap servers must be comma-separated host:port entries without credentials or paths.");
+            }
+            hosts.Add(endpoint.DnsSafeHost);
+        }
+        return hosts;
     }
 
     private static (DataConnectorAuthentication? Authentication, string? Error) ParseAuthentication(
@@ -753,6 +911,7 @@ public static class DataConnectorEndpoints
             "mtls" => DataConnectorAuthenticationKind.MutualTls,
             "custom-header" => DataConnectorAuthenticationKind.CustomHeader,
             "postgresql-password" => DataConnectorAuthenticationKind.PostgreSqlPassword,
+            "kafka-sasl-plain" => DataConnectorAuthenticationKind.KafkaSaslPlain,
             _ => (DataConnectorAuthenticationKind?)null,
         };
         if (kind is null)
@@ -770,6 +929,8 @@ public static class DataConnectorEndpoints
             input.RefreshTokenSecretReference,
             input.ClientCertificateSecretReference,
             input.CertificatePasswordSecretReference,
+            input.SchemaRegistryUsernameSecretReference,
+            input.SchemaRegistryPasswordSecretReference,
         };
         if (references.Where(value => value is not null).Any(value =>
                 !(value!.StartsWith("env://", StringComparison.OrdinalIgnoreCase)
@@ -797,6 +958,12 @@ public static class DataConnectorEndpoints
             DataConnectorAuthenticationKind.PostgreSqlPassword when string.IsNullOrWhiteSpace(input.UsernameSecretReference)
                                                                     || string.IsNullOrWhiteSpace(input.PasswordSecretReference) =>
                 "PostgreSQL password authentication requires username and password secret references.",
+            DataConnectorAuthenticationKind.KafkaSaslPlain when string.IsNullOrWhiteSpace(input.UsernameSecretReference)
+                                                                || string.IsNullOrWhiteSpace(input.PasswordSecretReference) =>
+                "Kafka SASL/PLAIN authentication requires username and password secret references.",
+            _ when !string.IsNullOrWhiteSpace(input.SchemaRegistryUsernameSecretReference)
+                   != !string.IsNullOrWhiteSpace(input.SchemaRegistryPasswordSecretReference) =>
+                "Schema Registry Basic authentication requires username and password secret references.",
             _ => null,
         };
         if (requiredError is not null)
@@ -814,6 +981,8 @@ public static class DataConnectorEndpoints
             input.RefreshTokenSecretReference,
             input.ClientCertificateSecretReference,
             input.CertificatePasswordSecretReference,
-            input.CustomHeaderName), null);
+            input.CustomHeaderName,
+            input.SchemaRegistryUsernameSecretReference,
+            input.SchemaRegistryPasswordSecretReference), null);
     }
 }

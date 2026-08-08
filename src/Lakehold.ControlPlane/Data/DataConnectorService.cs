@@ -244,6 +244,7 @@ public sealed class DataConnectorService(ControlPlaneContext context)
         string tenantSlug,
         string catalogName,
         int id,
+        int? expectedVersion,
         CancellationToken cancellationToken)
     {
         var connector = await Query(tenantSlug, catalogName)
@@ -251,6 +252,11 @@ public sealed class DataConnectorService(ControlPlaneContext context)
             .ConfigureAwait(false)
             ?? throw new CatalogNotFoundException(
                 $"Connector '{id}' was not found in catalog '{catalogName}' for tenant '{tenantSlug}'.");
+        if (expectedVersion is not null && connector.ConcurrencyVersion != expectedVersion.Value)
+        {
+            throw new DataConnectorConflictException(
+                $"Connector '{connector.Name}' changed since version {expectedVersion}; reload it before retiring.");
+        }
         if (connector.LeaseExpiresUtc > DateTimeOffset.UtcNow)
         {
             throw new DataConnectorConflictException(
@@ -364,6 +370,7 @@ public sealed class DataConnectorService(ControlPlaneContext context)
                 connector.Id == id
                 && connector.ArchivedUtc == null
                 && connector.PausedUtc == null
+                && connector.SourceAcknowledgementPendingUtc == null
                 && (connector.LeaseExpiresUtc == null || connector.LeaseExpiresUtc <= now));
             if (trigger == DataConnectorTrigger.Scheduled)
             {
@@ -418,6 +425,7 @@ public sealed class DataConnectorService(ControlPlaneContext context)
                 connector.Enabled
                 && connector.ArchivedUtc == null
                 && connector.PausedUtc == null
+                && connector.SourceAcknowledgementPendingUtc == null
                 && connector.RefreshIntervalSeconds != null
                 && connector.NextRunUtc != null
                 && connector.NextRunUtc <= now
@@ -482,6 +490,31 @@ public sealed class DataConnectorService(ControlPlaneContext context)
             deadLettered,
             proposedCheckpoint,
             replayKey);
+        await _context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Changes a durably published run to the truthful recovery state when a source acknowledgement
+    /// (for example a Kafka offset commit) fails afterwards. The publication and connector
+    /// checkpoint are intentionally retained: the next source read can replay the same bounded
+    /// window into an idempotent target and retry acknowledgement. This is at-least-once delivery.
+    /// </summary>
+    public async Task MarkSourceAcknowledgementPendingAsync(
+        int runId,
+        DateTimeOffset now,
+        string error,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(error);
+        await using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken)
+            .ConfigureAwait(false);
+        var run = await _context.DataConnectorRuns.SingleAsync(item => item.Id == runId, cancellationToken)
+            .ConfigureAwait(false);
+        run.MarkSourceAcknowledgementPending(now, error);
+        var connector = await _context.DataConnectors.SingleAsync(item => item.Id == run.DataConnectorId, cancellationToken)
+            .ConfigureAwait(false);
+        connector.MarkSourceAcknowledgementPending(now, error);
         await _context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
     }

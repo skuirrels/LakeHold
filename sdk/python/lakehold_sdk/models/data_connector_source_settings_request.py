@@ -32,7 +32,11 @@ class DataConnectorSourceSettingsRequest(BaseModel):
     page_size: Optional[StrictInt] = Field(default=100, alias="pageSize")
     properties: Optional[List[StrictStr]] = None
     cursor_is_commit_monotonic: Optional[StrictBool] = Field(default=False, alias="cursorIsCommitMonotonic")
-    __properties: ClassVar[List[str]] = ["sourceTable", "cursorColumn", "cursorType", "pageSize", "properties", "cursorIsCommitMonotonic"]
+    kafka_bootstrap_servers: Optional[StrictStr] = Field(default=None, alias="kafkaBootstrapServers")
+    kafka_topic: Optional[StrictStr] = Field(default=None, alias="kafkaTopic")
+    kafka_consumer_group: Optional[StrictStr] = Field(default=None, alias="kafkaConsumerGroup")
+    schema_registry_url: Optional[StrictStr] = Field(default=None, alias="schemaRegistryUrl")
+    __properties: ClassVar[List[str]] = ["sourceTable", "cursorColumn", "cursorType", "pageSize", "properties", "cursorIsCommitMonotonic", "kafkaBootstrapServers", "kafkaTopic", "kafkaConsumerGroup", "schemaRegistryUrl"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -92,6 +96,26 @@ class DataConnectorSourceSettingsRequest(BaseModel):
         if self.properties is None and "properties" in self.model_fields_set:
             _dict['properties'] = None
 
+        # set to None if kafka_bootstrap_servers (nullable) is None
+        # and model_fields_set contains the field
+        if self.kafka_bootstrap_servers is None and "kafka_bootstrap_servers" in self.model_fields_set:
+            _dict['kafkaBootstrapServers'] = None
+
+        # set to None if kafka_topic (nullable) is None
+        # and model_fields_set contains the field
+        if self.kafka_topic is None and "kafka_topic" in self.model_fields_set:
+            _dict['kafkaTopic'] = None
+
+        # set to None if kafka_consumer_group (nullable) is None
+        # and model_fields_set contains the field
+        if self.kafka_consumer_group is None and "kafka_consumer_group" in self.model_fields_set:
+            _dict['kafkaConsumerGroup'] = None
+
+        # set to None if schema_registry_url (nullable) is None
+        # and model_fields_set contains the field
+        if self.schema_registry_url is None and "schema_registry_url" in self.model_fields_set:
+            _dict['schemaRegistryUrl'] = None
+
         return _dict
 
     @classmethod
@@ -109,7 +133,11 @@ class DataConnectorSourceSettingsRequest(BaseModel):
             "cursorType": obj.get("cursorType"),
             "pageSize": obj.get("pageSize") if obj.get("pageSize") is not None else 100,
             "properties": obj.get("properties"),
-            "cursorIsCommitMonotonic": obj.get("cursorIsCommitMonotonic") if obj.get("cursorIsCommitMonotonic") is not None else False
+            "cursorIsCommitMonotonic": obj.get("cursorIsCommitMonotonic") if obj.get("cursorIsCommitMonotonic") is not None else False,
+            "kafkaBootstrapServers": obj.get("kafkaBootstrapServers"),
+            "kafkaTopic": obj.get("kafkaTopic"),
+            "kafkaConsumerGroup": obj.get("kafkaConsumerGroup"),
+            "schemaRegistryUrl": obj.get("schemaRegistryUrl")
         })
         return _obj
 

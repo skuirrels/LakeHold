@@ -27,6 +27,7 @@ import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import org.openapitools.jackson.nullable.JsonNullable;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -200,6 +201,16 @@ public class DataConnectorDto {
   @SerializedName(SERIALIZED_NAME_LAST_ERROR)
   @jakarta.annotation.Nullable
   private String lastError;
+
+  public static final String SERIALIZED_NAME_SOURCE_ACKNOWLEDGEMENT_PENDING_UTC = "sourceAcknowledgementPendingUtc";
+  @SerializedName(SERIALIZED_NAME_SOURCE_ACKNOWLEDGEMENT_PENDING_UTC)
+  @jakarta.annotation.Nullable
+  private OffsetDateTime sourceAcknowledgementPendingUtc;
+
+  public static final String SERIALIZED_NAME_SOURCE_ACKNOWLEDGEMENT_ERROR = "sourceAcknowledgementError";
+  @SerializedName(SERIALIZED_NAME_SOURCE_ACKNOWLEDGEMENT_ERROR)
+  @jakarta.annotation.Nullable
+  private String sourceAcknowledgementError;
 
   public static final String SERIALIZED_NAME_CONSECUTIVE_FAILURES = "consecutiveFailures";
   @SerializedName(SERIALIZED_NAME_CONSECUTIVE_FAILURES)
@@ -845,6 +856,44 @@ public class DataConnectorDto {
   }
 
 
+  public DataConnectorDto sourceAcknowledgementPendingUtc(@jakarta.annotation.Nullable OffsetDateTime sourceAcknowledgementPendingUtc) {
+    this.sourceAcknowledgementPendingUtc = sourceAcknowledgementPendingUtc;
+    return this;
+  }
+
+  /**
+   * Get sourceAcknowledgementPendingUtc
+   * @return sourceAcknowledgementPendingUtc
+   */
+  @jakarta.annotation.Nullable
+  public OffsetDateTime getSourceAcknowledgementPendingUtc() {
+    return sourceAcknowledgementPendingUtc;
+  }
+
+  public void setSourceAcknowledgementPendingUtc(@jakarta.annotation.Nullable OffsetDateTime sourceAcknowledgementPendingUtc) {
+    this.sourceAcknowledgementPendingUtc = sourceAcknowledgementPendingUtc;
+  }
+
+
+  public DataConnectorDto sourceAcknowledgementError(@jakarta.annotation.Nullable String sourceAcknowledgementError) {
+    this.sourceAcknowledgementError = sourceAcknowledgementError;
+    return this;
+  }
+
+  /**
+   * Get sourceAcknowledgementError
+   * @return sourceAcknowledgementError
+   */
+  @jakarta.annotation.Nullable
+  public String getSourceAcknowledgementError() {
+    return sourceAcknowledgementError;
+  }
+
+  public void setSourceAcknowledgementError(@jakarta.annotation.Nullable String sourceAcknowledgementError) {
+    this.sourceAcknowledgementError = sourceAcknowledgementError;
+  }
+
+
   public DataConnectorDto consecutiveFailures(@jakarta.annotation.Nonnull Integer consecutiveFailures) {
     this.consecutiveFailures = consecutiveFailures;
     return this;
@@ -1118,6 +1167,8 @@ public class DataConnectorDto {
         Objects.equals(this.nextRunUtc, dataConnectorDto.nextRunUtc) &&
         Objects.equals(this.lastCompletedUtc, dataConnectorDto.lastCompletedUtc) &&
         Objects.equals(this.lastError, dataConnectorDto.lastError) &&
+        Objects.equals(this.sourceAcknowledgementPendingUtc, dataConnectorDto.sourceAcknowledgementPendingUtc) &&
+        Objects.equals(this.sourceAcknowledgementError, dataConnectorDto.sourceAcknowledgementError) &&
         Objects.equals(this.consecutiveFailures, dataConnectorDto.consecutiveFailures) &&
         Objects.equals(this.maxAttempts, dataConnectorDto.maxAttempts) &&
         Objects.equals(this.retryBaseSeconds, dataConnectorDto.retryBaseSeconds) &&
@@ -1131,9 +1182,20 @@ public class DataConnectorDto {
         Objects.equals(this.additionalProperties, dataConnectorDto.additionalProperties);
   }
 
+  private static <T> boolean equalsNullable(JsonNullable<T> a, JsonNullable<T> b) {
+    return a == b || (a != null && b != null && a.isPresent() && b.isPresent() && Objects.deepEquals(a.get(), b.get()));
+  }
+
   @Override
   public int hashCode() {
-    return Objects.hash(id, name, description, owner, tags, kind, adapterId, adapterVersion, readMode, endpointUrl, credentialEnvironmentVariable, restResponseFormat, sourceSettings, authentication, fieldMappings, schemaPolicy, keyColumns, checkpoint, checkpointVersion, targetSchema, targetTable, minimumRows, requiredColumns, notNullColumns, enabled, refreshIntervalSeconds, nextRunUtc, lastCompletedUtc, lastError, consecutiveFailures, maxAttempts, retryBaseSeconds, retryMaxSeconds, pausedUtc, targetProvisioned, archivedUtc, version, createdUtc, updatedUtc, additionalProperties);
+    return Objects.hash(id, name, description, owner, tags, kind, adapterId, adapterVersion, readMode, endpointUrl, credentialEnvironmentVariable, restResponseFormat, sourceSettings, authentication, fieldMappings, schemaPolicy, keyColumns, checkpoint, checkpointVersion, targetSchema, targetTable, minimumRows, requiredColumns, notNullColumns, enabled, refreshIntervalSeconds, nextRunUtc, lastCompletedUtc, lastError, sourceAcknowledgementPendingUtc, sourceAcknowledgementError, consecutiveFailures, maxAttempts, retryBaseSeconds, retryMaxSeconds, pausedUtc, targetProvisioned, archivedUtc, version, createdUtc, updatedUtc, additionalProperties);
+  }
+
+  private static <T> int hashCodeNullable(JsonNullable<T> a) {
+    if (a == null) {
+      return 1;
+    }
+    return a.isPresent() ? Arrays.deepHashCode(new Object[]{a.get()}) : 31;
   }
 
   @Override
@@ -1169,6 +1231,8 @@ public class DataConnectorDto {
     sb.append("    nextRunUtc: ").append(toIndentedString(nextRunUtc)).append("\n");
     sb.append("    lastCompletedUtc: ").append(toIndentedString(lastCompletedUtc)).append("\n");
     sb.append("    lastError: ").append(toIndentedString(lastError)).append("\n");
+    sb.append("    sourceAcknowledgementPendingUtc: ").append(toIndentedString(sourceAcknowledgementPendingUtc)).append("\n");
+    sb.append("    sourceAcknowledgementError: ").append(toIndentedString(sourceAcknowledgementError)).append("\n");
     sb.append("    consecutiveFailures: ").append(toIndentedString(consecutiveFailures)).append("\n");
     sb.append("    maxAttempts: ").append(toIndentedString(maxAttempts)).append("\n");
     sb.append("    retryBaseSeconds: ").append(toIndentedString(retryBaseSeconds)).append("\n");
@@ -1201,7 +1265,7 @@ public class DataConnectorDto {
 
   static {
     // a set of all properties/fields (JSON key names)
-    openapiFields = new HashSet<String>(Arrays.asList("id", "name", "description", "owner", "tags", "kind", "adapterId", "adapterVersion", "readMode", "endpointUrl", "credentialEnvironmentVariable", "restResponseFormat", "sourceSettings", "authentication", "fieldMappings", "schemaPolicy", "keyColumns", "checkpoint", "checkpointVersion", "targetSchema", "targetTable", "minimumRows", "requiredColumns", "notNullColumns", "enabled", "refreshIntervalSeconds", "nextRunUtc", "lastCompletedUtc", "lastError", "consecutiveFailures", "maxAttempts", "retryBaseSeconds", "retryMaxSeconds", "pausedUtc", "targetProvisioned", "archivedUtc", "version", "createdUtc", "updatedUtc"));
+    openapiFields = new HashSet<String>(Arrays.asList("id", "name", "description", "owner", "tags", "kind", "adapterId", "adapterVersion", "readMode", "endpointUrl", "credentialEnvironmentVariable", "restResponseFormat", "sourceSettings", "authentication", "fieldMappings", "schemaPolicy", "keyColumns", "checkpoint", "checkpointVersion", "targetSchema", "targetTable", "minimumRows", "requiredColumns", "notNullColumns", "enabled", "refreshIntervalSeconds", "nextRunUtc", "lastCompletedUtc", "lastError", "sourceAcknowledgementPendingUtc", "sourceAcknowledgementError", "consecutiveFailures", "maxAttempts", "retryBaseSeconds", "retryMaxSeconds", "pausedUtc", "targetProvisioned", "archivedUtc", "version", "createdUtc", "updatedUtc"));
 
     // a set of required properties/fields (JSON key names)
     openapiRequiredFields = new HashSet<String>(Arrays.asList("id", "name", "description", "owner", "tags", "kind", "adapterId", "adapterVersion", "readMode", "endpointUrl", "credentialEnvironmentVariable", "restResponseFormat", "sourceSettings", "authentication", "fieldMappings", "schemaPolicy", "keyColumns", "checkpoint", "checkpointVersion", "targetSchema", "targetTable", "minimumRows", "requiredColumns", "notNullColumns", "enabled", "refreshIntervalSeconds", "nextRunUtc", "lastCompletedUtc", "lastError", "consecutiveFailures", "maxAttempts", "retryBaseSeconds", "retryMaxSeconds", "pausedUtc", "targetProvisioned", "archivedUtc", "version", "createdUtc", "updatedUtc"));
@@ -1306,6 +1370,9 @@ public class DataConnectorDto {
       }
       if ((jsonObj.get("lastError") != null && !jsonObj.get("lastError").isJsonNull()) && !jsonObj.get("lastError").isJsonPrimitive()) {
         throw new IllegalArgumentException(String.format("Expected the field `lastError` to be a primitive type in the JSON string but got `%s`", jsonObj.get("lastError").toString()));
+      }
+      if ((jsonObj.get("sourceAcknowledgementError") != null && !jsonObj.get("sourceAcknowledgementError").isJsonNull()) && !jsonObj.get("sourceAcknowledgementError").isJsonPrimitive()) {
+        throw new IllegalArgumentException(String.format("Expected the field `sourceAcknowledgementError` to be a primitive type in the JSON string but got `%s`", jsonObj.get("sourceAcknowledgementError").toString()));
       }
   }
 

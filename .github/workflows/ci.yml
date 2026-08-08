@@ -55,6 +55,9 @@ jobs:
       - name: Test
         run: dotnet test Lakehold.slnx --no-build
 
+      - name: Verify Kafka Avro through trusted proxy gateways
+        run: ./scripts/test-kafka-avro-proxy.sh
+
   frontend:
     name: Build and unit test the website
     runs-on: ubuntu-latest

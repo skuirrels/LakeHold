@@ -35,6 +35,10 @@ import {
   SystemStorage,
   TabularImportRequest,
   TabularImportResult,
+  DataConnector,
+  DataConnectorDefinitionRequest,
+  DataConnectorExecution,
+  DataConnectorRun,
   TableDetail,
   TableFiles,
   TableProfile,
@@ -181,6 +185,50 @@ export class LakehouseService {
         }),
       })
       .pipe(catchError(toMessage));
+  }
+
+  listConnectors(tenant: string, catalog: string): Observable<DataConnector[]> {
+    return this.http.get<DataConnector[]>(this.catalogUrl(tenant, catalog, 'connectors')).pipe(catchError(toMessage));
+  }
+
+  createConnector(tenant: string, catalog: string, definition: DataConnectorDefinitionRequest): Observable<DataConnector> {
+    return this.http.post<DataConnector>(this.catalogUrl(tenant, catalog, 'connectors'), definition).pipe(catchError(toMessage));
+  }
+
+  updateConnector(tenant: string, catalog: string, id: number, version: number, definition: DataConnectorDefinitionRequest): Observable<DataConnector> {
+    return this.http.put<DataConnector>(this.catalogUrl(tenant, catalog, `connectors/${id}`), { version, definition }).pipe(catchError(toMessage));
+  }
+
+  deleteConnector(tenant: string, catalog: string, id: number, version: number): Observable<void> {
+    return this.http.delete<void>(this.catalogUrl(tenant, catalog, `connectors/${id}`), { params: { version } }).pipe(catchError(toMessage));
+  }
+
+  pauseConnector(tenant: string, catalog: string, id: number, version: number): Observable<DataConnector> {
+    return this.http.post<DataConnector>(this.catalogUrl(tenant, catalog, `connectors/${id}/pause`), { version }).pipe(catchError(toMessage));
+  }
+
+  resumeConnector(tenant: string, catalog: string, id: number, version: number): Observable<DataConnector> {
+    return this.http.post<DataConnector>(this.catalogUrl(tenant, catalog, `connectors/${id}/resume`), { version }).pipe(catchError(toMessage));
+  }
+
+  runConnector(tenant: string, catalog: string, id: number): Observable<DataConnectorExecution> {
+    return this.http
+      .post<DataConnectorExecution>(this.catalogUrl(tenant, catalog, `connectors/${id}/run`), {})
+      .pipe(catchError(toMessage));
+  }
+
+  retryConnector(tenant: string, catalog: string, id: number, version: number): Observable<DataConnectorExecution> {
+    return this.http
+      .post<DataConnectorExecution>(this.catalogUrl(tenant, catalog, `connectors/${id}/retry`), { version })
+      .pipe(catchError(toMessage));
+  }
+
+  listConnectorRuns(tenant: string, catalog: string, id: number): Observable<DataConnectorRun[]> {
+    return this.http.get<DataConnectorRun[]>(this.catalogUrl(tenant, catalog, `connectors/${id}/runs`)).pipe(catchError(toMessage));
+  }
+
+  listConnectorDeadLetters(tenant: string, catalog: string, id: number): Observable<DataConnectorRun[]> {
+    return this.http.get<DataConnectorRun[]>(this.catalogUrl(tenant, catalog, `connectors/${id}/dead-letters`)).pipe(catchError(toMessage));
   }
 
   listSavedQueries(tenant: string, catalog: string): Observable<SavedQuery[]> {
@@ -705,6 +753,10 @@ function toMessage(response: HttpErrorResponse): Observable<never> {
 function importContentType(file: File): string {
   if (file.name.toLowerCase().endsWith('.xlsx')) {
     return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+  }
+
+  if (file.name.toLowerCase().endsWith('.avro')) {
+    return 'application/avro';
   }
 
   return file.type === 'text/csv' ? 'text/csv' : 'application/octet-stream';

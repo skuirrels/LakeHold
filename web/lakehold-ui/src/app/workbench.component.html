@@ -147,7 +147,7 @@
         (click)="closeNavigationOverlays()"
       ></button>
 
-      @if (navigationDestination() === 'settings' || navigationDestination() === 'users') {
+      @if (navigationDestination() === 'settings' || navigationDestination() === 'users' || navigationDestination() === 'connectors') {
         <main
           class="main admin-main"
           [attr.aria-hidden]="navigationOverlayOpen() ? 'true' : null"
@@ -155,6 +155,12 @@
         >
           @if (navigationDestination() === 'settings') {
             <lh-system-settings (resourcesChanged)="refreshWorkspaces()" />
+          } @else if (navigationDestination() === 'connectors') {
+            @if (tenantSlug() && catalogName()) {
+              <lh-managed-connectors [tenant]="tenantSlug()!" [catalog]="catalogName()!" />
+            } @else {
+              <p class="placeholder">Choose a workspace and catalog before administering connectors.</p>
+            }
           } @else {
             <lh-users />
           }

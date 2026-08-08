@@ -36,7 +36,9 @@ class DataConnectorAuthenticationDto(BaseModel):
     client_certificate_secret_reference: Optional[StrictStr] = Field(alias="clientCertificateSecretReference")
     certificate_password_secret_reference: Optional[StrictStr] = Field(alias="certificatePasswordSecretReference")
     custom_header_name: Optional[StrictStr] = Field(alias="customHeaderName")
-    __properties: ClassVar[List[str]] = ["kind", "secretReference", "usernameSecretReference", "passwordSecretReference", "clientIdSecretReference", "clientSecretReference", "refreshTokenSecretReference", "clientCertificateSecretReference", "certificatePasswordSecretReference", "customHeaderName"]
+    schema_registry_username_secret_reference: Optional[StrictStr] = Field(default=None, alias="schemaRegistryUsernameSecretReference")
+    schema_registry_password_secret_reference: Optional[StrictStr] = Field(default=None, alias="schemaRegistryPasswordSecretReference")
+    __properties: ClassVar[List[str]] = ["kind", "secretReference", "usernameSecretReference", "passwordSecretReference", "clientIdSecretReference", "clientSecretReference", "refreshTokenSecretReference", "clientCertificateSecretReference", "certificatePasswordSecretReference", "customHeaderName", "schemaRegistryUsernameSecretReference", "schemaRegistryPasswordSecretReference"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -121,6 +123,16 @@ class DataConnectorAuthenticationDto(BaseModel):
         if self.custom_header_name is None and "custom_header_name" in self.model_fields_set:
             _dict['customHeaderName'] = None
 
+        # set to None if schema_registry_username_secret_reference (nullable) is None
+        # and model_fields_set contains the field
+        if self.schema_registry_username_secret_reference is None and "schema_registry_username_secret_reference" in self.model_fields_set:
+            _dict['schemaRegistryUsernameSecretReference'] = None
+
+        # set to None if schema_registry_password_secret_reference (nullable) is None
+        # and model_fields_set contains the field
+        if self.schema_registry_password_secret_reference is None and "schema_registry_password_secret_reference" in self.model_fields_set:
+            _dict['schemaRegistryPasswordSecretReference'] = None
+
         return _dict
 
     @classmethod
@@ -142,7 +154,9 @@ class DataConnectorAuthenticationDto(BaseModel):
             "refreshTokenSecretReference": obj.get("refreshTokenSecretReference"),
             "clientCertificateSecretReference": obj.get("clientCertificateSecretReference"),
             "certificatePasswordSecretReference": obj.get("certificatePasswordSecretReference"),
-            "customHeaderName": obj.get("customHeaderName")
+            "customHeaderName": obj.get("customHeaderName"),
+            "schemaRegistryUsernameSecretReference": obj.get("schemaRegistryUsernameSecretReference"),
+            "schemaRegistryPasswordSecretReference": obj.get("schemaRegistryPasswordSecretReference")
         })
         return _obj
 

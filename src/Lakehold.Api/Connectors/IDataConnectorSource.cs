@@ -49,8 +49,15 @@ public interface IDataConnectorSource
         CancellationToken cancellationToken);
 }
 
+/// <summary>Optional transport acknowledgement performed only after LakeHold durably publishes a batch.</summary>
+internal interface IConnectorPostPublicationAcknowledger
+{
+    Task AcknowledgePublishedAsync(CancellationToken cancellationToken);
+    Task AbandonAsync();
+}
+
 /// <summary>Selects a protocol adapter without leaking transport decisions into orchestration.</summary>
-internal sealed class DataConnectorSourceResolver(IEnumerable<IDataConnectorSource> sources)
+public sealed class DataConnectorSourceResolver(IEnumerable<IDataConnectorSource> sources)
 {
     private readonly Dictionary<(string Id, int Version), IDataConnectorSource> _sources = sources
         .ToDictionary(source => (source.Manifest.Id, source.Manifest.Version));

@@ -65,13 +65,17 @@ export class TabularImportComponent {
   protected readonly busy = signal(false);
   protected readonly error = signal<string | null>(null);
   protected readonly result = signal<TabularImportResult | null>(null);
-  protected readonly fileFormat = computed<'csv' | 'xlsx' | null>(() => {
+  protected readonly fileFormat = computed<'csv' | 'xlsx' | 'avro' | null>(() => {
     const name = this.file()?.name.toLowerCase();
     if (name?.endsWith('.csv')) {
       return 'csv';
     }
 
-    return name?.endsWith('.xlsx') ? 'xlsx' : null;
+    if (name?.endsWith('.xlsx')) {
+      return 'xlsx';
+    }
+
+    return name?.endsWith('.avro') ? 'avro' : null;
   });
   protected readonly canImport = computed(
     () =>

@@ -1045,6 +1045,7 @@ class LakehouseApi:
         tenant_slug: StrictStr,
         catalog_name: StrictStr,
         id: StrictInt,
+        version: Optional[StrictInt] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -1067,6 +1068,8 @@ class LakehouseApi:
         :type catalog_name: str
         :param id: (required)
         :type id: int
+        :param version:
+        :type version: int
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -1093,6 +1096,7 @@ class LakehouseApi:
             tenant_slug=tenant_slug,
             catalog_name=catalog_name,
             id=id,
+            version=version,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -1133,6 +1137,7 @@ class LakehouseApi:
         tenant_slug: StrictStr,
         catalog_name: StrictStr,
         id: StrictInt,
+        version: Optional[StrictInt] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -1155,6 +1160,8 @@ class LakehouseApi:
         :type catalog_name: str
         :param id: (required)
         :type id: int
+        :param version:
+        :type version: int
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -1181,6 +1188,7 @@ class LakehouseApi:
             tenant_slug=tenant_slug,
             catalog_name=catalog_name,
             id=id,
+            version=version,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -1221,6 +1229,7 @@ class LakehouseApi:
         tenant_slug: StrictStr,
         catalog_name: StrictStr,
         id: StrictInt,
+        version: Optional[StrictInt] = None,
         _request_timeout: Union[
             None,
             Annotated[StrictFloat, Field(gt=0)],
@@ -1243,6 +1252,8 @@ class LakehouseApi:
         :type catalog_name: str
         :param id: (required)
         :type id: int
+        :param version:
+        :type version: int
         :param _request_timeout: timeout setting for this request. If one
                                  number provided, it will be total request
                                  timeout. It can also be a pair (tuple) of
@@ -1269,6 +1280,7 @@ class LakehouseApi:
             tenant_slug=tenant_slug,
             catalog_name=catalog_name,
             id=id,
+            version=version,
             _request_auth=_request_auth,
             _content_type=_content_type,
             _headers=_headers,
@@ -1304,6 +1316,7 @@ class LakehouseApi:
         tenant_slug,
         catalog_name,
         id,
+        version,
         _request_auth,
         _content_type,
         _headers,
@@ -1332,6 +1345,10 @@ class LakehouseApi:
         if id is not None:
             _path_params['id'] = id
         # process the query parameters
+        if version is not None:
+
+            _query_params.append(('version', version))
+
         # process the header parameters
         # process the form parameters
         # process the body parameter
@@ -17006,7 +17023,7 @@ class LakehouseApi:
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> TabularImportDto:
-        """Uploads a CSV or XLSX file and creates a new DuckLake table.
+        """Uploads a CSV, XLSX, or Avro file and creates a new DuckLake table.
 
 
         :param tenant_slug: (required)
@@ -17090,7 +17107,7 @@ class LakehouseApi:
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> ApiResponse[TabularImportDto]:
-        """Uploads a CSV or XLSX file and creates a new DuckLake table.
+        """Uploads a CSV, XLSX, or Avro file and creates a new DuckLake table.
 
 
         :param tenant_slug: (required)
@@ -17174,7 +17191,7 @@ class LakehouseApi:
         _headers: Optional[Dict[StrictStr, Any]] = None,
         _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
     ) -> RESTResponseType:
-        """Uploads a CSV or XLSX file and creates a new DuckLake table.
+        """Uploads a CSV, XLSX, or Avro file and creates a new DuckLake table.
 
 
         :param tenant_slug: (required)

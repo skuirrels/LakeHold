@@ -26,6 +26,10 @@ type DataConnectorSourceSettingsDto struct {
 	PageSize int32 `json:"pageSize"`
 	Properties []string `json:"properties"`
 	CursorIsCommitMonotonic bool `json:"cursorIsCommitMonotonic"`
+	KafkaBootstrapServers NullableString `json:"kafkaBootstrapServers,omitempty"`
+	KafkaTopic NullableString `json:"kafkaTopic,omitempty"`
+	KafkaConsumerGroup NullableString `json:"kafkaConsumerGroup,omitempty"`
+	SchemaRegistryUrl NullableString `json:"schemaRegistryUrl,omitempty"`
 	AdditionalProperties map[string]interface{}
 }
 
@@ -204,6 +208,174 @@ func (o *DataConnectorSourceSettingsDto) SetCursorIsCommitMonotonic(v bool) {
 	o.CursorIsCommitMonotonic = v
 }
 
+// GetKafkaBootstrapServers returns the KafkaBootstrapServers field value if set, zero value otherwise (both if not set or set to explicit null).
+func (o *DataConnectorSourceSettingsDto) GetKafkaBootstrapServers() string {
+	if o == nil || IsNil(o.KafkaBootstrapServers.Get()) {
+		var ret string
+		return ret
+	}
+	return *o.KafkaBootstrapServers.Get()
+}
+
+// GetKafkaBootstrapServersOk returns a tuple with the KafkaBootstrapServers field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+// NOTE: If the value is an explicit nil, `nil, true` will be returned
+func (o *DataConnectorSourceSettingsDto) GetKafkaBootstrapServersOk() (*string, bool) {
+	if o == nil {
+		return nil, false
+	}
+	return o.KafkaBootstrapServers.Get(), o.KafkaBootstrapServers.IsSet()
+}
+
+// HasKafkaBootstrapServers returns a boolean if a field has been set.
+func (o *DataConnectorSourceSettingsDto) HasKafkaBootstrapServers() bool {
+	if o != nil && o.KafkaBootstrapServers.IsSet() {
+		return true
+	}
+
+	return false
+}
+
+// SetKafkaBootstrapServers gets a reference to the given NullableString and assigns it to the KafkaBootstrapServers field.
+func (o *DataConnectorSourceSettingsDto) SetKafkaBootstrapServers(v string) {
+	o.KafkaBootstrapServers.Set(&v)
+}
+// SetKafkaBootstrapServersNil sets the value for KafkaBootstrapServers to be an explicit nil
+func (o *DataConnectorSourceSettingsDto) SetKafkaBootstrapServersNil() {
+	o.KafkaBootstrapServers.Set(nil)
+}
+
+// UnsetKafkaBootstrapServers ensures that no value is present for KafkaBootstrapServers, not even an explicit nil
+func (o *DataConnectorSourceSettingsDto) UnsetKafkaBootstrapServers() {
+	o.KafkaBootstrapServers.Unset()
+}
+
+// GetKafkaTopic returns the KafkaTopic field value if set, zero value otherwise (both if not set or set to explicit null).
+func (o *DataConnectorSourceSettingsDto) GetKafkaTopic() string {
+	if o == nil || IsNil(o.KafkaTopic.Get()) {
+		var ret string
+		return ret
+	}
+	return *o.KafkaTopic.Get()
+}
+
+// GetKafkaTopicOk returns a tuple with the KafkaTopic field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+// NOTE: If the value is an explicit nil, `nil, true` will be returned
+func (o *DataConnectorSourceSettingsDto) GetKafkaTopicOk() (*string, bool) {
+	if o == nil {
+		return nil, false
+	}
+	return o.KafkaTopic.Get(), o.KafkaTopic.IsSet()
+}
+
+// HasKafkaTopic returns a boolean if a field has been set.
+func (o *DataConnectorSourceSettingsDto) HasKafkaTopic() bool {
+	if o != nil && o.KafkaTopic.IsSet() {
+		return true
+	}
+
+	return false
+}
+
+// SetKafkaTopic gets a reference to the given NullableString and assigns it to the KafkaTopic field.
+func (o *DataConnectorSourceSettingsDto) SetKafkaTopic(v string) {
+	o.KafkaTopic.Set(&v)
+}
+// SetKafkaTopicNil sets the value for KafkaTopic to be an explicit nil
+func (o *DataConnectorSourceSettingsDto) SetKafkaTopicNil() {
+	o.KafkaTopic.Set(nil)
+}
+
+// UnsetKafkaTopic ensures that no value is present for KafkaTopic, not even an explicit nil
+func (o *DataConnectorSourceSettingsDto) UnsetKafkaTopic() {
+	o.KafkaTopic.Unset()
+}
+
+// GetKafkaConsumerGroup returns the KafkaConsumerGroup field value if set, zero value otherwise (both if not set or set to explicit null).
+func (o *DataConnectorSourceSettingsDto) GetKafkaConsumerGroup() string {
+	if o == nil || IsNil(o.KafkaConsumerGroup.Get()) {
+		var ret string
+		return ret
+	}
+	return *o.KafkaConsumerGroup.Get()
+}
+
+// GetKafkaConsumerGroupOk returns a tuple with the KafkaConsumerGroup field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+// NOTE: If the value is an explicit nil, `nil, true` will be returned
+func (o *DataConnectorSourceSettingsDto) GetKafkaConsumerGroupOk() (*string, bool) {
+	if o == nil {
+		return nil, false
+	}
+	return o.KafkaConsumerGroup.Get(), o.KafkaConsumerGroup.IsSet()
+}
+
+// HasKafkaConsumerGroup returns a boolean if a field has been set.
+func (o *DataConnectorSourceSettingsDto) HasKafkaConsumerGroup() bool {
+	if o != nil && o.KafkaConsumerGroup.IsSet() {
+		return true
+	}
+
+	return false
+}
+
+// SetKafkaConsumerGroup gets a reference to the given NullableString and assigns it to the KafkaConsumerGroup field.
+func (o *DataConnectorSourceSettingsDto) SetKafkaConsumerGroup(v string) {
+	o.KafkaConsumerGroup.Set(&v)
+}
+// SetKafkaConsumerGroupNil sets the value for KafkaConsumerGroup to be an explicit nil
+func (o *DataConnectorSourceSettingsDto) SetKafkaConsumerGroupNil() {
+	o.KafkaConsumerGroup.Set(nil)
+}
+
+// UnsetKafkaConsumerGroup ensures that no value is present for KafkaConsumerGroup, not even an explicit nil
+func (o *DataConnectorSourceSettingsDto) UnsetKafkaConsumerGroup() {
+	o.KafkaConsumerGroup.Unset()
+}
+
+// GetSchemaRegistryUrl returns the SchemaRegistryUrl field value if set, zero value otherwise (both if not set or set to explicit null).
+func (o *DataConnectorSourceSettingsDto) GetSchemaRegistryUrl() string {
+	if o == nil || IsNil(o.SchemaRegistryUrl.Get()) {
+		var ret string
+		return ret
+	}
+	return *o.SchemaRegistryUrl.Get()
+}
+
+// GetSchemaRegistryUrlOk returns a tuple with the SchemaRegistryUrl field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+// NOTE: If the value is an explicit nil, `nil, true` will be returned
+func (o *DataConnectorSourceSettingsDto) GetSchemaRegistryUrlOk() (*string, bool) {
+	if o == nil {
+		return nil, false
+	}
+	return o.SchemaRegistryUrl.Get(), o.SchemaRegistryUrl.IsSet()
+}
+
+// HasSchemaRegistryUrl returns a boolean if a field has been set.
+func (o *DataConnectorSourceSettingsDto) HasSchemaRegistryUrl() bool {
+	if o != nil && o.SchemaRegistryUrl.IsSet() {
+		return true
+	}
+
+	return false
+}
+
+// SetSchemaRegistryUrl gets a reference to the given NullableString and assigns it to the SchemaRegistryUrl field.
+func (o *DataConnectorSourceSettingsDto) SetSchemaRegistryUrl(v string) {
+	o.SchemaRegistryUrl.Set(&v)
+}
+// SetSchemaRegistryUrlNil sets the value for SchemaRegistryUrl to be an explicit nil
+func (o *DataConnectorSourceSettingsDto) SetSchemaRegistryUrlNil() {
+	o.SchemaRegistryUrl.Set(nil)
+}
+
+// UnsetSchemaRegistryUrl ensures that no value is present for SchemaRegistryUrl, not even an explicit nil
+func (o *DataConnectorSourceSettingsDto) UnsetSchemaRegistryUrl() {
+	o.SchemaRegistryUrl.Unset()
+}
+
 func (o DataConnectorSourceSettingsDto) MarshalJSON() ([]byte, error) {
 	toSerialize,err := o.ToMap()
 	if err != nil {
@@ -220,6 +392,18 @@ func (o DataConnectorSourceSettingsDto) ToMap() (map[string]interface{}, error) 
 	toSerialize["pageSize"] = o.PageSize
 	toSerialize["properties"] = o.Properties
 	toSerialize["cursorIsCommitMonotonic"] = o.CursorIsCommitMonotonic
+	if o.KafkaBootstrapServers.IsSet() {
+		toSerialize["kafkaBootstrapServers"] = o.KafkaBootstrapServers.Get()
+	}
+	if o.KafkaTopic.IsSet() {
+		toSerialize["kafkaTopic"] = o.KafkaTopic.Get()
+	}
+	if o.KafkaConsumerGroup.IsSet() {
+		toSerialize["kafkaConsumerGroup"] = o.KafkaConsumerGroup.Get()
+	}
+	if o.SchemaRegistryUrl.IsSet() {
+		toSerialize["schemaRegistryUrl"] = o.SchemaRegistryUrl.Get()
+	}
 
 	for key, value := range o.AdditionalProperties {
 		toSerialize[key] = value
@@ -274,6 +458,10 @@ func (o *DataConnectorSourceSettingsDto) UnmarshalJSON(data []byte) (err error) 
 		delete(additionalProperties, "pageSize")
 		delete(additionalProperties, "properties")
 		delete(additionalProperties, "cursorIsCommitMonotonic")
+		delete(additionalProperties, "kafkaBootstrapServers")
+		delete(additionalProperties, "kafkaTopic")
+		delete(additionalProperties, "kafkaConsumerGroup")
+		delete(additionalProperties, "schemaRegistryUrl")
 		o.AdditionalProperties = additionalProperties
 	}
 

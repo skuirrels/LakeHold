@@ -11,7 +11,7 @@ ARG TARGETARCH
 # Skuirrels.DuckDB.NET.Bindings.Full. ExtensionPackagingTests fails on drift.
 ARG DUCKDB_EXTENSION_VERSION=1.5.5
 # Keep this equal to the default LakehouseOptions extension set.
-ARG DUCKDB_PRELOADED_EXTENSIONS="ducklake httpfs json parquet excel"
+ARG DUCKDB_PRELOADED_EXTENSIONS="ducklake httpfs json parquet excel avro"
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates curl gzip \

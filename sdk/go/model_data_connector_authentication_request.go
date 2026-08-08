@@ -29,6 +29,8 @@ type DataConnectorAuthenticationRequest struct {
 	ClientCertificateSecretReference NullableString `json:"clientCertificateSecretReference,omitempty"`
 	CertificatePasswordSecretReference NullableString `json:"certificatePasswordSecretReference,omitempty"`
 	CustomHeaderName NullableString `json:"customHeaderName,omitempty"`
+	SchemaRegistryUsernameSecretReference NullableString `json:"schemaRegistryUsernameSecretReference,omitempty"`
+	SchemaRegistryPasswordSecretReference NullableString `json:"schemaRegistryPasswordSecretReference,omitempty"`
 	AdditionalProperties map[string]interface{}
 }
 
@@ -465,6 +467,90 @@ func (o *DataConnectorAuthenticationRequest) UnsetCustomHeaderName() {
 	o.CustomHeaderName.Unset()
 }
 
+// GetSchemaRegistryUsernameSecretReference returns the SchemaRegistryUsernameSecretReference field value if set, zero value otherwise (both if not set or set to explicit null).
+func (o *DataConnectorAuthenticationRequest) GetSchemaRegistryUsernameSecretReference() string {
+	if o == nil || IsNil(o.SchemaRegistryUsernameSecretReference.Get()) {
+		var ret string
+		return ret
+	}
+	return *o.SchemaRegistryUsernameSecretReference.Get()
+}
+
+// GetSchemaRegistryUsernameSecretReferenceOk returns a tuple with the SchemaRegistryUsernameSecretReference field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+// NOTE: If the value is an explicit nil, `nil, true` will be returned
+func (o *DataConnectorAuthenticationRequest) GetSchemaRegistryUsernameSecretReferenceOk() (*string, bool) {
+	if o == nil {
+		return nil, false
+	}
+	return o.SchemaRegistryUsernameSecretReference.Get(), o.SchemaRegistryUsernameSecretReference.IsSet()
+}
+
+// HasSchemaRegistryUsernameSecretReference returns a boolean if a field has been set.
+func (o *DataConnectorAuthenticationRequest) HasSchemaRegistryUsernameSecretReference() bool {
+	if o != nil && o.SchemaRegistryUsernameSecretReference.IsSet() {
+		return true
+	}
+
+	return false
+}
+
+// SetSchemaRegistryUsernameSecretReference gets a reference to the given NullableString and assigns it to the SchemaRegistryUsernameSecretReference field.
+func (o *DataConnectorAuthenticationRequest) SetSchemaRegistryUsernameSecretReference(v string) {
+	o.SchemaRegistryUsernameSecretReference.Set(&v)
+}
+// SetSchemaRegistryUsernameSecretReferenceNil sets the value for SchemaRegistryUsernameSecretReference to be an explicit nil
+func (o *DataConnectorAuthenticationRequest) SetSchemaRegistryUsernameSecretReferenceNil() {
+	o.SchemaRegistryUsernameSecretReference.Set(nil)
+}
+
+// UnsetSchemaRegistryUsernameSecretReference ensures that no value is present for SchemaRegistryUsernameSecretReference, not even an explicit nil
+func (o *DataConnectorAuthenticationRequest) UnsetSchemaRegistryUsernameSecretReference() {
+	o.SchemaRegistryUsernameSecretReference.Unset()
+}
+
+// GetSchemaRegistryPasswordSecretReference returns the SchemaRegistryPasswordSecretReference field value if set, zero value otherwise (both if not set or set to explicit null).
+func (o *DataConnectorAuthenticationRequest) GetSchemaRegistryPasswordSecretReference() string {
+	if o == nil || IsNil(o.SchemaRegistryPasswordSecretReference.Get()) {
+		var ret string
+		return ret
+	}
+	return *o.SchemaRegistryPasswordSecretReference.Get()
+}
+
+// GetSchemaRegistryPasswordSecretReferenceOk returns a tuple with the SchemaRegistryPasswordSecretReference field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+// NOTE: If the value is an explicit nil, `nil, true` will be returned
+func (o *DataConnectorAuthenticationRequest) GetSchemaRegistryPasswordSecretReferenceOk() (*string, bool) {
+	if o == nil {
+		return nil, false
+	}
+	return o.SchemaRegistryPasswordSecretReference.Get(), o.SchemaRegistryPasswordSecretReference.IsSet()
+}
+
+// HasSchemaRegistryPasswordSecretReference returns a boolean if a field has been set.
+func (o *DataConnectorAuthenticationRequest) HasSchemaRegistryPasswordSecretReference() bool {
+	if o != nil && o.SchemaRegistryPasswordSecretReference.IsSet() {
+		return true
+	}
+
+	return false
+}
+
+// SetSchemaRegistryPasswordSecretReference gets a reference to the given NullableString and assigns it to the SchemaRegistryPasswordSecretReference field.
+func (o *DataConnectorAuthenticationRequest) SetSchemaRegistryPasswordSecretReference(v string) {
+	o.SchemaRegistryPasswordSecretReference.Set(&v)
+}
+// SetSchemaRegistryPasswordSecretReferenceNil sets the value for SchemaRegistryPasswordSecretReference to be an explicit nil
+func (o *DataConnectorAuthenticationRequest) SetSchemaRegistryPasswordSecretReferenceNil() {
+	o.SchemaRegistryPasswordSecretReference.Set(nil)
+}
+
+// UnsetSchemaRegistryPasswordSecretReference ensures that no value is present for SchemaRegistryPasswordSecretReference, not even an explicit nil
+func (o *DataConnectorAuthenticationRequest) UnsetSchemaRegistryPasswordSecretReference() {
+	o.SchemaRegistryPasswordSecretReference.Unset()
+}
+
 func (o DataConnectorAuthenticationRequest) MarshalJSON() ([]byte, error) {
 	toSerialize,err := o.ToMap()
 	if err != nil {
@@ -505,6 +591,12 @@ func (o DataConnectorAuthenticationRequest) ToMap() (map[string]interface{}, err
 	if o.CustomHeaderName.IsSet() {
 		toSerialize["customHeaderName"] = o.CustomHeaderName.Get()
 	}
+	if o.SchemaRegistryUsernameSecretReference.IsSet() {
+		toSerialize["schemaRegistryUsernameSecretReference"] = o.SchemaRegistryUsernameSecretReference.Get()
+	}
+	if o.SchemaRegistryPasswordSecretReference.IsSet() {
+		toSerialize["schemaRegistryPasswordSecretReference"] = o.SchemaRegistryPasswordSecretReference.Get()
+	}
 
 	for key, value := range o.AdditionalProperties {
 		toSerialize[key] = value
@@ -537,6 +629,8 @@ func (o *DataConnectorAuthenticationRequest) UnmarshalJSON(data []byte) (err err
 		delete(additionalProperties, "clientCertificateSecretReference")
 		delete(additionalProperties, "certificatePasswordSecretReference")
 		delete(additionalProperties, "customHeaderName")
+		delete(additionalProperties, "schemaRegistryUsernameSecretReference")
+		delete(additionalProperties, "schemaRegistryPasswordSecretReference")
 		o.AdditionalProperties = additionalProperties
 	}
 

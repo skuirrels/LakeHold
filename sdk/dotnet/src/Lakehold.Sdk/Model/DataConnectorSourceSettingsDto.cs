@@ -28,6 +28,7 @@ namespace Lakehold.Sdk.Model
     /// <summary>
     /// DataConnectorSourceSettingsDto
     /// </summary>
+    [JsonConverter(typeof(DataConnectorSourceSettingsDtoJsonConverter))]
     public partial class DataConnectorSourceSettingsDto : IValidatableObject
     {
         /// <summary>
@@ -39,8 +40,12 @@ namespace Lakehold.Sdk.Model
         /// <param name="sourceTable">sourceTable</param>
         /// <param name="cursorColumn">cursorColumn</param>
         /// <param name="cursorType">cursorType</param>
+        /// <param name="kafkaBootstrapServers">kafkaBootstrapServers</param>
+        /// <param name="kafkaTopic">kafkaTopic</param>
+        /// <param name="kafkaConsumerGroup">kafkaConsumerGroup</param>
+        /// <param name="schemaRegistryUrl">schemaRegistryUrl</param>
         [JsonConstructor]
-        public DataConnectorSourceSettingsDto(int pageSize, List<string> properties, bool cursorIsCommitMonotonic, string? sourceTable = default, string? cursorColumn = default, string? cursorType = default)
+        public DataConnectorSourceSettingsDto(int pageSize, List<string> properties, bool cursorIsCommitMonotonic, string? sourceTable = default, string? cursorColumn = default, string? cursorType = default, Option<string?> kafkaBootstrapServers = default, Option<string?> kafkaTopic = default, Option<string?> kafkaConsumerGroup = default, Option<string?> schemaRegistryUrl = default)
         {
             PageSize = pageSize;
             Properties = properties;
@@ -48,6 +53,10 @@ namespace Lakehold.Sdk.Model
             SourceTable = sourceTable;
             CursorColumn = cursorColumn;
             CursorType = cursorType;
+            KafkaBootstrapServersOption = kafkaBootstrapServers;
+            KafkaTopicOption = kafkaTopic;
+            KafkaConsumerGroupOption = kafkaConsumerGroup;
+            SchemaRegistryUrlOption = schemaRegistryUrl;
             OnCreated();
         }
 
@@ -90,6 +99,58 @@ namespace Lakehold.Sdk.Model
         public string? CursorType { get; set; }
 
         /// <summary>
+        /// Used to track the state of KafkaBootstrapServers
+        /// </summary>
+        [JsonIgnore]
+        [global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]
+        public Option<string?> KafkaBootstrapServersOption { get; private set; }
+
+        /// <summary>
+        /// Gets or Sets KafkaBootstrapServers
+        /// </summary>
+        [JsonPropertyName("kafkaBootstrapServers")]
+        public string? KafkaBootstrapServers { get { return this.KafkaBootstrapServersOption; } set { this.KafkaBootstrapServersOption = new(value); } }
+
+        /// <summary>
+        /// Used to track the state of KafkaTopic
+        /// </summary>
+        [JsonIgnore]
+        [global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]
+        public Option<string?> KafkaTopicOption { get; private set; }
+
+        /// <summary>
+        /// Gets or Sets KafkaTopic
+        /// </summary>
+        [JsonPropertyName("kafkaTopic")]
+        public string? KafkaTopic { get { return this.KafkaTopicOption; } set { this.KafkaTopicOption = new(value); } }
+
+        /// <summary>
+        /// Used to track the state of KafkaConsumerGroup
+        /// </summary>
+        [JsonIgnore]
+        [global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]
+        public Option<string?> KafkaConsumerGroupOption { get; private set; }
+
+        /// <summary>
+        /// Gets or Sets KafkaConsumerGroup
+        /// </summary>
+        [JsonPropertyName("kafkaConsumerGroup")]
+        public string? KafkaConsumerGroup { get { return this.KafkaConsumerGroupOption; } set { this.KafkaConsumerGroupOption = new(value); } }
+
+        /// <summary>
+        /// Used to track the state of SchemaRegistryUrl
+        /// </summary>
+        [JsonIgnore]
+        [global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]
+        public Option<string?> SchemaRegistryUrlOption { get; private set; }
+
+        /// <summary>
+        /// Gets or Sets SchemaRegistryUrl
+        /// </summary>
+        [JsonPropertyName("schemaRegistryUrl")]
+        public string? SchemaRegistryUrl { get { return this.SchemaRegistryUrlOption; } set { this.SchemaRegistryUrlOption = new(value); } }
+
+        /// <summary>
         /// Returns the string presentation of the object
         /// </summary>
         /// <returns>String presentation of the object</returns>
@@ -103,6 +164,10 @@ namespace Lakehold.Sdk.Model
             sb.Append("  SourceTable: ").Append(SourceTable).Append("\n");
             sb.Append("  CursorColumn: ").Append(CursorColumn).Append("\n");
             sb.Append("  CursorType: ").Append(CursorType).Append("\n");
+            sb.Append("  KafkaBootstrapServers: ").Append(KafkaBootstrapServers).Append("\n");
+            sb.Append("  KafkaTopic: ").Append(KafkaTopic).Append("\n");
+            sb.Append("  KafkaConsumerGroup: ").Append(KafkaConsumerGroup).Append("\n");
+            sb.Append("  SchemaRegistryUrl: ").Append(SchemaRegistryUrl).Append("\n");
             sb.Append("}\n");
             return sb.ToString();
         }
@@ -146,6 +211,10 @@ namespace Lakehold.Sdk.Model
             Option<string?> sourceTable = default;
             Option<string?> cursorColumn = default;
             Option<string?> cursorType = default;
+            Option<string?> kafkaBootstrapServers = default;
+            Option<string?> kafkaTopic = default;
+            Option<string?> kafkaConsumerGroup = default;
+            Option<string?> schemaRegistryUrl = default;
 
             while (utf8JsonReader.Read())
             {
@@ -180,6 +249,18 @@ namespace Lakehold.Sdk.Model
                         case "cursorType":
                             cursorType = new Option<string?>(utf8JsonReader.GetString());
                             break;
+                        case "kafkaBootstrapServers":
+                            kafkaBootstrapServers = new Option<string?>(utf8JsonReader.GetString());
+                            break;
+                        case "kafkaTopic":
+                            kafkaTopic = new Option<string?>(utf8JsonReader.GetString());
+                            break;
+                        case "kafkaConsumerGroup":
+                            kafkaConsumerGroup = new Option<string?>(utf8JsonReader.GetString());
+                            break;
+                        case "schemaRegistryUrl":
+                            schemaRegistryUrl = new Option<string?>(utf8JsonReader.GetString());
+                            break;
                         default:
                             break;
                     }
@@ -213,7 +294,7 @@ namespace Lakehold.Sdk.Model
             if (cursorIsCommitMonotonic.IsSet && cursorIsCommitMonotonic.Value == null)
                 throw new ArgumentNullException(nameof(cursorIsCommitMonotonic), "Property is not nullable for class DataConnectorSourceSettingsDto.");
 
-            return new DataConnectorSourceSettingsDto(pageSize.Value!.Value!, properties.Value!, cursorIsCommitMonotonic.Value!.Value!, sourceTable.Value!, cursorColumn.Value!, cursorType.Value!);
+            return new DataConnectorSourceSettingsDto(pageSize.Value!.Value!, properties.Value!, cursorIsCommitMonotonic.Value!.Value!, sourceTable.Value!, cursorColumn.Value!, cursorType.Value!, kafkaBootstrapServers, kafkaTopic, kafkaConsumerGroup, schemaRegistryUrl);
         }
 
         /// <summary>
@@ -261,6 +342,30 @@ namespace Lakehold.Sdk.Model
                 writer.WriteString("cursorType", dataConnectorSourceSettingsDto.CursorType);
             else
                 writer.WriteNull("cursorType");
+
+            if (dataConnectorSourceSettingsDto.KafkaBootstrapServersOption.IsSet)
+                if (dataConnectorSourceSettingsDto.KafkaBootstrapServersOption.Value != null)
+                    writer.WriteString("kafkaBootstrapServers", dataConnectorSourceSettingsDto.KafkaBootstrapServers);
+                else
+                    writer.WriteNull("kafkaBootstrapServers");
+
+            if (dataConnectorSourceSettingsDto.KafkaTopicOption.IsSet)
+                if (dataConnectorSourceSettingsDto.KafkaTopicOption.Value != null)
+                    writer.WriteString("kafkaTopic", dataConnectorSourceSettingsDto.KafkaTopic);
+                else
+                    writer.WriteNull("kafkaTopic");
+
+            if (dataConnectorSourceSettingsDto.KafkaConsumerGroupOption.IsSet)
+                if (dataConnectorSourceSettingsDto.KafkaConsumerGroupOption.Value != null)
+                    writer.WriteString("kafkaConsumerGroup", dataConnectorSourceSettingsDto.KafkaConsumerGroup);
+                else
+                    writer.WriteNull("kafkaConsumerGroup");
+
+            if (dataConnectorSourceSettingsDto.SchemaRegistryUrlOption.IsSet)
+                if (dataConnectorSourceSettingsDto.SchemaRegistryUrlOption.Value != null)
+                    writer.WriteString("schemaRegistryUrl", dataConnectorSourceSettingsDto.SchemaRegistryUrl);
+                else
+                    writer.WriteNull("schemaRegistryUrl");
         }
     }
 }
