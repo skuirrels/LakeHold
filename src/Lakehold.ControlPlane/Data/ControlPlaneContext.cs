@@ -187,6 +187,7 @@ public sealed class ControlPlaneContext(DbContextOptions<ControlPlaneContext> op
             entity.Property(c => c.RequiredColumnsJson).HasMaxLength(65_536);
             entity.Property(c => c.NotNullColumnsJson).HasMaxLength(65_536);
             entity.Property(c => c.LastError).HasMaxLength(4_000);
+            entity.Property(c => c.SourceAcknowledgementError).HasMaxLength(4_000);
             entity.Property(c => c.LeaseOwner).HasMaxLength(128);
             entity.Property(c => c.LeaseToken).HasMaxLength(32);
             entity.Property(c => c.ConcurrencyVersion).IsConcurrencyToken();

@@ -246,6 +246,131 @@ export interface TabularImportRequest {
   storeRejects: boolean;
 }
 
+/** A durable, administrator-owned ingestion definition. Secret values are never returned. */
+export interface DataConnector {
+  id: number;
+  name: string;
+  description: string | null;
+  owner: string;
+  tags: string[];
+  kind: string;
+  adapterId: string;
+  endpointUrl: string;
+  adapterVersion: number;
+  readMode: string;
+  restResponseFormat: string;
+  sourceSettings: DataConnectorSourceSettings;
+  authentication: DataConnectorAuthentication;
+  fieldMappings: { source: string; target: string; transform: string }[];
+  schemaPolicy: string;
+  keyColumns: string[];
+  minimumRows: number;
+  requiredColumns: string[];
+  notNullColumns: string[];
+  refreshIntervalSeconds: number | null;
+  targetSchema: string;
+  targetTable: string;
+  enabled: boolean;
+  pausedUtc: string | null;
+  lastCompletedUtc: string | null;
+  lastError: string | null;
+  sourceAcknowledgementPendingUtc: string | null;
+  sourceAcknowledgementError: string | null;
+  checkpoint: string | null;
+  version: number;
+}
+
+/** Safe, durable evidence for one connector attempt. Never contains source records or secrets. */
+export interface DataConnectorRun {
+  id: number;
+  trigger: string;
+  status: string;
+  startedUtc: string;
+  completedUtc: string | null;
+  rowsRead: number;
+  rowsPublished: number;
+  qualityPassed: boolean | null;
+  sourceVersion: string | null;
+  inputCheckpoint: string | null;
+  proposedCheckpoint: string | null;
+  replayKey: string | null;
+  error: string | null;
+}
+
+export interface DataConnectorSourceSettings {
+  sourceTable: string | null;
+  cursorColumn: string | null;
+  cursorType: string | null;
+  pageSize: number;
+  properties: string[];
+  cursorIsCommitMonotonic: boolean;
+  kafkaBootstrapServers: string | null;
+  kafkaTopic: string | null;
+  kafkaConsumerGroup: string | null;
+  schemaRegistryUrl: string | null;
+}
+
+export interface DataConnectorAuthentication {
+  kind: string;
+  secretReference: string | null;
+  usernameSecretReference: string | null;
+  passwordSecretReference: string | null;
+  clientIdSecretReference: string | null;
+  clientSecretReference: string | null;
+  refreshTokenSecretReference: string | null;
+  clientCertificateSecretReference: string | null;
+  certificatePasswordSecretReference: string | null;
+  customHeaderName: string | null;
+}
+
+export interface DataConnectorDefinitionRequest {
+  name: string;
+  description: string | null;
+  owner: string;
+  tags: string[];
+  kind: string;
+  endpointUrl: string;
+  credentialEnvironmentVariable: string | null;
+  restResponseFormat: string | null;
+  targetSchema: string;
+  targetTable: string;
+  minimumRows: number;
+  enabled: boolean;
+  refreshIntervalSeconds?: number | null;
+  requiredColumns?: string[];
+  notNullColumns?: string[];
+  fieldMappings?: { source: string; target: string; transform: string }[];
+  sourceSettings: {
+    pageSize: number;
+    sourceTable?: string | null;
+    cursorColumn?: string | null;
+    cursorType?: string | null;
+    properties?: string[];
+    cursorIsCommitMonotonic?: boolean;
+    kafkaBootstrapServers?: string | null;
+    kafkaTopic?: string | null;
+    kafkaConsumerGroup?: string | null;
+    schemaRegistryUrl?: string | null;
+  };
+  authentication: {
+    kind: string;
+    secretReference?: string | null;
+    usernameSecretReference?: string | null;
+    passwordSecretReference?: string | null;
+    clientIdSecretReference?: string | null;
+    clientSecretReference?: string | null;
+    refreshTokenSecretReference?: string | null;
+    clientCertificateSecretReference?: string | null;
+    certificatePasswordSecretReference?: string | null;
+    customHeaderName?: string | null;
+  };
+  adapterId?: string | null;
+  adapterVersion?: number;
+  readMode?: string | null;
+  schemaPolicy?: string | null;
+  keyColumns?: string[];
+}
+
 export interface TabularImportedColumn {
   name: string;
   dataType: string;

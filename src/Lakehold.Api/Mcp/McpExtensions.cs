@@ -25,6 +25,7 @@ public static class McpExtensions
             .WithHttpTransport()
             .WithTools<LakeholdTools>()
             .WithTools<LakeholdWriteTools>()
+            .WithTools<LakeholdConnectorTools>()
             .WithResources<LakeholdResources>()
             .WithRequestFilters(filters =>
             {

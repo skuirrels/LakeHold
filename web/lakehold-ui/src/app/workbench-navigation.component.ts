@@ -18,6 +18,7 @@ export type WorkbenchDestination =
   | 'backups'
   | 'ejects'
   | 'schedule'
+  | 'connectors'
   | 'users'
   | 'settings';
 

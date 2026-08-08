@@ -115,7 +115,11 @@ public sealed class DataConnectorTests
                 now.AddMinutes(6).AddSeconds(4)));
             Assert.Contains("cannot change", retarget.Message, StringComparison.Ordinal);
 
-            await service.DeleteAsync("acme", "analytics", connector.Id, default);
+            var staleRetire = await Assert.ThrowsAsync<DataConnectorConflictException>(() =>
+                service.DeleteAsync("acme", "analytics", connector.Id, publishedConnector.ConcurrencyVersion - 1, default));
+            Assert.Contains("reload", staleRetire.Message, StringComparison.OrdinalIgnoreCase);
+
+            await service.DeleteAsync("acme", "analytics", connector.Id, publishedConnector.ConcurrencyVersion, default);
             var archived = await service.GetAsync("acme", "analytics", connector.Id, default);
             Assert.NotNull(archived.ArchivedUtc);
             Assert.True(archived.TargetProvisioned);
@@ -220,6 +224,90 @@ public sealed class DataConnectorTests
         Assert.Contains("running", failure.Message, StringComparison.Ordinal);
         Assert.Equal(DataConnectorRunStatus.Succeeded, run.Status);
         Assert.Equal(2, run.RowsPublished);
+    }
+
+    [Fact]
+    public void Published_run_records_source_acknowledgement_pending_without_claiming_success()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var run = DataConnectorRun.Start(1, DataConnectorTrigger.Manual, "node-one", "lease-one", now);
+        run.Succeed(now.AddSeconds(1), 4, 4, "topic:0:3", "topic:0:4", "topic:0:4");
+
+        run.MarkSourceAcknowledgementPending(
+            now.AddSeconds(2),
+            "LakeHold published the batch, but source acknowledgement is pending; a later run will replay it safely.");
+
+        Assert.Equal(DataConnectorRunStatus.PublishedAwaitingSourceAcknowledgement, run.Status);
+        Assert.Equal(4, run.RowsPublished);
+        Assert.Contains("published", run.Error, StringComparison.OrdinalIgnoreCase);
+        Assert.Throws<InvalidOperationException>(() => run.MarkSourceAcknowledgementPending(now.AddSeconds(3), "again"));
+    }
+
+    [Fact]
+    public void Connector_requires_explicit_retry_after_source_acknowledgement_failure()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var connector = DataConnector.Create(
+            1,
+            1,
+            Definition(DataConnectorKind.KafkaAvro) with
+            {
+                EndpointUrl = "https://registry.example.test",
+                Enabled = true,
+                RefreshIntervalSeconds = 60,
+                Platform = new DataConnectorPlatformDefinition(
+                    "lakehold.kafka-avro", 1, DataConnectorReadMode.Incremental,
+                    DataConnectorSchemaPolicy.Reject, ["id"], [],
+                    new DataConnectorSourceSettings(KafkaBootstrapServers: "198.51.100.10:9092", KafkaTopic: "orders", KafkaConsumerGroup: "lakehold", SchemaRegistryUrl: "https://registry.example.test"),
+                    new DataConnectorAuthentication())
+            },
+            now);
+
+        connector.MarkSourceAcknowledgementPending(now.AddSeconds(1), "published but Kafka did not commit");
+
+        Assert.NotNull(connector.SourceAcknowledgementPendingUtc);
+        Assert.Null(connector.NextRunUtc);
+        Assert.Contains("Kafka", connector.SourceAcknowledgementError, StringComparison.OrdinalIgnoreCase);
+
+        connector.Resume(now.AddSeconds(2), resetFailures: true);
+
+        Assert.Null(connector.SourceAcknowledgementPendingUtc);
+        Assert.Null(connector.SourceAcknowledgementError);
+        Assert.Equal(now.AddSeconds(2), connector.NextRunUtc);
+    }
+
+    [Fact]
+    public async Task Persisted_acknowledgement_pending_gate_survives_reload_and_explicit_retry()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "lakehold-connector-ack-tests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        try
+        {
+            var options = new DbContextOptionsBuilder<ControlPlaneContext>().UseDuckDB($"Data Source={Path.Combine(root, "control.duckdb")}").Options;
+            await using (var setup = new ControlPlaneContext(options))
+            {
+                await setup.Database.EnsureCreatedAsync();
+                var tenant = new Tenant { Slug = "ack", DisplayName = "Ack", CreatedUtc = DateTimeOffset.UtcNow };
+                var catalog = new LakeCatalog { Tenant = tenant, Name = "main", MetadataSource = Path.Combine(root, "main.ducklake"), DataPath = Path.Combine(root, "data"), CreatedUtc = DateTimeOffset.UtcNow };
+                setup.AddRange(tenant, catalog); await setup.SaveChangesAsync();
+                var connector = DataConnector.Create(tenant.Id, catalog.Id, Definition(DataConnectorKind.Rest), DateTimeOffset.UtcNow);
+                setup.Add(connector); await setup.SaveChangesAsync();
+                var run = DataConnectorRun.Start(connector.Id, DataConnectorTrigger.Manual, "node", "lease", DateTimeOffset.UtcNow);
+                run.Succeed(DateTimeOffset.UtcNow, 1, 1, "topic:0:0", "topic:0:1", "topic:0:1");
+                setup.Add(run); await setup.SaveChangesAsync();
+                var service = new DataConnectorService(setup);
+                await service.MarkSourceAcknowledgementPendingAsync(run.Id, DateTimeOffset.UtcNow, "published but source acknowledgement failed", default);
+            }
+            await using (var verify = new ControlPlaneContext(options))
+            {
+                var connector = await verify.DataConnectors.SingleAsync(); var run = await verify.DataConnectorRuns.SingleAsync();
+                Assert.NotNull(connector.SourceAcknowledgementPendingUtc); Assert.Equal(DataConnectorRunStatus.PublishedAwaitingSourceAcknowledgement, run.Status);
+                connector.Resume(DateTimeOffset.UtcNow, true); await verify.SaveChangesAsync();
+            }
+            await using var replay = new ControlPlaneContext(options);
+            Assert.Null((await replay.DataConnectors.SingleAsync()).SourceAcknowledgementPendingUtc);
+        }
+        finally { Directory.Delete(root, true); }
     }
 
     private static DataConnectorDefinition Definition(DataConnectorKind kind) => new(

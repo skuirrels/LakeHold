@@ -22,6 +22,48 @@ public sealed class DataConnectorCorrectnessTests : IDisposable
         Guid.NewGuid().ToString("N"));
 
     [Fact]
+    public void Kafka_bootstrap_addresses_are_validated_but_egress_gateway_is_mandatory()
+    {
+        Assert.Equal(["broker-one.example", "broker-two.example"],
+            DataConnectorEndpoints.GetKafkaBootstrapHosts("broker-one.example:9092,broker-two.example:9093"));
+        Assert.Throws<ArgumentException>(() => DataConnectorEndpoints.GetKafkaBootstrapHosts("https://broker.example:9092"));
+        Assert.Throws<ArgumentException>(() => DataConnectorEndpoints.GetKafkaBootstrapHosts("user:password@broker.example:9092"));
+        Assert.Throws<ArgumentException>(() => DataConnectorEndpoints.GetKafkaBootstrapHosts("broker.example:9092/path"));
+    }
+
+    [Fact]
+    public void Kafka_egress_gateway_rejects_direct_or_dns_addressed_configuration()
+    {
+        var direct = new ConnectorOptions();
+        Assert.False(direct.TryGetKafkaEgressGateway(out _, out var directError));
+        Assert.Contains("disabled", directError, StringComparison.OrdinalIgnoreCase);
+
+        var rebindingGateway = new ConnectorOptions
+        {
+            KafkaEgressGateway = new KafkaEgressGatewayOptions
+            {
+                PolicyName = "approved-kafka",
+                KafkaBootstrapGateway = "proxy.example.test:1080",
+                SchemaRegistryHttpProxy = "http://198.51.100.9:8080",
+            },
+        };
+        Assert.False(rebindingGateway.TryGetKafkaEgressGateway(out _, out _));
+
+        var supported = new ConnectorOptions
+        {
+            KafkaEgressGateway = new KafkaEgressGatewayOptions
+            {
+                PolicyName = "approved-kafka",
+                KafkaBootstrapGateway = "198.51.100.10:1080",
+                SchemaRegistryHttpProxy = "http://198.51.100.11:8080",
+            },
+        };
+        Assert.True(supported.TryGetKafkaEgressGateway(out var gateway, out var error));
+        Assert.Null(error);
+        Assert.Equal("approved-kafka", gateway.PolicyName);
+    }
+
+    [Fact]
     public void Failed_run_preserves_partial_evidence_without_claiming_quality_was_evaluated()
     {
         var now = new DateTimeOffset(2026, 8, 2, 12, 0, 0, TimeSpan.Zero);

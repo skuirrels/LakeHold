@@ -1,7 +1,9 @@
 # Managed data connectors
 
-> **Delivery state — LakeHold v1.3.0:** this capability is shipped in the v1.3.0 source and container
-> artifacts. The four built-in adapters are production paths with full-stack release-gate evidence;
+> **Current delivery state:** the managed connector platform is established, and this feature branch
+> adds Kafka Avro alongside the earlier REST, gRPC, PostgreSQL, and HubSpot adapters. The five built-in
+> adapters are production paths with full-stack release-gate evidence; a release version is assigned
+> only when the branch is released.
 > they are not a claim of a broad hosted connector catalogue.
 
 LakeHold's managed-ingestion platform reads bounded full snapshots from REST or gRPC and
@@ -14,7 +16,7 @@ on Unix, and removes stale crash orphans on startup. A cleanup failure is logged
 never rewrites the durable publication outcome.
 
 This is intentionally a focused, source-level adapter platform, not a Fivetran-sized connector
-library. Its built-in catalogue is REST, gRPC, PostgreSQL, and HubSpot Contacts. The adapter SDK is
+library. Its built-in catalogue is REST, gRPC, PostgreSQL, HubSpot Contacts, and Kafka Avro. The adapter SDK is
 public in `Lakehold.Api`, but it is not yet distributed as a separate package. An operator adapter
 must be registered as `IDataConnectorSource`; its manifest id/version then becomes selectable by the
 connector API. Built-in ids are defaults, not an allowlist.
@@ -318,7 +320,7 @@ non-empty, only exact hosts or entries such as `*.example.com` are reachable.
 
 ## Current limitations
 
-- Four built-in adapters only; this is not a broad hosted or partner connector catalogue.
+- Five built-in adapters only; this is not a broad hosted or partner connector catalogue.
 - The adapter SDK is a public source/API contract, not a separately versioned NuGet package.
 - PostgreSQL is ordered-poll incremental ingestion, not logical replication or delete capture.
 - HubSpot Contacts is the only SaaS adapter. Source-side deletions are not represented. A backlog
@@ -327,4 +329,22 @@ non-empty, only exact hosts or entries such as `*.example.com` are reachable.
   `Retry-After` response rather than a distributed LakeHold rate-limit lease.
 - Mapping is top-level and declarative; nested-path expressions and arbitrary code are not supported.
 - Scheduling is interval-based, not cron-based.
-- Connectors are owner-administered over HTTP; the Workbench has no connector UI yet.
+- Connectors are owner-administered through the Workbench, HTTP API, and MCP using the same durable definitions.
+
+### Kafka Avro
+
+`lakehold.kafka-avro` consumes bounded Confluent-wire-format Avro records from Kafka through a
+Confluent-compatible HTTPS Schema Registry. LakeHold resolves schemas, stages decoded JSON, and
+materialises governed DuckLake/Parquet tables using its normal incremental keyed-upsert path.
+Broker and Registry credentials are secret references only; neither raw values nor private CAs are
+stored in a connector definition.
+
+Kafka is never contacted directly. Deployment configuration supplies a literal-IP Kafka TCP gateway
+which handles every advertised broker listener (and may tunnel via SOCKS), plus a literal-IP HTTP(S)
+proxy for Registry traffic. The deployment network policy owns the final allow-list. This is
+at-least-once ingestion: after publish, source acknowledgement is durable and explicit retry/replay
+is required if the broker commit fails. It is not a generic CDC/Debezium connector, does not support
+Apicurio or AWS Glue registries, and makes no exactly-once claim.
+
+Manual `.avro` object-container upload is a separate developer/import path; it is not Kafka wire
+format ingestion.

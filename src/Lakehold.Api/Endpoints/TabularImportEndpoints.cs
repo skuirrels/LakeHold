@@ -8,10 +8,10 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Lakehold.Api.Endpoints;
 
-/// <summary>Browser upload and tabular-file-to-table endpoints.</summary>
+    /// <summary>Browser upload and tabular-file-to-table endpoints.</summary>
 public static class TabularImportEndpoints
 {
-    /// <summary>Adds the catalog-scoped CSV/XLSX import route and its CSV compatibility alias.</summary>
+    /// <summary>Adds the catalog-scoped CSV/XLSX/Avro import route and its CSV compatibility alias.</summary>
     public static void MapTabularImportEndpoints(this RouteGroupBuilder tenants, long maxBytes)
     {
         ArgumentNullException.ThrowIfNull(tenants);
@@ -23,7 +23,7 @@ public static class TabularImportEndpoints
             .RequireCapability(Capability.TenantWrite)
             .WithMetadata(new RequestSizeLimitAttribute(maxBytes))
             .Produces<TabularImportDto>()
-            .WithSummary("Uploads a CSV or XLSX file and creates a new DuckLake table.");
+            .WithSummary("Uploads a CSV, XLSX, or Avro file and creates a new DuckLake table.");
 
         tenants.MapPost(
                 "/{tenantSlug}/catalogs/{catalogName}/imports/csv",
@@ -89,7 +89,9 @@ public static class TabularImportEndpoints
             return Results.BadRequest(
                 request.Format == TabularFileFormat.Csv
                     ? "CSV import requires a text/csv or application/octet-stream body."
-                    : "XLSX import requires the Open XML spreadsheet or application/octet-stream content type.");
+                    : request.Format == TabularFileFormat.Xlsx
+                        ? "XLSX import requires the Open XML spreadsheet or application/octet-stream content type."
+                        : "Avro import requires application/avro, application/octet-stream, or application/vnd.apache.avro content type.");
         }
 
         try
@@ -190,7 +192,7 @@ public static class TabularImportEndpoints
         if (!TryFileFormat(fileName, out var format))
         {
             request = null!;
-            error = "File name must end in .csv or .xlsx. Legacy .xls workbooks are not supported.";
+            error = "File name must end in .csv, .xlsx, or .avro. Legacy .xls workbooks are not supported.";
             return false;
         }
 
@@ -319,10 +321,12 @@ public static class TabularImportEndpoints
         {
             ".csv" => TabularFileFormat.Csv,
             ".xlsx" => TabularFileFormat.Xlsx,
+            ".avro" => TabularFileFormat.Avro,
             _ => default,
         };
         return Path.GetExtension(fileName).Equals(".csv", StringComparison.OrdinalIgnoreCase)
-            || Path.GetExtension(fileName).Equals(".xlsx", StringComparison.OrdinalIgnoreCase);
+            || Path.GetExtension(fileName).Equals(".xlsx", StringComparison.OrdinalIgnoreCase)
+            || Path.GetExtension(fileName).Equals(".avro", StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool IsSupportedContentType(string? contentType, TabularFileFormat format)
@@ -342,6 +346,9 @@ public static class TabularImportEndpoints
                 contentType?.StartsWith(
                     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                     StringComparison.OrdinalIgnoreCase) is true,
+            TabularFileFormat.Avro =>
+                contentType?.StartsWith("application/avro", StringComparison.OrdinalIgnoreCase) is true
+                || contentType?.StartsWith("application/vnd.apache.avro", StringComparison.OrdinalIgnoreCase) is true,
             _ => false,
         };
     }

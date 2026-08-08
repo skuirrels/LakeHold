@@ -16,6 +16,7 @@ internal enum ConnectorExecutionFailureKind
     Capacity,
     SourceOrImport,
     PublicationState,
+    SourceAcknowledgementPending,
 }
 
 internal sealed record ConnectorExecutionResult(
@@ -71,6 +72,7 @@ internal sealed class ConnectorRunner(
         string? replayKey = null;
         JsonSnapshotImportResult? published = null;
         ConnectorSnapshotFile? snapshot = null;
+        IDataConnectorSource? source = null;
         bool? qualityPassed = null;
         LakeholdTelemetry.ConnectorWorkersActive.Add(1);
 
@@ -87,7 +89,7 @@ internal sealed class ConnectorRunner(
                     failureType)).ConfigureAwait(false);
             snapshot = ownedSnapshot;
             snapshot.ConfigureMappings(connector.FieldMappings());
-            var source = sources.Resolve(connector);
+            source = sources.Resolve(connector);
             var sourceResult = await source.ReadAsync(
                     new ConnectorReadContext(
                         connector,
@@ -163,6 +165,46 @@ internal sealed class ConnectorRunner(
                     targetPublished: published is not null,
                     CancellationToken.None)
                 .ConfigureAwait(false);
+            if (source is IConnectorPostPublicationAcknowledger acknowledger)
+            {
+                try
+                {
+                    await acknowledger.AcknowledgePublishedAsync(CancellationToken.None).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    // Publication is already durable. Do not call this a failed import or pretend
+                    // the broker offset was committed: record an explicit recovery state and let a
+                    // later bounded run replay idempotently before retrying acknowledgement.
+                    var error = "LakeHold published the batch, but source acknowledgement is pending; a later run will replay it safely.";
+                    try
+                    {
+                        await connectors.MarkSourceAcknowledgementPendingAsync(
+                                claim.RunId,
+                                DateTimeOffset.UtcNow,
+                                error,
+                                CancellationToken.None)
+                            .ConfigureAwait(false);
+                    }
+                    catch (Exception persistenceException)
+                    {
+                        ConnectorLog.AcknowledgementStateRecordFailed(logger, persistenceException, connector.Id);
+                        throw new InvalidOperationException(
+                            "LakeHold published the batch, but neither source acknowledgement nor its recovery state could be confirmed.", ex);
+                    }
+
+                    RecordMetrics(connector, startedAt, LakeholdTelemetry.OutcomeError, rowsRead);
+                    activity?.SetStatus(ActivityStatusCode.Error, error);
+                    return new ConnectorExecutionResult(
+                        claim.RunId,
+                        "published-source-acknowledgement-pending",
+                        rowsRead,
+                        published?.RowsPublished ?? 0,
+                        sourceVersion,
+                        error,
+                        ConnectorExecutionFailureKind.SourceAcknowledgementPending);
+                }
+            }
 
             RecordMetrics(connector, startedAt, LakeholdTelemetry.OutcomeSuccess, rowsRead);
             activity?.SetTag(LakeholdTelemetry.RowsKey, published?.RowsPublished ?? 0);
@@ -274,6 +316,10 @@ internal sealed class ConnectorRunner(
         }
         finally
         {
+            if (source is IConnectorPostPublicationAcknowledger acknowledger)
+            {
+                await acknowledger.AbandonAsync().ConfigureAwait(false);
+            }
             LakeholdTelemetry.ConnectorWorkersActive.Add(-1);
         }
     }
@@ -338,4 +384,13 @@ internal sealed partial class ConnectorLog
         int connectorId,
         string connectorName,
         string failureType);
+
+    [LoggerMessage(
+        EventId = 4302,
+        Level = LogLevel.Error,
+        Message = "Connector {ConnectorId} published data but acknowledgement-pending state could not be recorded.")]
+    public static partial void AcknowledgementStateRecordFailed(
+        ILogger logger,
+        Exception exception,
+        int connectorId);
 }

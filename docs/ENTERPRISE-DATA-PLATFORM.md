@@ -54,7 +54,8 @@ the versioned public API, while the broader EDP capabilities remain partial or p
 - A small server-streaming gRPC full-snapshot contract.
 - Durable connector definitions, interval schedules, manual runs, run lineage, safe failure evidence,
   quality gates, target ownership, and fenced publication.
-- A public versioned adapter contract, durable incremental checkpoints, and replay-safe keyed upsert.
+- A public versioned adapter contract, durable incremental checkpoints, replay-safe keyed upsert,
+  and Kafka Avro through a Confluent-compatible Schema Registry.
 - PostgreSQL typed-cursor ingestion and OAuth-backed HubSpot Contacts ingestion.
 - Exponential retry/backoff, pause/resume/immediate retry, dead letters, mappings, bounded
   transforms, and explicit schema policy.
@@ -106,7 +107,7 @@ open:
 
 - A broad, separately distributed and production-certified database/SaaS adapter ecosystem. The
   current in-process connector adapter contract is part of the API assembly and the built-in
-  catalogue contains four adapters; it is distinct from the planned client SDKs.
+  catalogue contains five adapters, including Kafka Avro; it is distinct from the planned client SDKs.
 - Searchable enterprise catalog, column classification, policy administration, freshness status,
   and navigable upstream/downstream lineage.
 - Governed metrics and semantic models.

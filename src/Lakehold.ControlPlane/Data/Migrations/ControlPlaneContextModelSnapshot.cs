@@ -286,6 +286,13 @@ namespace Lakehold.ControlPlane.Data.Migrations
                         .HasMaxLength(4000)
                         .HasColumnType("character varying(4000)");
 
+                    b.Property<string>("SourceAcknowledgementError")
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)");
+
+                    b.Property<DateTimeOffset?>("SourceAcknowledgementPendingUtc")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<DateTimeOffset?>("LeaseExpiresUtc")
                         .HasColumnType("timestamp with time zone");
 

@@ -246,6 +246,7 @@ public enum DataConnectorKind
     Grpc = 1,
     PostgreSql = 2,
     HubSpot = 3,
+    KafkaAvro = 4,
 }
 
 /// <summary>Whether an adapter publishes a complete replacement or a checkpointed keyed delta.</summary>
@@ -272,6 +273,7 @@ public enum DataConnectorAuthenticationKind
     MutualTls = 3,
     CustomHeader = 4,
     PostgreSqlPassword = 5,
+    KafkaSaslPlain = 6,
 }
 
 /// <summary>Bounded, declarative transformations; connector definitions never execute user code.</summary>
@@ -305,6 +307,12 @@ public enum DataConnectorRunStatus
     Succeeded = 1,
     Failed = 2,
     DeadLettered = 3,
+    /// <summary>
+    /// LakeHold has published the batch, but the source did not confirm its acknowledgement.
+    /// The next run deliberately replays the source window; incremental targets must therefore
+    /// remain idempotent. This is not an exactly-once claim.
+    /// </summary>
+    PublishedAwaitingSourceAcknowledgement = 4,
 }
 
 /// <summary>
@@ -392,6 +400,12 @@ public sealed class DataConnector
     public DateTimeOffset? LastCompletedUtc { get; private set; }
 
     public string? LastError { get; private set; }
+
+    /// <summary>Blocks normal scheduling after a durable publication whose source acknowledgement failed.</summary>
+    public DateTimeOffset? SourceAcknowledgementPendingUtc { get; private set; }
+
+    /// <summary>Safe operator diagnostic for the pending source acknowledgement.</summary>
+    public string? SourceAcknowledgementError { get; private set; }
 
     public int ConsecutiveFailures { get; private set; }
 
@@ -518,6 +532,8 @@ public sealed class DataConnector
 
         LastCompletedUtc = now;
         LastError = null;
+        SourceAcknowledgementPendingUtc = null;
+        SourceAcknowledgementError = null;
         ConsecutiveFailures = 0;
         LeaseOwner = null;
         LeaseExpiresUtc = null;
@@ -593,6 +609,8 @@ public sealed class DataConnector
         {
             ConsecutiveFailures = 0;
             LastError = null;
+            SourceAcknowledgementPendingUtc = null;
+            SourceAcknowledgementError = null;
         }
 
         NextRunUtc = Enabled && RefreshIntervalSeconds is not null ? now : null;
@@ -610,6 +628,17 @@ public sealed class DataConnector
         ArchivedUtc = now;
         Enabled = false;
         PausedUtc = now;
+        NextRunUtc = null;
+        UpdatedUtc = now;
+        ConcurrencyVersion++;
+    }
+
+    public void MarkSourceAcknowledgementPending(DateTimeOffset now, string error)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(error);
+        SourceAcknowledgementPendingUtc = now;
+        SourceAcknowledgementError = TruncateOptional(error, 4_000);
+        LastError = SourceAcknowledgementError;
         NextRunUtc = null;
         UpdatedUtc = now;
         ConcurrencyVersion++;
@@ -888,6 +917,18 @@ public sealed class DataConnector
             throw new ArgumentException("HubSpot connector endpoints must use https://api.hubapi.com.");
         }
 
+        if (kind == DataConnectorKind.KafkaAvro
+            && (endpoint.Scheme != Uri.UriSchemeHttps
+                || string.IsNullOrWhiteSpace(platform.SourceSettings.KafkaBootstrapServers)
+                || string.IsNullOrWhiteSpace(platform.SourceSettings.KafkaTopic)
+                || string.IsNullOrWhiteSpace(platform.SourceSettings.KafkaConsumerGroup)
+                || !Uri.TryCreate(platform.SourceSettings.SchemaRegistryUrl, UriKind.Absolute, out var registry)
+                || registry.Scheme != Uri.UriSchemeHttps))
+        {
+            throw new ArgumentException(
+                "Kafka Avro connectors require an HTTPS registry endpoint plus broker, topic, and consumer-group settings.");
+        }
+
         if (!Enum.IsDefined(platform.Authentication.Kind))
         {
             throw new ArgumentException("The connector authentication kind is invalid.");
@@ -904,6 +945,8 @@ public sealed class DataConnector
             authentication.RefreshTokenSecretReference,
             authentication.ClientCertificateSecretReference,
             authentication.CertificatePasswordSecretReference,
+            authentication.SchemaRegistryUsernameSecretReference,
+            authentication.SchemaRegistryPasswordSecretReference,
         };
         if (references.Where(value => value is not null).Any(value =>
                 !(value!.StartsWith("env://", StringComparison.OrdinalIgnoreCase)
@@ -922,6 +965,8 @@ public sealed class DataConnector
                                                                  || authentication.RefreshTokenSecretReference is null,
             DataConnectorAuthenticationKind.PostgreSqlPassword => authentication.UsernameSecretReference is null
                                                                    || authentication.PasswordSecretReference is null,
+            DataConnectorAuthenticationKind.KafkaSaslPlain => authentication.UsernameSecretReference is null
+                                                               || authentication.PasswordSecretReference is null,
             _ => false,
         };
         if (missingAuthentication)
@@ -998,7 +1043,11 @@ public sealed record DataConnectorSourceSettings(
     string? CursorType = null,
     int PageSize = 100,
     IReadOnlyList<string>? Properties = null,
-    bool CursorIsCommitMonotonic = false);
+    bool CursorIsCommitMonotonic = false,
+    string? KafkaBootstrapServers = null,
+    string? KafkaTopic = null,
+    string? KafkaConsumerGroup = null,
+    string? SchemaRegistryUrl = null);
 
 /// <summary>Approved authentication configuration containing secret references, never values.</summary>
 public sealed record DataConnectorAuthentication(
@@ -1011,7 +1060,9 @@ public sealed record DataConnectorAuthentication(
     string? RefreshTokenSecretReference = null,
     string? ClientCertificateSecretReference = null,
     string? CertificatePasswordSecretReference = null,
-    string? CustomHeaderName = null);
+    string? CustomHeaderName = null,
+    string? SchemaRegistryUsernameSecretReference = null,
+    string? SchemaRegistryPasswordSecretReference = null);
 
 /// <summary>One declarative source-to-target field operation.</summary>
 public sealed record DataConnectorFieldMapping(
@@ -1040,10 +1091,11 @@ public sealed record DataConnectorPlatformDefinition(
             DataConnectorKind.Grpc => "lakehold.grpc",
             DataConnectorKind.PostgreSql => "lakehold.postgresql",
             DataConnectorKind.HubSpot => "lakehold.hubspot-contacts",
+            DataConnectorKind.KafkaAvro => "lakehold.kafka-avro",
             _ => throw new ArgumentOutOfRangeException(nameof(definition)),
         },
         1,
-        definition.Kind is DataConnectorKind.PostgreSql or DataConnectorKind.HubSpot
+        definition.Kind is DataConnectorKind.PostgreSql or DataConnectorKind.HubSpot or DataConnectorKind.KafkaAvro
             ? DataConnectorReadMode.Incremental
             : DataConnectorReadMode.FullSnapshot,
         DataConnectorSchemaPolicy.Reject,
@@ -1155,6 +1207,23 @@ public sealed class DataConnectorRun
         ProposedCheckpoint = Normalize(proposedCheckpoint, 4_000);
         ReplayKey = Normalize(replayKey, 512);
         Error = Normalize(error, 4_000) ?? "Connector refresh failed.";
+    }
+
+    /// <summary>
+    /// Records the only safe outcome when source acknowledgement fails after the DuckLake
+    /// publication transaction has committed. The batch remains queryable and a later run may
+    /// replay it, but the operational record must not imply that the source offset was committed.
+    /// </summary>
+    public void MarkSourceAcknowledgementPending(DateTimeOffset now, string error)
+    {
+        if (Status != DataConnectorRunStatus.Succeeded)
+        {
+            throw new InvalidOperationException("Only a published connector execution can await source acknowledgement.");
+        }
+
+        Status = DataConnectorRunStatus.PublishedAwaitingSourceAcknowledgement;
+        CompletedUtc = now;
+        Error = Normalize(error, 4_000) ?? "LakeHold published the batch, but source acknowledgement was not confirmed.";
     }
 
     private void EnsureRunning()

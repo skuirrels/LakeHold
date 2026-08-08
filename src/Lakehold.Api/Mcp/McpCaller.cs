@@ -64,4 +64,17 @@ internal static class McpCaller
             _ => throw new McpException($"Catalog '{catalog}' was not found for tenant '{tenant}'."),
         };
     }
+
+    /// <summary>Resolves the principal and enforces the administrator capability for connector control-plane work.</summary>
+    public static ILakeholdPrincipal AuthorizeOwner(IHttpContextAccessor accessor, string tenant, string catalog)
+    {
+        var principal = Principal(accessor);
+        var decision = CapabilityPolicy.Evaluate(principal, Capability.TenantOwner, tenant, catalog);
+        return decision.Outcome switch
+        {
+            CapabilityOutcome.Allowed => principal,
+            CapabilityOutcome.Forbidden => throw new McpException(decision.Detail ?? "Forbidden."),
+            _ => throw new McpException($"Catalog '{catalog}' was not found for tenant '{tenant}'."),
+        };
+    }
 }
