@@ -237,12 +237,14 @@ Content-Type: application/json
 ```
 
 Omitting `dataPath` derives it from `DataRoot`, the tenant slug, and the catalog name. Omitting
-`storageProfile` for a remote path uses `DefaultStorageProfile`. LakeHold rejects:
+`storageProfile` for a remote path uses `DefaultStorageProfile`; a local path never consults it, so
+a deployment can keep a local data root and still configure a bucket profile for the catalogs it
+places explicitly. LakeHold rejects:
 
 - an unsupported URI scheme;
 - a remote path without a configured profile;
 - a profile whose kind does not match the URI;
-- a local path paired with an object-storage profile; and
+- a local path with an object-storage profile **named on the request**; and
 - a data path already assigned to another catalog.
 
 Placement is chosen when the catalog is created. There is no in-place catalog storage update

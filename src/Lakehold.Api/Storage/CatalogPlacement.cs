@@ -84,14 +84,21 @@ internal static class CatalogPlacement
 
         // Blank counts as "not specified", not as "no profile". A form posts an empty string for a
         // field nobody touched, and treating that as an explicit choice would refuse a request the
-        // caller meant to leave at the deployment default. Narrower than the previous null check,
-        // which let an empty string through to be reported as a missing profile.
-        var storageProfile = string.IsNullOrWhiteSpace(requestedStorageProfile)
-            ? options.DefaultStorageProfile
+        // caller meant to leave at the deployment default.
+        var chosenProfile = string.IsNullOrWhiteSpace(requestedStorageProfile)
+            ? null
             : requestedStorageProfile;
+        string? storageProfile = null;
 
         if (storageKind != ParquetStorageKind.Local)
         {
+            // The deployment default is consulted only here, because that is all it is for:
+            // "the profile selected when a remote data path does not name one explicitly".
+            // Applying it to a local path as well, and then refusing the result, made an ordinary
+            // deployment impossible to use — a local data root alongside a configured bucket profile
+            // for individually placed catalogs could not create a catalog at its own default
+            // location, and the refusal named a profile the caller had never mentioned.
+            storageProfile = chosenProfile ?? options.DefaultStorageProfile;
             if (string.IsNullOrWhiteSpace(storageProfile))
             {
                 error = $"A storage profile is required for {storageKind} Parquet storage.";
@@ -110,20 +117,17 @@ internal static class CatalogPlacement
                 return false;
             }
         }
-        else if (!string.IsNullOrWhiteSpace(storageProfile))
+        else if (chosenProfile is not null)
         {
-            // Reached both by naming a profile against a local path and by leaving a deployment
-            // default profile in place while choosing one. Neither can attach, so neither is silently
-            // dropped: an operator who meant to use the bucket needs to see that the path is local.
+            // Still refused when the caller *asked* for one. That is a real mistake worth naming:
+            // the profile cannot attach a local path, and silently dropping it would leave an
+            // operator who meant to use the bucket believing they had.
             error = "A local DataPath must not select an object-storage profile.";
             return false;
         }
 
-        placement = new CatalogPlacementResult(
-            dataPath,
-            storageKind.Value,
-            storageKind == ParquetStorageKind.Local ? null : storageProfile,
-            derived);
+        // Null for a local path by construction: nothing above can assign a profile to one.
+        placement = new CatalogPlacementResult(dataPath, storageKind.Value, storageProfile, derived);
         error = null;
         return true;
     }
