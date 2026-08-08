@@ -172,7 +172,7 @@
   margin-top: 8px;
   padding: 7px;
   color: var(--text-muted);
-  background: color-mix(in srgb, var(--error) 7%, var(--surface-2));
+  background: var(--error-surface);
   border: 1px solid color-mix(in srgb, var(--error) 35%, var(--border));
   border-radius: var(--radius-sm);
   font-size: 10px;

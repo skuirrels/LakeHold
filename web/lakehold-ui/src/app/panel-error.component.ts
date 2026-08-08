@@ -35,9 +35,9 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core';
       }
 
       .error-banner {
-        background: rgba(240, 97, 109, 0.1);
-        border: 1px solid rgba(240, 97, 109, 0.4);
-        color: #ffb3b9;
+        background: var(--error-soft);
+        border: 1px solid var(--error-line);
+        color: var(--error-text);
       }
 
       strong {

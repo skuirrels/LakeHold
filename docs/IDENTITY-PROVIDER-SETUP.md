@@ -213,18 +213,20 @@ the public MCP endpoint. Behind a proxy, first save the externally reachable **P
 System Settings; it is required for the resource identifier and callback discovery to be truthful.
 LakeHold advertises `scopes_supported`, the resource URL, and an optional `client_id` extension from
 its RFC 9728 document. Configure clients that support a pre-registered OAuth id explicitly; for
-example, Codex accepts it together with the RFC 8707 resource parameter:
+example, Codex accepts the client id and discovers the RFC 8707 resource from that document:
 
 ```bash
 codex mcp add lakehold \
   --url https://lakehold.example.com/mcp \
-  --oauth-client-id lakehold-mcp \
-  --oauth-resource https://lakehold.example.com/mcp
+  --oauth-client-id lakehold-mcp
 codex mcp login lakehold
 ```
 
-When scopes are required, pass them to `codex mcp login` with `--scopes`. The client sends the exact
-resource URL as the RFC 8707 `resource` parameter on both authorization and token requests.
+When scopes are required, pass them to `codex mcp login` with `--scopes`. Do not also configure
+`--oauth-resource`: Codex reads the exact value from LakeHold's protected-resource metadata.
+Supplying the same value explicitly duplicates the `resource` parameter, which providers such as
+Keycloak reject. Omitting the client id is also incorrect for a provider without dynamic client
+registration; Codex must be told to use the public client the operator registered.
 
 Claude Code also accepts a pre-registered public client. It discovers the resource and authorization
 server from LakeHold's protected-resource metadata, so it does not need a separate resource flag:
@@ -244,8 +246,7 @@ For the bundled development stack, the exact commands are:
 ```bash
 codex mcp add lakehold \
   --url http://localhost:5399/mcp \
-  --oauth-client-id lakehold-mcp \
-  --oauth-resource http://localhost:5399/mcp
+  --oauth-client-id lakehold-mcp
 codex mcp login lakehold
 
 claude mcp add --transport http --client-id lakehold-mcp \
@@ -293,6 +294,9 @@ type-catalogue shim.
 | Nobody can administer anything | The system-admin claim is not configured or not emitted. It is the one claim you cannot work around in the UI. |
 | Works locally, fails deployed | `RequireHttpsMetadata` with an HTTP authority, or the session cookie needs HTTPS. Terminate TLS in front of the API. |
 | Signing out and back in returns the same person | `/auth/logout` clears LakeHold's session, not the provider's. End the provider session too, or use a private window. |
+| MCP login attempts dynamic registration and the provider returns `403` | The client was added without the configured public client id. Re-add it with `--oauth-client-id <McpClientId>`; dynamic registration is not required. |
+| MCP login returns `invalid_request: duplicated parameter` | The client configured the resource explicitly even though LakeHold already advertises it. Remove `--oauth-resource` and re-add the server with only its URL and public client id. |
+| Development MCP login says `Client not found` after an upgrade | The existing Keycloak container skipped the changed realm import. Run `docker compose up -d --force-recreate --wait keycloak`; this recreates development identity state without removing LakeHold data volumes. |
 
 ## What this does not do
 

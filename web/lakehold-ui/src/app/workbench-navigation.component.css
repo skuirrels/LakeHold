@@ -88,8 +88,8 @@
 
 .nav-item.active {
   color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 9%, var(--surface-2));
-  border-color: color-mix(in srgb, var(--accent) 18%, var(--border));
+  background: var(--accent-surface);
+  border-color: var(--accent-surface-line);
 }
 
 .nav-item svg {
@@ -113,7 +113,7 @@
     width: min(280px, calc(100vw - 40px));
     height: auto;
     opacity: 1;
-    box-shadow: 16px 0 32px rgb(0 0 0 / 0.4);
+    box-shadow: var(--shadow-drawer);
     transition: transform 150ms ease;
   }
 

@@ -129,10 +129,10 @@ footer {
 
 .save {
   padding: 8px 14px;
-  border: 1px solid var(--accent);
+  border: 1px solid var(--accent-fill);
   border-radius: 5px;
-  background: var(--accent);
-  color: var(--bg);
+  background: var(--accent-fill);
+  color: var(--on-accent);
   font-weight: 700;
   cursor: pointer;
 }

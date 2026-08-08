@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { BrandMarkComponent } from './brand-mark.component';
+import { ThemeToggleComponent } from './theme-toggle.component';
 
 /**
  * Strength or limitation on a given axis, judged from the reader's point of view — not ours.
@@ -41,7 +42,7 @@ interface HeadToHead {
 @Component({
   selector: 'lh-comparison',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [BrandMarkComponent, RouterLink],
+  imports: [BrandMarkComponent, RouterLink, ThemeToggleComponent],
   templateUrl: './comparison.component.html',
   styleUrls: ['./site-header.css', './comparison.component.css'],
 })

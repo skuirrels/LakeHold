@@ -1,6 +1,17 @@
 /* LakeHold design system.
    A data tool is looked at for hours, so the palette is low-chroma and dark by default, with
-   colour reserved for state (running, error, truncated) rather than decoration. */
+   colour reserved for state (running, error, truncated) rather than decoration.
+
+   Two palettes, one set of names. `:root` is dark and is what every surface gets with no attribute
+   present, so a document that never runs JavaScript — a prerendered page, a test, a browser that
+   refused storage — renders exactly what it always did. `ThemeService` writes `data-theme` on the
+   document element and the light block below re-points the same tokens; nothing outside this file
+   knows which palette is in force. Adding a colour therefore means adding a token here, not a
+   literal in a component sheet: a literal is invisible to the light block and stays dark on white.
+
+   The channel triples exist because the tints are the same hue at several alphas. Deriving them
+   from one triple per role means the light palette re-points four values rather than a dozen, and
+   a tint can never drift out of step with the solid colour it is meant to echo. */
 
 :root {
   color-scheme: dark;
@@ -32,11 +43,179 @@
   --danger: var(--error);
   --success: var(--ok);
 
+  /* Accent as a *fill* is a separate token from accent as *text*. On a dark surface amber is
+     legible either way and the two are the same value; on a light one they cannot be, because the
+     brand yellow that keeps a filled button on-brand is unreadable as 13px type on white. Splitting
+     them is what lets the light palette darken the text without turning every primary button
+     brown. */
+  --accent-fill: #ffc857;
+  --accent-fill-hover: #ffd47d;
+  --on-accent: #241c05;
+
+  --accent-rgb: 255 200 87;
+  --error-rgb: 240 97 109;
+  --warn-rgb: 240 167 66;
+  --ok-rgb: 78 201 165;
+
+  --accent-wash: rgb(var(--accent-rgb) / 0.05);
+  --accent-soft: rgb(var(--accent-rgb) / 0.06);
+  --accent-gradient-tint: rgb(var(--accent-rgb) / 0.07);
+  --accent-soft-strong: rgb(var(--accent-rgb) / 0.09);
+  --accent-line: rgb(var(--accent-rgb) / 0.3);
+  --accent-line-strong: rgb(var(--accent-rgb) / 0.35);
+
+  --error-soft: rgb(var(--error-rgb) / 0.1);
+  --error-line: rgb(var(--error-rgb) / 0.4);
+  --error-text: #ffb3b9;
+  --error-hover: #ff7f89;
+  --on-error: #2b0508;
+
+  --warn-soft: rgb(var(--warn-rgb) / 0.1);
+  --warn-line: rgb(var(--warn-rgb) / 0.45);
+  --warn-text: #ffd9a3;
+  --warn-notice-text: #f1c76d;
+  --warn-notice-soft: rgb(241 199 109 / 0.08);
+  --warn-notice-line: rgb(241 199 109 / 0.28);
+
+  --ok-soft: rgb(var(--ok-rgb) / 0.1);
+  --ok-line: rgb(var(--ok-rgb) / 0.4);
+  --ok-line-quiet: rgb(var(--ok-rgb) / 0.35);
+
+  /* Selected and highlighted surfaces, as tokens rather than as a mix written at each call site.
+     `color-mix(accent into a grey)` reads as "tint this surface", but what it actually does depends
+     on which of the two is lighter — and that flips between palettes. Mixing amber into a near-black
+     control surface lightens it into a warm highlight; mixing the light palette's bronze into a grey
+     one darkens it *towards the text colour sitting on it*, which is how a selected item ends up
+     dark-on-dark. Each palette therefore names the surface it wants instead of deriving it. */
+  --accent-surface: color-mix(in srgb, var(--accent) 9%, var(--surface-2));
+  --accent-surface-soft: color-mix(in srgb, var(--accent) 7%, var(--surface-2));
+  --accent-surface-line: color-mix(in srgb, var(--accent) 18%, var(--border));
+  --error-surface: color-mix(in srgb, var(--error) 7%, var(--surface-2));
+
+  /* The panel banners and the import confirmation use a grass green rather than the teal of --ok.
+     Kept as its own role rather than folded into the one above, because at 40% the two hues are
+     plainly different and merging them would repaint a dark surface that is not in scope here. */
+  --ok-banner-soft: rgb(94 191 122 / 0.1);
+  --ok-banner-line: rgb(94 191 122 / 0.4);
+  --ok-banner-text: #bdf0cd;
+  --ok-mark-fill: #72d98b;
+  --on-ok-mark: #07110a;
+
+  /* Chrome that is not a palette colour: a keycap face, a panel inset over a gradient, the scrims
+     behind modal surfaces, and the shadows that lift them. All of them are black on dark and would
+     read as grime on white. */
+  --kbd-fill: rgb(255 255 255 / 0.1);
+  --inset-surface: rgb(12 17 26 / 0.56);
+  --scrim: rgb(0 0 0 / 0.55);
+  --scrim-strong: rgb(3 7 13 / 0.72);
+  --shadow-popover: 0 8px 28px rgb(0 0 0 / 0.35);
+  --shadow-picker: 0 12px 28px rgb(0 0 0 / 0.5);
+  --shadow-dialog: 0 24px 72px rgb(0 0 0 / 0.55);
+  --shadow-drawer: 16px 0 32px rgb(0 0 0 / 0.4);
+
   --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
   --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 
   --radius: 8px;
   --radius-sm: 5px;
+}
+
+/* Light.
+   Only the tokens above are re-pointed — no rule below this block is duplicated, and nothing here
+   can reach a document without `data-theme="light"`, which is what keeps the dark surface exactly
+   as it was.
+
+   The neutrals stay on the same cool blue-grey axis as the dark ones so the product reads as one
+   design rather than two. Every state colour is darkened until it clears 4.5:1 against `--surface-1`
+   as small text: amber, teal, and the pale red of the dark palette are all decorative on white.
+   `--accent-fill` deliberately does not move — the filled button keeps the brand yellow, and
+   `--on-accent` is already the near-black it needs. */
+:root[data-theme='light'] {
+  color-scheme: light;
+
+  --surface-0: #f4f7fa;
+  --surface-1: #ffffff;
+  --surface-2: #eef2f7;
+  --surface-3: #e3eaf3;
+  --border: #d6dee8;
+  --border-strong: #b3c0d0;
+
+  --text: #10171f;
+  --text-muted: #45566b;
+  /* Both of these are set against the *darkest* surface they land on, not against white. `--surface-2`
+     and `--surface-3` are the control greys, and a tone chosen to clear 4.5:1 on the page surface
+     alone drops under it the moment the same text sits on a button, an input, or the selected
+     navigation item. */
+  --text-faint: #5b6a80;
+
+  --accent: #8a5a00;
+  --info: #1a5fb4;
+  --ok: #0f7a5f;
+  --warn: #96590a;
+  --error: #c22a3a;
+
+  --accent-rgb: 138 90 0;
+  --error-rgb: 194 42 58;
+  --warn-rgb: 150 89 10;
+  --ok-rgb: 15 122 95;
+
+  /* A 5–9% wash of a dark hue on white is the same whisper the dark palette gets from a 5–9% wash
+     of a light one, so the alphas above carry over unchanged. The lines do not: a 30% border needs
+     to survive against white, so these are raised rather than inherited. */
+  --accent-line: rgb(var(--accent-rgb) / 0.4);
+  --accent-line-strong: rgb(var(--accent-rgb) / 0.5);
+  --error-line: rgb(var(--error-rgb) / 0.45);
+  --warn-line: rgb(var(--warn-rgb) / 0.5);
+  --ok-line: rgb(var(--ok-rgb) / 0.45);
+  --ok-line-quiet: rgb(var(--ok-rgb) / 0.4);
+
+  /* The banner text tones invert: pale-on-tint becomes dark-on-tint. */
+  --error-text: #8f1526;
+  --error-hover: #a51f31;
+  --on-error: #ffffff;
+  --warn-text: #7a4405;
+  --warn-notice-text: #7a5205;
+  --warn-notice-soft: rgb(150 89 10 / 0.07);
+  --warn-notice-line: rgb(150 89 10 / 0.32);
+
+  /* Tinted toward the panel rather than into the control grey, so a selected row reads as raised.
+     Mixed into `--surface-1` — white here — which is what keeps the bronze above from darkening the
+     very surface its own label has to be legible against. */
+  --accent-surface: color-mix(in srgb, var(--accent) 10%, var(--surface-1));
+  --accent-surface-soft: color-mix(in srgb, var(--accent) 7%, var(--surface-1));
+  --accent-surface-line: color-mix(in srgb, var(--accent) 32%, var(--border));
+  --error-surface: color-mix(in srgb, var(--error) 7%, var(--surface-1));
+
+  --ok-banner-soft: rgb(15 122 95 / 0.08);
+  --ok-banner-line: rgb(15 122 95 / 0.4);
+  --ok-banner-text: #0b5a45;
+  --ok-mark-fill: #0f7a5f;
+  --on-ok-mark: #ffffff;
+
+  --kbd-fill: rgb(16 23 31 / 0.05);
+  --inset-surface: rgb(255 255 255 / 0.72);
+  --scrim: rgb(16 23 31 / 0.42);
+  --scrim-strong: rgb(16 23 31 / 0.48);
+  --shadow-popover: 0 8px 24px rgb(16 23 31 / 0.12);
+  --shadow-picker: 0 12px 24px rgb(16 23 31 / 0.14);
+  --shadow-dialog: 0 24px 60px rgb(16 23 31 / 0.18);
+  --shadow-drawer: 16px 0 32px rgb(16 23 31 / 0.14);
+}
+
+/* Disabled controls, light only.
+   Every disabled button in this app fades to 50–55% opacity. Composited against a near-black page
+   that still reads as a control which is present but inert. Composited against white it bleaches a
+   brand-yellow button almost into the page and takes its label down to roughly 2.3:1 — it stops
+   looking disabled and starts looking broken. Light therefore *states* the disabled look instead of
+   fading into it. Scoped to the light palette, and to the global sheet rather than repeated in each
+   component, because a component's own `.create`/`.btn-primary` rule carries its scoping attribute
+   and would otherwise outrank this. */
+:root[data-theme='light'] button:disabled,
+:root[data-theme='light'] .btn:disabled {
+  opacity: 1;
+  color: var(--text-faint);
+  background: var(--surface-2);
+  border-color: var(--border);
 }
 
 * {
@@ -115,15 +294,15 @@ button:disabled {
 }
 
 .btn-primary {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #241c05;
+  background: var(--accent-fill);
+  border-color: var(--accent-fill);
+  color: var(--on-accent);
   font-weight: 600;
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: #ffd47d;
-  border-color: #ffd47d;
+  background: var(--accent-fill-hover);
+  border-color: var(--accent-fill-hover);
 }
 
 .kbd {
@@ -131,7 +310,7 @@ button:disabled {
   font-size: 11px;
   padding: 1px 5px;
   border-radius: 3px;
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--kbd-fill);
   border: 1px solid var(--border-strong);
 }
 

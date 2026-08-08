@@ -281,14 +281,17 @@ Complete the browser login as `analyst` / `lakehold`:
 ```bash
 codex mcp add lakehold \
   --url http://localhost:5399/mcp \
-  --oauth-client-id lakehold-mcp \
-  --oauth-resource http://localhost:5399/mcp
+  --oauth-client-id lakehold-mcp
 codex mcp login lakehold
 
 claude mcp add --transport http --client-id lakehold-mcp \
   lakehold http://localhost:5399/mcp
 claude mcp login lakehold
 ```
+
+Keep the Codex client id, which selects the pre-registered public client, but do not pass
+`--oauth-resource`: LakeHold's protected-resource metadata supplies that value. Configuring it again
+causes Codex to send a duplicate `resource` parameter that Keycloak rejects.
 
 Then ask the agent to list reachable workspaces, describe `demo` / `analytics`, and run
 `SELECT 42 AS answer`. See [`docs/MCP.md`](docs/MCP.md#connecting-a-client) for verification,

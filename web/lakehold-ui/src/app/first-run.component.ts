@@ -294,9 +294,9 @@ export interface WorkspaceRequest {
       }
 
       .btn-primary {
-        color: var(--surface-0);
-        background: var(--accent);
-        border-color: var(--accent);
+        color: var(--on-accent);
+        background: var(--accent-fill);
+        border-color: var(--accent-fill);
         font-weight: 600;
       }
 
@@ -336,8 +336,8 @@ export interface WorkspaceRequest {
         display: block;
         margin: 0 0 16px;
         padding: 9px 14px;
-        color: var(--surface-0);
-        background: var(--accent);
+        color: var(--on-accent);
+        background: var(--accent-fill);
         border-radius: var(--radius-sm);
         font-size: 13px;
         font-weight: 650;
@@ -375,10 +375,10 @@ export interface WorkspaceRequest {
         margin-top: 16px;
         padding: 10px 13px;
         font-size: 13px;
-        background: rgba(240, 97, 109, 0.1);
-        border: 1px solid rgba(240, 97, 109, 0.4);
+        background: var(--error-soft);
+        border: 1px solid var(--error-line);
         border-radius: var(--radius-sm);
-        color: #ffb3b9;
+        color: var(--error-text);
       }
 
       .banner strong {

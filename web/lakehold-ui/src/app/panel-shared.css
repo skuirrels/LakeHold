@@ -159,14 +159,14 @@ td.num {
 }
 
 .btn-primary {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #1a1408;
+  background: var(--accent-fill);
+  border-color: var(--accent-fill);
+  color: var(--on-accent);
   font-weight: 600;
 }
 
 .btn-primary:hover:not(:disabled) {
-  color: #1a1408;
+  color: var(--on-accent);
   filter: brightness(1.08);
 }
 
@@ -248,9 +248,9 @@ td.num {
   border-radius: var(--radius-sm);
   font-size: 12px;
   line-height: 1.55;
-  background: rgba(94, 191, 122, 0.1);
-  border: 1px solid rgba(94, 191, 122, 0.4);
-  color: #bdf0cd;
+  background: var(--ok-banner-soft);
+  border: 1px solid var(--ok-banner-line);
+  color: var(--ok-banner-text);
 }
 
 /* Paths are long; the identifying part is the file name, so the column truncates and the full value

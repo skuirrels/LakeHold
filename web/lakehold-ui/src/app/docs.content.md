@@ -136,8 +136,7 @@ Settings. A fresh development stack already enables MCP and registers the public
 ```bash
 codex mcp add lakehold \
   --url http://localhost:5399/mcp \
-  --oauth-client-id lakehold-mcp \
-  --oauth-resource http://localhost:5399/mcp
+  --oauth-client-id lakehold-mcp
 ```
 
 Then start the browser login:
@@ -145,6 +144,10 @@ Then start the browser login:
 ```bash
 codex mcp login lakehold
 ```
+
+Keep the client id so Codex uses the registered public client instead of dynamic registration. Do
+not pass `--oauth-resource`: LakeHold's OAuth metadata supplies it, and configuring it twice causes
+Keycloak to reject the request as a duplicated parameter.
 
 Claude Code uses the same public client and discovers the resource from LakeHold's OAuth metadata:
 

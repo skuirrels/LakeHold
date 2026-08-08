@@ -48,6 +48,7 @@ import { SchedulePanelComponent } from './schedule-panel.component';
 import { StoragePanelComponent } from './storage-panel.component';
 import { SystemSettingsComponent } from './system-settings.component';
 import { ManagedConnectorsComponent } from './managed-connectors.component';
+import { ThemeToggleComponent } from './theme-toggle.component';
 import {
   WorkbenchDestination,
   WorkbenchNavigationComponent,
@@ -106,6 +107,7 @@ type BottomTab =
     StoragePanelComponent,
     SystemSettingsComponent,
     ManagedConnectorsComponent,
+    ThemeToggleComponent,
     WorkbenchNavigationComponent,
   ],
   templateUrl: './workbench.component.html',

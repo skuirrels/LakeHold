@@ -304,16 +304,33 @@ and OAuth lifecycle details.
 
 #### Codex — OAuth as the signed-in person
 
-Codex needs the same public client id and exact RFC 8707 resource URL:
+Codex needs the pre-registered public client id. LakeHold's protected-resource metadata supplies the
+exact RFC 8707 resource URL:
 
 ```bash
 codex mcp add lakehold \
   --url http://localhost:5399/mcp \
-  --oauth-client-id lakehold-mcp \
-  --oauth-resource http://localhost:5399/mcp
+  --oauth-client-id lakehold-mcp
 codex mcp login lakehold
 codex mcp list
 ```
+
+Keep `--oauth-client-id`: without it Codex attempts dynamic client registration, which many providers
+(including the bundled Keycloak realm) deliberately disable. Do **not** also pass `--oauth-resource`.
+Codex reads the resource from LakeHold's RFC 9728 metadata; an explicit copy makes it send two
+identical `resource` parameters, and Keycloak refuses the request as
+`invalid_request: duplicated parameter`.
+
+On a development checkout upgraded from a version that predated `lakehold-mcp`, **Client not found**
+means the already-created Keycloak container skipped the changed realm import. Recreate only that
+development container, then repeat `codex mcp login lakehold`:
+
+```bash
+docker compose up -d --force-recreate --wait keycloak
+```
+
+This resets development-only Keycloak state; it does not remove LakeHold's PostgreSQL, catalog, or
+MinIO data.
 
 The Codex desktop app, CLI, and IDE extension share this MCP configuration. In the Codex terminal UI,
 `/mcp` shows the connection and its tools. If the provider requires explicit scopes, run

@@ -7,6 +7,57 @@ and LakeHold follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.2.0] - 2026-08-08
+
+A presentation release. LakeHold can be read on a light screen.
+
+### Added
+
+- **A light theme, across the website and the Workbench**, switched by an icon at the right-hand end
+  of every header. The choice is remembered per browser, and a short script in the page head applies
+  it before the first paint so a light-theme visitor is never shown a dark page first.
+- The palette lives entirely in the token blocks at the top of `styles.css`: `:root` is dark and is
+  what a document with no `data-theme` attribute gets, and `:root[data-theme='light']` re-points the
+  same names without adding rules of its own. Adding a colour means adding a token, because a literal
+  written into a component sheet is invisible to the light block and will stay dark on white.
+
+  **The default remains dark, and deliberately does not follow the operating system.** Dark is what
+  the product shipped with and what its screenshots and documentation describe; following the OS
+  would have repainted every existing install for anyone whose machine is set to light.
+
+### Changed
+
+- **Accent as a fill is now a separate token from accent as text.** On a dark surface the brand amber
+  works as both. On white, 13px amber type fails contrast while an amber *button* is the thing that
+  keeps the product recognisable, so `--accent` is the text role and darkens under the light palette
+  while `--accent-fill` keeps the brand yellow. Filled controls that had been drawing their label
+  from `--surface-0` or `--bg` now use `--on-accent` and are consistent with each other in both
+  palettes.
+- Scrims, insets, and shadows became palette tokens for the same reason the colours are: black at
+  40–72% is what lifts a dialog off a dark page and what reads as grime on a light one.
+
+### Fixed
+
+- **Disabled controls no longer bleach into a light page.** Every disabled button fades to 50–55%
+  opacity, which against a near-black surface still reads as a control that is present but inert, and
+  against white took a brand-yellow button's label down to roughly 2.3:1. Under the light palette
+  disabled controls now state that look rather than fading into it. The dark treatment is unchanged.
+- **Two light-palette contrast defects, found by auditing rendered text rather than by eye.**
+  `--text-faint` measured 4.43:1 against the page surface, just under AA, and is darkened. And the
+  selected navigation item was built as `color-mix(accent into a control grey)`, which reads as "tint
+  this surface" but in fact darkens or lightens depending on which of the two is lighter — mixing
+  amber into near-black lightens it into a highlight, while mixing the light palette's bronze into a
+  grey pulls the surface toward the very text sitting on it. Selected and highlighted surfaces are
+  now tokens each palette states outright. All four resolve, under the dark palette, to exactly the
+  mixes they replaced.
+- **An MCP client could not connect to the development stack.** The dev-server proxy forwarded only
+  the one discovery document LakeHold publishes, so a client's remaining RFC 8414 and OIDC probes
+  fell through to the Angular router and were answered with `index.html`. The client failed on
+  `Unrecognized token '<'` and never reached the authorization server it had already been told
+  about. The whole `/.well-known` prefix now goes to the API, which answers the unpublished paths
+  with the 404 that means "read the issuer instead". Development only; production serves the API and
+  the website through nginx and was never affected.
+
 ## [2.1.0] - 2026-08-08
 
 An ingestion release. LakeHold reads Kafka, and the connector platform stops being something you can
@@ -293,7 +344,8 @@ works the way every instruction says it does.
 - Production API and web container images for Linux amd64 and arm64, Compose deployment, health
   checks, telemetry, and a reproducible end-to-end test suite.
 
-[Unreleased]: https://github.com/skuirrels/LakeHold/compare/v2.1.0...HEAD
+[Unreleased]: https://github.com/skuirrels/LakeHold/compare/v2.2.0...HEAD
+[2.2.0]: https://github.com/skuirrels/LakeHold/compare/v2.1.0...v2.2.0
 [2.1.0]: https://github.com/skuirrels/LakeHold/compare/v2.0.2...v2.1.0
 [2.0.2]: https://github.com/skuirrels/LakeHold/compare/v2.0.1...v2.0.2
 [2.0.1]: https://github.com/skuirrels/LakeHold/compare/v2.0.0...v2.0.1
