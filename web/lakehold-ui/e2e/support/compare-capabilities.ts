@@ -214,7 +214,7 @@ export const compareCapabilities: readonly CompareCapability[] = [
   {
     dimension: 'Managed ingestion',
     claim:
-      'REST/gRPC plus PostgreSQL/HubSpot incremental adapters shipped in v1.3.0; broad catalogue pending',
+      'REST/gRPC, PostgreSQL/HubSpot, and Kafka Avro with Confluent-compatible Registry; broad catalogue pending',
     tone: 'neutral',
     evidence: [
       {
