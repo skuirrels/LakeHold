@@ -21,6 +21,47 @@ public static class PublicApiOpenApi
     }
 
     /// <summary>
+    /// Keeps Avro connector response fields additive for clients generated from an older contract.
+    /// The server emits the fields, but existing callers must still be able to construct and
+    /// deserialize the response DTOs without supplying them.
+    /// </summary>
+    public static void PreserveAdditiveConnectorCompatibility(OpenApiDocument document)
+    {
+        ArgumentNullException.ThrowIfNull(document);
+        RemoveRequired(
+            document,
+            "DataConnectorAuthenticationDto",
+            "schemaRegistryUsernameSecretReference",
+            "schemaRegistryPasswordSecretReference");
+        RemoveRequired(
+            document,
+            "DataConnectorDto",
+            "sourceAcknowledgementPendingUtc",
+            "sourceAcknowledgementError");
+        RemoveRequired(
+            document,
+            "DataConnectorSourceSettingsDto",
+            "kafkaBootstrapServers",
+            "kafkaTopic",
+            "kafkaConsumerGroup",
+            "schemaRegistryUrl");
+    }
+
+    private static void RemoveRequired(OpenApiDocument document, string schemaName, params string[] properties)
+    {
+        if (document.Components?.Schemas?.TryGetValue(schemaName, out var schema) != true
+            || schema is not OpenApiSchema mutable)
+        {
+            return;
+        }
+
+        foreach (var property in properties)
+        {
+            mutable.Required?.Remove(property);
+        }
+    }
+
+    /// <summary>
     /// Replaces endpoint-inferred string error bodies with the canonical runtime problem contract.
     /// The public endpoint filter normalizes every 4xx/5xx result, so documenting the handler's
     /// pre-filter CLR union would make generated clients disagree with the wire response.

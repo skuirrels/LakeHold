@@ -5755,7 +5755,7 @@
         "tags": [
           "Lakehouse"
         ],
-        "summary": "Uploads a CSV or XLSX file and creates a new DuckLake table.",
+        "summary": "Uploads a CSV, XLSX, or Avro file and creates a new DuckLake table.",
         "operationId": "post_api_v1_tenants_tenantSlug_catalogs_catalogName_imports_files",
         "parameters": [
           {
@@ -10234,6 +10234,14 @@
             "name": "id",
             "in": "path",
             "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "version",
+            "in": "query",
             "schema": {
               "type": "integer",
               "format": "int32"
@@ -23466,6 +23474,18 @@
               "null",
               "string"
             ]
+          },
+          "schemaRegistryUsernameSecretReference": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "schemaRegistryPasswordSecretReference": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -23525,6 +23545,18 @@
             ]
           },
           "customHeaderName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "schemaRegistryUsernameSecretReference": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "schemaRegistryPasswordSecretReference": {
             "type": [
               "null",
               "string"
@@ -23878,6 +23910,19 @@
               "string"
             ]
           },
+          "sourceAcknowledgementPendingUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "sourceAcknowledgementError": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
           "consecutiveFailures": {
             "type": "integer",
             "format": "int32"
@@ -24141,6 +24186,30 @@
           },
           "cursorIsCommitMonotonic": {
             "type": "boolean"
+          },
+          "kafkaBootstrapServers": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "kafkaTopic": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "kafkaConsumerGroup": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "schemaRegistryUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -24182,6 +24251,30 @@
           "cursorIsCommitMonotonic": {
             "type": "boolean",
             "default": false
+          },
+          "kafkaBootstrapServers": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "kafkaTopic": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "kafkaConsumerGroup": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "schemaRegistryUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },

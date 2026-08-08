@@ -244,7 +244,7 @@ public sealed class DataConnectorService(ControlPlaneContext context)
         string tenantSlug,
         string catalogName,
         int id,
-        int expectedVersion,
+        int? expectedVersion,
         CancellationToken cancellationToken)
     {
         var connector = await Query(tenantSlug, catalogName)
@@ -252,7 +252,7 @@ public sealed class DataConnectorService(ControlPlaneContext context)
             .ConfigureAwait(false)
             ?? throw new CatalogNotFoundException(
                 $"Connector '{id}' was not found in catalog '{catalogName}' for tenant '{tenantSlug}'.");
-        if (connector.ConcurrencyVersion != expectedVersion)
+        if (expectedVersion is not null && connector.ConcurrencyVersion != expectedVersion.Value)
         {
             throw new DataConnectorConflictException(
                 $"Connector '{connector.Name}' changed since version {expectedVersion}; reload it before retiring.");

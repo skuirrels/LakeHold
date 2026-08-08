@@ -196,7 +196,7 @@ public static class DataConnectorEndpoints
         string tenantSlug,
         string catalogName,
         int id,
-        int version,
+        int? version,
         DataConnectorService connectors,
         CancellationToken cancellationToken)
     {

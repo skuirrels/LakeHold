@@ -120,9 +120,10 @@ namespace Lakehold.Sdk.Api
         /// <param name="tenantSlug"></param>
         /// <param name="catalogName"></param>
         /// <param name="id"></param>
+        /// <param name="version"> (optional)</param>
         /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
         /// <returns><see cref="Task"/>&lt;<see cref="IDeleteApiV1TenantsTenantSlugCatalogsCatalogNameConnectorsIdIntApiResponse"/>&gt;</returns>
-        Task<IDeleteApiV1TenantsTenantSlugCatalogsCatalogNameConnectorsIdIntApiResponse> DeleteApiV1TenantsTenantSlugCatalogsCatalogNameConnectorsIdIntAsync(string tenantSlug, string catalogName, int id, System.Threading.CancellationToken cancellationToken = default);
+        Task<IDeleteApiV1TenantsTenantSlugCatalogsCatalogNameConnectorsIdIntApiResponse> DeleteApiV1TenantsTenantSlugCatalogsCatalogNameConnectorsIdIntAsync(string tenantSlug, string catalogName, int id, Option<int> version = default, System.Threading.CancellationToken cancellationToken = default);
 
         /// <summary>
         ///
@@ -133,9 +134,10 @@ namespace Lakehold.Sdk.Api
         /// <param name="tenantSlug"></param>
         /// <param name="catalogName"></param>
         /// <param name="id"></param>
+        /// <param name="version"> (optional)</param>
         /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
         /// <returns><see cref="Task"/>&lt;<see cref="IDeleteApiV1TenantsTenantSlugCatalogsCatalogNameConnectorsIdIntApiResponse"/>?&gt;</returns>
-        Task<IDeleteApiV1TenantsTenantSlugCatalogsCatalogNameConnectorsIdIntApiResponse?> DeleteApiV1TenantsTenantSlugCatalogsCatalogNameConnectorsIdIntOrDefaultAsync(string tenantSlug, string catalogName, int id, System.Threading.CancellationToken cancellationToken = default);
+        Task<IDeleteApiV1TenantsTenantSlugCatalogsCatalogNameConnectorsIdIntApiResponse?> DeleteApiV1TenantsTenantSlugCatalogsCatalogNameConnectorsIdIntOrDefaultAsync(string tenantSlug, string catalogName, int id, Option<int> version = default, System.Threading.CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Deletes an unpublished reusable query.
@@ -1415,7 +1417,7 @@ namespace Lakehold.Sdk.Api
         Task<IPostApiV1TenantsTenantSlugCatalogsCatalogNameImportsCsvApiResponse?> PostApiV1TenantsTenantSlugCatalogsCatalogNameImportsCsvOrDefaultAsync(string tenantSlug, string catalogName, System.Threading.CancellationToken cancellationToken = default);
 
         /// <summary>
-        /// Uploads a CSV or XLSX file and creates a new DuckLake table.
+        /// Uploads a CSV, XLSX, or Avro file and creates a new DuckLake table.
         /// </summary>
         /// <remarks>
         ///
@@ -1428,7 +1430,7 @@ namespace Lakehold.Sdk.Api
         Task<IPostApiV1TenantsTenantSlugCatalogsCatalogNameImportsFilesApiResponse> PostApiV1TenantsTenantSlugCatalogsCatalogNameImportsFilesAsync(string tenantSlug, string catalogName, System.Threading.CancellationToken cancellationToken = default);
 
         /// <summary>
-        /// Uploads a CSV or XLSX file and creates a new DuckLake table.
+        /// Uploads a CSV, XLSX, or Avro file and creates a new DuckLake table.
         /// </summary>
         /// <remarks>
         ///
@@ -11720,7 +11722,7 @@ namespace Lakehold.Sdk.Api
             partial void OnDeserializationError(ref bool suppressDefaultLog, Exception exception, HttpStatusCode httpStatusCode);
         }
 
-        partial void FormatDeleteApiV1TenantsTenantSlugCatalogsCatalogNameConnectorsIdInt(ref string tenantSlug, ref string catalogName, ref int id);
+        partial void FormatDeleteApiV1TenantsTenantSlugCatalogsCatalogNameConnectorsIdInt(ref string tenantSlug, ref string catalogName, ref int id, ref Option<int> version);
 
         /// <summary>
         /// Validates the request parameters
@@ -11744,10 +11746,11 @@ namespace Lakehold.Sdk.Api
         /// <param name="tenantSlug"></param>
         /// <param name="catalogName"></param>
         /// <param name="id"></param>
-        private void AfterDeleteApiV1TenantsTenantSlugCatalogsCatalogNameConnectorsIdIntDefaultImplementation(IDeleteApiV1TenantsTenantSlugCatalogsCatalogNameConnectorsIdIntApiResponse apiResponseLocalVar, string tenantSlug, string catalogName, int id)
+        /// <param name="version"></param>
+        private void AfterDeleteApiV1TenantsTenantSlugCatalogsCatalogNameConnectorsIdIntDefaultImplementation(IDeleteApiV1TenantsTenantSlugCatalogsCatalogNameConnectorsIdIntApiResponse apiResponseLocalVar, string tenantSlug, string catalogName, int id, Option<int> version)
         {
             bool suppressDefaultLog = false;
-            AfterDeleteApiV1TenantsTenantSlugCatalogsCatalogNameConnectorsIdInt(ref suppressDefaultLog, apiResponseLocalVar, tenantSlug, catalogName, id);
+            AfterDeleteApiV1TenantsTenantSlugCatalogsCatalogNameConnectorsIdInt(ref suppressDefaultLog, apiResponseLocalVar, tenantSlug, catalogName, id, version);
             if (!suppressDefaultLog)
                 Logger.LogInformation("{0,-9} | {1} | {3}", (apiResponseLocalVar.DownloadedAt - apiResponseLocalVar.RequestedAt).TotalSeconds, apiResponseLocalVar.StatusCode, apiResponseLocalVar.Path);
         }
@@ -11760,7 +11763,8 @@ namespace Lakehold.Sdk.Api
         /// <param name="tenantSlug"></param>
         /// <param name="catalogName"></param>
         /// <param name="id"></param>
-        partial void AfterDeleteApiV1TenantsTenantSlugCatalogsCatalogNameConnectorsIdInt(ref bool suppressDefaultLog, IDeleteApiV1TenantsTenantSlugCatalogsCatalogNameConnectorsIdIntApiResponse apiResponseLocalVar, string tenantSlug, string catalogName, int id);
+        /// <param name="version"></param>
+        partial void AfterDeleteApiV1TenantsTenantSlugCatalogsCatalogNameConnectorsIdInt(ref bool suppressDefaultLog, IDeleteApiV1TenantsTenantSlugCatalogsCatalogNameConnectorsIdIntApiResponse apiResponseLocalVar, string tenantSlug, string catalogName, int id, Option<int> version);
 
         /// <summary>
         /// Logs exceptions that occur while retrieving the server response
@@ -11771,10 +11775,11 @@ namespace Lakehold.Sdk.Api
         /// <param name="tenantSlug"></param>
         /// <param name="catalogName"></param>
         /// <param name="id"></param>
-        private void OnErrorDeleteApiV1TenantsTenantSlugCatalogsCatalogNameConnectorsIdIntDefaultImplementation(Exception exceptionLocalVar, string pathFormatLocalVar, string pathLocalVar, string tenantSlug, string catalogName, int id)
+        /// <param name="version"></param>
+        private void OnErrorDeleteApiV1TenantsTenantSlugCatalogsCatalogNameConnectorsIdIntDefaultImplementation(Exception exceptionLocalVar, string pathFormatLocalVar, string pathLocalVar, string tenantSlug, string catalogName, int id, Option<int> version)
         {
             bool suppressDefaultLogLocalVar = false;
-            OnErrorDeleteApiV1TenantsTenantSlugCatalogsCatalogNameConnectorsIdInt(ref suppressDefaultLogLocalVar, exceptionLocalVar, pathFormatLocalVar, pathLocalVar, tenantSlug, catalogName, id);
+            OnErrorDeleteApiV1TenantsTenantSlugCatalogsCatalogNameConnectorsIdInt(ref suppressDefaultLogLocalVar, exceptionLocalVar, pathFormatLocalVar, pathLocalVar, tenantSlug, catalogName, id, version);
             if (!suppressDefaultLogLocalVar)
                 Logger.LogError(exceptionLocalVar, "An error occurred while sending the request to the server.");
         }
@@ -11789,7 +11794,8 @@ namespace Lakehold.Sdk.Api
         /// <param name="tenantSlug"></param>
         /// <param name="catalogName"></param>
         /// <param name="id"></param>
-        partial void OnErrorDeleteApiV1TenantsTenantSlugCatalogsCatalogNameConnectorsIdInt(ref bool suppressDefaultLogLocalVar, Exception exceptionLocalVar, string pathFormatLocalVar, string pathLocalVar, string tenantSlug, string catalogName, int id);
+        /// <param name="version"></param>
+        partial void OnErrorDeleteApiV1TenantsTenantSlugCatalogsCatalogNameConnectorsIdInt(ref bool suppressDefaultLogLocalVar, Exception exceptionLocalVar, string pathFormatLocalVar, string pathLocalVar, string tenantSlug, string catalogName, int id, Option<int> version);
 
         /// <summary>
         ///
@@ -11797,13 +11803,14 @@ namespace Lakehold.Sdk.Api
         /// <param name="tenantSlug"></param>
         /// <param name="catalogName"></param>
         /// <param name="id"></param>
+        /// <param name="version"> (optional)</param>
         /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
         /// <returns><see cref="Task"/>&lt;<see cref="IDeleteApiV1TenantsTenantSlugCatalogsCatalogNameConnectorsIdIntApiResponse"/>&gt;</returns>
-        public async Task<IDeleteApiV1TenantsTenantSlugCatalogsCatalogNameConnectorsIdIntApiResponse?> DeleteApiV1TenantsTenantSlugCatalogsCatalogNameConnectorsIdIntOrDefaultAsync(string tenantSlug, string catalogName, int id, System.Threading.CancellationToken cancellationToken = default)
+        public async Task<IDeleteApiV1TenantsTenantSlugCatalogsCatalogNameConnectorsIdIntApiResponse?> DeleteApiV1TenantsTenantSlugCatalogsCatalogNameConnectorsIdIntOrDefaultAsync(string tenantSlug, string catalogName, int id, Option<int> version = default, System.Threading.CancellationToken cancellationToken = default)
         {
             try
             {
-                return await DeleteApiV1TenantsTenantSlugCatalogsCatalogNameConnectorsIdIntAsync(tenantSlug, catalogName, id, cancellationToken).ConfigureAwait(false);
+                return await DeleteApiV1TenantsTenantSlugCatalogsCatalogNameConnectorsIdIntAsync(tenantSlug, catalogName, id, version, cancellationToken).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {
@@ -11822,9 +11829,10 @@ namespace Lakehold.Sdk.Api
         /// <param name="tenantSlug"></param>
         /// <param name="catalogName"></param>
         /// <param name="id"></param>
+        /// <param name="version"> (optional)</param>
         /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
         /// <returns><see cref="Task"/>&lt;<see cref="IDeleteApiV1TenantsTenantSlugCatalogsCatalogNameConnectorsIdIntApiResponse"/>&gt;</returns>
-        public async Task<IDeleteApiV1TenantsTenantSlugCatalogsCatalogNameConnectorsIdIntApiResponse> DeleteApiV1TenantsTenantSlugCatalogsCatalogNameConnectorsIdIntAsync(string tenantSlug, string catalogName, int id, System.Threading.CancellationToken cancellationToken = default)
+        public async Task<IDeleteApiV1TenantsTenantSlugCatalogsCatalogNameConnectorsIdIntApiResponse> DeleteApiV1TenantsTenantSlugCatalogsCatalogNameConnectorsIdIntAsync(string tenantSlug, string catalogName, int id, Option<int> version = default, System.Threading.CancellationToken cancellationToken = default)
         {
             UriBuilder uriBuilderLocalVar = new UriBuilder();
 
@@ -11832,7 +11840,7 @@ namespace Lakehold.Sdk.Api
             {
                 ValidateDeleteApiV1TenantsTenantSlugCatalogsCatalogNameConnectorsIdInt(tenantSlug, catalogName);
 
-                FormatDeleteApiV1TenantsTenantSlugCatalogsCatalogNameConnectorsIdInt(ref tenantSlug, ref catalogName, ref id);
+                FormatDeleteApiV1TenantsTenantSlugCatalogsCatalogNameConnectorsIdInt(ref tenantSlug, ref catalogName, ref id, ref version);
 
                 using (HttpRequestMessage httpRequestMessageLocalVar = new HttpRequestMessage())
                 {
@@ -11845,6 +11853,13 @@ namespace Lakehold.Sdk.Api
                     uriBuilderLocalVar.Path = uriBuilderLocalVar.Path.Replace("%7BtenantSlug%7D", Uri.EscapeDataString(tenantSlug.ToString()));
                     uriBuilderLocalVar.Path = uriBuilderLocalVar.Path.Replace("%7BcatalogName%7D", Uri.EscapeDataString(catalogName.ToString()));
                     uriBuilderLocalVar.Path = uriBuilderLocalVar.Path.Replace("%7Bid%7D", Uri.EscapeDataString(id.ToString()));
+
+                    System.Collections.Specialized.NameValueCollection parseQueryStringLocalVar = System.Web.HttpUtility.ParseQueryString(string.Empty);
+
+                    if (version.IsSet)
+                        parseQueryStringLocalVar["version"] = ClientUtils.ParameterToString(version.Value);
+
+                    uriBuilderLocalVar.Query = parseQueryStringLocalVar.ToString();
 
                     List<TokenBase> tokenBaseLocalVars = new List<TokenBase>();
                     httpRequestMessageLocalVar.RequestUri = uriBuilderLocalVar.Uri;
@@ -11876,7 +11891,7 @@ namespace Lakehold.Sdk.Api
 
                         DeleteApiV1TenantsTenantSlugCatalogsCatalogNameConnectorsIdIntApiResponse apiResponseLocalVar = new(apiResponseLoggerLocalVar, httpRequestMessageLocalVar, httpResponseMessageLocalVar, responseContentLocalVar, "/api/v1/tenants/{tenantSlug}/catalogs/{catalogName}/connectors/{id}", requestedAtLocalVar, _jsonSerializerOptions);
 
-                        AfterDeleteApiV1TenantsTenantSlugCatalogsCatalogNameConnectorsIdIntDefaultImplementation(apiResponseLocalVar, tenantSlug, catalogName, id);
+                        AfterDeleteApiV1TenantsTenantSlugCatalogsCatalogNameConnectorsIdIntDefaultImplementation(apiResponseLocalVar, tenantSlug, catalogName, id, version);
 
                         Events.ExecuteOnDeleteApiV1TenantsTenantSlugCatalogsCatalogNameConnectorsIdInt(apiResponseLocalVar);
 
@@ -11890,7 +11905,7 @@ namespace Lakehold.Sdk.Api
             }
             catch(Exception e)
             {
-                OnErrorDeleteApiV1TenantsTenantSlugCatalogsCatalogNameConnectorsIdIntDefaultImplementation(e, "/api/v1/tenants/{tenantSlug}/catalogs/{catalogName}/connectors/{id}", uriBuilderLocalVar.Path, tenantSlug, catalogName, id);
+                OnErrorDeleteApiV1TenantsTenantSlugCatalogsCatalogNameConnectorsIdIntDefaultImplementation(e, "/api/v1/tenants/{tenantSlug}/catalogs/{catalogName}/connectors/{id}", uriBuilderLocalVar.Path, tenantSlug, catalogName, id, version);
                 Events.ExecuteOnErrorDeleteApiV1TenantsTenantSlugCatalogsCatalogNameConnectorsIdInt(e);
                 throw;
             }
@@ -48469,7 +48484,7 @@ namespace Lakehold.Sdk.Api
         partial void OnErrorPostApiV1TenantsTenantSlugCatalogsCatalogNameImportsFiles(ref bool suppressDefaultLogLocalVar, Exception exceptionLocalVar, string pathFormatLocalVar, string pathLocalVar, string tenantSlug, string catalogName);
 
         /// <summary>
-        /// Uploads a CSV or XLSX file and creates a new DuckLake table.
+        /// Uploads a CSV, XLSX, or Avro file and creates a new DuckLake table.
         /// </summary>
         /// <param name="tenantSlug"></param>
         /// <param name="catalogName"></param>
@@ -48492,7 +48507,7 @@ namespace Lakehold.Sdk.Api
         }
 
         /// <summary>
-        /// Uploads a CSV or XLSX file and creates a new DuckLake table.
+        /// Uploads a CSV, XLSX, or Avro file and creates a new DuckLake table.
         /// </summary>
         /// <exception cref="ApiException">Thrown when fails to make API call</exception>
         /// <param name="tenantSlug"></param>

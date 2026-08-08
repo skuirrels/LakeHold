@@ -203,6 +203,7 @@ builder.Services.AddOpenApi(options =>
         PublicApiOpenApi.NormalizeNumericSchemas(document);
         PublicApiOpenApi.PruneUnusedSchemas(document);
         PublicApiOpenApi.PreserveAdditiveAccessCompatibility(document);
+        PublicApiOpenApi.PreserveAdditiveConnectorCompatibility(document);
 
         return Task.CompletedTask;
     });

@@ -146,6 +146,48 @@ public sealed class PublicApiContractTests
     }
 
     [Fact]
+    public void Additive_connector_capabilities_remain_optional_in_the_public_schema()
+    {
+        var authentication = RequiredSchema(
+            "kind",
+            "schemaRegistryUsernameSecretReference",
+            "schemaRegistryPasswordSecretReference");
+        var connector = RequiredSchema(
+            "id",
+            "sourceAcknowledgementPendingUtc",
+            "sourceAcknowledgementError");
+        var sourceSettings = RequiredSchema(
+            "pageSize",
+            "kafkaBootstrapServers",
+            "kafkaTopic",
+            "kafkaConsumerGroup",
+            "schemaRegistryUrl");
+        var document = new OpenApiDocument
+        {
+            Components = new OpenApiComponents
+            {
+                Schemas = new Dictionary<string, IOpenApiSchema>(StringComparer.Ordinal)
+                {
+                    ["DataConnectorAuthenticationDto"] = authentication,
+                    ["DataConnectorDto"] = connector,
+                    ["DataConnectorSourceSettingsDto"] = sourceSettings,
+                },
+            },
+        };
+
+        PublicApiOpenApi.PreserveAdditiveConnectorCompatibility(document);
+
+        Assert.Equal(["kind"], authentication.Required);
+        Assert.Equal(["id"], connector.Required);
+        Assert.Equal(["pageSize"], sourceSettings.Required);
+    }
+
+    private static OpenApiSchema RequiredSchema(params string[] properties) => new()
+    {
+        Required = new HashSet<string>(properties, StringComparer.Ordinal),
+    };
+
+    [Fact]
     public async Task Mutation_response_is_persisted_and_replayed_without_reexecution()
     {
         var root = Path.Combine(Path.GetTempPath(), "lakehold-idempotency", Guid.NewGuid().ToString("N"));

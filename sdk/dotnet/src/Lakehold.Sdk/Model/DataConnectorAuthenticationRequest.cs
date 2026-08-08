@@ -28,6 +28,7 @@ namespace Lakehold.Sdk.Model
     /// <summary>
     /// DataConnectorAuthenticationRequest
     /// </summary>
+    [JsonConverter(typeof(DataConnectorAuthenticationRequestJsonConverter))]
     public partial class DataConnectorAuthenticationRequest : IValidatableObject
     {
         /// <summary>
@@ -43,8 +44,10 @@ namespace Lakehold.Sdk.Model
         /// <param name="clientCertificateSecretReference">clientCertificateSecretReference</param>
         /// <param name="certificatePasswordSecretReference">certificatePasswordSecretReference</param>
         /// <param name="customHeaderName">customHeaderName</param>
+        /// <param name="schemaRegistryUsernameSecretReference">schemaRegistryUsernameSecretReference</param>
+        /// <param name="schemaRegistryPasswordSecretReference">schemaRegistryPasswordSecretReference</param>
         [JsonConstructor]
-        public DataConnectorAuthenticationRequest(Option<string?> kind = default, Option<string?> secretReference = default, Option<string?> usernameSecretReference = default, Option<string?> passwordSecretReference = default, Option<string?> clientIdSecretReference = default, Option<string?> clientSecretReference = default, Option<string?> refreshTokenSecretReference = default, Option<string?> clientCertificateSecretReference = default, Option<string?> certificatePasswordSecretReference = default, Option<string?> customHeaderName = default)
+        public DataConnectorAuthenticationRequest(Option<string?> kind = default, Option<string?> secretReference = default, Option<string?> usernameSecretReference = default, Option<string?> passwordSecretReference = default, Option<string?> clientIdSecretReference = default, Option<string?> clientSecretReference = default, Option<string?> refreshTokenSecretReference = default, Option<string?> clientCertificateSecretReference = default, Option<string?> certificatePasswordSecretReference = default, Option<string?> customHeaderName = default, Option<string?> schemaRegistryUsernameSecretReference = default, Option<string?> schemaRegistryPasswordSecretReference = default)
         {
             KindOption = kind;
             SecretReferenceOption = secretReference;
@@ -56,6 +59,8 @@ namespace Lakehold.Sdk.Model
             ClientCertificateSecretReferenceOption = clientCertificateSecretReference;
             CertificatePasswordSecretReferenceOption = certificatePasswordSecretReference;
             CustomHeaderNameOption = customHeaderName;
+            SchemaRegistryUsernameSecretReferenceOption = schemaRegistryUsernameSecretReference;
+            SchemaRegistryPasswordSecretReferenceOption = schemaRegistryPasswordSecretReference;
             OnCreated();
         }
 
@@ -192,6 +197,32 @@ namespace Lakehold.Sdk.Model
         public string? CustomHeaderName { get { return this.CustomHeaderNameOption; } set { this.CustomHeaderNameOption = new(value); } }
 
         /// <summary>
+        /// Used to track the state of SchemaRegistryUsernameSecretReference
+        /// </summary>
+        [JsonIgnore]
+        [global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]
+        public Option<string?> SchemaRegistryUsernameSecretReferenceOption { get; private set; }
+
+        /// <summary>
+        /// Gets or Sets SchemaRegistryUsernameSecretReference
+        /// </summary>
+        [JsonPropertyName("schemaRegistryUsernameSecretReference")]
+        public string? SchemaRegistryUsernameSecretReference { get { return this.SchemaRegistryUsernameSecretReferenceOption; } set { this.SchemaRegistryUsernameSecretReferenceOption = new(value); } }
+
+        /// <summary>
+        /// Used to track the state of SchemaRegistryPasswordSecretReference
+        /// </summary>
+        [JsonIgnore]
+        [global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]
+        public Option<string?> SchemaRegistryPasswordSecretReferenceOption { get; private set; }
+
+        /// <summary>
+        /// Gets or Sets SchemaRegistryPasswordSecretReference
+        /// </summary>
+        [JsonPropertyName("schemaRegistryPasswordSecretReference")]
+        public string? SchemaRegistryPasswordSecretReference { get { return this.SchemaRegistryPasswordSecretReferenceOption; } set { this.SchemaRegistryPasswordSecretReferenceOption = new(value); } }
+
+        /// <summary>
         /// Returns the string presentation of the object
         /// </summary>
         /// <returns>String presentation of the object</returns>
@@ -209,6 +240,8 @@ namespace Lakehold.Sdk.Model
             sb.Append("  ClientCertificateSecretReference: ").Append(ClientCertificateSecretReference).Append("\n");
             sb.Append("  CertificatePasswordSecretReference: ").Append(CertificatePasswordSecretReference).Append("\n");
             sb.Append("  CustomHeaderName: ").Append(CustomHeaderName).Append("\n");
+            sb.Append("  SchemaRegistryUsernameSecretReference: ").Append(SchemaRegistryUsernameSecretReference).Append("\n");
+            sb.Append("  SchemaRegistryPasswordSecretReference: ").Append(SchemaRegistryPasswordSecretReference).Append("\n");
             sb.Append("}\n");
             return sb.ToString();
         }
@@ -256,6 +289,8 @@ namespace Lakehold.Sdk.Model
             Option<string?> clientCertificateSecretReference = default;
             Option<string?> certificatePasswordSecretReference = default;
             Option<string?> customHeaderName = default;
+            Option<string?> schemaRegistryUsernameSecretReference = default;
+            Option<string?> schemaRegistryPasswordSecretReference = default;
 
             while (utf8JsonReader.Read())
             {
@@ -302,6 +337,12 @@ namespace Lakehold.Sdk.Model
                         case "customHeaderName":
                             customHeaderName = new Option<string?>(utf8JsonReader.GetString());
                             break;
+                        case "schemaRegistryUsernameSecretReference":
+                            schemaRegistryUsernameSecretReference = new Option<string?>(utf8JsonReader.GetString());
+                            break;
+                        case "schemaRegistryPasswordSecretReference":
+                            schemaRegistryPasswordSecretReference = new Option<string?>(utf8JsonReader.GetString());
+                            break;
                         default:
                             break;
                     }
@@ -311,7 +352,7 @@ namespace Lakehold.Sdk.Model
             if (kind.IsSet && kind.Value == null)
                 throw new ArgumentNullException(nameof(kind), "Property is not nullable for class DataConnectorAuthenticationRequest.");
 
-            return new DataConnectorAuthenticationRequest(kind, secretReference, usernameSecretReference, passwordSecretReference, clientIdSecretReference, clientSecretReference, refreshTokenSecretReference, clientCertificateSecretReference, certificatePasswordSecretReference, customHeaderName);
+            return new DataConnectorAuthenticationRequest(kind, secretReference, usernameSecretReference, passwordSecretReference, clientIdSecretReference, clientSecretReference, refreshTokenSecretReference, clientCertificateSecretReference, certificatePasswordSecretReference, customHeaderName, schemaRegistryUsernameSecretReference, schemaRegistryPasswordSecretReference);
         }
 
         /// <summary>
@@ -395,6 +436,18 @@ namespace Lakehold.Sdk.Model
                     writer.WriteString("customHeaderName", dataConnectorAuthenticationRequest.CustomHeaderName);
                 else
                     writer.WriteNull("customHeaderName");
+
+            if (dataConnectorAuthenticationRequest.SchemaRegistryUsernameSecretReferenceOption.IsSet)
+                if (dataConnectorAuthenticationRequest.SchemaRegistryUsernameSecretReferenceOption.Value != null)
+                    writer.WriteString("schemaRegistryUsernameSecretReference", dataConnectorAuthenticationRequest.SchemaRegistryUsernameSecretReference);
+                else
+                    writer.WriteNull("schemaRegistryUsernameSecretReference");
+
+            if (dataConnectorAuthenticationRequest.SchemaRegistryPasswordSecretReferenceOption.IsSet)
+                if (dataConnectorAuthenticationRequest.SchemaRegistryPasswordSecretReferenceOption.Value != null)
+                    writer.WriteString("schemaRegistryPasswordSecretReference", dataConnectorAuthenticationRequest.SchemaRegistryPasswordSecretReference);
+                else
+                    writer.WriteNull("schemaRegistryPasswordSecretReference");
         }
     }
 }

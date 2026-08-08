@@ -119,7 +119,10 @@ public sealed class DataConnectorTests
                 service.DeleteAsync("acme", "analytics", connector.Id, publishedConnector.ConcurrencyVersion - 1, default));
             Assert.Contains("reload", staleRetire.Message, StringComparison.OrdinalIgnoreCase);
 
-            await service.DeleteAsync("acme", "analytics", connector.Id, publishedConnector.ConcurrencyVersion, default);
+            // Clients generated before optimistic delete versions were introduced omit the query
+            // parameter. Preserve that additive contract while newer clients can still opt into
+            // the explicit stale-write protection proven above.
+            await service.DeleteAsync("acme", "analytics", connector.Id, null, default);
             var archived = await service.GetAsync("acme", "analytics", connector.Id, default);
             Assert.NotNull(archived.ArchivedUtc);
             Assert.True(archived.TargetProvisioned);

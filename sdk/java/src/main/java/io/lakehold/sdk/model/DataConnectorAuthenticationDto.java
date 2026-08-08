@@ -21,6 +21,7 @@ import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonWriter;
 import java.io.IOException;
 import java.util.Arrays;
+import org.openapitools.jackson.nullable.JsonNullable;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -99,6 +100,16 @@ public class DataConnectorAuthenticationDto {
   @SerializedName(SERIALIZED_NAME_CUSTOM_HEADER_NAME)
   @jakarta.annotation.Nullable
   private String customHeaderName;
+
+  public static final String SERIALIZED_NAME_SCHEMA_REGISTRY_USERNAME_SECRET_REFERENCE = "schemaRegistryUsernameSecretReference";
+  @SerializedName(SERIALIZED_NAME_SCHEMA_REGISTRY_USERNAME_SECRET_REFERENCE)
+  @jakarta.annotation.Nullable
+  private String schemaRegistryUsernameSecretReference;
+
+  public static final String SERIALIZED_NAME_SCHEMA_REGISTRY_PASSWORD_SECRET_REFERENCE = "schemaRegistryPasswordSecretReference";
+  @SerializedName(SERIALIZED_NAME_SCHEMA_REGISTRY_PASSWORD_SECRET_REFERENCE)
+  @jakarta.annotation.Nullable
+  private String schemaRegistryPasswordSecretReference;
 
   public DataConnectorAuthenticationDto() {
   }
@@ -292,6 +303,44 @@ public class DataConnectorAuthenticationDto {
     this.customHeaderName = customHeaderName;
   }
 
+
+  public DataConnectorAuthenticationDto schemaRegistryUsernameSecretReference(@jakarta.annotation.Nullable String schemaRegistryUsernameSecretReference) {
+    this.schemaRegistryUsernameSecretReference = schemaRegistryUsernameSecretReference;
+    return this;
+  }
+
+  /**
+   * Get schemaRegistryUsernameSecretReference
+   * @return schemaRegistryUsernameSecretReference
+   */
+  @jakarta.annotation.Nullable
+  public String getSchemaRegistryUsernameSecretReference() {
+    return schemaRegistryUsernameSecretReference;
+  }
+
+  public void setSchemaRegistryUsernameSecretReference(@jakarta.annotation.Nullable String schemaRegistryUsernameSecretReference) {
+    this.schemaRegistryUsernameSecretReference = schemaRegistryUsernameSecretReference;
+  }
+
+
+  public DataConnectorAuthenticationDto schemaRegistryPasswordSecretReference(@jakarta.annotation.Nullable String schemaRegistryPasswordSecretReference) {
+    this.schemaRegistryPasswordSecretReference = schemaRegistryPasswordSecretReference;
+    return this;
+  }
+
+  /**
+   * Get schemaRegistryPasswordSecretReference
+   * @return schemaRegistryPasswordSecretReference
+   */
+  @jakarta.annotation.Nullable
+  public String getSchemaRegistryPasswordSecretReference() {
+    return schemaRegistryPasswordSecretReference;
+  }
+
+  public void setSchemaRegistryPasswordSecretReference(@jakarta.annotation.Nullable String schemaRegistryPasswordSecretReference) {
+    this.schemaRegistryPasswordSecretReference = schemaRegistryPasswordSecretReference;
+  }
+
   /**
    * A container for additional, undeclared properties.
    * This is a holder for any undeclared properties as specified with
@@ -356,13 +405,26 @@ public class DataConnectorAuthenticationDto {
         Objects.equals(this.refreshTokenSecretReference, dataConnectorAuthenticationDto.refreshTokenSecretReference) &&
         Objects.equals(this.clientCertificateSecretReference, dataConnectorAuthenticationDto.clientCertificateSecretReference) &&
         Objects.equals(this.certificatePasswordSecretReference, dataConnectorAuthenticationDto.certificatePasswordSecretReference) &&
-        Objects.equals(this.customHeaderName, dataConnectorAuthenticationDto.customHeaderName)&&
+        Objects.equals(this.customHeaderName, dataConnectorAuthenticationDto.customHeaderName) &&
+        Objects.equals(this.schemaRegistryUsernameSecretReference, dataConnectorAuthenticationDto.schemaRegistryUsernameSecretReference) &&
+        Objects.equals(this.schemaRegistryPasswordSecretReference, dataConnectorAuthenticationDto.schemaRegistryPasswordSecretReference)&&
         Objects.equals(this.additionalProperties, dataConnectorAuthenticationDto.additionalProperties);
+  }
+
+  private static <T> boolean equalsNullable(JsonNullable<T> a, JsonNullable<T> b) {
+    return a == b || (a != null && b != null && a.isPresent() && b.isPresent() && Objects.deepEquals(a.get(), b.get()));
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(kind, secretReference, usernameSecretReference, passwordSecretReference, clientIdSecretReference, clientSecretReference, refreshTokenSecretReference, clientCertificateSecretReference, certificatePasswordSecretReference, customHeaderName, additionalProperties);
+    return Objects.hash(kind, secretReference, usernameSecretReference, passwordSecretReference, clientIdSecretReference, clientSecretReference, refreshTokenSecretReference, clientCertificateSecretReference, certificatePasswordSecretReference, customHeaderName, schemaRegistryUsernameSecretReference, schemaRegistryPasswordSecretReference, additionalProperties);
+  }
+
+  private static <T> int hashCodeNullable(JsonNullable<T> a) {
+    if (a == null) {
+      return 1;
+    }
+    return a.isPresent() ? Arrays.deepHashCode(new Object[]{a.get()}) : 31;
   }
 
   @Override
@@ -379,6 +441,8 @@ public class DataConnectorAuthenticationDto {
     sb.append("    clientCertificateSecretReference: ").append(toIndentedString(clientCertificateSecretReference)).append("\n");
     sb.append("    certificatePasswordSecretReference: ").append(toIndentedString(certificatePasswordSecretReference)).append("\n");
     sb.append("    customHeaderName: ").append(toIndentedString(customHeaderName)).append("\n");
+    sb.append("    schemaRegistryUsernameSecretReference: ").append(toIndentedString(schemaRegistryUsernameSecretReference)).append("\n");
+    sb.append("    schemaRegistryPasswordSecretReference: ").append(toIndentedString(schemaRegistryPasswordSecretReference)).append("\n");
     sb.append("    additionalProperties: ").append(toIndentedString(additionalProperties)).append("\n");
     sb.append("}");
     return sb.toString();
@@ -401,7 +465,7 @@ public class DataConnectorAuthenticationDto {
 
   static {
     // a set of all properties/fields (JSON key names)
-    openapiFields = new HashSet<String>(Arrays.asList("kind", "secretReference", "usernameSecretReference", "passwordSecretReference", "clientIdSecretReference", "clientSecretReference", "refreshTokenSecretReference", "clientCertificateSecretReference", "certificatePasswordSecretReference", "customHeaderName"));
+    openapiFields = new HashSet<String>(Arrays.asList("kind", "secretReference", "usernameSecretReference", "passwordSecretReference", "clientIdSecretReference", "clientSecretReference", "refreshTokenSecretReference", "clientCertificateSecretReference", "certificatePasswordSecretReference", "customHeaderName", "schemaRegistryUsernameSecretReference", "schemaRegistryPasswordSecretReference"));
 
     // a set of required properties/fields (JSON key names)
     openapiRequiredFields = new HashSet<String>(Arrays.asList("kind", "secretReference", "usernameSecretReference", "passwordSecretReference", "clientIdSecretReference", "clientSecretReference", "refreshTokenSecretReference", "clientCertificateSecretReference", "certificatePasswordSecretReference", "customHeaderName"));
@@ -456,6 +520,12 @@ public class DataConnectorAuthenticationDto {
       }
       if ((jsonObj.get("customHeaderName") != null && !jsonObj.get("customHeaderName").isJsonNull()) && !jsonObj.get("customHeaderName").isJsonPrimitive()) {
         throw new IllegalArgumentException(String.format("Expected the field `customHeaderName` to be a primitive type in the JSON string but got `%s`", jsonObj.get("customHeaderName").toString()));
+      }
+      if ((jsonObj.get("schemaRegistryUsernameSecretReference") != null && !jsonObj.get("schemaRegistryUsernameSecretReference").isJsonNull()) && !jsonObj.get("schemaRegistryUsernameSecretReference").isJsonPrimitive()) {
+        throw new IllegalArgumentException(String.format("Expected the field `schemaRegistryUsernameSecretReference` to be a primitive type in the JSON string but got `%s`", jsonObj.get("schemaRegistryUsernameSecretReference").toString()));
+      }
+      if ((jsonObj.get("schemaRegistryPasswordSecretReference") != null && !jsonObj.get("schemaRegistryPasswordSecretReference").isJsonNull()) && !jsonObj.get("schemaRegistryPasswordSecretReference").isJsonPrimitive()) {
+        throw new IllegalArgumentException(String.format("Expected the field `schemaRegistryPasswordSecretReference` to be a primitive type in the JSON string but got `%s`", jsonObj.get("schemaRegistryPasswordSecretReference").toString()));
       }
   }
 

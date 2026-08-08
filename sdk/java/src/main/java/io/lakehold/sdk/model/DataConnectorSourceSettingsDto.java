@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import org.openapitools.jackson.nullable.JsonNullable;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -81,6 +82,26 @@ public class DataConnectorSourceSettingsDto {
   @SerializedName(SERIALIZED_NAME_CURSOR_IS_COMMIT_MONOTONIC)
   @jakarta.annotation.Nonnull
   private Boolean cursorIsCommitMonotonic;
+
+  public static final String SERIALIZED_NAME_KAFKA_BOOTSTRAP_SERVERS = "kafkaBootstrapServers";
+  @SerializedName(SERIALIZED_NAME_KAFKA_BOOTSTRAP_SERVERS)
+  @jakarta.annotation.Nullable
+  private String kafkaBootstrapServers;
+
+  public static final String SERIALIZED_NAME_KAFKA_TOPIC = "kafkaTopic";
+  @SerializedName(SERIALIZED_NAME_KAFKA_TOPIC)
+  @jakarta.annotation.Nullable
+  private String kafkaTopic;
+
+  public static final String SERIALIZED_NAME_KAFKA_CONSUMER_GROUP = "kafkaConsumerGroup";
+  @SerializedName(SERIALIZED_NAME_KAFKA_CONSUMER_GROUP)
+  @jakarta.annotation.Nullable
+  private String kafkaConsumerGroup;
+
+  public static final String SERIALIZED_NAME_SCHEMA_REGISTRY_URL = "schemaRegistryUrl";
+  @SerializedName(SERIALIZED_NAME_SCHEMA_REGISTRY_URL)
+  @jakarta.annotation.Nullable
+  private String schemaRegistryUrl;
 
   public DataConnectorSourceSettingsDto() {
   }
@@ -206,6 +227,82 @@ public class DataConnectorSourceSettingsDto {
     this.cursorIsCommitMonotonic = cursorIsCommitMonotonic;
   }
 
+
+  public DataConnectorSourceSettingsDto kafkaBootstrapServers(@jakarta.annotation.Nullable String kafkaBootstrapServers) {
+    this.kafkaBootstrapServers = kafkaBootstrapServers;
+    return this;
+  }
+
+  /**
+   * Get kafkaBootstrapServers
+   * @return kafkaBootstrapServers
+   */
+  @jakarta.annotation.Nullable
+  public String getKafkaBootstrapServers() {
+    return kafkaBootstrapServers;
+  }
+
+  public void setKafkaBootstrapServers(@jakarta.annotation.Nullable String kafkaBootstrapServers) {
+    this.kafkaBootstrapServers = kafkaBootstrapServers;
+  }
+
+
+  public DataConnectorSourceSettingsDto kafkaTopic(@jakarta.annotation.Nullable String kafkaTopic) {
+    this.kafkaTopic = kafkaTopic;
+    return this;
+  }
+
+  /**
+   * Get kafkaTopic
+   * @return kafkaTopic
+   */
+  @jakarta.annotation.Nullable
+  public String getKafkaTopic() {
+    return kafkaTopic;
+  }
+
+  public void setKafkaTopic(@jakarta.annotation.Nullable String kafkaTopic) {
+    this.kafkaTopic = kafkaTopic;
+  }
+
+
+  public DataConnectorSourceSettingsDto kafkaConsumerGroup(@jakarta.annotation.Nullable String kafkaConsumerGroup) {
+    this.kafkaConsumerGroup = kafkaConsumerGroup;
+    return this;
+  }
+
+  /**
+   * Get kafkaConsumerGroup
+   * @return kafkaConsumerGroup
+   */
+  @jakarta.annotation.Nullable
+  public String getKafkaConsumerGroup() {
+    return kafkaConsumerGroup;
+  }
+
+  public void setKafkaConsumerGroup(@jakarta.annotation.Nullable String kafkaConsumerGroup) {
+    this.kafkaConsumerGroup = kafkaConsumerGroup;
+  }
+
+
+  public DataConnectorSourceSettingsDto schemaRegistryUrl(@jakarta.annotation.Nullable String schemaRegistryUrl) {
+    this.schemaRegistryUrl = schemaRegistryUrl;
+    return this;
+  }
+
+  /**
+   * Get schemaRegistryUrl
+   * @return schemaRegistryUrl
+   */
+  @jakarta.annotation.Nullable
+  public String getSchemaRegistryUrl() {
+    return schemaRegistryUrl;
+  }
+
+  public void setSchemaRegistryUrl(@jakarta.annotation.Nullable String schemaRegistryUrl) {
+    this.schemaRegistryUrl = schemaRegistryUrl;
+  }
+
   /**
    * A container for additional, undeclared properties.
    * This is a holder for any undeclared properties as specified with
@@ -266,13 +363,28 @@ public class DataConnectorSourceSettingsDto {
         Objects.equals(this.cursorType, dataConnectorSourceSettingsDto.cursorType) &&
         Objects.equals(this.pageSize, dataConnectorSourceSettingsDto.pageSize) &&
         Objects.equals(this.properties, dataConnectorSourceSettingsDto.properties) &&
-        Objects.equals(this.cursorIsCommitMonotonic, dataConnectorSourceSettingsDto.cursorIsCommitMonotonic)&&
+        Objects.equals(this.cursorIsCommitMonotonic, dataConnectorSourceSettingsDto.cursorIsCommitMonotonic) &&
+        Objects.equals(this.kafkaBootstrapServers, dataConnectorSourceSettingsDto.kafkaBootstrapServers) &&
+        Objects.equals(this.kafkaTopic, dataConnectorSourceSettingsDto.kafkaTopic) &&
+        Objects.equals(this.kafkaConsumerGroup, dataConnectorSourceSettingsDto.kafkaConsumerGroup) &&
+        Objects.equals(this.schemaRegistryUrl, dataConnectorSourceSettingsDto.schemaRegistryUrl)&&
         Objects.equals(this.additionalProperties, dataConnectorSourceSettingsDto.additionalProperties);
+  }
+
+  private static <T> boolean equalsNullable(JsonNullable<T> a, JsonNullable<T> b) {
+    return a == b || (a != null && b != null && a.isPresent() && b.isPresent() && Objects.deepEquals(a.get(), b.get()));
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(sourceTable, cursorColumn, cursorType, pageSize, properties, cursorIsCommitMonotonic, additionalProperties);
+    return Objects.hash(sourceTable, cursorColumn, cursorType, pageSize, properties, cursorIsCommitMonotonic, kafkaBootstrapServers, kafkaTopic, kafkaConsumerGroup, schemaRegistryUrl, additionalProperties);
+  }
+
+  private static <T> int hashCodeNullable(JsonNullable<T> a) {
+    if (a == null) {
+      return 1;
+    }
+    return a.isPresent() ? Arrays.deepHashCode(new Object[]{a.get()}) : 31;
   }
 
   @Override
@@ -285,6 +397,10 @@ public class DataConnectorSourceSettingsDto {
     sb.append("    pageSize: ").append(toIndentedString(pageSize)).append("\n");
     sb.append("    properties: ").append(toIndentedString(properties)).append("\n");
     sb.append("    cursorIsCommitMonotonic: ").append(toIndentedString(cursorIsCommitMonotonic)).append("\n");
+    sb.append("    kafkaBootstrapServers: ").append(toIndentedString(kafkaBootstrapServers)).append("\n");
+    sb.append("    kafkaTopic: ").append(toIndentedString(kafkaTopic)).append("\n");
+    sb.append("    kafkaConsumerGroup: ").append(toIndentedString(kafkaConsumerGroup)).append("\n");
+    sb.append("    schemaRegistryUrl: ").append(toIndentedString(schemaRegistryUrl)).append("\n");
     sb.append("    additionalProperties: ").append(toIndentedString(additionalProperties)).append("\n");
     sb.append("}");
     return sb.toString();
@@ -307,7 +423,7 @@ public class DataConnectorSourceSettingsDto {
 
   static {
     // a set of all properties/fields (JSON key names)
-    openapiFields = new HashSet<String>(Arrays.asList("sourceTable", "cursorColumn", "cursorType", "pageSize", "properties", "cursorIsCommitMonotonic"));
+    openapiFields = new HashSet<String>(Arrays.asList("sourceTable", "cursorColumn", "cursorType", "pageSize", "properties", "cursorIsCommitMonotonic", "kafkaBootstrapServers", "kafkaTopic", "kafkaConsumerGroup", "schemaRegistryUrl"));
 
     // a set of required properties/fields (JSON key names)
     openapiRequiredFields = new HashSet<String>(Arrays.asList("sourceTable", "cursorColumn", "cursorType", "pageSize", "properties", "cursorIsCommitMonotonic"));
@@ -347,6 +463,18 @@ public class DataConnectorSourceSettingsDto {
         throw new IllegalArgumentException("Expected the field `linkedContent` to be an array in the JSON string but got `null`");
       } else if (!jsonObj.get("properties").isJsonArray()) {
         throw new IllegalArgumentException(String.format("Expected the field `properties` to be an array in the JSON string but got `%s`", jsonObj.get("properties").toString()));
+      }
+      if ((jsonObj.get("kafkaBootstrapServers") != null && !jsonObj.get("kafkaBootstrapServers").isJsonNull()) && !jsonObj.get("kafkaBootstrapServers").isJsonPrimitive()) {
+        throw new IllegalArgumentException(String.format("Expected the field `kafkaBootstrapServers` to be a primitive type in the JSON string but got `%s`", jsonObj.get("kafkaBootstrapServers").toString()));
+      }
+      if ((jsonObj.get("kafkaTopic") != null && !jsonObj.get("kafkaTopic").isJsonNull()) && !jsonObj.get("kafkaTopic").isJsonPrimitive()) {
+        throw new IllegalArgumentException(String.format("Expected the field `kafkaTopic` to be a primitive type in the JSON string but got `%s`", jsonObj.get("kafkaTopic").toString()));
+      }
+      if ((jsonObj.get("kafkaConsumerGroup") != null && !jsonObj.get("kafkaConsumerGroup").isJsonNull()) && !jsonObj.get("kafkaConsumerGroup").isJsonPrimitive()) {
+        throw new IllegalArgumentException(String.format("Expected the field `kafkaConsumerGroup` to be a primitive type in the JSON string but got `%s`", jsonObj.get("kafkaConsumerGroup").toString()));
+      }
+      if ((jsonObj.get("schemaRegistryUrl") != null && !jsonObj.get("schemaRegistryUrl").isJsonNull()) && !jsonObj.get("schemaRegistryUrl").isJsonPrimitive()) {
+        throw new IllegalArgumentException(String.format("Expected the field `schemaRegistryUrl` to be a primitive type in the JSON string but got `%s`", jsonObj.get("schemaRegistryUrl").toString()));
       }
   }
 
