@@ -83,7 +83,60 @@ public static class McpResourceMetadata
                 .AllowAnonymous();
         }
 
+        app.MapAuthorizationServerMetadataRedirects(oidc, mcp);
         return app;
+    }
+
+    /// <summary>The RFC 8414 and OIDC discovery paths, redirected to the authorization server's own.</summary>
+    /// <remarks>
+    ///     <para>
+    ///         Lakehold is a resource server and publishes no authorization-server metadata of its
+    ///         own; the document above names the issuer, and RFC 9728 has the client read the
+    ///         authorization server's metadata from <em>there</em>. Observed clients do not all do
+    ///         that. At least one reads <c>authorization_servers</c>, then looks for
+    ///         authorization-server metadata only on the <em>resource</em> origin, and on finding
+    ///         none falls back to the pre-RFC-9728 MCP assumption that the MCP server is its own
+    ///         authorization server — sending the operator to <c>https://&lt;lakehold&gt;/authorize</c>,
+    ///         which has never existed. A 404 is the honest answer and is precisely what triggers
+    ///         that guess.
+    ///     </para>
+    ///     <para>
+    ///         So answer where the client is looking, without inventing a document. A redirect keeps
+    ///         the metadata coming from the issuer that actually signs the tokens — the client ends
+    ///         up reading the authorization server's own bytes, not a copy of them that could drift
+    ///         or lie about its own <c>issuer</c>. The request's own flavour is preserved, so an
+    ///         OAuth-only server is asked for <c>oauth-authorization-server</c> and an OIDC one for
+    ///         <c>openid-configuration</c>, rather than guessing which the authority publishes.
+    ///     </para>
+    /// </remarks>
+    private static void MapAuthorizationServerMetadataRedirects(
+        this IEndpointRouteBuilder app,
+        LakeholdOidcOptions oidc,
+        McpOptions mcp)
+    {
+        var authority = oidc.Authority.TrimEnd('/');
+        var routeSuffix = "/" + mcp.Route.Trim().Trim('/');
+
+        foreach (var document in (string[])["oauth-authorization-server", "openid-configuration"])
+        {
+            var wellKnown = "/.well-known/" + document;
+            var target = $"{authority}{wellKnown}";
+
+            IResult Redirect() => Results.Redirect(target, permanent: false, preserveMethod: false);
+
+            app.MapGet(wellKnown, Redirect)
+                .WithTags("Lakehouse")
+                .WithSummary($"Redirects {document} discovery to the configured authorization server.")
+                .AllowAnonymous();
+
+            if (routeSuffix != "/")
+            {
+                app.MapGet(wellKnown + routeSuffix, Redirect)
+                    .WithTags("Lakehouse")
+                    .WithSummary($"Redirects path-suffixed {document} discovery to the configured authorization server.")
+                    .AllowAnonymous();
+            }
+        }
     }
 
     /// <summary>The absolute URI of this document, for a <c>WWW-Authenticate</c> challenge to cite.</summary>

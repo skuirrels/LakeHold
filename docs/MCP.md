@@ -332,6 +332,28 @@ docker compose up -d --force-recreate --wait keycloak
 This resets development-only Keycloak state; it does not remove LakeHold's PostgreSQL, catalog, or
 MinIO data.
 
+### Where a client looks for the authorization server
+
+LakeHold is a resource server and publishes no authorization-server metadata of its own. RFC 9728 has
+it name the issuer in its protected-resource document and has the client read that server's metadata
+from the issuer. Clients do not all do this. At least one reads `authorization_servers`, then looks
+for authorization-server metadata **only on the resource origin**, and on finding none falls back to
+the pre-RFC-9728 MCP assumption that the MCP server is also its own authorization server — opening
+`https://<lakehold>/authorize`, which has never existed. A 404 is the honest answer to those paths
+and is exactly what triggers the guess.
+
+Since 2.2.1, the four discovery paths — `oauth-authorization-server` and `openid-configuration`, each
+with and without the MCP route suffix — **redirect** to the configured authority instead. LakeHold
+still publishes no document of its own: a copy would be free to drift from the issuer's, and a client
+following the redirect reads the authorization server's own bytes. The request's flavour is
+preserved, so an OAuth-only authority is asked for `oauth-authorization-server` and an OIDC one for
+`openid-configuration`, rather than LakeHold guessing which the authority serves.
+
+The same class of defect exists at the edge, not only in the API: any host that answers unknown paths
+with an SPA shell tells a client that `/authorize`, `/token`, and `/register` exist. Both nginx
+configurations return 404 for those and match the whole `/.well-known/oauth-protected-resource`
+prefix, so the path-suffixed form a client asks for first is served rather than falling through.
+
 The Codex desktop app, CLI, and IDE extension share this MCP configuration. In the Codex terminal UI,
 `/mcp` shows the connection and its tools. If the provider requires explicit scopes, run
 `codex mcp login lakehold --scopes <scope-1>,<scope-2>`; otherwise LakeHold's protected-resource

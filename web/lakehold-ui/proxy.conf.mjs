@@ -43,4 +43,20 @@ export default {
     secure: false,
     changeOrigin: false,
   },
+  // The three endpoints an authorization server would publish, forwarded so the API can 404 them.
+  //
+  // LakeHold is a resource server. When a client cannot discover authorization-server metadata it
+  // falls back to the older MCP assumption that the MCP server is also its own authorization server,
+  // and probes exactly these paths on this origin. Unproxied they reach the Angular router, which
+  // answers anything it does not recognise by sending the client to the app — and a response that
+  // is not a 404 reads as "this endpoint exists". The client then commits to the fallback and opens
+  // `http://localhost:5399/authorize`, a page that has never existed, instead of the Keycloak URL
+  // named in `authorization_servers`.
+  //
+  // Enumerated rather than pattern-matched because these three names are a fixed part of the OAuth
+  // vocabulary, and because the app must never own a route called `/authorize`, `/token`, or
+  // `/register` — spelling them out here is also the record of that.
+  '/authorize': { target, secure: false, changeOrigin: false },
+  '/token': { target, secure: false, changeOrigin: false },
+  '/register': { target, secure: false, changeOrigin: false },
 };

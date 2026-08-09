@@ -201,6 +201,62 @@ public sealed class McpResourceMetadataTests
         Assert.Equal("https://new.example.com/mcp", json.RootElement.GetProperty("resource").GetString());
     }
 
+    /// <summary>
+    ///     Authorization-server discovery on <em>this</em> origin redirects to the real one.
+    /// </summary>
+    /// <remarks>
+    ///     Lakehold publishes no authorization-server metadata of its own — the RFC 9728 document
+    ///     above names the issuer, and a client is supposed to read the authorization server's
+    ///     metadata from there. Not every client does. One reads <c>authorization_servers</c>, then
+    ///     looks for authorization-server metadata only on the resource origin, and on finding none
+    ///     falls back to the pre-RFC-9728 assumption that the MCP server is its own authorization
+    ///     server — sending the operator to <c>/authorize</c> on this host, which does not exist. The
+    ///     404 that used to be served here is exactly what triggered that guess, so these paths
+    ///     answer where the client is looking and point it at the issuer instead.
+    /// </remarks>
+    [Theory]
+    [InlineData("/.well-known/oauth-authorization-server", "/.well-known/oauth-authorization-server")]
+    [InlineData("/.well-known/oauth-authorization-server/mcp", "/.well-known/oauth-authorization-server")]
+    [InlineData("/.well-known/openid-configuration", "/.well-known/openid-configuration")]
+    [InlineData("/.well-known/openid-configuration/mcp", "/.well-known/openid-configuration")]
+    public async Task Authorization_server_discovery_redirects_to_the_configured_authority(
+        string requested,
+        string expectedDocument)
+    {
+        await using var app = await StartAsync(authority: "https://idp.example.com/realms/lakehold");
+        using var client = app.GetTestClient();
+
+        using var response = await client.GetAsync(new Uri(requested, UriKind.Relative));
+
+        Assert.Equal(HttpStatusCode.Found, response.StatusCode);
+        Assert.Equal(
+            new Uri("https://idp.example.com/realms/lakehold" + expectedDocument),
+            response.Headers.Location);
+    }
+
+    [Fact]
+    public async Task The_redirect_asks_the_authority_for_the_same_document_the_client_asked_us_for()
+    {
+        // An OAuth-only authorization server publishes oauth-authorization-server and an OIDC one
+        // publishes openid-configuration; plenty publish only one. Mirroring the request rather than
+        // picking a favourite is what keeps this working against both.
+        await using var app = await StartAsync(authority: "https://idp.example.com/");
+        using var client = app.GetTestClient();
+
+        using var oauth = await client.GetAsync(
+            new Uri("/.well-known/oauth-authorization-server", UriKind.Relative));
+        using var oidc = await client.GetAsync(
+            new Uri("/.well-known/openid-configuration", UriKind.Relative));
+
+        // The trailing slash on the authority must not survive into the redirect as a double slash.
+        Assert.Equal(
+            new Uri("https://idp.example.com/.well-known/oauth-authorization-server"),
+            oauth.Headers.Location);
+        Assert.Equal(
+            new Uri("https://idp.example.com/.well-known/openid-configuration"),
+            oidc.Headers.Location);
+    }
+
     private static async Task<WebApplication> StartAsync(
         string authority,
         string publicBaseUrl = "",

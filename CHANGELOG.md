@@ -7,6 +7,43 @@ and LakeHold follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.2.1] - 2026-08-09
+
+A fix for MCP browser sign-in, and a correction to what 2.2.0 said about it.
+
+### Fixed
+
+- **An MCP client could not sign in, and was sent to a page that has never existed.** Discovery
+  reached LakeHold's RFC 9728 document and read the issuer out of it, then looked for
+  authorization-server metadata **on LakeHold's own origin** rather than on the issuer it had just
+  been told about. Finding none, the client fell back to the pre-RFC-9728 assumption that an MCP
+  server is also its own authorization server, and opened `https://<lakehold>/authorize`. The 404
+  that was the honest answer is exactly what triggered the guess.
+
+  LakeHold still publishes no authorization-server metadata of its own — inventing one would mean a
+  second copy of the issuer's document, free to drift from it. Instead the four discovery paths
+  (`oauth-authorization-server` and `openid-configuration`, each with and without the MCP route
+  suffix) now **redirect** to the configured authority, so the client reads the authorization
+  server's own bytes. The request's flavour is preserved, so an OAuth-only authority is asked for
+  `oauth-authorization-server` and an OIDC one for `openid-configuration`.
+
+- **The public website served the resource document at one of its two RFC 9728 locations.** A client
+  looks for the metadata of a resource that has a path at
+  `/.well-known/oauth-protected-resource/<path>` and asks for that form *first*. nginx matched only
+  the bare path, so in website mode the suffixed form fell through to the SPA and answered
+  `index.csr.html` — HTML where the client expected JSON. Both nginx configurations now match the
+  prefix. The website also answered `/authorize`, `/token`, and `/register` with the SPA shell,
+  which reads to a client as "these endpoints exist"; they return 404 there now, as they always did
+  on the private Workbench.
+
+### Corrected
+
+- **2.2.0 said the MCP discovery defect was "development only" and that production "was never
+  affected". That was wrong**, and it was asserted without checking the nginx configurations. The
+  private Workbench deployment was indeed unaffected, because it already answers unknown paths with
+  404 — but the website/demo deployment shares the defect, for the same SPA-fallback reason, and is
+  fixed above.
+
 ## [2.2.0] - 2026-08-08
 
 A presentation release. LakeHold can be read on a light screen.
@@ -344,7 +381,8 @@ works the way every instruction says it does.
 - Production API and web container images for Linux amd64 and arm64, Compose deployment, health
   checks, telemetry, and a reproducible end-to-end test suite.
 
-[Unreleased]: https://github.com/skuirrels/LakeHold/compare/v2.2.0...HEAD
+[Unreleased]: https://github.com/skuirrels/LakeHold/compare/v2.2.1...HEAD
+[2.2.1]: https://github.com/skuirrels/LakeHold/compare/v2.2.0...v2.2.1
 [2.2.0]: https://github.com/skuirrels/LakeHold/compare/v2.1.0...v2.2.0
 [2.1.0]: https://github.com/skuirrels/LakeHold/compare/v2.0.2...v2.1.0
 [2.0.2]: https://github.com/skuirrels/LakeHold/compare/v2.0.1...v2.0.2
