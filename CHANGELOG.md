@@ -7,6 +7,27 @@ and LakeHold follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.2.2] - 2026-08-09
+
+Completes 2.2.1, which fixed MCP authorization-server discovery in the API but not at the edge.
+
+### Fixed
+
+- **The 2.2.1 redirects never reached the API in a real deployment.** Both nginx configurations
+  proxy only the paths they name, and neither named the two authorization-server discovery
+  documents, so `/.well-known/oauth-authorization-server` and `/.well-known/openid-configuration`
+  were answered by nginx — 404 on the private Workbench, the SPA shell on the website — and the
+  redirect the API had just learned to serve was never consulted. A deployment on 2.2.1 therefore
+  behaves exactly as one on 2.2.0. Both configurations now proxy the two documents by prefix, so the
+  path-suffixed forms reach the API too.
+
+  This was caught by exercising the shipped configurations against a running API rather than by
+  reading them; 2.2.1 was released on the strength of a syntax check and an end-to-end test that ran
+  against the *development* proxy, which forwards the whole `/.well-known` prefix and so hid the gap.
+
+  The prefixes are named individually rather than proxying all of `/.well-known/`, so ACME challenge
+  paths continue to be served from disk.
+
 ## [2.2.1] - 2026-08-09
 
 A fix for MCP browser sign-in, and a correction to what 2.2.0 said about it.
@@ -381,7 +402,8 @@ works the way every instruction says it does.
 - Production API and web container images for Linux amd64 and arm64, Compose deployment, health
   checks, telemetry, and a reproducible end-to-end test suite.
 
-[Unreleased]: https://github.com/skuirrels/LakeHold/compare/v2.2.1...HEAD
+[Unreleased]: https://github.com/skuirrels/LakeHold/compare/v2.2.2...HEAD
+[2.2.2]: https://github.com/skuirrels/LakeHold/compare/v2.2.1...v2.2.2
 [2.2.1]: https://github.com/skuirrels/LakeHold/compare/v2.2.0...v2.2.1
 [2.2.0]: https://github.com/skuirrels/LakeHold/compare/v2.1.0...v2.2.0
 [2.1.0]: https://github.com/skuirrels/LakeHold/compare/v2.0.2...v2.1.0
