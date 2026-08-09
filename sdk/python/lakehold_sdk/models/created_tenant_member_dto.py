@@ -17,22 +17,19 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictStr
+from pydantic import BaseModel, ConfigDict, Field, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
+from lakehold_sdk.models.tenant_member_dto import TenantMemberDto
 from typing import Optional, Set
 from typing_extensions import Self
 
-class AccessDto(BaseModel):
+class CreatedTenantMemberDto(BaseModel):
     """
-    AccessDto
+    CreatedTenantMemberDto
     """ # noqa: E501
-    mode: StrictStr
-    role: StrictStr
-    read_only: StrictBool = Field(alias="readOnly")
-    system_admin: StrictBool = Field(alias="systemAdmin")
-    tenant_admin: Optional[StrictBool] = Field(default=None, alias="tenantAdmin")
-    can_create_users: Optional[StrictBool] = Field(default=False, alias="canCreateUsers")
-    __properties: ClassVar[List[str]] = ["mode", "role", "readOnly", "systemAdmin", "tenantAdmin", "canCreateUsers"]
+    member: TenantMemberDto
+    temporary_password: Optional[StrictStr] = Field(alias="temporaryPassword")
+    __properties: ClassVar[List[str]] = ["member", "temporaryPassword"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -51,7 +48,7 @@ class AccessDto(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of AccessDto from a JSON string"""
+        """Create an instance of CreatedTenantMemberDto from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -72,11 +69,19 @@ class AccessDto(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
+        # override the default output from pydantic by calling `to_dict()` of member
+        if self.member:
+            _dict['member'] = self.member.to_dict()
+        # set to None if temporary_password (nullable) is None
+        # and model_fields_set contains the field
+        if self.temporary_password is None and "temporary_password" in self.model_fields_set:
+            _dict['temporaryPassword'] = None
+
         return _dict
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of AccessDto from a dict"""
+        """Create an instance of CreatedTenantMemberDto from a dict"""
         if obj is None:
             return None
 
@@ -84,12 +89,8 @@ class AccessDto(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "mode": obj.get("mode"),
-            "role": obj.get("role"),
-            "readOnly": obj.get("readOnly"),
-            "systemAdmin": obj.get("systemAdmin"),
-            "tenantAdmin": obj.get("tenantAdmin"),
-            "canCreateUsers": obj.get("canCreateUsers") if obj.get("canCreateUsers") is not None else False
+            "member": TenantMemberDto.from_dict(obj["member"]) if obj.get("member") is not None else None,
+            "temporaryPassword": obj.get("temporaryPassword")
         })
         return _obj
 

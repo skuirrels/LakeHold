@@ -39,14 +39,16 @@ namespace Lakehold.Sdk.Model
         /// <param name="readOnly">readOnly</param>
         /// <param name="systemAdmin">systemAdmin</param>
         /// <param name="tenantAdmin">tenantAdmin</param>
+        /// <param name="canCreateUsers">canCreateUsers (default to false)</param>
         [JsonConstructor]
-        public AccessDto(string mode, string role, bool readOnly, bool systemAdmin, Option<bool?> tenantAdmin = default)
+        public AccessDto(string mode, string role, bool readOnly, bool systemAdmin, Option<bool?> tenantAdmin = default, Option<bool?> canCreateUsers = default)
         {
             Mode = mode;
             Role = role;
             ReadOnly = readOnly;
             SystemAdmin = systemAdmin;
             TenantAdminOption = tenantAdmin;
+            CanCreateUsersOption = canCreateUsers;
             OnCreated();
         }
 
@@ -90,6 +92,19 @@ namespace Lakehold.Sdk.Model
         public bool? TenantAdmin { get { return this.TenantAdminOption; } set { this.TenantAdminOption = new(value); } }
 
         /// <summary>
+        /// Used to track the state of CanCreateUsers
+        /// </summary>
+        [JsonIgnore]
+        [global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]
+        public Option<bool?> CanCreateUsersOption { get; private set; }
+
+        /// <summary>
+        /// Gets or Sets CanCreateUsers
+        /// </summary>
+        [JsonPropertyName("canCreateUsers")]
+        public bool? CanCreateUsers { get { return this.CanCreateUsersOption; } set { this.CanCreateUsersOption = new(value); } }
+
+        /// <summary>
         /// Returns the string presentation of the object
         /// </summary>
         /// <returns>String presentation of the object</returns>
@@ -102,6 +117,7 @@ namespace Lakehold.Sdk.Model
             sb.Append("  ReadOnly: ").Append(ReadOnly).Append("\n");
             sb.Append("  SystemAdmin: ").Append(SystemAdmin).Append("\n");
             sb.Append("  TenantAdmin: ").Append(TenantAdmin).Append("\n");
+            sb.Append("  CanCreateUsers: ").Append(CanCreateUsers).Append("\n");
             sb.Append("}\n");
             return sb.ToString();
         }
@@ -144,6 +160,7 @@ namespace Lakehold.Sdk.Model
             Option<bool?> readOnly = default;
             Option<bool?> systemAdmin = default;
             Option<bool?> tenantAdmin = default;
+            Option<bool?> canCreateUsers = default;
 
             while (utf8JsonReader.Read())
             {
@@ -174,6 +191,9 @@ namespace Lakehold.Sdk.Model
                             break;
                         case "tenantAdmin":
                             tenantAdmin = new Option<bool?>(utf8JsonReader.TokenType == JsonTokenType.Null ? (bool?)null : utf8JsonReader.GetBoolean());
+                            break;
+                        case "canCreateUsers":
+                            canCreateUsers = new Option<bool?>(utf8JsonReader.TokenType == JsonTokenType.Null ? (bool?)null : utf8JsonReader.GetBoolean());
                             break;
                         default:
                             break;
@@ -208,7 +228,10 @@ namespace Lakehold.Sdk.Model
             if (tenantAdmin.IsSet && tenantAdmin.Value == null)
                 throw new ArgumentNullException(nameof(tenantAdmin), "Property is not nullable for class AccessDto.");
 
-            return new AccessDto(mode.Value!, role.Value!, readOnly.Value!.Value!, systemAdmin.Value!.Value!, tenantAdmin);
+            if (canCreateUsers.IsSet && canCreateUsers.Value == null)
+                throw new ArgumentNullException(nameof(canCreateUsers), "Property is not nullable for class AccessDto.");
+
+            return new AccessDto(mode.Value!, role.Value!, readOnly.Value!.Value!, systemAdmin.Value!.Value!, tenantAdmin, canCreateUsers);
         }
 
         /// <summary>
@@ -249,6 +272,9 @@ namespace Lakehold.Sdk.Model
 
             if (accessDto.TenantAdminOption.IsSet)
                 writer.WriteBoolean("tenantAdmin", accessDto.TenantAdminOption.Value!.Value);
+
+            if (accessDto.CanCreateUsersOption.IsSet)
+                writer.WriteBoolean("canCreateUsers", accessDto.CanCreateUsersOption.Value!.Value);
         }
     }
 }

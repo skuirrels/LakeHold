@@ -17,22 +17,20 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictStr
+from pydantic import BaseModel, ConfigDict, Field, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
 from typing import Optional, Set
 from typing_extensions import Self
 
-class AccessDto(BaseModel):
+class CreateTenantMemberRequest(BaseModel):
     """
-    AccessDto
+    CreateTenantMemberRequest
     """ # noqa: E501
-    mode: StrictStr
-    role: StrictStr
-    read_only: StrictBool = Field(alias="readOnly")
-    system_admin: StrictBool = Field(alias="systemAdmin")
-    tenant_admin: Optional[StrictBool] = Field(default=None, alias="tenantAdmin")
-    can_create_users: Optional[StrictBool] = Field(default=False, alias="canCreateUsers")
-    __properties: ClassVar[List[str]] = ["mode", "role", "readOnly", "systemAdmin", "tenantAdmin", "canCreateUsers"]
+    username: StrictStr
+    email: Optional[StrictStr] = None
+    display_name: Optional[StrictStr] = Field(default=None, alias="displayName")
+    role: Optional[StrictStr] = None
+    __properties: ClassVar[List[str]] = ["username", "email", "displayName", "role"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -51,7 +49,7 @@ class AccessDto(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of AccessDto from a JSON string"""
+        """Create an instance of CreateTenantMemberRequest from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -72,11 +70,26 @@ class AccessDto(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
+        # set to None if email (nullable) is None
+        # and model_fields_set contains the field
+        if self.email is None and "email" in self.model_fields_set:
+            _dict['email'] = None
+
+        # set to None if display_name (nullable) is None
+        # and model_fields_set contains the field
+        if self.display_name is None and "display_name" in self.model_fields_set:
+            _dict['displayName'] = None
+
+        # set to None if role (nullable) is None
+        # and model_fields_set contains the field
+        if self.role is None and "role" in self.model_fields_set:
+            _dict['role'] = None
+
         return _dict
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of AccessDto from a dict"""
+        """Create an instance of CreateTenantMemberRequest from a dict"""
         if obj is None:
             return None
 
@@ -84,12 +97,10 @@ class AccessDto(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "mode": obj.get("mode"),
-            "role": obj.get("role"),
-            "readOnly": obj.get("readOnly"),
-            "systemAdmin": obj.get("systemAdmin"),
-            "tenantAdmin": obj.get("tenantAdmin"),
-            "canCreateUsers": obj.get("canCreateUsers") if obj.get("canCreateUsers") is not None else False
+            "username": obj.get("username"),
+            "email": obj.get("email"),
+            "displayName": obj.get("displayName"),
+            "role": obj.get("role")
         })
         return _obj
 

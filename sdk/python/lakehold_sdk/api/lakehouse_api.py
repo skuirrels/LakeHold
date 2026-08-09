@@ -30,8 +30,10 @@ from lakehold_sdk.models.column_distribution_dto import ColumnDistributionDto
 from lakehold_sdk.models.create_catalog_request import CreateCatalogRequest
 from lakehold_sdk.models.create_saved_query_request import CreateSavedQueryRequest
 from lakehold_sdk.models.create_subscription_request import CreateSubscriptionRequest
+from lakehold_sdk.models.create_tenant_member_request import CreateTenantMemberRequest
 from lakehold_sdk.models.create_tenant_request import CreateTenantRequest
 from lakehold_sdk.models.create_token_request import CreateTokenRequest
+from lakehold_sdk.models.created_tenant_member_dto import CreatedTenantMemberDto
 from lakehold_sdk.models.created_token_dto import CreatedTokenDto
 from lakehold_sdk.models.cursor_page_of_api_token_dto import CursorPageOfApiTokenDto
 from lakehold_sdk.models.cursor_page_of_backup_generation_dto import CursorPageOfBackupGenerationDto
@@ -20176,6 +20178,335 @@ class LakehouseApi:
         return self.api_client.param_serialize(
             method='POST',
             resource_path='/api/v1/tenants/{tenantSlug}/catalogs/{catalogName}/subscriptions',
+            path_params=_path_params,
+            query_params=_query_params,
+            header_params=_header_params,
+            body=_body_params,
+            post_params=_form_params,
+            files=_files,
+            auth_settings=_auth_settings,
+            collection_formats=_collection_formats,
+            _host=_host,
+            _request_auth=_request_auth
+        )
+
+
+
+
+    @validate_call
+    def post_api_v1_tenants_tenant_slug_members(
+        self,
+        tenant_slug: StrictStr,
+        create_tenant_member_request: CreateTenantMemberRequest,
+        _request_timeout: Union[
+            None,
+            Annotated[StrictFloat, Field(gt=0)],
+            Tuple[
+                Annotated[StrictFloat, Field(gt=0)],
+                Annotated[StrictFloat, Field(gt=0)]
+            ]
+        ] = None,
+        _request_auth: Optional[Dict[StrictStr, Any]] = None,
+        _content_type: Optional[StrictStr] = None,
+        _headers: Optional[Dict[StrictStr, Any]] = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> CreatedTenantMemberDto:
+        """Creates an identity in the provider and admits it to this workspace.
+
+
+        :param tenant_slug: (required)
+        :type tenant_slug: str
+        :param create_tenant_member_request: (required)
+        :type create_tenant_member_request: CreateTenantMemberRequest
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """ # noqa: E501
+
+        _param = self._post_api_v1_tenants_tenant_slug_members_serialize(
+            tenant_slug=tenant_slug,
+            create_tenant_member_request=create_tenant_member_request,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index
+        )
+
+        _response_types_map: Dict[str, Optional[str]] = {
+            '400': "PublicApiProblemDetails",
+            '401': "PublicApiProblemDetails",
+            '403': "PublicApiProblemDetails",
+            '404': "PublicApiProblemDetails",
+            '408': "PublicApiProblemDetails",
+            '409': "PublicApiProblemDetails",
+            '412': "PublicApiProblemDetails",
+            '413': "PublicApiProblemDetails",
+            '422': "PublicApiProblemDetails",
+            '429': "PublicApiProblemDetails",
+            '500': "PublicApiProblemDetails",
+            '502': "PublicApiProblemDetails",
+            '503': "PublicApiProblemDetails",
+            '504': "PublicApiProblemDetails",
+            '200': "CreatedTenantMemberDto",
+        }
+        response_data = self.api_client.call_api(
+            *_param,
+            _request_timeout=_request_timeout
+        )
+        response_data.read()
+        return self.api_client.response_deserialize(
+            response_data=response_data,
+            response_types_map=_response_types_map,
+        ).data
+
+
+    @validate_call
+    def post_api_v1_tenants_tenant_slug_members_with_http_info(
+        self,
+        tenant_slug: StrictStr,
+        create_tenant_member_request: CreateTenantMemberRequest,
+        _request_timeout: Union[
+            None,
+            Annotated[StrictFloat, Field(gt=0)],
+            Tuple[
+                Annotated[StrictFloat, Field(gt=0)],
+                Annotated[StrictFloat, Field(gt=0)]
+            ]
+        ] = None,
+        _request_auth: Optional[Dict[StrictStr, Any]] = None,
+        _content_type: Optional[StrictStr] = None,
+        _headers: Optional[Dict[StrictStr, Any]] = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> ApiResponse[CreatedTenantMemberDto]:
+        """Creates an identity in the provider and admits it to this workspace.
+
+
+        :param tenant_slug: (required)
+        :type tenant_slug: str
+        :param create_tenant_member_request: (required)
+        :type create_tenant_member_request: CreateTenantMemberRequest
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """ # noqa: E501
+
+        _param = self._post_api_v1_tenants_tenant_slug_members_serialize(
+            tenant_slug=tenant_slug,
+            create_tenant_member_request=create_tenant_member_request,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index
+        )
+
+        _response_types_map: Dict[str, Optional[str]] = {
+            '400': "PublicApiProblemDetails",
+            '401': "PublicApiProblemDetails",
+            '403': "PublicApiProblemDetails",
+            '404': "PublicApiProblemDetails",
+            '408': "PublicApiProblemDetails",
+            '409': "PublicApiProblemDetails",
+            '412': "PublicApiProblemDetails",
+            '413': "PublicApiProblemDetails",
+            '422': "PublicApiProblemDetails",
+            '429': "PublicApiProblemDetails",
+            '500': "PublicApiProblemDetails",
+            '502': "PublicApiProblemDetails",
+            '503': "PublicApiProblemDetails",
+            '504': "PublicApiProblemDetails",
+            '200': "CreatedTenantMemberDto",
+        }
+        response_data = self.api_client.call_api(
+            *_param,
+            _request_timeout=_request_timeout
+        )
+        response_data.read()
+        return self.api_client.response_deserialize(
+            response_data=response_data,
+            response_types_map=_response_types_map,
+        )
+
+
+    @validate_call
+    def post_api_v1_tenants_tenant_slug_members_without_preload_content(
+        self,
+        tenant_slug: StrictStr,
+        create_tenant_member_request: CreateTenantMemberRequest,
+        _request_timeout: Union[
+            None,
+            Annotated[StrictFloat, Field(gt=0)],
+            Tuple[
+                Annotated[StrictFloat, Field(gt=0)],
+                Annotated[StrictFloat, Field(gt=0)]
+            ]
+        ] = None,
+        _request_auth: Optional[Dict[StrictStr, Any]] = None,
+        _content_type: Optional[StrictStr] = None,
+        _headers: Optional[Dict[StrictStr, Any]] = None,
+        _host_index: Annotated[StrictInt, Field(ge=0, le=0)] = 0,
+    ) -> RESTResponseType:
+        """Creates an identity in the provider and admits it to this workspace.
+
+
+        :param tenant_slug: (required)
+        :type tenant_slug: str
+        :param create_tenant_member_request: (required)
+        :type create_tenant_member_request: CreateTenantMemberRequest
+        :param _request_timeout: timeout setting for this request. If one
+                                 number provided, it will be total request
+                                 timeout. It can also be a pair (tuple) of
+                                 (connection, read) timeouts.
+        :type _request_timeout: int, tuple(int, int), optional
+        :param _request_auth: set to override the auth_settings for an a single
+                              request; this effectively ignores the
+                              authentication in the spec for a single request.
+        :type _request_auth: dict, optional
+        :param _content_type: force content-type for the request.
+        :type _content_type: str, Optional
+        :param _headers: set to override the headers for a single
+                         request; this effectively ignores the headers
+                         in the spec for a single request.
+        :type _headers: dict, optional
+        :param _host_index: set to override the host_index for a single
+                            request; this effectively ignores the host_index
+                            in the spec for a single request.
+        :type _host_index: int, optional
+        :return: Returns the result object.
+        """ # noqa: E501
+
+        _param = self._post_api_v1_tenants_tenant_slug_members_serialize(
+            tenant_slug=tenant_slug,
+            create_tenant_member_request=create_tenant_member_request,
+            _request_auth=_request_auth,
+            _content_type=_content_type,
+            _headers=_headers,
+            _host_index=_host_index
+        )
+
+        _response_types_map: Dict[str, Optional[str]] = {
+            '400': "PublicApiProblemDetails",
+            '401': "PublicApiProblemDetails",
+            '403': "PublicApiProblemDetails",
+            '404': "PublicApiProblemDetails",
+            '408': "PublicApiProblemDetails",
+            '409': "PublicApiProblemDetails",
+            '412': "PublicApiProblemDetails",
+            '413': "PublicApiProblemDetails",
+            '422': "PublicApiProblemDetails",
+            '429': "PublicApiProblemDetails",
+            '500': "PublicApiProblemDetails",
+            '502': "PublicApiProblemDetails",
+            '503': "PublicApiProblemDetails",
+            '504': "PublicApiProblemDetails",
+            '200': "CreatedTenantMemberDto",
+        }
+        response_data = self.api_client.call_api(
+            *_param,
+            _request_timeout=_request_timeout
+        )
+        return response_data.response
+
+
+    def _post_api_v1_tenants_tenant_slug_members_serialize(
+        self,
+        tenant_slug,
+        create_tenant_member_request,
+        _request_auth,
+        _content_type,
+        _headers,
+        _host_index,
+    ) -> RequestSerialized:
+
+        _host = None
+
+        _collection_formats: Dict[str, str] = {
+        }
+
+        _path_params: Dict[str, str] = {}
+        _query_params: List[Tuple[str, str]] = []
+        _header_params: Dict[str, Optional[str]] = _headers or {}
+        _form_params: List[Tuple[str, str]] = []
+        _files: Dict[
+            str, Union[str, bytes, List[str], List[bytes], List[Tuple[str, bytes]]]
+        ] = {}
+        _body_params: Optional[bytes] = None
+
+        # process the path parameters
+        if tenant_slug is not None:
+            _path_params['tenantSlug'] = tenant_slug
+        # process the query parameters
+        # process the header parameters
+        # process the form parameters
+        # process the body parameter
+        if create_tenant_member_request is not None:
+            _body_params = create_tenant_member_request
+
+
+        # set the HTTP header `Accept`
+        if 'Accept' not in _header_params:
+            _header_params['Accept'] = self.api_client.select_header_accept(
+                [
+                    'application/problem+json',
+                    'application/json'
+                ]
+            )
+
+        # set the HTTP header `Content-Type`
+        if _content_type:
+            _header_params['Content-Type'] = _content_type
+        else:
+            _default_content_type = (
+                self.api_client.select_header_content_type(
+                    [
+                        'application/json'
+                    ]
+                )
+            )
+            if _default_content_type is not None:
+                _header_params['Content-Type'] = _default_content_type
+
+        # authentication setting
+        _auth_settings: List[str] = [
+            'bearerAuth'
+        ]
+
+        return self.api_client.param_serialize(
+            method='POST',
+            resource_path='/api/v1/tenants/{tenantSlug}/members',
             path_params=_path_params,
             query_params=_query_params,
             header_params=_header_params,

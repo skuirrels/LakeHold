@@ -111,8 +111,10 @@ public class JSON {
         gsonBuilder.registerTypeAdapterFactory(new io.lakehold.sdk.model.CreateCatalogRequest.CustomTypeAdapterFactory());
         gsonBuilder.registerTypeAdapterFactory(new io.lakehold.sdk.model.CreateSavedQueryRequest.CustomTypeAdapterFactory());
         gsonBuilder.registerTypeAdapterFactory(new io.lakehold.sdk.model.CreateSubscriptionRequest.CustomTypeAdapterFactory());
+        gsonBuilder.registerTypeAdapterFactory(new io.lakehold.sdk.model.CreateTenantMemberRequest.CustomTypeAdapterFactory());
         gsonBuilder.registerTypeAdapterFactory(new io.lakehold.sdk.model.CreateTenantRequest.CustomTypeAdapterFactory());
         gsonBuilder.registerTypeAdapterFactory(new io.lakehold.sdk.model.CreateTokenRequest.CustomTypeAdapterFactory());
+        gsonBuilder.registerTypeAdapterFactory(new io.lakehold.sdk.model.CreatedTenantMemberDto.CustomTypeAdapterFactory());
         gsonBuilder.registerTypeAdapterFactory(new io.lakehold.sdk.model.CreatedTokenDto.CustomTypeAdapterFactory());
         gsonBuilder.registerTypeAdapterFactory(new io.lakehold.sdk.model.CsvRejectDto.CustomTypeAdapterFactory());
         gsonBuilder.registerTypeAdapterFactory(new io.lakehold.sdk.model.CursorPageOfApiTokenDto.CustomTypeAdapterFactory());

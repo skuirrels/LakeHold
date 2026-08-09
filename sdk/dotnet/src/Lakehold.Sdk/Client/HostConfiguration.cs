@@ -58,8 +58,10 @@ namespace Lakehold.Sdk.Client
             _jsonOptions.Converters.Add(new CreateCatalogRequestJsonConverter());
             _jsonOptions.Converters.Add(new CreateSavedQueryRequestJsonConverter());
             _jsonOptions.Converters.Add(new CreateSubscriptionRequestJsonConverter());
+            _jsonOptions.Converters.Add(new CreateTenantMemberRequestJsonConverter());
             _jsonOptions.Converters.Add(new CreateTenantRequestJsonConverter());
             _jsonOptions.Converters.Add(new CreateTokenRequestJsonConverter());
+            _jsonOptions.Converters.Add(new CreatedTenantMemberDtoJsonConverter());
             _jsonOptions.Converters.Add(new CreatedTokenDtoJsonConverter());
             _jsonOptions.Converters.Add(new CsvRejectDtoJsonConverter());
             _jsonOptions.Converters.Add(new CursorPageOfApiTokenDtoJsonConverter());

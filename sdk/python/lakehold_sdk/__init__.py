@@ -46,8 +46,10 @@ __all__ = [
     "CreateCatalogRequest",
     "CreateSavedQueryRequest",
     "CreateSubscriptionRequest",
+    "CreateTenantMemberRequest",
     "CreateTenantRequest",
     "CreateTokenRequest",
+    "CreatedTenantMemberDto",
     "CreatedTokenDto",
     "CsvRejectDto",
     "CursorPageOfApiTokenDto",
@@ -157,8 +159,10 @@ from lakehold_sdk.models.column_profile_dto import ColumnProfileDto as ColumnPro
 from lakehold_sdk.models.create_catalog_request import CreateCatalogRequest as CreateCatalogRequest
 from lakehold_sdk.models.create_saved_query_request import CreateSavedQueryRequest as CreateSavedQueryRequest
 from lakehold_sdk.models.create_subscription_request import CreateSubscriptionRequest as CreateSubscriptionRequest
+from lakehold_sdk.models.create_tenant_member_request import CreateTenantMemberRequest as CreateTenantMemberRequest
 from lakehold_sdk.models.create_tenant_request import CreateTenantRequest as CreateTenantRequest
 from lakehold_sdk.models.create_token_request import CreateTokenRequest as CreateTokenRequest
+from lakehold_sdk.models.created_tenant_member_dto import CreatedTenantMemberDto as CreatedTenantMemberDto
 from lakehold_sdk.models.created_token_dto import CreatedTokenDto as CreatedTokenDto
 from lakehold_sdk.models.csv_reject_dto import CsvRejectDto as CsvRejectDto
 from lakehold_sdk.models.cursor_page_of_api_token_dto import CursorPageOfApiTokenDto as CursorPageOfApiTokenDto
