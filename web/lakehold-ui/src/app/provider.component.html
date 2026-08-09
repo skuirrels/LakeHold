@@ -80,7 +80,7 @@
       >
     </div>
     <div class="stats">
-      @for (stat of stats; track stat.label) {
+      @for (stat of stats(); track stat.label) {
         <div class="stat">
           <div class="stat-value">{{ stat.value }}</div>
           <div class="stat-label">{{ stat.label }}</div>
