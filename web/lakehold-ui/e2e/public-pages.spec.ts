@@ -1,7 +1,11 @@
 import { expect, test } from '@playwright/test';
 
 const pages = [
-  { path: '/', heading: 'A feature-rich lakehouse. You host it yourself.', title: /LakeHold/ },
+  {
+    path: '/',
+    heading: 'LakeHold: an Enterprise LakeHouse, you host yourself',
+    title: /LakeHold/,
+  },
   {
     path: '/enterprise-data-platform',
     heading: 'LakeHold as an Enterprise Data Platform',
@@ -76,7 +80,9 @@ test.describe('@website public product pages', () => {
 
     await expect(page).toHaveURL(/\/$/);
     await expect(
-      page.getByRole('heading', { name: 'A feature-rich lakehouse. You host it yourself.' }),
+      page.getByRole('heading', {
+        name: 'LakeHold: an Enterprise LakeHouse, you host yourself',
+      }),
     ).toBeVisible();
   });
 });
