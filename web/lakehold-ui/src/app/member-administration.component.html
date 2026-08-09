@@ -57,7 +57,16 @@
                   (change)="setRole(member, $any($event.target).value)"
                 >
                   @for (role of roles; track role) {
-                    <option [value]="role">{{ role }}</option>
+                    <!--
+                      `[selected]` here, not only `[value]` on the select above. The select's value
+                      binding is applied before this loop has created any options, so the assignment
+                      lands on an empty element and is dropped; the browser then shows whichever
+                      option renders first. `reader` is first, so every owner and editor was
+                      displayed as a reader — the safest-sounding answer, on the one page whose job
+                      is saying what somebody actually reaches. Marking the option itself survives
+                      the ordering; the value binding still carries later updates.
+                    -->
+                    <option [value]="role" [selected]="role === member.role">{{ role }}</option>
                   }
                 </select>
               </td>

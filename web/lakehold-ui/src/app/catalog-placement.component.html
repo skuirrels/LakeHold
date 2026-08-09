@@ -49,9 +49,9 @@
             [value]="storageProfile()"
             (change)="storageProfile.set($any($event.target).value)"
           >
-            <option value="">Deployment default</option>
+            <option value="" [selected]="storageProfile() === ''">Deployment default</option>
             @for (profile of selectableProfiles(); track profile.name) {
-              <option [value]="profile.name">
+              <option [value]="profile.name" [selected]="profile.name === storageProfile()">
                 {{ profile.name }} — {{ kindLabel(profile.kind) }}
                 @if (!profile.credentialsConfigured && profile.kind !== 'Local') {
                   (credentials missing)

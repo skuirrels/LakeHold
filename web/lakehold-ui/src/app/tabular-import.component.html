@@ -114,7 +114,7 @@
               <span>Schema</span>
               <select [value]="schema()" (change)="schema.set($any($event.target).value)">
                 @for (item of schemas(); track item.name) {
-                  <option [value]="item.name">{{ item.name }}</option>
+                  <option [value]="item.name" [selected]="item.name === schema()">{{ item.name }}</option>
                 }
                 @if (schemas().length === 0) {
                   <option value="main">main</option>

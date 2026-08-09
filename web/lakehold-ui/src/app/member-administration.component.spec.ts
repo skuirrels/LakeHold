@@ -166,4 +166,48 @@ describe('MemberAdministrationComponent', () => {
     // the product cannot add users.
     expect(text()).toContain('Nobody has signed in to this workspace yet');
   });
+
+  it('shows the role each member actually holds, not the first option', async () => {
+    // The whole point of this card is telling an administrator what somebody reaches. A select that
+    // renders the first option regardless says every owner and editor is a reader — the safest-
+    // sounding answer, and the wrong one. `reader` is first in the list, so the failure mode is
+    // silent: the page looks plausible and is lying.
+    api.members = [
+      member({ id: 1, displayName: 'Olive Owner', role: 'owner' }),
+      member({ id: 2, displayName: 'Eddie Editor', role: 'editor' }),
+      member({ id: 3, displayName: 'Rhea Reader', role: 'reader' }),
+    ];
+    await mount();
+
+    const roleOf = (name: string) =>
+      (fixture.nativeElement.querySelector(`select[aria-label="Role for ${name}"]`) as HTMLSelectElement)
+        .value;
+
+    expect(roleOf('Olive Owner')).toBe('owner');
+    expect(roleOf('Eddie Editor')).toBe('editor');
+    expect(roleOf('Rhea Reader')).toBe('reader');
+  });
+
+  it('keeps showing the new role after a change is saved and the list reloads', async () => {
+    // The reload after a successful change re-renders the row. If the select cannot hold a value
+    // through that, an administrator sets a role, sees it snap back, and reasonably concludes the
+    // change was rejected.
+    api.members = [member({ id: 1, displayName: 'Olive Owner', role: 'reader' })];
+    await mount();
+
+    const select = fixture.nativeElement.querySelector(
+      'select[aria-label="Role for Olive Owner"]',
+    ) as HTMLSelectElement;
+
+    api.members = [member({ id: 1, displayName: 'Olive Owner', role: 'owner' })];
+    select.value = 'owner';
+    select.dispatchEvent(new Event('change'));
+    await fixture.whenStable();
+
+    expect(
+      (fixture.nativeElement.querySelector(
+        'select[aria-label="Role for Olive Owner"]',
+      ) as HTMLSelectElement).value,
+    ).toBe('owner');
+  });
 });

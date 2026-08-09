@@ -14,9 +14,9 @@
       <label class="field snapshot-field">
         <span>As of</span>
         <select [value]="snapshot() ?? ''" (change)="selectSnapshot($any($event.target).value)">
-          <option value="">Current</option>
+          <option value="" [selected]="(snapshot() ?? '') === ''">Current</option>
           @for (item of snapshots(); track item.snapshotId) {
-            <option [value]="item.snapshotId">
+            <option [value]="item.snapshotId" [selected]="item.snapshotId === snapshot()">
               Snapshot {{ item.snapshotId }} · {{ formatTime(item.committedAt) }}
             </option>
           }
