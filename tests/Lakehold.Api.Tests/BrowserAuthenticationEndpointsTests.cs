@@ -99,4 +99,48 @@ public sealed class BrowserAuthenticationEndpointsTests
         string? requested,
         string expected)
         => Assert.Equal(expected, BrowserAuthenticationEndpoints.SafeReturnUrl(requested));
+
+    /// <summary>Signing out ends the provider's session, not only Lakehold's.</summary>
+    /// <remarks>
+    ///     This asserts the scheme list because the scheme list is the whole defect. Signing out of
+    ///     the cookie alone left the identity provider's session intact, so **Sign in** silently
+    ///     re-authenticated the same person — no account chooser, no way back as somebody else, and
+    ///     on a shared machine a sign-out that signed nobody out. Naming the OIDC scheme is what
+    ///     turns this into an RP-initiated logout.
+    /// </remarks>
+    [Fact]
+    public void Signing_out_ends_the_provider_session_as_well_as_the_local_one()
+    {
+        var options = Options.Create(new LakeholdOidcOptions
+        {
+            Authority = "https://idp.test",
+            ClientId = "lakehold-workbench",
+            Audience = "lakehold-api",
+        });
+
+        var result = BrowserAuthenticationEndpoints.Logout("/workbench", options);
+
+        var signOut = Assert.IsAssignableFrom<Microsoft.AspNetCore.Http.HttpResults.SignOutHttpResult>(result);
+        Assert.Equal(
+            [BrowserAuthentication.CookieScheme, BrowserAuthentication.OidcScheme],
+            signOut.AuthenticationSchemes);
+        Assert.Equal("/workbench", signOut.Properties?.RedirectUri);
+    }
+
+    /// <summary>With no browser login configured there is no provider session to end.</summary>
+    [Fact]
+    public void Signing_out_without_browser_login_configured_is_a_plain_redirect()
+    {
+        // ClientId empty, so BrowserLoginEnabled is false: challenging a scheme that was never
+        // registered would throw rather than sign anybody out.
+        var options = Options.Create(new LakeholdOidcOptions
+        {
+            Authority = "https://idp.test",
+            Audience = "lakehold-api",
+        });
+
+        var result = BrowserAuthenticationEndpoints.Logout("/workbench", options);
+
+        Assert.IsAssignableFrom<Microsoft.AspNetCore.Http.HttpResults.RedirectHttpResult>(result);
+    }
 }

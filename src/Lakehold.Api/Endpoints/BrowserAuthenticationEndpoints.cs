@@ -61,6 +61,16 @@ public static class BrowserAuthenticationEndpoints
             [BrowserAuthentication.OidcScheme]);
     }
 
+    /// <summary>Ends the Workbench session and the provider session behind it.</summary>
+    /// <remarks>
+    ///     Both schemes, deliberately. Signing out of the cookie alone dropped Lakehold's session and
+    ///     left the identity provider's intact, so **Sign in** silently re-authenticated the same
+    ///     person from the surviving provider session — no account chooser, no way to come back as
+    ///     somebody else, and on a shared machine a sign-out that did not sign anybody out. Adding
+    ///     the OIDC scheme makes this an RP-initiated logout: the provider ends its own session and
+    ///     returns through <c>SignedOutCallbackPath</c>, and the next sign-in starts from a login
+    ///     form.
+    /// </remarks>
     internal static IResult Logout(string? returnUrl, IOptions<LakeholdOidcOptions> configured)
     {
         var redirect = SafeReturnUrl(returnUrl);
@@ -71,7 +81,7 @@ public static class BrowserAuthenticationEndpoints
 
         return Results.SignOut(
             new AuthenticationProperties { RedirectUri = redirect },
-            [BrowserAuthentication.CookieScheme]);
+            [BrowserAuthentication.CookieScheme, BrowserAuthentication.OidcScheme]);
     }
 
     internal static string SafeReturnUrl(string? returnUrl)

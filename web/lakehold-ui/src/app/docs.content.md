@@ -90,10 +90,9 @@ provider**. Two users are seeded, both with the password `lakehold`:
 Either way you land on a seeded catalog: a `demo` workspace with an `analytics` catalog of 250,000
 events and 5,000 customers, so there is something to run against before you load data of your own.
 
-> **Switching between the two users needs a private window.** Signing out of LakeHold clears
-> LakeHold's session, not the identity provider's — so the provider recognises you and signs you
-> straight back in as the same person. This surprises everyone once. Use a private window per user,
-> or sign out of Keycloak at http://localhost:5401 as well.
+**Sign out** ends the identity provider's session as well as LakeHold's, so signing back in starts
+from a login form and you can return as somebody else. Switching between the two seeded users needs
+nothing special.
 
 **Machines and unattended scripts use API tokens.** Interactive MCP agents may instead sign in as
 their operator through OIDC. Paste an API token into the same dialog under **or use an API token**,
