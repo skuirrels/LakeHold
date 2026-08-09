@@ -5,7 +5,7 @@
     <span>Table</span>
     <select [value]="tableIndex()" (change)="tableIndex.set(+$any($event.target).value)">
       @for (table of tables(); track $index; let index = $index) {
-        <option [value]="index">{{ table.schemaName }}.{{ table.tableName }}</option>
+        <option [value]="index" [selected]="index === tableIndex()">{{ table.schemaName }}.{{ table.tableName }}</option>
       }
     </select>
   </label>
@@ -87,9 +87,9 @@
       <label class="field">
         <span>Table</span>
         <select [value]="subTableIndex()" (change)="subTableIndex.set(+$any($event.target).value)">
-          <option [value]="-1">Every table</option>
+          <option [value]="-1" [selected]="subTableIndex() === -1">Every table</option>
           @for (table of tables(); track $index; let index = $index) {
-            <option [value]="index">{{ table.schemaName }}.{{ table.tableName }}</option>
+            <option [value]="index" [selected]="index === subTableIndex()">{{ table.schemaName }}.{{ table.tableName }}</option>
           }
         </select>
       </label>

@@ -355,7 +355,7 @@
                 <select [value]="language()" (change)="switchLanguage($any($event.target).value)">
                   @for (option of queryLanguages(); track option.id) {
                     <!-- Selectable even when unavailable: choosing it is how you get told why. -->
-                    <option [value]="option.id" [title]="option.unavailableReason ?? ''">{{ option.displayName }}</option>
+                    <option [value]="option.id" [selected]="option.id === language()" [title]="option.unavailableReason ?? ''">{{ option.displayName }}</option>
                   }
                 </select>
               </label>

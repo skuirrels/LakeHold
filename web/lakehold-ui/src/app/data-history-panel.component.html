@@ -14,7 +14,7 @@
       (change)="selectTable($event)"
     >
       @for (table of tables(); track $index; let index = $index) {
-        <option [value]="index">{{ table.schemaName }}.{{ table.tableName }}</option>
+        <option [value]="index" [selected]="index === selectedTableIndex()">{{ table.schemaName }}.{{ table.tableName }}</option>
       }
     </select>
   </label>
@@ -28,7 +28,7 @@
       (change)="setCompareFrom($event)"
     >
       @for (snapshot of snapshots(); track snapshot.snapshotId) {
-        <option [value]="snapshot.snapshotId">#{{ snapshot.snapshotId }}</option>
+        <option [value]="snapshot.snapshotId" [selected]="snapshot.snapshotId === compareFrom()">#{{ snapshot.snapshotId }}</option>
       }
     </select>
   </label>
@@ -42,7 +42,7 @@
       (change)="setCompareTo($event)"
     >
       @for (snapshot of snapshots(); track snapshot.snapshotId) {
-        <option [value]="snapshot.snapshotId">#{{ snapshot.snapshotId }}</option>
+        <option [value]="snapshot.snapshotId" [selected]="snapshot.snapshotId === compareTo()">#{{ snapshot.snapshotId }}</option>
       }
     </select>
   </label>
@@ -63,10 +63,10 @@
       [value]="snapshotLimit()"
       (change)="changeLimit($event)"
     >
-      <option [value]="50">50 snapshots</option>
-      <option [value]="100">100 snapshots</option>
-      <option [value]="250">250 snapshots</option>
-      <option [value]="500">500 snapshots</option>
+      <option [value]="50" [selected]="snapshotLimit() === 50">50 snapshots</option>
+      <option [value]="100" [selected]="snapshotLimit() === 100">100 snapshots</option>
+      <option [value]="250" [selected]="snapshotLimit() === 250">250 snapshots</option>
+      <option [value]="500" [selected]="snapshotLimit() === 500">500 snapshots</option>
     </select>
   </label>
 

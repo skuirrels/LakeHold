@@ -11,6 +11,23 @@ and LakeHold follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- **Users showed the wrong role for everybody who was not a reader.** The role picker bound
+  `[value]` on the `<select>` while its options were produced by a `@for` inside it. The value is
+  applied before the loop has created any option, so the assignment lands on an empty element and is
+  dropped, and the browser then displays whichever option renders first. `reader` is first, so an
+  owner and an editor both read as **reader** — on the one page whose entire job is saying what
+  somebody reaches, the failure was silent and always in the reassuring direction.
+
+  Options now mark themselves with `[selected]`, which survives the ordering. Found by pulling the
+  Playwright trace from a failing journey: the API had accepted every change and the final read
+  returned `owner`, which ruled out an authorization bug and put the defect squarely in the render.
+
+- **The same pattern in six other pickers.** History table, baseline and target snapshot, snapshot
+  limit, live-changes table, query language, import schema, table-detail snapshot, and catalog
+  storage profile were all built the same way and all displayed their first option rather than the
+  current selection. A snapshot comparison naming the wrong snapshot is the same class of quiet
+  wrongness as a role picker naming the wrong role.
+
 - **Sign out did not sign anybody out.** `/auth/logout` ended LakeHold's session and left the
   identity provider's untouched, so pressing **Sign in** returned the same person immediately from
   the surviving provider session — no account chooser, no way back as somebody else, and no way to
