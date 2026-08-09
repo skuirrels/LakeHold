@@ -26382,13 +26382,13 @@
   },
   "tags": [
     {
-      "name": "Lakehouse"
-    },
-    {
       "name": "Discovery"
     },
     {
       "name": "Operations"
+    },
+    {
+      "name": "Lakehouse"
     },
     {
       "name": "System settings"
