@@ -7,6 +7,10 @@ and LakeHold follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.3.0] - 2026-08-09
+
+User administration, and the fixes that came out of chasing a failing journey.
+
 ### Added
 
 - **Two identity modes, and the ability to create users in the second.** A deployment either
@@ -32,8 +36,6 @@ and LakeHold follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   offering a form that fails at submit. The provider-specific half lives behind `IUserProvisioner`,
   so the rest of the product still knows nothing about which provider is in use.
 
-
-## [2.2.3] - 2026-08-09
 
 ### Fixed
 
@@ -475,8 +477,8 @@ works the way every instruction says it does.
 - Production API and web container images for Linux amd64 and arm64, Compose deployment, health
   checks, telemetry, and a reproducible end-to-end test suite.
 
-[Unreleased]: https://github.com/skuirrels/LakeHold/compare/v2.2.3...HEAD
-[2.2.3]: https://github.com/skuirrels/LakeHold/compare/v2.2.2...v2.2.3
+[Unreleased]: https://github.com/skuirrels/LakeHold/compare/v2.3.0...HEAD
+[2.3.0]: https://github.com/skuirrels/LakeHold/compare/v2.2.2...v2.3.0
 [2.2.2]: https://github.com/skuirrels/LakeHold/compare/v2.2.1...v2.2.2
 [2.2.1]: https://github.com/skuirrels/LakeHold/compare/v2.2.0...v2.2.1
 [2.2.0]: https://github.com/skuirrels/LakeHold/compare/v2.1.0...v2.2.0

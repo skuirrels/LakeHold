@@ -74,6 +74,11 @@ instance administration.
 
 ## Part 2 — Adding users
 
+Which of the two below applies depends on the mode this deployment runs in. Under **SSO** the people
+already exist in a directory LakeHold does not own, and they sign in first. In **built-in** mode
+LakeHold creates them; see [Creating a user from LakeHold](#creating-a-user-from-lakehold), and the
+rest of this part still governs what they reach once they exist.
+
 ### They sign in first, then you admit them
 
 There is no invite email. A person signs in with your provider, LakeHold records them, and you decide
@@ -299,7 +304,7 @@ type-catalogue shim.
 | Everyone lands as a reader | No `role` claim is emitted, which is fine — set roles under **Users** instead. |
 | Nobody can administer anything | The system-admin claim is not configured or not emitted. It is the one claim you cannot work around in the UI. |
 | Works locally, fails deployed | `RequireHttpsMetadata` with an HTTP authority, or the session cookie needs HTTPS. Terminate TLS in front of the API. |
-| Signing out and back in returns the same person | Fixed in 2.2.3: `/auth/logout` now signs out of the OIDC scheme too, so the provider ends its own session. On an older release, end the provider session separately or use a private window. If it still recurs, the provider is refusing the sign-out — check that your client allows `<public-url>/auth/signed-out` as a post-logout redirect URI. |
+| Signing out and back in returns the same person | Fixed in 2.3.0: `/auth/logout` now signs out of the OIDC scheme too, so the provider ends its own session. On an older release, end the provider session separately or use a private window. If it still recurs, the provider is refusing the sign-out — check that your client allows `<public-url>/auth/signed-out` as a post-logout redirect URI. |
 | MCP login attempts dynamic registration and the provider returns `403` | The client was added without the configured public client id. Re-add it with `--oauth-client-id <McpClientId>`; dynamic registration is not required. |
 | MCP login returns `invalid_request: duplicated parameter` | The client configured the resource explicitly even though LakeHold already advertises it. Remove `--oauth-resource` and re-add the server with only its URL and public client id. |
 | Development MCP login says `Client not found` after an upgrade | The existing Keycloak container skipped the changed realm import. Run `docker compose up -d --force-recreate --wait keycloak`; this recreates development identity state without removing LakeHold data volumes. |
