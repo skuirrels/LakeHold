@@ -305,9 +305,52 @@ type-catalogue shim.
 | Development MCP login says `Client not found` after an upgrade | The existing Keycloak container skipped the changed realm import. Run `docker compose up -d --force-recreate --wait keycloak`; this recreates development identity state without removing LakeHold data volumes. |
 | MCP login opens `https://<lakehold>/authorize` and 404s | The client looked for authorization-server metadata on LakeHold's origin, found none, and fell back to assuming the MCP server is its own authorization server. Fixed in 2.2.1, where those discovery paths redirect to the configured authority. Before that release there is no client-side workaround: upgrade, or use an API token instead of a browser sign-in. |
 
+## Creating a user from LakeHold
+
+There are two ways LakeHold gets used, and only one of them makes "add them in your provider" a
+reasonable answer.
+
+**Federated.** A corporate directory already holds everybody. LakeHold should not create users
+there — it does not own that directory, and the people exist before LakeHold does. This is the
+default and needs nothing below.
+
+**Provider-as-implementation-detail.** Keycloak is deployed *for* LakeHold and holds nobody else.
+Here "add them in your provider" means an operator learning another product's admin console to
+onboard a colleague, for an identity that exists only to reach this one. That is the case
+**user provisioning** exists for.
+
+It is **off unless configured**, because turning it on has a real cost, stated plainly:
+
+> To create a user in your provider, LakeHold must hold a credential that can create users in your
+> provider. Today it holds none, and that is a property worth naming before giving it up: whoever
+> compromises LakeHold cannot currently mint an identity. With provisioning configured, they can —
+> bounded by whatever that credential is scoped to.
+
+So the credential is scoped as narrowly as the provider allows, and LakeHold asks for exactly one
+capability: **manage users, in one realm**. Never realm administration, never client or role
+management. On Keycloak that is a service-account client granted the `manage-users` realm-management
+role and nothing else. The bundled development realm registers `lakehold-provisioner` that way.
+
+### What it does, and what it deliberately does not
+
+Creating a user does two things in one operation: the identity in the provider, and the
+`TenantMember` row that decides what it reaches. The membership is the part LakeHold owns; the
+identity is the part it is borrowing the provider's authority for.
+
+A new user is created with a **temporary password, shown to the administrator once** and never
+stored, alongside a provider-side required action to change it at first sign-in. This mirrors how
+API tokens already work here, and it avoids making SMTP a prerequisite for adding a colleague. If
+your provider sends email, prefer that: set `Lakehold:Oidc:Provisioning:UseProviderEmail` and
+LakeHold asks the provider to send its own invitation instead of returning a password at all.
+
+LakeHold does not manage passwords after creation, does not reset them, does not configure MFA, and
+does not synchronise a directory. Those remain the provider's, and the sections above still apply:
+what somebody *reaches* is decided by the membership row, not by anything set at creation time.
+
 ## What this does not do
 
-- **No passwords, MFA, email invites, or SCIM.** Those belong to your provider.
+- **No password management, MFA, or SCIM.** Those belong to your provider. LakeHold can *create* a
+  user where provisioning is configured (above); it does not become a directory.
 - **Instance administration is not manageable in-product.** It comes from a provider claim by
   design, so a workspace owner cannot promote themselves.
 - **Removing someone from your directory does not delete their LakeHold membership.** It stops them

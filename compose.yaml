@@ -69,6 +69,14 @@ services:
       Lakehold__Oidc__McpClientId: ${LAKEHOLD_OIDC_MCP_CLIENT_ID:-lakehold-mcp}
       Lakehold__Oidc__ClientSecret: ${LAKEHOLD_OIDC_CLIENT_SECRET:-lakehold-development-client-secret}
       Lakehold__Oidc__RequireHttpsMetadata: ${LAKEHOLD_OIDC_REQUIRE_HTTPS_METADATA:-false}
+      # Built-in identity mode: this Keycloak exists for LakeHold and holds nobody else, so users
+      # are administered from the Workbench. A deployment federating to a corporate directory sets
+      # Sso instead and LakeHold then holds no credential able to create an identity.
+      Lakehold__Oidc__Mode: ${LAKEHOLD_OIDC_MODE:-BuiltIn}
+      Lakehold__Oidc__Provisioning__AdminBaseUrl: ${LAKEHOLD_OIDC_PROVISIONING_ADMIN_URL:-http://keycloak:${KEYCLOAK_PORT:-5401}}
+      Lakehold__Oidc__Provisioning__Realm: ${LAKEHOLD_OIDC_PROVISIONING_REALM:-lakehold}
+      Lakehold__Oidc__Provisioning__ClientId: ${LAKEHOLD_OIDC_PROVISIONING_CLIENT_ID:-lakehold-provisioner}
+      Lakehold__Oidc__Provisioning__ClientSecret: ${LAKEHOLD_OIDC_PROVISIONING_CLIENT_SECRET:-lakehold-provisioner-development-secret}
       Lakehold__Oidc__TenantClaim: ${LAKEHOLD_OIDC_TENANT_CLAIM:-tenant}
       Lakehold__Oidc__RoleClaim: ${LAKEHOLD_OIDC_ROLE_CLAIM:-role}
       Lakehold__Oidc__SystemAdminClaim: ${LAKEHOLD_OIDC_SYSTEM_ADMIN_CLAIM:-groups}

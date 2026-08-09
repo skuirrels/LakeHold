@@ -40,6 +40,12 @@ export class UsersComponent implements OnInit {
   protected readonly loading = signal(true);
   protected readonly error = signal<string | null>(null);
 
+  /**
+   * Whether this node creates identities. Asked of the API rather than derived: the browser cannot
+   * see the identity mode, and offering the form without it fails at submit.
+   */
+  protected readonly canCreateUsers = signal(false);
+
   /** The selection both cards obey. Null only while loading, on failure, or on an empty instance. */
   protected readonly workspace = computed(
     () => this.tenants().find((tenant) => tenant.slug === this.selectedSlug()) ?? null,
@@ -47,6 +53,11 @@ export class UsersComponent implements OnInit {
 
   ngOnInit(): void {
     this.load();
+    this.api.getAccess().subscribe({
+      next: (access) => this.canCreateUsers.set(access.canCreateUsers ?? false),
+      // A node that will not say stays on the safe answer: no form rather than one that fails.
+      error: () => this.canCreateUsers.set(false),
+    });
   }
 
   protected load(): void {

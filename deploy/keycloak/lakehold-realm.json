@@ -171,6 +171,19 @@
           }
         }
       ]
+    },
+    {
+      "clientId": "lakehold-provisioner",
+      "name": "LakeHold user provisioning",
+      "description": "Service account LakeHold uses to create users in built-in identity mode. Granted manage-users on this realm and nothing else: not realm administration, not client or role management.",
+      "enabled": true,
+      "publicClient": false,
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "secret": "lakehold-provisioner-development-secret",
+      "redirectUris": [],
+      "webOrigins": []
     }
   ],
   "users": [
@@ -215,6 +228,17 @@
           "owner"
         ]
       }
+    },
+    {
+      "username": "service-account-lakehold-provisioner",
+      "enabled": true,
+      "serviceAccountClientId": "lakehold-provisioner",
+      "clientRoles": {
+        "realm-management": [
+          "manage-users"
+        ]
+      }
     }
-  ]
+  ],
+  "scopeMappings": []
 }

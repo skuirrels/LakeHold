@@ -44,6 +44,7 @@ import {
   TableProfile,
   TableRestore,
   Tenant,
+  CreatedTenantMember,
   TenantMember,
   TokenRole,
   UpdateSystemSettings,
@@ -524,6 +525,19 @@ export class LakehouseService {
   listMembers(tenant: string): Observable<TenantMember[]> {
     return this.http
       .get<TenantMember[]>(`${API_BASE}/tenants/${encodeURIComponent(tenant)}/members`)
+      .pipe(catchError(toMessage));
+  }
+
+  /** Creates the identity in the provider and admits it here, in one call. */
+  createMember(
+    tenant: string,
+    request: { username: string; email?: string; displayName?: string; role?: TokenRole },
+  ): Observable<CreatedTenantMember> {
+    return this.http
+      .post<CreatedTenantMember>(
+        `${API_BASE}/tenants/${encodeURIComponent(tenant)}/members`,
+        request,
+      )
       .pipe(catchError(toMessage));
   }
 

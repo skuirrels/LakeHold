@@ -31,6 +31,12 @@ export interface AccessContext {
    * the role and not the capability.
    */
   tenantAdmin?: boolean;
+  /**
+   * Whether this node creates identities, which only built-in identity mode does. Reported by the
+   * API rather than inferred: the browser cannot see the mode or whether a provisioning credential
+   * is present, and a form offered without both fails at submit.
+   */
+  canCreateUsers?: boolean;
 }
 
 /** Browser OIDC availability and the current same-origin session. */
@@ -159,6 +165,13 @@ export interface TenantMember {
   status: MemberStatus;
   createdUtc: string;
   lastSeenUtc: string | null;
+}
+
+/** A newly created member, and the one-time password when the provider did not email one. */
+export interface CreatedTenantMember {
+  member: TenantMember;
+  /** Returned exactly once and stored nowhere; null when the provider sent its own invitation. */
+  temporaryPassword: string | null;
 }
 
 export interface Column {
