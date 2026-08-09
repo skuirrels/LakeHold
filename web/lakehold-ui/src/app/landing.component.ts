@@ -55,7 +55,7 @@ import { ThemeToggleComponent } from './theme-toggle.component';
     <div class="landing">
       <section class="hero">
         <div class="hero-copy">
-          <span class="eyebrow">Open-source lakehouse · DuckDB + DuckLake · .NET</span>
+          <span class="eyebrow">Open-source lakehouse · DuckDB + DuckLake · Java · .NET · Go</span>
           <!--
             The product name belongs in the heading and in the sentence below it. Without it the
             only page on the site that *states* what LakeHold is was the documentation, which is how
@@ -75,7 +75,7 @@ import { ThemeToggleComponent } from './theme-toggle.component';
         <div
           class="topology"
           role="img"
-          aria-label="LakeHold connectivity map: PostgreSQL, Kafka with Avro, and REST or gRPC feed governed LakeHold; people connect through enterprise SSO, agents connect through the MCP server, and consumers use SQL, EF Core, or open Parquet."
+          aria-label="LakeHold connectivity map: PostgreSQL, Kafka with Avro, and REST or gRPC feed governed LakeHold; people connect through enterprise SSO, agents connect through the MCP server, and consumers use SQL, Java, .NET, Go, or open Parquet."
         >
           <div class="topology-grid" aria-hidden="true"></div>
           <span class="topology-label sources-label">Sources</span>
@@ -168,8 +168,8 @@ import { ThemeToggleComponent } from './theme-toggle.component';
               <span><strong>SQL</strong><small>PostgreSQL endpoint</small></span>
             </div>
             <div class="topology-node">
-              <span class="protocol-icon">.NET</span>
-              <span><strong>EF Core</strong><small>LINQ provider</small></span>
+              <span class="protocol-icon">API</span>
+              <span><strong>Java · .NET · Go</strong><small>First-party source SDKs</small></span>
             </div>
             <div class="topology-node">
               <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -232,10 +232,9 @@ import { ThemeToggleComponent } from './theme-toggle.component';
                     <path d="M6 2.5h8l4 4V22H6zM14 2.5v5h4M9 12h6M9 16h6" />
                   </svg>
                 }
-                @case ('dotnet') {
+                @case ('sdk') {
                   <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="m12 2.5 8 4.7v9.6l-8 4.7-8-4.7V7.2z" />
-                    <text x="12" y="14.4" text-anchor="middle">.NET</text>
+                    <path d="m8 6-5 6 5 6M16 6l5 6-5 6M14 3l-4 18" />
                   </svg>
                 }
                 @case ('shield') {
@@ -355,7 +354,10 @@ import { ThemeToggleComponent } from './theme-toggle.component';
               <li>Data residency or a security review rules out a hosted warehouse.</li>
               <li>You want your tables as open Parquet in a bucket you control.</li>
               <li>Procurement wants a provable exit, not a clause promising one.</li>
-              <li>Your stack is .NET and you want EF Core and analytics on one model.</li>
+              <li>
+                You want one governed API across Java, .NET, and Go, with EF Core where it adds
+                value.
+              </li>
               <li>You want change data capture without running Debezium and Kafka.</li>
               <li>
                 You want SQL clients on the Postgres wire protocol, not a connector to install.
@@ -430,9 +432,9 @@ export class LandingComponent {
       body: 'Open format for tables and metadata, with a verified exit path any Parquet reader can use.',
     },
     {
-      icon: 'dotnet',
-      title: '.NET-native',
-      body: 'First-class .NET and EF Core integration from application model to governed analytics.',
+      icon: 'sdk',
+      title: 'Java · .NET · Go',
+      body: 'First-party source SDKs share one versioned API, with first-class EF Core integration for .NET applications.',
     },
     {
       icon: 'shield',
