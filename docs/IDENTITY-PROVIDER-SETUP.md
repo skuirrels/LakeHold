@@ -297,6 +297,7 @@ type-catalogue shim.
 | MCP login attempts dynamic registration and the provider returns `403` | The client was added without the configured public client id. Re-add it with `--oauth-client-id <McpClientId>`; dynamic registration is not required. |
 | MCP login returns `invalid_request: duplicated parameter` | The client configured the resource explicitly even though LakeHold already advertises it. Remove `--oauth-resource` and re-add the server with only its URL and public client id. |
 | Development MCP login says `Client not found` after an upgrade | The existing Keycloak container skipped the changed realm import. Run `docker compose up -d --force-recreate --wait keycloak`; this recreates development identity state without removing LakeHold data volumes. |
+| MCP login opens `https://<lakehold>/authorize` and 404s | The client looked for authorization-server metadata on LakeHold's origin, found none, and fell back to assuming the MCP server is its own authorization server. Fixed in 2.2.1, where those discovery paths redirect to the configured authority. Before that release there is no client-side workaround: upgrade, or use an API token instead of a browser sign-in. |
 
 ## What this does not do
 
