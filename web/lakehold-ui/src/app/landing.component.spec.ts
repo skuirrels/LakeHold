@@ -48,4 +48,17 @@ describe('LandingComponent', () => {
       'LakeHold: an Enterprise LakeHouse, you host yourself',
     );
   });
+
+  it('presents the public developer surface across Java, .NET, and Go', async () => {
+    const fixture = TestBed.createComponent(LandingComponent);
+    await fixture.whenStable();
+
+    const eyebrow = fixture.nativeElement.querySelector('.hero .eyebrow') as HTMLElement;
+    const pillars = fixture.nativeElement.querySelector('.pillars') as HTMLElement;
+    const topology = fixture.nativeElement.querySelector('.topology') as HTMLElement;
+
+    expect(eyebrow.textContent?.replace(/\s+/g, ' ').trim()).toContain('Java · .NET · Go');
+    expect(pillars.textContent).toContain('Java · .NET · Go');
+    expect(topology.getAttribute('aria-label')).toContain('SQL, Java, .NET, Go, or open Parquet');
+  });
 });

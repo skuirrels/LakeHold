@@ -197,7 +197,7 @@ function buildStructuredData(
           operatingSystem: 'Linux, macOS, Windows',
           license: 'https://www.apache.org/licenses/LICENSE-2.0',
           description:
-            'A feature-rich DuckDB and DuckLake lakehouse you host yourself: tenant-aware catalogs, time travel, change data capture, a PostgreSQL wire endpoint, first-class .NET integration, and every byte stored as open Parquet.',
+            'A feature-rich DuckDB and DuckLake lakehouse you host yourself: tenant-aware catalogs, time travel, change data capture, a versioned API with first-party Java, .NET, and Go source SDKs, and every byte stored as open Parquet.',
           offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
           codeRepository: 'https://github.com/skuirrels/LakeHold',
           sameAs: ['https://github.com/skuirrels/LakeHold'],
