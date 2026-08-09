@@ -41,7 +41,7 @@
       ],
       "attributes": {
         "pkce.code.challenge.method": "S256",
-        "post.logout.redirect.uris": "http://localhost:5399/workbench##http://127.0.0.1:5399/workbench##http://localhost:8080/workbench"
+        "post.logout.redirect.uris": "http://localhost:5399/auth/signed-out##http://127.0.0.1:5399/auth/signed-out##http://localhost:8080/auth/signed-out##http://localhost:5399/workbench##http://127.0.0.1:5399/workbench##http://localhost:8080/workbench"
       },
       "protocolMappers": [
         {

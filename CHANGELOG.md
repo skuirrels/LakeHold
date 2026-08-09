@@ -7,6 +7,36 @@ and LakeHold follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.2.3] - 2026-08-09
+
+### Fixed
+
+- **Sign out did not sign anybody out.** `/auth/logout` ended LakeHold's session and left the
+  identity provider's untouched, so pressing **Sign in** returned the same person immediately from
+  the surviving provider session — no account chooser, no way back as somebody else, and no way to
+  reach the Workbench as an administrator without a private window. On a shared machine it meant a
+  sign-out button that did not end the session.
+
+  Logout now signs out of the OIDC scheme as well as the cookie, which makes it an RP-initiated
+  logout: the provider ends its own session and returns through `/auth/signed-out`, and the next
+  sign-in starts at a login form. Because LakeHold deliberately never stores the id token, the
+  sign-out identifies the relying party with `client_id` rather than an `id_token_hint` — the
+  parameter RP-initiated logout provides for exactly this case, and one that hands the provider no
+  credential back.
+
+  This had been documented as expected behaviour, with a private window offered as the workaround.
+  It was a defect.
+
+### Changed
+
+- **An identity-provider client now needs `<public-url>/auth/signed-out` registered as a post-logout
+  redirect URI**, and the bundled development realm registers it. A provider validates that redirect
+  against the client and refuses a sign-out without it. If you run your own provider, add it when
+  upgrading — `docs/IDENTITY-PROVIDER-SETUP.md` covers it, and the troubleshooting table names the
+  symptom. A development checkout needs its Keycloak container recreated to pick up the changed
+  realm: `docker compose up -d --force-recreate --wait keycloak`, which resets development identity
+  state only and leaves LakeHold's PostgreSQL, catalog, and MinIO volumes alone.
+
 ## [2.2.2] - 2026-08-09
 
 Completes 2.2.1, which fixed MCP authorization-server discovery in the API but not at the edge.
@@ -402,7 +432,8 @@ works the way every instruction says it does.
 - Production API and web container images for Linux amd64 and arm64, Compose deployment, health
   checks, telemetry, and a reproducible end-to-end test suite.
 
-[Unreleased]: https://github.com/skuirrels/LakeHold/compare/v2.2.2...HEAD
+[Unreleased]: https://github.com/skuirrels/LakeHold/compare/v2.2.3...HEAD
+[2.2.3]: https://github.com/skuirrels/LakeHold/compare/v2.2.2...v2.2.3
 [2.2.2]: https://github.com/skuirrels/LakeHold/compare/v2.2.1...v2.2.2
 [2.2.1]: https://github.com/skuirrels/LakeHold/compare/v2.2.0...v2.2.1
 [2.2.0]: https://github.com/skuirrels/LakeHold/compare/v2.1.0...v2.2.0

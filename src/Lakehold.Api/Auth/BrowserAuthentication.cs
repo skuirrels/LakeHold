@@ -93,12 +93,30 @@ public static class BrowserAuthentication
                 options.SignedOutCallbackPath = "/auth/signed-out";
                 options.MapInboundClaims = false;
                 options.GetClaimsFromUserInfoEndpoint = true;
+
+                // Tokens are not kept. The session cookie carries claims, nothing else needs the
+                // access or id token after sign-in, and persisting them client-side would put a
+                // bearer credential in a cookie for the lifetime of the session.
                 options.SaveTokens = false;
 
                 foreach (var scope in oidc.Scopes.Where(scope => !string.IsNullOrWhiteSpace(scope)))
                 {
                     options.Scope.Add(scope.Trim());
                 }
+
+                // Name the client on the way out.
+                //
+                // A provider validates `post_logout_redirect_uri` against a client, and identifies
+                // that client from `id_token_hint` — which is not available here, because the id
+                // token was deliberately never stored. Keycloak's answer to a sign-out carrying
+                // neither is to refuse it outright. `client_id` is the parameter RP-initiated logout
+                // provides for exactly this case, and it identifies the relying party without
+                // handing the provider a credential back.
+                options.Events.OnRedirectToIdentityProviderForSignOut = context =>
+                {
+                    context.ProtocolMessage.ClientId = oidc.ClientId;
+                    return Task.CompletedTask;
+                };
             });
         }
 
