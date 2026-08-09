@@ -17,11 +17,20 @@ namespace Lakehold.Api.Tests;
 /// </summary>
 public sealed class AccessEndpointTests
 {
-    private static AccessDto Access(ILakeholdPrincipal principal)
+    private static AccessDto Access(ILakeholdPrincipal principal, bool canCreateUsers = false)
     {
         var http = new DefaultHttpContext();
         http.Items[LakeholdAuthorizationFilter.PrincipalItemKey] = principal;
-        return LakehouseEndpoints.GetAccess(http).Value!;
+        return LakehouseEndpoints.GetAccess(http, new StubProvisioner(canCreateUsers)).Value!;
+    }
+
+    /// <summary>Stands in for the identity provider; only availability is read here.</summary>
+    private sealed class StubProvisioner(bool available) : IUserProvisioner
+    {
+        public bool IsAvailable { get; } = available;
+
+        public Task<ProvisionedUser> CreateAsync(NewUserRequest request, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
     }
 
     private static LakeholdPrincipal Owner(
@@ -67,5 +76,22 @@ public sealed class AccessEndpointTests
         // A read-only or catalog-narrowed token is least privilege by design: it must not be able to
         // mint a broader one, and so must not be offered the surface that mints one.
         Assert.False(Access(Owner(readOnly, catalog, role, demo)).TenantAdmin);
+    }
+    [Fact]
+    public void Creating_users_is_offered_only_where_the_node_provisions_them()
+    {
+        // Two independent questions. Administering a workspace is about this credential; creating an
+        // identity is about how the node gets its people at all, and a tenant administrator on an SSO
+        // deployment holds the first without the second.
+        Assert.True(Access(Owner(), canCreateUsers: true).CanCreateUsers);
+        Assert.False(Access(Owner(), canCreateUsers: false).CanCreateUsers);
+    }
+
+    [Fact]
+    public void A_credential_that_cannot_administer_is_never_offered_user_creation()
+    {
+        // Even on a node that provisions: a read-only owner is refused the member routes, so the
+        // form would fail at submit.
+        Assert.False(Access(Owner(readOnly: true), canCreateUsers: true).CanCreateUsers);
     }
 }

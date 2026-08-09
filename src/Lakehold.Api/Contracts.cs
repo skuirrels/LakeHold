@@ -124,12 +124,19 @@ public sealed record TenantDto(string Slug, string DisplayName, IReadOnlyList<Ca
 ///     a read-only or catalog-narrowed owner token is least privilege by design and holds no such
 ///     capability, so a client deriving it from the role alone offers a surface the API refuses.
 /// </param>
+/// <param name="CanCreateUsers">
+///     Whether this node creates identities, which only built-in identity mode does. Reported by the
+///     API rather than inferred, for the same reason as <paramref name="TenantAdmin"/>: the client
+///     cannot see the mode or whether a provisioning credential is present, and a form that appears
+///     without both is one that fails at submit.
+/// </param>
 public sealed record AccessDto(
     string Mode,
     string Role,
     bool ReadOnly,
     bool SystemAdmin,
-    bool TenantAdmin);
+    bool TenantAdmin,
+    bool CanCreateUsers = false);
 
 /// <summary>Non-secret state used by the Workbench to offer the configured sign-in method.</summary>
 /// <param name="OidcEnabled">Whether a browser sign-in flow is configured and can be offered.</param>
@@ -654,6 +661,25 @@ public sealed record TenantMemberDto(
 ///     changing only a role to send an explicit null status.
 /// </remarks>
 public sealed record UpdateTenantMemberRequest(string? Role = null, string? Status = null);
+
+/// <summary>Creates an identity in the provider and a membership for it in one step.</summary>
+/// <remarks>
+///     Only available in built-in identity mode. Under SSO the people already exist and Lakehold has
+///     no business writing to somebody else's directory.
+/// </remarks>
+public sealed record CreateTenantMemberRequest(
+    string Username,
+    string? Email = null,
+    string? DisplayName = null,
+    string? Role = null);
+
+/// <summary>A newly created member, and the one-time password if the provider did not email one.</summary>
+/// <param name="TemporaryPassword">
+///     Returned exactly once, in this response, and stored nowhere. Null where the provider was asked
+///     to send its own invitation instead. The same handling as a freshly minted API token: the
+///     administrator copies it now or issues a new one.
+/// </param>
+public sealed record CreatedTenantMemberDto(TenantMemberDto Member, string? TemporaryPassword);
 
 /// <summary>A catalog, as returned by the API.</summary>
 /// <remarks>

@@ -20,6 +20,29 @@ public sealed class LakeholdOidcOptions
     public string Audience { get; set; } = string.Empty;
 
     /// <summary>
+    ///     Whether the provider is somebody else's directory or one deployed for Lakehold.
+    /// </summary>
+    /// <remarks>
+    ///     Defaults to <see cref="IdentityMode.Sso"/>, which is both the commoner deployment and the
+    ///     safer default: it is the mode in which Lakehold holds no credential capable of creating an
+    ///     identity. Choosing <see cref="IdentityMode.BuiltIn"/> is a deliberate decision to give it
+    ///     one, and <see cref="UserProvisioningOptions"/> says what that costs.
+    /// </remarks>
+    public IdentityMode Mode { get; set; } = IdentityMode.Sso;
+
+    /// <summary>Admin-API credential used to create users in <see cref="IdentityMode.BuiltIn"/>.</summary>
+    public UserProvisioningOptions Provisioning { get; set; } = new();
+
+    /// <summary>Whether an administrator may create an identity from the Users page.</summary>
+    /// <remarks>
+    ///     Both halves are required. Built-in mode without a credential cannot create anybody, and
+    ///     reporting the surface as available would produce a form that fails at submit rather than
+    ///     an operator who is told what is missing.
+    /// </remarks>
+    public bool UserProvisioningEnabled =>
+        BrowserLoginEnabled && Mode == IdentityMode.BuiltIn && Provisioning.HasCredential;
+
+    /// <summary>
     ///     Where to fetch the discovery document, when that differs from <see cref="Authority"/>.
     /// </summary>
     /// <remarks>

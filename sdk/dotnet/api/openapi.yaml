@@ -3052,6 +3052,223 @@ paths:
         \ approval."
       tags:
       - Lakehouse
+    post:
+      operationId: post_api_v1_tenants_tenantSlug_members
+      parameters:
+      - explode: false
+        in: path
+        name: tenantSlug
+        required: true
+        schema:
+          type: string
+        style: simple
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTenantMemberRequest"
+        required: true
+      responses:
+        "400":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/PublicApiProblemDetails"
+          description: Bad Request
+          headers:
+            X-Request-Id:
+              description: Server correlation identifier for support and diagnostics.
+              explode: false
+              schema:
+                type: string
+              style: simple
+        "401":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/PublicApiProblemDetails"
+          description: Unauthorized
+          headers:
+            X-Request-Id:
+              description: Server correlation identifier for support and diagnostics.
+              explode: false
+              schema:
+                type: string
+              style: simple
+        "403":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/PublicApiProblemDetails"
+          description: Forbidden
+          headers:
+            X-Request-Id:
+              description: Server correlation identifier for support and diagnostics.
+              explode: false
+              schema:
+                type: string
+              style: simple
+        "404":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/PublicApiProblemDetails"
+          description: Not Found
+          headers:
+            X-Request-Id:
+              description: Server correlation identifier for support and diagnostics.
+              explode: false
+              schema:
+                type: string
+              style: simple
+        "408":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/PublicApiProblemDetails"
+          description: Request Timeout
+          headers:
+            X-Request-Id:
+              description: Server correlation identifier for support and diagnostics.
+              explode: false
+              schema:
+                type: string
+              style: simple
+        "409":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/PublicApiProblemDetails"
+          description: Conflict
+          headers:
+            X-Request-Id:
+              description: Server correlation identifier for support and diagnostics.
+              explode: false
+              schema:
+                type: string
+              style: simple
+        "412":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/PublicApiProblemDetails"
+          description: Precondition Failed
+          headers:
+            X-Request-Id:
+              description: Server correlation identifier for support and diagnostics.
+              explode: false
+              schema:
+                type: string
+              style: simple
+        "413":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/PublicApiProblemDetails"
+          description: Payload Too Large
+          headers:
+            X-Request-Id:
+              description: Server correlation identifier for support and diagnostics.
+              explode: false
+              schema:
+                type: string
+              style: simple
+        "422":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/PublicApiProblemDetails"
+          description: Unprocessable Entity
+          headers:
+            X-Request-Id:
+              description: Server correlation identifier for support and diagnostics.
+              explode: false
+              schema:
+                type: string
+              style: simple
+        "429":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/PublicApiProblemDetails"
+          description: Too Many Requests
+          headers:
+            X-Request-Id:
+              description: Server correlation identifier for support and diagnostics.
+              explode: false
+              schema:
+                type: string
+              style: simple
+        "500":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/PublicApiProblemDetails"
+          description: Internal Server Error
+          headers:
+            X-Request-Id:
+              description: Server correlation identifier for support and diagnostics.
+              explode: false
+              schema:
+                type: string
+              style: simple
+        "502":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/PublicApiProblemDetails"
+          description: Bad Gateway
+          headers:
+            X-Request-Id:
+              description: Server correlation identifier for support and diagnostics.
+              explode: false
+              schema:
+                type: string
+              style: simple
+        "503":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/PublicApiProblemDetails"
+          description: Service Unavailable
+          headers:
+            X-Request-Id:
+              description: Server correlation identifier for support and diagnostics.
+              explode: false
+              schema:
+                type: string
+              style: simple
+        "504":
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/PublicApiProblemDetails"
+          description: Gateway Timeout
+          headers:
+            X-Request-Id:
+              description: Server correlation identifier for support and diagnostics.
+              explode: false
+              schema:
+                type: string
+              style: simple
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreatedTenantMemberDto"
+          description: OK
+          headers:
+            X-Request-Id:
+              description: Server correlation identifier for support and diagnostics.
+              explode: false
+              schema:
+                type: string
+              style: simple
+      security:
+      - bearerAuth: []
+      summary: Creates an identity in the provider and admits it to this workspace.
+      tags:
+      - Lakehouse
   /api/v1/tenants/{tenantSlug}/members/{id}:
     delete:
       operationId: delete_api_v1_tenants_tenantSlug_members_id_int
@@ -16461,6 +16678,7 @@ components:
         tenantAdmin: true
         role: role
         readOnly: true
+        canCreateUsers: false
       properties:
         mode:
           type: string
@@ -16471,6 +16689,9 @@ components:
         systemAdmin:
           type: boolean
         tenantAdmin:
+          type: boolean
+        canCreateUsers:
+          default: false
           type: boolean
       required:
       - mode
@@ -16934,6 +17155,26 @@ components:
       required:
       - endpointUrl
       - secret
+    CreateTenantMemberRequest:
+      example:
+        role: role
+        displayName: displayName
+        email: email
+        username: username
+      properties:
+        username:
+          type: string
+        email:
+          nullable: true
+          type: string
+        displayName:
+          nullable: true
+          type: string
+        role:
+          nullable: true
+          type: string
+      required:
+      - username
     CreateTenantRequest:
       example:
         displayName: displayName
@@ -16971,6 +17212,27 @@ components:
           type: string
       required:
       - name
+    CreatedTenantMemberDto:
+      example:
+        temporaryPassword: temporaryPassword
+        member:
+          role: role
+          lastSeenUtc: 2000-01-23T04:56:07.000+00:00
+          subject: subject
+          displayName: displayName
+          id: 0
+          email: email
+          status: status
+          createdUtc: 2000-01-23T04:56:07.000+00:00
+      properties:
+        member:
+          $ref: "#/components/schemas/TenantMemberDto"
+        temporaryPassword:
+          nullable: true
+          type: string
+      required:
+      - member
+      - temporaryPassword
     CreatedTokenDto:
       example:
         name: name

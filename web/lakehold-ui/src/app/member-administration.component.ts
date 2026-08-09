@@ -10,7 +10,7 @@ import {
   untracked,
 } from '@angular/core';
 import { LakehouseService } from './lakehouse.service';
-import { MemberStatus, Tenant, TenantMember, TokenRole } from './models';
+import { CreatedTenantMember, MemberStatus, Tenant, TenantMember, TokenRole } from './models';
 
 /**
  * The users who may reach a workspace.
@@ -36,11 +36,26 @@ export class MemberAdministrationComponent {
 
   readonly workspace = input<Tenant | null>(null);
 
+  /**
+   * Whether this node creates identities. Comes from the page, which reads `/access`, rather than
+   * being guessed here: under SSO the people already exist in a directory LakeHold does not own.
+   */
+  readonly canCreateUsers = input(false);
+
   protected readonly members = signal<TenantMember[]>([]);
   protected readonly loading = signal(true);
   protected readonly busyId = signal<number | null>(null);
   protected readonly pendingRemovalId = signal<number | null>(null);
   protected readonly error = signal<string | null>(null);
+
+  /** The add-user form, and the one-time password the last create returned. */
+  protected readonly addOpen = signal(false);
+  protected readonly adding = signal(false);
+  protected readonly newUsername = signal('');
+  protected readonly newEmail = signal('');
+  protected readonly newDisplayName = signal('');
+  protected readonly newRole = signal<TokenRole>('reader');
+  protected readonly created = signal<CreatedTenantMember | null>(null);
 
   /**
    * Discriminates listings so a slower reply for the previous workspace cannot overwrite a newer
@@ -130,6 +145,66 @@ export class MemberAdministrationComponent {
 
   protected displayNameOf(member: TenantMember): string {
     return member.displayName ?? member.email ?? member.subject;
+  }
+
+  protected toggleAdd(): void {
+    const opening = !this.addOpen();
+    this.addOpen.set(opening);
+    if (opening) {
+      // A password left on screen from a previous create is a credential nobody is watching any
+      // more, so opening the form clears it.
+      this.created.set(null);
+      this.error.set(null);
+    }
+  }
+
+  protected createMember(): void {
+    const username = this.newUsername().trim();
+    if (username.length === 0 || this.adding()) {
+      return;
+    }
+
+    this.adding.set(true);
+    this.error.set(null);
+    this.created.set(null);
+
+    const generation = this.generation;
+    this.api
+      .createMember(this.slug(), {
+        username,
+        email: this.newEmail().trim() || undefined,
+        displayName: this.newDisplayName().trim() || undefined,
+        role: this.newRole(),
+      })
+      .subscribe({
+        next: (result) => {
+          if (generation !== this.generation) {
+            return;
+          }
+
+          this.adding.set(false);
+          this.addOpen.set(false);
+          this.created.set(result);
+          this.newUsername.set('');
+          this.newEmail.set('');
+          this.newDisplayName.set('');
+          this.newRole.set('reader');
+          this.loadMembers();
+        },
+        error: (failure: Error) => {
+          if (generation !== this.generation) {
+            return;
+          }
+
+          this.adding.set(false);
+          this.error.set(failure.message);
+        },
+      });
+  }
+
+  /** Dismisses the one-time password, which exists only until it has been read. */
+  protected dismissCreated(): void {
+    this.created.set(null);
   }
 
   private change(member: TenantMember, change: { role?: TokenRole; status?: MemberStatus }): void {

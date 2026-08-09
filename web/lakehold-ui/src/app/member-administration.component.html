@@ -7,6 +7,84 @@
     </p>
   </header>
 
+  @if (canCreateUsers()) {
+    <div class="add-user">
+      <button class="btn-primary" type="button" (click)="toggleAdd()">
+        {{ addOpen() ? 'Cancel' : 'Add someone' }}
+      </button>
+
+      @if (addOpen()) {
+        <form class="add-form" (submit)="$event.preventDefault(); createMember()">
+          <label>
+            <span>Username</span>
+            <input
+              name="username"
+              autocomplete="off"
+              [value]="newUsername()"
+              (input)="newUsername.set($any($event.target).value)"
+            />
+          </label>
+          <label>
+            <span>Email <em>optional</em></span>
+            <input
+              name="email"
+              type="email"
+              autocomplete="off"
+              [value]="newEmail()"
+              (input)="newEmail.set($any($event.target).value)"
+            />
+          </label>
+          <label>
+            <span>Name <em>optional</em></span>
+            <input
+              name="displayName"
+              autocomplete="off"
+              [value]="newDisplayName()"
+              (input)="newDisplayName.set($any($event.target).value)"
+            />
+          </label>
+          <label>
+            <span>Role</span>
+            <select
+              aria-label="Role for the new user"
+              [value]="newRole()"
+              (change)="newRole.set($any($event.target).value)"
+            >
+              @for (role of roles; track role) {
+                <option [value]="role" [selected]="role === newRole()">{{ role }}</option>
+              }
+            </select>
+          </label>
+          <button class="btn-primary" type="submit" [disabled]="adding() || !newUsername().trim()">
+            {{ adding() ? 'Creating…' : 'Create user' }}
+          </button>
+          <p class="hint">
+            Creates the account in your identity provider and admits it here. They set their own
+            password the first time they sign in.
+          </p>
+        </form>
+      }
+    </div>
+  }
+
+  @if (created(); as result) {
+    <div class="created" role="status">
+      <p>
+        <strong>{{ displayNameOf(result.member) }} can sign in.</strong>
+        @if (result.temporaryPassword) {
+          This password is shown once and is not stored anywhere — copy it now. They will be asked to
+          change it when they first sign in.
+        } @else {
+          Your provider has emailed them an invitation.
+        }
+      </p>
+      @if (result.temporaryPassword) {
+        <code class="one-time">{{ result.temporaryPassword }}</code>
+      }
+      <button class="btn" type="button" (click)="dismissCreated()">Done</button>
+    </div>
+  }
+
   @if (error(); as message) {
     <p class="error" role="alert">{{ message }}</p>
   }

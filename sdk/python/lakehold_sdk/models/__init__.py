@@ -29,8 +29,10 @@ from lakehold_sdk.models.column_profile_dto import ColumnProfileDto
 from lakehold_sdk.models.create_catalog_request import CreateCatalogRequest
 from lakehold_sdk.models.create_saved_query_request import CreateSavedQueryRequest
 from lakehold_sdk.models.create_subscription_request import CreateSubscriptionRequest
+from lakehold_sdk.models.create_tenant_member_request import CreateTenantMemberRequest
 from lakehold_sdk.models.create_tenant_request import CreateTenantRequest
 from lakehold_sdk.models.create_token_request import CreateTokenRequest
+from lakehold_sdk.models.created_tenant_member_dto import CreatedTenantMemberDto
 from lakehold_sdk.models.created_token_dto import CreatedTokenDto
 from lakehold_sdk.models.csv_reject_dto import CsvRejectDto
 from lakehold_sdk.models.cursor_page_of_api_token_dto import CursorPageOfApiTokenDto

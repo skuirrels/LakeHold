@@ -1678,6 +1678,31 @@ namespace Lakehold.Sdk.Api
         Task<IPostApiV1TenantsTenantSlugCatalogsCatalogNameSubscriptionsApiResponse?> PostApiV1TenantsTenantSlugCatalogsCatalogNameSubscriptionsOrDefaultAsync(string tenantSlug, string catalogName, CreateSubscriptionRequest createSubscriptionRequest, Option<string> idempotencyKey = default, System.Threading.CancellationToken cancellationToken = default);
 
         /// <summary>
+        /// Creates an identity in the provider and admits it to this workspace.
+        /// </summary>
+        /// <remarks>
+        ///
+        /// </remarks>
+        /// <exception cref="ApiException">Thrown when fails to make API call</exception>
+        /// <param name="tenantSlug"></param>
+        /// <param name="createTenantMemberRequest"></param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns><see cref="Task"/>&lt;<see cref="IPostApiV1TenantsTenantSlugMembersApiResponse"/>&gt;</returns>
+        Task<IPostApiV1TenantsTenantSlugMembersApiResponse> PostApiV1TenantsTenantSlugMembersAsync(string tenantSlug, CreateTenantMemberRequest createTenantMemberRequest, System.Threading.CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Creates an identity in the provider and admits it to this workspace.
+        /// </summary>
+        /// <remarks>
+        ///
+        /// </remarks>
+        /// <param name="tenantSlug"></param>
+        /// <param name="createTenantMemberRequest"></param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns><see cref="Task"/>&lt;<see cref="IPostApiV1TenantsTenantSlugMembersApiResponse"/>?&gt;</returns>
+        Task<IPostApiV1TenantsTenantSlugMembersApiResponse?> PostApiV1TenantsTenantSlugMembersOrDefaultAsync(string tenantSlug, CreateTenantMemberRequest createTenantMemberRequest, System.Threading.CancellationToken cancellationToken = default);
+
+        /// <summary>
         /// Mints a tenant-scoped API token, returned once. Idempotency-Key is not supported.
         /// </summary>
         /// <remarks>
@@ -7464,6 +7489,102 @@ namespace Lakehold.Sdk.Api
     }
 
     /// <summary>
+    /// The <see cref="IPostApiV1TenantsTenantSlugMembersApiResponse"/>
+    /// </summary>
+    public interface IPostApiV1TenantsTenantSlugMembersApiResponse : Lakehold.Sdk.Client.IApiResponse, IBadRequest<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IUnauthorized<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IForbidden<Lakehold.Sdk.Model.PublicApiProblemDetails?>, INotFound<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IRequestTimeout<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IConflict<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IPreconditionFailed<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IContentTooLarge<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IUnprocessableContent<Lakehold.Sdk.Model.PublicApiProblemDetails?>, ITooManyRequests<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IInternalServerError<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IBadGateway<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IServiceUnavailable<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IGatewayTimeout<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IOk<Lakehold.Sdk.Model.CreatedTenantMemberDto?>
+    {
+        /// <summary>
+        /// Returns true if the response is 400 BadRequest
+        /// </summary>
+        /// <returns></returns>
+        bool IsBadRequest { get; }
+
+        /// <summary>
+        /// Returns true if the response is 401 Unauthorized
+        /// </summary>
+        /// <returns></returns>
+        bool IsUnauthorized { get; }
+
+        /// <summary>
+        /// Returns true if the response is 403 Forbidden
+        /// </summary>
+        /// <returns></returns>
+        bool IsForbidden { get; }
+
+        /// <summary>
+        /// Returns true if the response is 404 NotFound
+        /// </summary>
+        /// <returns></returns>
+        bool IsNotFound { get; }
+
+        /// <summary>
+        /// Returns true if the response is 408 RequestTimeout
+        /// </summary>
+        /// <returns></returns>
+        bool IsRequestTimeout { get; }
+
+        /// <summary>
+        /// Returns true if the response is 409 Conflict
+        /// </summary>
+        /// <returns></returns>
+        bool IsConflict { get; }
+
+        /// <summary>
+        /// Returns true if the response is 412 PreconditionFailed
+        /// </summary>
+        /// <returns></returns>
+        bool IsPreconditionFailed { get; }
+
+        /// <summary>
+        /// Returns true if the response is 413 ContentTooLarge
+        /// </summary>
+        /// <returns></returns>
+        bool IsContentTooLarge { get; }
+
+        /// <summary>
+        /// Returns true if the response is 422 UnprocessableContent
+        /// </summary>
+        /// <returns></returns>
+        bool IsUnprocessableContent { get; }
+
+        /// <summary>
+        /// Returns true if the response is 429 TooManyRequests
+        /// </summary>
+        /// <returns></returns>
+        bool IsTooManyRequests { get; }
+
+        /// <summary>
+        /// Returns true if the response is 500 InternalServerError
+        /// </summary>
+        /// <returns></returns>
+        bool IsInternalServerError { get; }
+
+        /// <summary>
+        /// Returns true if the response is 502 BadGateway
+        /// </summary>
+        /// <returns></returns>
+        bool IsBadGateway { get; }
+
+        /// <summary>
+        /// Returns true if the response is 503 ServiceUnavailable
+        /// </summary>
+        /// <returns></returns>
+        bool IsServiceUnavailable { get; }
+
+        /// <summary>
+        /// Returns true if the response is 504 GatewayTimeout
+        /// </summary>
+        /// <returns></returns>
+        bool IsGatewayTimeout { get; }
+
+        /// <summary>
+        /// Returns true if the response is 200 Ok
+        /// </summary>
+        /// <returns></returns>
+        bool IsOk { get; }
+    }
+
+    /// <summary>
     /// The <see cref="IPostApiV1TenantsTenantSlugTokensApiResponse"/>
     /// </summary>
     public interface IPostApiV1TenantsTenantSlugTokensApiResponse : Lakehold.Sdk.Client.IApiResponse, IBadRequest<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IUnauthorized<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IForbidden<Lakehold.Sdk.Model.PublicApiProblemDetails?>, INotFound<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IRequestTimeout<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IConflict<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IPreconditionFailed<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IContentTooLarge<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IUnprocessableContent<Lakehold.Sdk.Model.PublicApiProblemDetails?>, ITooManyRequests<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IInternalServerError<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IBadGateway<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IServiceUnavailable<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IGatewayTimeout<Lakehold.Sdk.Model.PublicApiProblemDetails?>, ICreated<Lakehold.Sdk.Model.CreatedTokenDto?>
@@ -9298,6 +9419,26 @@ namespace Lakehold.Sdk.Api
         internal void ExecuteOnErrorPostApiV1TenantsTenantSlugCatalogsCatalogNameSubscriptions(Exception exception)
         {
             OnErrorPostApiV1TenantsTenantSlugCatalogsCatalogNameSubscriptions?.Invoke(this, new ExceptionEventArgs(exception));
+        }
+
+        /// <summary>
+        /// The event raised after the server response
+        /// </summary>
+        public event EventHandler<ApiResponseEventArgs>? OnPostApiV1TenantsTenantSlugMembers;
+
+        /// <summary>
+        /// The event raised after an error querying the server
+        /// </summary>
+        public event EventHandler<ExceptionEventArgs>? OnErrorPostApiV1TenantsTenantSlugMembers;
+
+        internal void ExecuteOnPostApiV1TenantsTenantSlugMembers(LakehouseApi.PostApiV1TenantsTenantSlugMembersApiResponse apiResponse)
+        {
+            OnPostApiV1TenantsTenantSlugMembers?.Invoke(this, new ApiResponseEventArgs(apiResponse));
+        }
+
+        internal void ExecuteOnErrorPostApiV1TenantsTenantSlugMembers(Exception exception)
+        {
+            OnErrorPostApiV1TenantsTenantSlugMembers?.Invoke(this, new ExceptionEventArgs(exception));
         }
 
         /// <summary>
@@ -55706,6 +55847,797 @@ namespace Lakehold.Sdk.Api
                 } catch (Exception e)
                 {
                     OnDeserializationErrorDefaultImplementation(e, (HttpStatusCode)201);
+                }
+
+                return result != null;
+            }
+
+            private void OnDeserializationErrorDefaultImplementation(Exception exception, HttpStatusCode httpStatusCode)
+            {
+                bool suppressDefaultLog = false;
+                OnDeserializationError(ref suppressDefaultLog, exception, httpStatusCode);
+                if (!suppressDefaultLog)
+                    Logger.LogError(exception, "An error occurred while deserializing the {code} response.", httpStatusCode);
+            }
+
+            partial void OnDeserializationError(ref bool suppressDefaultLog, Exception exception, HttpStatusCode httpStatusCode);
+        }
+
+        partial void FormatPostApiV1TenantsTenantSlugMembers(ref string tenantSlug, CreateTenantMemberRequest createTenantMemberRequest);
+
+        /// <summary>
+        /// Validates the request parameters
+        /// </summary>
+        /// <param name="tenantSlug"></param>
+        /// <param name="createTenantMemberRequest"></param>
+        /// <returns></returns>
+        private void ValidatePostApiV1TenantsTenantSlugMembers(string tenantSlug, CreateTenantMemberRequest createTenantMemberRequest)
+        {
+            if (tenantSlug == null)
+                throw new ArgumentNullException(nameof(tenantSlug));
+
+            if (createTenantMemberRequest == null)
+                throw new ArgumentNullException(nameof(createTenantMemberRequest));
+        }
+
+        /// <summary>
+        /// Processes the server response
+        /// </summary>
+        /// <param name="apiResponseLocalVar"></param>
+        /// <param name="tenantSlug"></param>
+        /// <param name="createTenantMemberRequest"></param>
+        private void AfterPostApiV1TenantsTenantSlugMembersDefaultImplementation(IPostApiV1TenantsTenantSlugMembersApiResponse apiResponseLocalVar, string tenantSlug, CreateTenantMemberRequest createTenantMemberRequest)
+        {
+            bool suppressDefaultLog = false;
+            AfterPostApiV1TenantsTenantSlugMembers(ref suppressDefaultLog, apiResponseLocalVar, tenantSlug, createTenantMemberRequest);
+            if (!suppressDefaultLog)
+                Logger.LogInformation("{0,-9} | {1} | {3}", (apiResponseLocalVar.DownloadedAt - apiResponseLocalVar.RequestedAt).TotalSeconds, apiResponseLocalVar.StatusCode, apiResponseLocalVar.Path);
+        }
+
+        /// <summary>
+        /// Processes the server response
+        /// </summary>
+        /// <param name="suppressDefaultLog"></param>
+        /// <param name="apiResponseLocalVar"></param>
+        /// <param name="tenantSlug"></param>
+        /// <param name="createTenantMemberRequest"></param>
+        partial void AfterPostApiV1TenantsTenantSlugMembers(ref bool suppressDefaultLog, IPostApiV1TenantsTenantSlugMembersApiResponse apiResponseLocalVar, string tenantSlug, CreateTenantMemberRequest createTenantMemberRequest);
+
+        /// <summary>
+        /// Logs exceptions that occur while retrieving the server response
+        /// </summary>
+        /// <param name="exceptionLocalVar"></param>
+        /// <param name="pathFormatLocalVar"></param>
+        /// <param name="pathLocalVar"></param>
+        /// <param name="tenantSlug"></param>
+        /// <param name="createTenantMemberRequest"></param>
+        private void OnErrorPostApiV1TenantsTenantSlugMembersDefaultImplementation(Exception exceptionLocalVar, string pathFormatLocalVar, string pathLocalVar, string tenantSlug, CreateTenantMemberRequest createTenantMemberRequest)
+        {
+            bool suppressDefaultLogLocalVar = false;
+            OnErrorPostApiV1TenantsTenantSlugMembers(ref suppressDefaultLogLocalVar, exceptionLocalVar, pathFormatLocalVar, pathLocalVar, tenantSlug, createTenantMemberRequest);
+            if (!suppressDefaultLogLocalVar)
+                Logger.LogError(exceptionLocalVar, "An error occurred while sending the request to the server.");
+        }
+
+        /// <summary>
+        /// A partial method that gives developers a way to provide customized exception handling
+        /// </summary>
+        /// <param name="suppressDefaultLogLocalVar"></param>
+        /// <param name="exceptionLocalVar"></param>
+        /// <param name="pathFormatLocalVar"></param>
+        /// <param name="pathLocalVar"></param>
+        /// <param name="tenantSlug"></param>
+        /// <param name="createTenantMemberRequest"></param>
+        partial void OnErrorPostApiV1TenantsTenantSlugMembers(ref bool suppressDefaultLogLocalVar, Exception exceptionLocalVar, string pathFormatLocalVar, string pathLocalVar, string tenantSlug, CreateTenantMemberRequest createTenantMemberRequest);
+
+        /// <summary>
+        /// Creates an identity in the provider and admits it to this workspace.
+        /// </summary>
+        /// <param name="tenantSlug"></param>
+        /// <param name="createTenantMemberRequest"></param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns><see cref="Task"/>&lt;<see cref="IPostApiV1TenantsTenantSlugMembersApiResponse"/>&gt;</returns>
+        public async Task<IPostApiV1TenantsTenantSlugMembersApiResponse?> PostApiV1TenantsTenantSlugMembersOrDefaultAsync(string tenantSlug, CreateTenantMemberRequest createTenantMemberRequest, System.Threading.CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                return await PostApiV1TenantsTenantSlugMembersAsync(tenantSlug, createTenantMemberRequest, cancellationToken).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception)
+            {
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Creates an identity in the provider and admits it to this workspace.
+        /// </summary>
+        /// <exception cref="ApiException">Thrown when fails to make API call</exception>
+        /// <param name="tenantSlug"></param>
+        /// <param name="createTenantMemberRequest"></param>
+        /// <param name="cancellationToken">Cancellation Token to cancel the request.</param>
+        /// <returns><see cref="Task"/>&lt;<see cref="IPostApiV1TenantsTenantSlugMembersApiResponse"/>&gt;</returns>
+        public async Task<IPostApiV1TenantsTenantSlugMembersApiResponse> PostApiV1TenantsTenantSlugMembersAsync(string tenantSlug, CreateTenantMemberRequest createTenantMemberRequest, System.Threading.CancellationToken cancellationToken = default)
+        {
+            UriBuilder uriBuilderLocalVar = new UriBuilder();
+
+            try
+            {
+                ValidatePostApiV1TenantsTenantSlugMembers(tenantSlug, createTenantMemberRequest);
+
+                FormatPostApiV1TenantsTenantSlugMembers(ref tenantSlug, createTenantMemberRequest);
+
+                using (HttpRequestMessage httpRequestMessageLocalVar = new HttpRequestMessage())
+                {
+                    uriBuilderLocalVar.Host = HttpClient.BaseAddress!.Host;
+                    uriBuilderLocalVar.Port = HttpClient.BaseAddress.Port;
+                    uriBuilderLocalVar.Scheme = HttpClient.BaseAddress.Scheme;
+                    uriBuilderLocalVar.Path = HttpClient.BaseAddress.AbsolutePath == "/"
+                        ? "/api/v1/tenants/{tenantSlug}/members"
+                        : string.Concat(HttpClient.BaseAddress.AbsolutePath, "/api/v1/tenants/{tenantSlug}/members");
+                    uriBuilderLocalVar.Path = uriBuilderLocalVar.Path.Replace("%7BtenantSlug%7D", Uri.EscapeDataString(tenantSlug.ToString()));
+
+                    httpRequestMessageLocalVar.Content = (createTenantMemberRequest as object) is System.IO.Stream stream
+                        ? httpRequestMessageLocalVar.Content = new StreamContent(stream)
+                        : httpRequestMessageLocalVar.Content = new StringContent(JsonSerializer.Serialize(createTenantMemberRequest, _jsonSerializerOptions));
+
+                    List<TokenBase> tokenBaseLocalVars = new List<TokenBase>();
+                    httpRequestMessageLocalVar.RequestUri = uriBuilderLocalVar.Uri;
+
+                    BearerToken bearerTokenLocalVar1 = (BearerToken) await BearerTokenProvider.GetAsync(cancellation: cancellationToken).ConfigureAwait(false);
+
+                    tokenBaseLocalVars.Add(bearerTokenLocalVar1);
+
+                    bearerTokenLocalVar1.UseInHeader(httpRequestMessageLocalVar, "");
+
+                    string[] contentTypes = new string[] {
+                        "application/json"
+                    };
+
+                    string? contentTypeLocalVar = ClientUtils.SelectHeaderContentType(contentTypes);
+
+                    if (contentTypeLocalVar != null && httpRequestMessageLocalVar.Content != null)
+                        httpRequestMessageLocalVar.Content.Headers.ContentType = new MediaTypeHeaderValue(contentTypeLocalVar);
+
+                    string[] acceptLocalVars = new string[] {
+                        "application/problem+json",
+                        "application/json"
+                    };
+
+                    string? acceptLocalVar = ClientUtils.SelectHeaderAccept(acceptLocalVars);
+
+                    if (acceptLocalVar != null)
+                        httpRequestMessageLocalVar.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue(acceptLocalVar));
+
+                    httpRequestMessageLocalVar.Method = HttpMethod.Post;
+
+                    DateTime requestedAtLocalVar = DateTime.UtcNow;
+
+                    using (HttpResponseMessage httpResponseMessageLocalVar = await HttpClient.SendAsync(httpRequestMessageLocalVar, cancellationToken).ConfigureAwait(false))
+                    {
+                        string responseContentLocalVar = await httpResponseMessageLocalVar.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+
+                        ILogger<PostApiV1TenantsTenantSlugMembersApiResponse> apiResponseLoggerLocalVar = LoggerFactory.CreateLogger<PostApiV1TenantsTenantSlugMembersApiResponse>();
+
+                        PostApiV1TenantsTenantSlugMembersApiResponse apiResponseLocalVar = new(apiResponseLoggerLocalVar, httpRequestMessageLocalVar, httpResponseMessageLocalVar, responseContentLocalVar, "/api/v1/tenants/{tenantSlug}/members", requestedAtLocalVar, _jsonSerializerOptions);
+
+                        AfterPostApiV1TenantsTenantSlugMembersDefaultImplementation(apiResponseLocalVar, tenantSlug, createTenantMemberRequest);
+
+                        Events.ExecuteOnPostApiV1TenantsTenantSlugMembers(apiResponseLocalVar);
+
+                        if (apiResponseLocalVar.StatusCode == (HttpStatusCode) 429)
+                            foreach(TokenBase tokenBaseLocalVar in tokenBaseLocalVars)
+                                tokenBaseLocalVar.BeginRateLimit();
+
+                        return apiResponseLocalVar;
+                    }
+                }
+            }
+            catch(Exception e)
+            {
+                OnErrorPostApiV1TenantsTenantSlugMembersDefaultImplementation(e, "/api/v1/tenants/{tenantSlug}/members", uriBuilderLocalVar.Path, tenantSlug, createTenantMemberRequest);
+                Events.ExecuteOnErrorPostApiV1TenantsTenantSlugMembers(e);
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// The <see cref="PostApiV1TenantsTenantSlugMembersApiResponse"/>
+        /// </summary>
+        public partial class PostApiV1TenantsTenantSlugMembersApiResponse : Lakehold.Sdk.Client.ApiResponse, IPostApiV1TenantsTenantSlugMembersApiResponse
+        {
+            /// <summary>
+            /// The logger
+            /// </summary>
+            public ILogger<PostApiV1TenantsTenantSlugMembersApiResponse> Logger { get; }
+
+            /// <summary>
+            /// The <see cref="PostApiV1TenantsTenantSlugMembersApiResponse"/>
+            /// </summary>
+            /// <param name="logger"></param>
+            /// <param name="httpRequestMessage"></param>
+            /// <param name="httpResponseMessage"></param>
+            /// <param name="rawContent"></param>
+            /// <param name="path"></param>
+            /// <param name="requestedAt"></param>
+            /// <param name="jsonSerializerOptions"></param>
+            public PostApiV1TenantsTenantSlugMembersApiResponse(ILogger<PostApiV1TenantsTenantSlugMembersApiResponse> logger, System.Net.Http.HttpRequestMessage httpRequestMessage, System.Net.Http.HttpResponseMessage httpResponseMessage, string rawContent, string path, DateTime requestedAt, System.Text.Json.JsonSerializerOptions jsonSerializerOptions) : base(httpRequestMessage, httpResponseMessage, rawContent, path, requestedAt, jsonSerializerOptions)
+            {
+                Logger = logger;
+                OnCreated(httpRequestMessage, httpResponseMessage);
+            }
+
+            partial void OnCreated(global::System.Net.Http.HttpRequestMessage httpRequestMessage, System.Net.Http.HttpResponseMessage httpResponseMessage);
+
+            /// <summary>
+            /// Returns true if the response is 400 BadRequest
+            /// </summary>
+            /// <returns></returns>
+            public bool IsBadRequest => 400 == (int)StatusCode;
+
+            /// <summary>
+            /// Deserializes the response if the response is 400 BadRequest
+            /// </summary>
+            /// <returns></returns>
+            public Lakehold.Sdk.Model.PublicApiProblemDetails? BadRequest()
+            {
+                // This logic may be modified with the AsModel.mustache template
+                return IsBadRequest
+                    ? System.Text.Json.JsonSerializer.Deserialize<Lakehold.Sdk.Model.PublicApiProblemDetails>(RawContent, _jsonSerializerOptions)
+                    : null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 400 BadRequest and the deserialized response is not null
+            /// </summary>
+            /// <param name="result"></param>
+            /// <returns></returns>
+            public bool TryBadRequest([NotNullWhen(true)]out Lakehold.Sdk.Model.PublicApiProblemDetails? result)
+            {
+                result = null;
+
+                try
+                {
+                    result = BadRequest();
+                } catch (Exception e)
+                {
+                    OnDeserializationErrorDefaultImplementation(e, (HttpStatusCode)400);
+                }
+
+                return result != null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 401 Unauthorized
+            /// </summary>
+            /// <returns></returns>
+            public bool IsUnauthorized => 401 == (int)StatusCode;
+
+            /// <summary>
+            /// Deserializes the response if the response is 401 Unauthorized
+            /// </summary>
+            /// <returns></returns>
+            public Lakehold.Sdk.Model.PublicApiProblemDetails? Unauthorized()
+            {
+                // This logic may be modified with the AsModel.mustache template
+                return IsUnauthorized
+                    ? System.Text.Json.JsonSerializer.Deserialize<Lakehold.Sdk.Model.PublicApiProblemDetails>(RawContent, _jsonSerializerOptions)
+                    : null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 401 Unauthorized and the deserialized response is not null
+            /// </summary>
+            /// <param name="result"></param>
+            /// <returns></returns>
+            public bool TryUnauthorized([NotNullWhen(true)]out Lakehold.Sdk.Model.PublicApiProblemDetails? result)
+            {
+                result = null;
+
+                try
+                {
+                    result = Unauthorized();
+                } catch (Exception e)
+                {
+                    OnDeserializationErrorDefaultImplementation(e, (HttpStatusCode)401);
+                }
+
+                return result != null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 403 Forbidden
+            /// </summary>
+            /// <returns></returns>
+            public bool IsForbidden => 403 == (int)StatusCode;
+
+            /// <summary>
+            /// Deserializes the response if the response is 403 Forbidden
+            /// </summary>
+            /// <returns></returns>
+            public Lakehold.Sdk.Model.PublicApiProblemDetails? Forbidden()
+            {
+                // This logic may be modified with the AsModel.mustache template
+                return IsForbidden
+                    ? System.Text.Json.JsonSerializer.Deserialize<Lakehold.Sdk.Model.PublicApiProblemDetails>(RawContent, _jsonSerializerOptions)
+                    : null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 403 Forbidden and the deserialized response is not null
+            /// </summary>
+            /// <param name="result"></param>
+            /// <returns></returns>
+            public bool TryForbidden([NotNullWhen(true)]out Lakehold.Sdk.Model.PublicApiProblemDetails? result)
+            {
+                result = null;
+
+                try
+                {
+                    result = Forbidden();
+                } catch (Exception e)
+                {
+                    OnDeserializationErrorDefaultImplementation(e, (HttpStatusCode)403);
+                }
+
+                return result != null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 404 NotFound
+            /// </summary>
+            /// <returns></returns>
+            public bool IsNotFound => 404 == (int)StatusCode;
+
+            /// <summary>
+            /// Deserializes the response if the response is 404 NotFound
+            /// </summary>
+            /// <returns></returns>
+            public Lakehold.Sdk.Model.PublicApiProblemDetails? NotFound()
+            {
+                // This logic may be modified with the AsModel.mustache template
+                return IsNotFound
+                    ? System.Text.Json.JsonSerializer.Deserialize<Lakehold.Sdk.Model.PublicApiProblemDetails>(RawContent, _jsonSerializerOptions)
+                    : null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 404 NotFound and the deserialized response is not null
+            /// </summary>
+            /// <param name="result"></param>
+            /// <returns></returns>
+            public bool TryNotFound([NotNullWhen(true)]out Lakehold.Sdk.Model.PublicApiProblemDetails? result)
+            {
+                result = null;
+
+                try
+                {
+                    result = NotFound();
+                } catch (Exception e)
+                {
+                    OnDeserializationErrorDefaultImplementation(e, (HttpStatusCode)404);
+                }
+
+                return result != null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 408 RequestTimeout
+            /// </summary>
+            /// <returns></returns>
+            public bool IsRequestTimeout => 408 == (int)StatusCode;
+
+            /// <summary>
+            /// Deserializes the response if the response is 408 RequestTimeout
+            /// </summary>
+            /// <returns></returns>
+            public Lakehold.Sdk.Model.PublicApiProblemDetails? RequestTimeout()
+            {
+                // This logic may be modified with the AsModel.mustache template
+                return IsRequestTimeout
+                    ? System.Text.Json.JsonSerializer.Deserialize<Lakehold.Sdk.Model.PublicApiProblemDetails>(RawContent, _jsonSerializerOptions)
+                    : null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 408 RequestTimeout and the deserialized response is not null
+            /// </summary>
+            /// <param name="result"></param>
+            /// <returns></returns>
+            public bool TryRequestTimeout([NotNullWhen(true)]out Lakehold.Sdk.Model.PublicApiProblemDetails? result)
+            {
+                result = null;
+
+                try
+                {
+                    result = RequestTimeout();
+                } catch (Exception e)
+                {
+                    OnDeserializationErrorDefaultImplementation(e, (HttpStatusCode)408);
+                }
+
+                return result != null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 409 Conflict
+            /// </summary>
+            /// <returns></returns>
+            public bool IsConflict => 409 == (int)StatusCode;
+
+            /// <summary>
+            /// Deserializes the response if the response is 409 Conflict
+            /// </summary>
+            /// <returns></returns>
+            public Lakehold.Sdk.Model.PublicApiProblemDetails? Conflict()
+            {
+                // This logic may be modified with the AsModel.mustache template
+                return IsConflict
+                    ? System.Text.Json.JsonSerializer.Deserialize<Lakehold.Sdk.Model.PublicApiProblemDetails>(RawContent, _jsonSerializerOptions)
+                    : null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 409 Conflict and the deserialized response is not null
+            /// </summary>
+            /// <param name="result"></param>
+            /// <returns></returns>
+            public bool TryConflict([NotNullWhen(true)]out Lakehold.Sdk.Model.PublicApiProblemDetails? result)
+            {
+                result = null;
+
+                try
+                {
+                    result = Conflict();
+                } catch (Exception e)
+                {
+                    OnDeserializationErrorDefaultImplementation(e, (HttpStatusCode)409);
+                }
+
+                return result != null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 412 PreconditionFailed
+            /// </summary>
+            /// <returns></returns>
+            public bool IsPreconditionFailed => 412 == (int)StatusCode;
+
+            /// <summary>
+            /// Deserializes the response if the response is 412 PreconditionFailed
+            /// </summary>
+            /// <returns></returns>
+            public Lakehold.Sdk.Model.PublicApiProblemDetails? PreconditionFailed()
+            {
+                // This logic may be modified with the AsModel.mustache template
+                return IsPreconditionFailed
+                    ? System.Text.Json.JsonSerializer.Deserialize<Lakehold.Sdk.Model.PublicApiProblemDetails>(RawContent, _jsonSerializerOptions)
+                    : null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 412 PreconditionFailed and the deserialized response is not null
+            /// </summary>
+            /// <param name="result"></param>
+            /// <returns></returns>
+            public bool TryPreconditionFailed([NotNullWhen(true)]out Lakehold.Sdk.Model.PublicApiProblemDetails? result)
+            {
+                result = null;
+
+                try
+                {
+                    result = PreconditionFailed();
+                } catch (Exception e)
+                {
+                    OnDeserializationErrorDefaultImplementation(e, (HttpStatusCode)412);
+                }
+
+                return result != null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 413 ContentTooLarge
+            /// </summary>
+            /// <returns></returns>
+            public bool IsContentTooLarge => 413 == (int)StatusCode;
+
+            /// <summary>
+            /// Deserializes the response if the response is 413 ContentTooLarge
+            /// </summary>
+            /// <returns></returns>
+            public Lakehold.Sdk.Model.PublicApiProblemDetails? ContentTooLarge()
+            {
+                // This logic may be modified with the AsModel.mustache template
+                return IsContentTooLarge
+                    ? System.Text.Json.JsonSerializer.Deserialize<Lakehold.Sdk.Model.PublicApiProblemDetails>(RawContent, _jsonSerializerOptions)
+                    : null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 413 ContentTooLarge and the deserialized response is not null
+            /// </summary>
+            /// <param name="result"></param>
+            /// <returns></returns>
+            public bool TryContentTooLarge([NotNullWhen(true)]out Lakehold.Sdk.Model.PublicApiProblemDetails? result)
+            {
+                result = null;
+
+                try
+                {
+                    result = ContentTooLarge();
+                } catch (Exception e)
+                {
+                    OnDeserializationErrorDefaultImplementation(e, (HttpStatusCode)413);
+                }
+
+                return result != null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 422 UnprocessableContent
+            /// </summary>
+            /// <returns></returns>
+            public bool IsUnprocessableContent => 422 == (int)StatusCode;
+
+            /// <summary>
+            /// Deserializes the response if the response is 422 UnprocessableContent
+            /// </summary>
+            /// <returns></returns>
+            public Lakehold.Sdk.Model.PublicApiProblemDetails? UnprocessableContent()
+            {
+                // This logic may be modified with the AsModel.mustache template
+                return IsUnprocessableContent
+                    ? System.Text.Json.JsonSerializer.Deserialize<Lakehold.Sdk.Model.PublicApiProblemDetails>(RawContent, _jsonSerializerOptions)
+                    : null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 422 UnprocessableContent and the deserialized response is not null
+            /// </summary>
+            /// <param name="result"></param>
+            /// <returns></returns>
+            public bool TryUnprocessableContent([NotNullWhen(true)]out Lakehold.Sdk.Model.PublicApiProblemDetails? result)
+            {
+                result = null;
+
+                try
+                {
+                    result = UnprocessableContent();
+                } catch (Exception e)
+                {
+                    OnDeserializationErrorDefaultImplementation(e, (HttpStatusCode)422);
+                }
+
+                return result != null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 429 TooManyRequests
+            /// </summary>
+            /// <returns></returns>
+            public bool IsTooManyRequests => 429 == (int)StatusCode;
+
+            /// <summary>
+            /// Deserializes the response if the response is 429 TooManyRequests
+            /// </summary>
+            /// <returns></returns>
+            public Lakehold.Sdk.Model.PublicApiProblemDetails? TooManyRequests()
+            {
+                // This logic may be modified with the AsModel.mustache template
+                return IsTooManyRequests
+                    ? System.Text.Json.JsonSerializer.Deserialize<Lakehold.Sdk.Model.PublicApiProblemDetails>(RawContent, _jsonSerializerOptions)
+                    : null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 429 TooManyRequests and the deserialized response is not null
+            /// </summary>
+            /// <param name="result"></param>
+            /// <returns></returns>
+            public bool TryTooManyRequests([NotNullWhen(true)]out Lakehold.Sdk.Model.PublicApiProblemDetails? result)
+            {
+                result = null;
+
+                try
+                {
+                    result = TooManyRequests();
+                } catch (Exception e)
+                {
+                    OnDeserializationErrorDefaultImplementation(e, (HttpStatusCode)429);
+                }
+
+                return result != null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 500 InternalServerError
+            /// </summary>
+            /// <returns></returns>
+            public bool IsInternalServerError => 500 == (int)StatusCode;
+
+            /// <summary>
+            /// Deserializes the response if the response is 500 InternalServerError
+            /// </summary>
+            /// <returns></returns>
+            public Lakehold.Sdk.Model.PublicApiProblemDetails? InternalServerError()
+            {
+                // This logic may be modified with the AsModel.mustache template
+                return IsInternalServerError
+                    ? System.Text.Json.JsonSerializer.Deserialize<Lakehold.Sdk.Model.PublicApiProblemDetails>(RawContent, _jsonSerializerOptions)
+                    : null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 500 InternalServerError and the deserialized response is not null
+            /// </summary>
+            /// <param name="result"></param>
+            /// <returns></returns>
+            public bool TryInternalServerError([NotNullWhen(true)]out Lakehold.Sdk.Model.PublicApiProblemDetails? result)
+            {
+                result = null;
+
+                try
+                {
+                    result = InternalServerError();
+                } catch (Exception e)
+                {
+                    OnDeserializationErrorDefaultImplementation(e, (HttpStatusCode)500);
+                }
+
+                return result != null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 502 BadGateway
+            /// </summary>
+            /// <returns></returns>
+            public bool IsBadGateway => 502 == (int)StatusCode;
+
+            /// <summary>
+            /// Deserializes the response if the response is 502 BadGateway
+            /// </summary>
+            /// <returns></returns>
+            public Lakehold.Sdk.Model.PublicApiProblemDetails? BadGateway()
+            {
+                // This logic may be modified with the AsModel.mustache template
+                return IsBadGateway
+                    ? System.Text.Json.JsonSerializer.Deserialize<Lakehold.Sdk.Model.PublicApiProblemDetails>(RawContent, _jsonSerializerOptions)
+                    : null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 502 BadGateway and the deserialized response is not null
+            /// </summary>
+            /// <param name="result"></param>
+            /// <returns></returns>
+            public bool TryBadGateway([NotNullWhen(true)]out Lakehold.Sdk.Model.PublicApiProblemDetails? result)
+            {
+                result = null;
+
+                try
+                {
+                    result = BadGateway();
+                } catch (Exception e)
+                {
+                    OnDeserializationErrorDefaultImplementation(e, (HttpStatusCode)502);
+                }
+
+                return result != null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 503 ServiceUnavailable
+            /// </summary>
+            /// <returns></returns>
+            public bool IsServiceUnavailable => 503 == (int)StatusCode;
+
+            /// <summary>
+            /// Deserializes the response if the response is 503 ServiceUnavailable
+            /// </summary>
+            /// <returns></returns>
+            public Lakehold.Sdk.Model.PublicApiProblemDetails? ServiceUnavailable()
+            {
+                // This logic may be modified with the AsModel.mustache template
+                return IsServiceUnavailable
+                    ? System.Text.Json.JsonSerializer.Deserialize<Lakehold.Sdk.Model.PublicApiProblemDetails>(RawContent, _jsonSerializerOptions)
+                    : null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 503 ServiceUnavailable and the deserialized response is not null
+            /// </summary>
+            /// <param name="result"></param>
+            /// <returns></returns>
+            public bool TryServiceUnavailable([NotNullWhen(true)]out Lakehold.Sdk.Model.PublicApiProblemDetails? result)
+            {
+                result = null;
+
+                try
+                {
+                    result = ServiceUnavailable();
+                } catch (Exception e)
+                {
+                    OnDeserializationErrorDefaultImplementation(e, (HttpStatusCode)503);
+                }
+
+                return result != null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 504 GatewayTimeout
+            /// </summary>
+            /// <returns></returns>
+            public bool IsGatewayTimeout => 504 == (int)StatusCode;
+
+            /// <summary>
+            /// Deserializes the response if the response is 504 GatewayTimeout
+            /// </summary>
+            /// <returns></returns>
+            public Lakehold.Sdk.Model.PublicApiProblemDetails? GatewayTimeout()
+            {
+                // This logic may be modified with the AsModel.mustache template
+                return IsGatewayTimeout
+                    ? System.Text.Json.JsonSerializer.Deserialize<Lakehold.Sdk.Model.PublicApiProblemDetails>(RawContent, _jsonSerializerOptions)
+                    : null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 504 GatewayTimeout and the deserialized response is not null
+            /// </summary>
+            /// <param name="result"></param>
+            /// <returns></returns>
+            public bool TryGatewayTimeout([NotNullWhen(true)]out Lakehold.Sdk.Model.PublicApiProblemDetails? result)
+            {
+                result = null;
+
+                try
+                {
+                    result = GatewayTimeout();
+                } catch (Exception e)
+                {
+                    OnDeserializationErrorDefaultImplementation(e, (HttpStatusCode)504);
+                }
+
+                return result != null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 200 Ok
+            /// </summary>
+            /// <returns></returns>
+            public bool IsOk => 200 == (int)StatusCode;
+
+            /// <summary>
+            /// Deserializes the response if the response is 200 Ok
+            /// </summary>
+            /// <returns></returns>
+            public Lakehold.Sdk.Model.CreatedTenantMemberDto? Ok()
+            {
+                // This logic may be modified with the AsModel.mustache template
+                return IsOk
+                    ? System.Text.Json.JsonSerializer.Deserialize<Lakehold.Sdk.Model.CreatedTenantMemberDto>(RawContent, _jsonSerializerOptions)
+                    : null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 200 Ok and the deserialized response is not null
+            /// </summary>
+            /// <param name="result"></param>
+            /// <returns></returns>
+            public bool TryOk([NotNullWhen(true)]out Lakehold.Sdk.Model.CreatedTenantMemberDto? result)
+            {
+                result = null;
+
+                try
+                {
+                    result = Ok();
+                } catch (Exception e)
+                {
+                    OnDeserializationErrorDefaultImplementation(e, (HttpStatusCode)200);
                 }
 
                 return result != null;

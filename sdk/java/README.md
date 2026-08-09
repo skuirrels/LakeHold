@@ -173,6 +173,7 @@ Class | Method | HTTP request | Description
 *LakehouseApi* | [**postApiV1TenantsTenantSlugCatalogsCatalogNameSavedQueriesIdIntUnpublish**](docs/LakehouseApi.md#postApiV1TenantsTenantSlugCatalogsCatalogNameSavedQueriesIdIntUnpublish) | **POST** /api/v1/tenants/{tenantSlug}/catalogs/{catalogName}/saved-queries/{id}/unpublish | Drops the query&#39;s published view.
 *LakehouseApi* | [**postApiV1TenantsTenantSlugCatalogsCatalogNameSnapshotsSnapshotIdLongRestoreTable**](docs/LakehouseApi.md#postApiV1TenantsTenantSlugCatalogsCatalogNameSnapshotsSnapshotIdLongRestoreTable) | **POST** /api/v1/tenants/{tenantSlug}/catalogs/{catalogName}/snapshots/{snapshotId}/restore-table | Plans or atomically restores one table&#39;s rows from a snapshot.
 *LakehouseApi* | [**postApiV1TenantsTenantSlugCatalogsCatalogNameSubscriptions**](docs/LakehouseApi.md#postApiV1TenantsTenantSlugCatalogsCatalogNameSubscriptions) | **POST** /api/v1/tenants/{tenantSlug}/catalogs/{catalogName}/subscriptions | Creates a webhook subscription to the catalog&#39;s change feed.
+*LakehouseApi* | [**postApiV1TenantsTenantSlugMembers**](docs/LakehouseApi.md#postApiV1TenantsTenantSlugMembers) | **POST** /api/v1/tenants/{tenantSlug}/members | Creates an identity in the provider and admits it to this workspace.
 *LakehouseApi* | [**postApiV1TenantsTenantSlugTokens**](docs/LakehouseApi.md#postApiV1TenantsTenantSlugTokens) | **POST** /api/v1/tenants/{tenantSlug}/tokens | Mints a tenant-scoped API token, returned once. Idempotency-Key is not supported.
 *LakehouseApi* | [**putApiV1TenantsTenantSlugCatalogsCatalogNameCdcConsumersIdIntCheckpoint**](docs/LakehouseApi.md#putApiV1TenantsTenantSlugCatalogsCatalogNameCdcConsumersIdIntCheckpoint) | **PUT** /api/v1/tenants/{tenantSlug}/catalogs/{catalogName}/cdc/consumers/{id}/checkpoint | Advances a durable pull consumer after its target commit.
 *LakehouseApi* | [**putApiV1TenantsTenantSlugCatalogsCatalogNameConnectorsIdInt**](docs/LakehouseApi.md#putApiV1TenantsTenantSlugCatalogsCatalogNameConnectorsIdInt) | **PUT** /api/v1/tenants/{tenantSlug}/catalogs/{catalogName}/connectors/{id} | 
@@ -204,8 +205,10 @@ Class | Method | HTTP request | Description
  - [CreateCatalogRequest](docs/CreateCatalogRequest.md)
  - [CreateSavedQueryRequest](docs/CreateSavedQueryRequest.md)
  - [CreateSubscriptionRequest](docs/CreateSubscriptionRequest.md)
+ - [CreateTenantMemberRequest](docs/CreateTenantMemberRequest.md)
  - [CreateTenantRequest](docs/CreateTenantRequest.md)
  - [CreateTokenRequest](docs/CreateTokenRequest.md)
+ - [CreatedTenantMemberDto](docs/CreatedTenantMemberDto.md)
  - [CreatedTokenDto](docs/CreatedTokenDto.md)
  - [CsvRejectDto](docs/CsvRejectDto.md)
  - [CursorPageOfApiTokenDto](docs/CursorPageOfApiTokenDto.md)

@@ -4,6 +4,7 @@ using Lakehold.ControlPlane.Model;
 using Lakehold.ControlPlane.Security;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 namespace Lakehold.Api.Endpoints;
 
@@ -27,6 +28,10 @@ public static class MemberEndpoints
         tenants.MapGet("/{tenantSlug}/members", ListAsync)
             .RequireCapability(Capability.TenantAdmin)
             .WithSummary("Lists the users who may reach this workspace, including those awaiting approval.");
+
+        tenants.MapPost("/{tenantSlug}/members", CreateAsync)
+            .RequireCapability(Capability.TenantAdmin)
+            .WithSummary("Creates an identity in the provider and admits it to this workspace.");
 
         tenants.MapPatch("/{tenantSlug}/members/{id:int}", UpdateAsync)
             .RequireCapability(Capability.TenantAdmin)
@@ -70,6 +75,96 @@ public static class MemberEndpoints
             .ConfigureAwait(false);
 
         return TypedResults.Ok<IReadOnlyList<TenantMemberDto>>(members);
+    }
+
+    /// <summary>Creates the identity and the membership together.</summary>
+    /// <remarks>
+    ///     <para>
+    ///         Order matters and is not arbitrary. The identity is created first, because it is the
+    ///         half Lakehold does not own and the half that can fail for reasons outside this process
+    ///         — a name already taken, a rejected credential, an unreachable provider. Only once the
+    ///         provider has committed does the membership row follow, keyed on the subject it just
+    ///         reported. The reverse order would leave a membership pointing at nobody.
+    ///     </para>
+    ///     <para>
+    ///         The residual failure is a created identity whose membership insert then fails. That
+    ///         leaves a usable account with no access, which is the harmless direction: the person
+    ///         signs in, reaches nothing, and appears here as a first arrival to be admitted
+    ///         normally.
+    ///     </para>
+    /// </remarks>
+    internal static async Task<Results<Ok<CreatedTenantMemberDto>, NotFound<string>, BadRequest<string>>> CreateAsync(
+        string tenantSlug,
+        CreateTenantMemberRequest request,
+        ControlPlaneContext context,
+        IUserProvisioner provisioner,
+        IOptions<LakeholdOidcOptions> configured,
+        TimeProvider clock,
+        CancellationToken cancellationToken)
+    {
+        if (request is null || string.IsNullOrWhiteSpace(request.Username))
+        {
+            return TypedResults.BadRequest("A username is required.");
+        }
+
+        if (!provisioner.IsAvailable)
+        {
+            return TypedResults.BadRequest(
+                "This node does not create users. Under SSO the people already exist in your "
+                + "directory; add them there and they appear here once they sign in.");
+        }
+
+        var role = TokenRole.Reader;
+        if (request.Role is { Length: > 0 } requested && !TryParseRole(requested, out role))
+        {
+            return TypedResults.BadRequest("Role must be owner, editor, or reader.");
+        }
+
+        var tenant = await context.Tenants
+            .FirstOrDefaultAsync(t => t.Slug == tenantSlug, cancellationToken)
+            .ConfigureAwait(false);
+        if (tenant is null)
+        {
+            return TypedResults.NotFound($"Tenant '{tenantSlug}' was not found.");
+        }
+
+        ProvisionedUser created;
+        try
+        {
+            created = await provisioner
+                .CreateAsync(
+                    new NewUserRequest(request.Username.Trim(), request.Email, request.DisplayName),
+                    cancellationToken)
+                .ConfigureAwait(false);
+        }
+        catch (UserProvisioningException failure)
+        {
+            // Written for the administrator reading it, and already stripped of anything the
+            // provider echoed back.
+            return TypedResults.BadRequest(failure.Message);
+        }
+
+        var member = new TenantMember
+        {
+            TenantId = tenant.Id,
+            Tenant = tenant,
+            Issuer = configured.Value.Authority,
+            Subject = created.Subject,
+            DisplayName = request.DisplayName ?? request.Username,
+            Email = request.Email,
+            Role = role,
+
+            // Active immediately. An administrator who just typed somebody's name has made the
+            // admission decision; asking them to approve the arrival they themselves created would
+            // be ceremony, not a control.
+            Status = MemberStatus.Active,
+            CreatedUtc = clock.GetUtcNow(),
+        };
+
+        context.TenantMembers.Add(member);
+        await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+        return TypedResults.Ok(new CreatedTenantMemberDto(ToDto(member), created.TemporaryPassword));
     }
 
     internal static async Task<Results<Ok<TenantMemberDto>, NotFound<string>, BadRequest<string>>> UpdateAsync(

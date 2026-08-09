@@ -25,6 +25,7 @@ type AccessDto struct {
 	ReadOnly bool `json:"readOnly"`
 	SystemAdmin bool `json:"systemAdmin"`
 	TenantAdmin *bool `json:"tenantAdmin,omitempty"`
+	CanCreateUsers *bool `json:"canCreateUsers,omitempty"`
 	AdditionalProperties map[string]interface{}
 }
 
@@ -40,6 +41,8 @@ func NewAccessDto(mode string, role string, readOnly bool, systemAdmin bool) *Ac
 	this.Role = role
 	this.ReadOnly = readOnly
 	this.SystemAdmin = systemAdmin
+	var canCreateUsers bool = false
+	this.CanCreateUsers = &canCreateUsers
 	return &this
 }
 
@@ -48,6 +51,8 @@ func NewAccessDto(mode string, role string, readOnly bool, systemAdmin bool) *Ac
 // but it doesn't guarantee that properties required by API are set
 func NewAccessDtoWithDefaults() *AccessDto {
 	this := AccessDto{}
+	var canCreateUsers bool = false
+	this.CanCreateUsers = &canCreateUsers
 	return &this
 }
 
@@ -179,6 +184,38 @@ func (o *AccessDto) SetTenantAdmin(v bool) {
 	o.TenantAdmin = &v
 }
 
+// GetCanCreateUsers returns the CanCreateUsers field value if set, zero value otherwise.
+func (o *AccessDto) GetCanCreateUsers() bool {
+	if o == nil || IsNil(o.CanCreateUsers) {
+		var ret bool
+		return ret
+	}
+	return *o.CanCreateUsers
+}
+
+// GetCanCreateUsersOk returns a tuple with the CanCreateUsers field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *AccessDto) GetCanCreateUsersOk() (*bool, bool) {
+	if o == nil || IsNil(o.CanCreateUsers) {
+		return nil, false
+	}
+	return o.CanCreateUsers, true
+}
+
+// HasCanCreateUsers returns a boolean if a field has been set.
+func (o *AccessDto) HasCanCreateUsers() bool {
+	if o != nil && !IsNil(o.CanCreateUsers) {
+		return true
+	}
+
+	return false
+}
+
+// SetCanCreateUsers gets a reference to the given bool and assigns it to the CanCreateUsers field.
+func (o *AccessDto) SetCanCreateUsers(v bool) {
+	o.CanCreateUsers = &v
+}
+
 func (o AccessDto) MarshalJSON() ([]byte, error) {
 	toSerialize,err := o.ToMap()
 	if err != nil {
@@ -195,6 +232,9 @@ func (o AccessDto) ToMap() (map[string]interface{}, error) {
 	toSerialize["systemAdmin"] = o.SystemAdmin
 	if !IsNil(o.TenantAdmin) {
 		toSerialize["tenantAdmin"] = o.TenantAdmin
+	}
+	if !IsNil(o.CanCreateUsers) {
+		toSerialize["canCreateUsers"] = o.CanCreateUsers
 	}
 
 	for key, value := range o.AdditionalProperties {
@@ -247,6 +287,7 @@ func (o *AccessDto) UnmarshalJSON(data []byte) (err error) {
 		delete(additionalProperties, "readOnly")
 		delete(additionalProperties, "systemAdmin")
 		delete(additionalProperties, "tenantAdmin")
+		delete(additionalProperties, "canCreateUsers")
 		o.AdditionalProperties = additionalProperties
 	}
 

@@ -339,6 +339,12 @@ var oidc = builder.Configuration.GetSection(LakeholdOidcOptions.Section).Get<Lak
 oidc.ValidateForStartup();
 builder.Services.AddLakeholdAuthentication(oidc);
 
+// Creating users in the provider, which only built-in identity mode does. The service is registered
+// either way so the endpoint can answer "not on this node" rather than 500 on a missing dependency;
+// it reports itself unavailable under SSO and refuses before touching the network.
+builder.Services.AddHttpClient(KeycloakUserProvisioner.HttpClientName);
+builder.Services.AddSingleton<IUserProvisioner, KeycloakUserProvisioner>();
+
 // Scheduled flush/backup/compact. A backup that depends on someone pressing a button is not a
 // recovery guarantee; unflushed inlined data is permanently unrecoverable, so both must be automatic.
 builder.AddMaintenanceScheduling();

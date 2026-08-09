@@ -7,7 +7,35 @@ and LakeHold follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
-## [2.2.3] - 2026-08-09
+## [2.3.0] - 2026-08-09
+
+User administration, and the fixes that came out of chasing a failing journey.
+
+### Added
+
+- **Two identity modes, and the ability to create users in the second.** A deployment either
+  federates to a directory that already holds everybody, or runs a provider that exists for LakeHold
+  and holds nobody else. Only the first makes "add them in your provider" a reasonable answer; the
+  second meant an operator learning another product's admin console to onboard a colleague, for an
+  identity that exists only to reach this one.
+
+  `Lakehold:Oidc:Mode` now says which deployment this is. Under `BuiltIn`, **Users** offers *Add
+  someone*: LakeHold creates the account through the provider's admin API and admits it to the
+  workspace in one step, returning a temporary password shown once and stored nowhere, with a
+  provider-side required action to change it at first sign-in. Where the provider sends mail,
+  `UseProviderEmail` asks it to send its own invitation and nothing secret passes through LakeHold at
+  all.
+
+  **The cost is stated rather than buried.** To create a user in a provider, LakeHold must hold a
+  credential that can create users in that provider; under `Sso` it holds none, and whoever
+  compromises it cannot mint an identity. So the credential is asked to carry exactly one capability
+  — manage users, in one realm — never realm administration. The bundled development realm registers
+  `lakehold-provisioner` that way, and it is verifiably refused anything else.
+
+  `Sso` is the default, and built-in mode without a credential reports itself unavailable rather than
+  offering a form that fails at submit. The provider-specific half lives behind `IUserProvisioner`,
+  so the rest of the product still knows nothing about which provider is in use.
+
 
 ### Fixed
 
@@ -449,8 +477,8 @@ works the way every instruction says it does.
 - Production API and web container images for Linux amd64 and arm64, Compose deployment, health
   checks, telemetry, and a reproducible end-to-end test suite.
 
-[Unreleased]: https://github.com/skuirrels/LakeHold/compare/v2.2.3...HEAD
-[2.2.3]: https://github.com/skuirrels/LakeHold/compare/v2.2.2...v2.2.3
+[Unreleased]: https://github.com/skuirrels/LakeHold/compare/v2.3.0...HEAD
+[2.3.0]: https://github.com/skuirrels/LakeHold/compare/v2.2.2...v2.3.0
 [2.2.2]: https://github.com/skuirrels/LakeHold/compare/v2.2.1...v2.2.2
 [2.2.1]: https://github.com/skuirrels/LakeHold/compare/v2.2.0...v2.2.1
 [2.2.0]: https://github.com/skuirrels/LakeHold/compare/v2.1.0...v2.2.0

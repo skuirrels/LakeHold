@@ -222,7 +222,7 @@ public static class LakehouseEndpoints
         return app;
     }
 
-    internal static Ok<AccessDto> GetAccess(HttpContext http)
+    internal static Ok<AccessDto> GetAccess(HttpContext http, IUserProvisioner provisioner)
     {
         var principal = http.GetLakeholdPrincipal();
         var mode = principal.IsDemo ? "demo" : "authenticated";
@@ -242,7 +242,10 @@ public static class LakehouseEndpoints
             principal.Role.ToString().ToLowerInvariant(),
             principal.IsReadOnly,
             principal.Scope == TokenScope.Instance,
-            tenantAdmin));
+            tenantAdmin,
+            // Administering users and *creating* them are different questions: the first is about
+            // this credential, the second about how the node gets its people at all.
+            tenantAdmin && provisioner.IsAvailable));
     }
 
     private static async Task<Ok<IReadOnlyList<TenantDto>>> ListTenantsAsync(

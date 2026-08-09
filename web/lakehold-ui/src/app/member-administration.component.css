@@ -187,3 +187,85 @@ select {
   height: 1px;
   white-space: nowrap;
 }
+
+/* Add a user — only rendered in built-in identity mode. */
+
+.add-user {
+  padding: 0 0 14px;
+}
+
+.add-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  align-items: end;
+  margin-top: 12px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+}
+
+.add-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.add-form label em {
+  font-style: normal;
+  color: var(--text-faint);
+}
+
+.add-form input,
+.add-form select {
+  padding: 7px 9px;
+  color: var(--text);
+  background: var(--surface-1);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  font: inherit;
+  font-size: 13px;
+}
+
+.add-form .hint {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-faint);
+}
+
+/* The one-time password. Deliberately loud: it is shown once and then gone, so it must not read as
+   an incidental confirmation somebody scrolls past. */
+.created {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--ok-line);
+  border-radius: var(--radius-sm);
+  background: var(--ok-soft);
+}
+
+.created p {
+  flex: 1 1 260px;
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.created .one-time {
+  padding: 7px 11px;
+  color: var(--text);
+  background: var(--surface-1);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  font-family: var(--mono);
+  font-size: 14px;
+  user-select: all;
+}

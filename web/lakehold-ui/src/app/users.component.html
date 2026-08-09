@@ -39,7 +39,7 @@
       <small>The users and the tokens below both belong to this workspace.</small>
     </label>
 
-    <lh-member-administration [workspace]="workspace()" />
+    <lh-member-administration [workspace]="workspace()" [canCreateUsers]="canCreateUsers()" />
     <lh-token-administration [workspace]="workspace()" />
   }
 </section>

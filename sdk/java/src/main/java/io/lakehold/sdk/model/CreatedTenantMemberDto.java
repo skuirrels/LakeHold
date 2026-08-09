@@ -19,6 +19,7 @@ import com.google.gson.annotations.JsonAdapter;
 import com.google.gson.annotations.SerializedName;
 import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonWriter;
+import io.lakehold.sdk.model.TenantMemberDto;
 import java.io.IOException;
 import java.util.Arrays;
 
@@ -46,154 +47,58 @@ import java.util.Set;
 import io.lakehold.sdk.JSON;
 
 /**
- * AccessDto
+ * CreatedTenantMemberDto
  */
 @jakarta.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", comments = "Generator version: 7.14.0")
-public class AccessDto {
-  public static final String SERIALIZED_NAME_MODE = "mode";
-  @SerializedName(SERIALIZED_NAME_MODE)
+public class CreatedTenantMemberDto {
+  public static final String SERIALIZED_NAME_MEMBER = "member";
+  @SerializedName(SERIALIZED_NAME_MEMBER)
   @jakarta.annotation.Nonnull
-  private String mode;
+  private TenantMemberDto member;
 
-  public static final String SERIALIZED_NAME_ROLE = "role";
-  @SerializedName(SERIALIZED_NAME_ROLE)
-  @jakarta.annotation.Nonnull
-  private String role;
-
-  public static final String SERIALIZED_NAME_READ_ONLY = "readOnly";
-  @SerializedName(SERIALIZED_NAME_READ_ONLY)
-  @jakarta.annotation.Nonnull
-  private Boolean readOnly;
-
-  public static final String SERIALIZED_NAME_SYSTEM_ADMIN = "systemAdmin";
-  @SerializedName(SERIALIZED_NAME_SYSTEM_ADMIN)
-  @jakarta.annotation.Nonnull
-  private Boolean systemAdmin;
-
-  public static final String SERIALIZED_NAME_TENANT_ADMIN = "tenantAdmin";
-  @SerializedName(SERIALIZED_NAME_TENANT_ADMIN)
+  public static final String SERIALIZED_NAME_TEMPORARY_PASSWORD = "temporaryPassword";
+  @SerializedName(SERIALIZED_NAME_TEMPORARY_PASSWORD)
   @jakarta.annotation.Nullable
-  private Boolean tenantAdmin;
+  private String temporaryPassword;
 
-  public static final String SERIALIZED_NAME_CAN_CREATE_USERS = "canCreateUsers";
-  @SerializedName(SERIALIZED_NAME_CAN_CREATE_USERS)
-  @jakarta.annotation.Nullable
-  private Boolean canCreateUsers = false;
-
-  public AccessDto() {
+  public CreatedTenantMemberDto() {
   }
 
-  public AccessDto mode(@jakarta.annotation.Nonnull String mode) {
-    this.mode = mode;
+  public CreatedTenantMemberDto member(@jakarta.annotation.Nonnull TenantMemberDto member) {
+    this.member = member;
     return this;
   }
 
   /**
-   * Get mode
-   * @return mode
+   * Get member
+   * @return member
    */
   @jakarta.annotation.Nonnull
-  public String getMode() {
-    return mode;
+  public TenantMemberDto getMember() {
+    return member;
   }
 
-  public void setMode(@jakarta.annotation.Nonnull String mode) {
-    this.mode = mode;
+  public void setMember(@jakarta.annotation.Nonnull TenantMemberDto member) {
+    this.member = member;
   }
 
 
-  public AccessDto role(@jakarta.annotation.Nonnull String role) {
-    this.role = role;
+  public CreatedTenantMemberDto temporaryPassword(@jakarta.annotation.Nullable String temporaryPassword) {
+    this.temporaryPassword = temporaryPassword;
     return this;
   }
 
   /**
-   * Get role
-   * @return role
-   */
-  @jakarta.annotation.Nonnull
-  public String getRole() {
-    return role;
-  }
-
-  public void setRole(@jakarta.annotation.Nonnull String role) {
-    this.role = role;
-  }
-
-
-  public AccessDto readOnly(@jakarta.annotation.Nonnull Boolean readOnly) {
-    this.readOnly = readOnly;
-    return this;
-  }
-
-  /**
-   * Get readOnly
-   * @return readOnly
-   */
-  @jakarta.annotation.Nonnull
-  public Boolean getReadOnly() {
-    return readOnly;
-  }
-
-  public void setReadOnly(@jakarta.annotation.Nonnull Boolean readOnly) {
-    this.readOnly = readOnly;
-  }
-
-
-  public AccessDto systemAdmin(@jakarta.annotation.Nonnull Boolean systemAdmin) {
-    this.systemAdmin = systemAdmin;
-    return this;
-  }
-
-  /**
-   * Get systemAdmin
-   * @return systemAdmin
-   */
-  @jakarta.annotation.Nonnull
-  public Boolean getSystemAdmin() {
-    return systemAdmin;
-  }
-
-  public void setSystemAdmin(@jakarta.annotation.Nonnull Boolean systemAdmin) {
-    this.systemAdmin = systemAdmin;
-  }
-
-
-  public AccessDto tenantAdmin(@jakarta.annotation.Nullable Boolean tenantAdmin) {
-    this.tenantAdmin = tenantAdmin;
-    return this;
-  }
-
-  /**
-   * Get tenantAdmin
-   * @return tenantAdmin
+   * Get temporaryPassword
+   * @return temporaryPassword
    */
   @jakarta.annotation.Nullable
-  public Boolean getTenantAdmin() {
-    return tenantAdmin;
+  public String getTemporaryPassword() {
+    return temporaryPassword;
   }
 
-  public void setTenantAdmin(@jakarta.annotation.Nullable Boolean tenantAdmin) {
-    this.tenantAdmin = tenantAdmin;
-  }
-
-
-  public AccessDto canCreateUsers(@jakarta.annotation.Nullable Boolean canCreateUsers) {
-    this.canCreateUsers = canCreateUsers;
-    return this;
-  }
-
-  /**
-   * Get canCreateUsers
-   * @return canCreateUsers
-   */
-  @jakarta.annotation.Nullable
-  public Boolean getCanCreateUsers() {
-    return canCreateUsers;
-  }
-
-  public void setCanCreateUsers(@jakarta.annotation.Nullable Boolean canCreateUsers) {
-    this.canCreateUsers = canCreateUsers;
+  public void setTemporaryPassword(@jakarta.annotation.Nullable String temporaryPassword) {
+    this.temporaryPassword = temporaryPassword;
   }
 
   /**
@@ -209,9 +114,9 @@ public class AccessDto {
    *
    * @param key name of the property
    * @param value value of the property
-   * @return the AccessDto instance itself
+   * @return the CreatedTenantMemberDto instance itself
    */
-  public AccessDto putAdditionalProperty(String key, Object value) {
+  public CreatedTenantMemberDto putAdditionalProperty(String key, Object value) {
     if (this.additionalProperties == null) {
         this.additionalProperties = new HashMap<String, Object>();
     }
@@ -250,31 +155,23 @@ public class AccessDto {
     if (o == null || getClass() != o.getClass()) {
       return false;
     }
-    AccessDto accessDto = (AccessDto) o;
-    return Objects.equals(this.mode, accessDto.mode) &&
-        Objects.equals(this.role, accessDto.role) &&
-        Objects.equals(this.readOnly, accessDto.readOnly) &&
-        Objects.equals(this.systemAdmin, accessDto.systemAdmin) &&
-        Objects.equals(this.tenantAdmin, accessDto.tenantAdmin) &&
-        Objects.equals(this.canCreateUsers, accessDto.canCreateUsers)&&
-        Objects.equals(this.additionalProperties, accessDto.additionalProperties);
+    CreatedTenantMemberDto createdTenantMemberDto = (CreatedTenantMemberDto) o;
+    return Objects.equals(this.member, createdTenantMemberDto.member) &&
+        Objects.equals(this.temporaryPassword, createdTenantMemberDto.temporaryPassword)&&
+        Objects.equals(this.additionalProperties, createdTenantMemberDto.additionalProperties);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(mode, role, readOnly, systemAdmin, tenantAdmin, canCreateUsers, additionalProperties);
+    return Objects.hash(member, temporaryPassword, additionalProperties);
   }
 
   @Override
   public String toString() {
     StringBuilder sb = new StringBuilder();
-    sb.append("class AccessDto {\n");
-    sb.append("    mode: ").append(toIndentedString(mode)).append("\n");
-    sb.append("    role: ").append(toIndentedString(role)).append("\n");
-    sb.append("    readOnly: ").append(toIndentedString(readOnly)).append("\n");
-    sb.append("    systemAdmin: ").append(toIndentedString(systemAdmin)).append("\n");
-    sb.append("    tenantAdmin: ").append(toIndentedString(tenantAdmin)).append("\n");
-    sb.append("    canCreateUsers: ").append(toIndentedString(canCreateUsers)).append("\n");
+    sb.append("class CreatedTenantMemberDto {\n");
+    sb.append("    member: ").append(toIndentedString(member)).append("\n");
+    sb.append("    temporaryPassword: ").append(toIndentedString(temporaryPassword)).append("\n");
     sb.append("    additionalProperties: ").append(toIndentedString(additionalProperties)).append("\n");
     sb.append("}");
     return sb.toString();
@@ -297,37 +194,36 @@ public class AccessDto {
 
   static {
     // a set of all properties/fields (JSON key names)
-    openapiFields = new HashSet<String>(Arrays.asList("mode", "role", "readOnly", "systemAdmin", "tenantAdmin", "canCreateUsers"));
+    openapiFields = new HashSet<String>(Arrays.asList("member", "temporaryPassword"));
 
     // a set of required properties/fields (JSON key names)
-    openapiRequiredFields = new HashSet<String>(Arrays.asList("mode", "role", "readOnly", "systemAdmin"));
+    openapiRequiredFields = new HashSet<String>(Arrays.asList("member", "temporaryPassword"));
   }
 
   /**
    * Validates the JSON Element and throws an exception if issues found
    *
    * @param jsonElement JSON Element
-   * @throws IOException if the JSON Element is invalid with respect to AccessDto
+   * @throws IOException if the JSON Element is invalid with respect to CreatedTenantMemberDto
    */
   public static void validateJsonElement(JsonElement jsonElement) throws IOException {
       if (jsonElement == null) {
-        if (!AccessDto.openapiRequiredFields.isEmpty()) { // has required fields but JSON element is null
-          throw new IllegalArgumentException(String.format("The required field(s) %s in AccessDto is not found in the empty JSON string", AccessDto.openapiRequiredFields.toString()));
+        if (!CreatedTenantMemberDto.openapiRequiredFields.isEmpty()) { // has required fields but JSON element is null
+          throw new IllegalArgumentException(String.format("The required field(s) %s in CreatedTenantMemberDto is not found in the empty JSON string", CreatedTenantMemberDto.openapiRequiredFields.toString()));
         }
       }
 
       // check to make sure all required properties/fields are present in the JSON string
-      for (String requiredField : AccessDto.openapiRequiredFields) {
+      for (String requiredField : CreatedTenantMemberDto.openapiRequiredFields) {
         if (jsonElement.getAsJsonObject().get(requiredField) == null) {
           throw new IllegalArgumentException(String.format("The required field `%s` is not found in the JSON string: %s", requiredField, jsonElement.toString()));
         }
       }
         JsonObject jsonObj = jsonElement.getAsJsonObject();
-      if (!jsonObj.get("mode").isJsonPrimitive()) {
-        throw new IllegalArgumentException(String.format("Expected the field `mode` to be a primitive type in the JSON string but got `%s`", jsonObj.get("mode").toString()));
-      }
-      if (!jsonObj.get("role").isJsonPrimitive()) {
-        throw new IllegalArgumentException(String.format("Expected the field `role` to be a primitive type in the JSON string but got `%s`", jsonObj.get("role").toString()));
+      // validate the required field `member`
+      TenantMemberDto.validateJsonElement(jsonObj.get("member"));
+      if ((jsonObj.get("temporaryPassword") != null && !jsonObj.get("temporaryPassword").isJsonNull()) && !jsonObj.get("temporaryPassword").isJsonPrimitive()) {
+        throw new IllegalArgumentException(String.format("Expected the field `temporaryPassword` to be a primitive type in the JSON string but got `%s`", jsonObj.get("temporaryPassword").toString()));
       }
   }
 
@@ -335,16 +231,16 @@ public class AccessDto {
     @SuppressWarnings("unchecked")
     @Override
     public <T> TypeAdapter<T> create(Gson gson, TypeToken<T> type) {
-       if (!AccessDto.class.isAssignableFrom(type.getRawType())) {
-         return null; // this class only serializes 'AccessDto' and its subtypes
+       if (!CreatedTenantMemberDto.class.isAssignableFrom(type.getRawType())) {
+         return null; // this class only serializes 'CreatedTenantMemberDto' and its subtypes
        }
        final TypeAdapter<JsonElement> elementAdapter = gson.getAdapter(JsonElement.class);
-       final TypeAdapter<AccessDto> thisAdapter
-                        = gson.getDelegateAdapter(this, TypeToken.get(AccessDto.class));
+       final TypeAdapter<CreatedTenantMemberDto> thisAdapter
+                        = gson.getDelegateAdapter(this, TypeToken.get(CreatedTenantMemberDto.class));
 
-       return (TypeAdapter<T>) new TypeAdapter<AccessDto>() {
+       return (TypeAdapter<T>) new TypeAdapter<CreatedTenantMemberDto>() {
            @Override
-           public void write(JsonWriter out, AccessDto value) throws IOException {
+           public void write(JsonWriter out, CreatedTenantMemberDto value) throws IOException {
              JsonObject obj = thisAdapter.toJsonTree(value).getAsJsonObject();
              obj.remove("additionalProperties");
              // serialize additional properties
@@ -372,12 +268,12 @@ public class AccessDto {
            }
 
            @Override
-           public AccessDto read(JsonReader in) throws IOException {
+           public CreatedTenantMemberDto read(JsonReader in) throws IOException {
              JsonElement jsonElement = elementAdapter.read(in);
              validateJsonElement(jsonElement);
              JsonObject jsonObj = jsonElement.getAsJsonObject();
              // store additional fields in the deserialized instance
-             AccessDto instance = thisAdapter.fromJsonTree(jsonObj);
+             CreatedTenantMemberDto instance = thisAdapter.fromJsonTree(jsonObj);
              for (Map.Entry<String, JsonElement> entry : jsonObj.entrySet()) {
                if (!openapiFields.contains(entry.getKey())) {
                  if (entry.getValue().isJsonPrimitive()) { // primitive type
@@ -404,18 +300,18 @@ public class AccessDto {
   }
 
   /**
-   * Create an instance of AccessDto given an JSON string
+   * Create an instance of CreatedTenantMemberDto given an JSON string
    *
    * @param jsonString JSON string
-   * @return An instance of AccessDto
-   * @throws IOException if the JSON string is invalid with respect to AccessDto
+   * @return An instance of CreatedTenantMemberDto
+   * @throws IOException if the JSON string is invalid with respect to CreatedTenantMemberDto
    */
-  public static AccessDto fromJson(String jsonString) throws IOException {
-    return JSON.getGson().fromJson(jsonString, AccessDto.class);
+  public static CreatedTenantMemberDto fromJson(String jsonString) throws IOException {
+    return JSON.getGson().fromJson(jsonString, CreatedTenantMemberDto.class);
   }
 
   /**
-   * Convert an instance of AccessDto to an JSON string
+   * Convert an instance of CreatedTenantMemberDto to an JSON string
    *
    * @return JSON string
    */
