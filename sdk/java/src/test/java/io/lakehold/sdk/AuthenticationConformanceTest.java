@@ -18,6 +18,9 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 
@@ -61,6 +64,7 @@ final class AuthenticationConformanceTest {
             ApiClient client = LakeholdRuntime.configure(
                 new ApiClient().setBasePath("http://127.0.0.1:" + server.getAddress().getPort()),
                 Duration.ofSeconds(5));
+            assertEquals(5_000, client.getHttpClient().callTimeoutMillis());
             client.setBearerToken("test-token");
 
             AccessDto access = new LakehouseApi(client).getApiV1Access().execute();
@@ -163,6 +167,51 @@ final class AuthenticationConformanceTest {
                 () -> false));
 
         assertTrue(Duration.ofNanos(System.nanoTime() - started).compareTo(Duration.ofSeconds(1)) < 0);
+    }
+
+    @Test
+    void operationTimeoutBoundsASlowLoader() {
+        long started = System.nanoTime();
+
+        assertThrows(LakeholdRuntime.OperationTimeoutException.class, () ->
+            LakeholdRuntime.waitForOperation(
+                () -> {
+                    try {
+                        Thread.sleep(5_000);
+                    } catch (InterruptedException exception) {
+                        Thread.currentThread().interrupt();
+                    }
+                    return new LakeholdRuntime.OperationSnapshot<>("running", null, null);
+                },
+                Duration.ofMillis(25),
+                Duration.ofMillis(1),
+                () -> false));
+
+        assertTrue(Duration.ofNanos(System.nanoTime() - started).compareTo(Duration.ofSeconds(1)) < 0);
+    }
+
+    @Test
+    void operationCancellationInterruptsASlowLoader() throws Exception {
+        AtomicBoolean cancelled = new AtomicBoolean();
+        CountDownLatch interrupted = new CountDownLatch(1);
+
+        assertThrows(CancellationException.class, () ->
+            LakeholdRuntime.waitForOperation(
+                () -> {
+                    cancelled.set(true);
+                    try {
+                        Thread.sleep(5_000);
+                    } catch (InterruptedException exception) {
+                        interrupted.countDown();
+                        Thread.currentThread().interrupt();
+                    }
+                    return new LakeholdRuntime.OperationSnapshot<>("running", null, null);
+                },
+                Duration.ofSeconds(1),
+                Duration.ofMillis(1),
+                cancelled::get));
+
+        assertTrue(interrupted.await(1, TimeUnit.SECONDS));
     }
 
     @Test

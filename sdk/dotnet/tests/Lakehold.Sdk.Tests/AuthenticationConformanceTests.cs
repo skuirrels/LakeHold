@@ -253,7 +253,7 @@ public sealed class AuthenticationConformanceTests
 
         await foreach (var item in LakeholdRuntime.StreamQueryAsync(
                            client,
-                           new Uri("https://lakehold.test/"),
+                           new Uri("https://lakehold.test/gateway%20one"),
                            "test-token",
                            "tenant one",
                            "catalog/one",
@@ -265,7 +265,7 @@ public sealed class AuthenticationConformanceTests
         Assert.Equal(["schema", "row", "row", "complete"], events.Select(item => item.Type));
         Assert.Equal(HttpMethod.Post, handler.RequestMethod);
         Assert.Equal(
-            "https://lakehold.test/api/v1/tenants/tenant%20one/catalogs/catalog%2Fone/query:stream",
+            "https://lakehold.test/gateway%20one/api/v1/tenants/tenant%20one/catalogs/catalog%2Fone/query:stream",
             handler.RequestUri?.AbsoluteUri);
         Assert.Equal("Bearer test-token", handler.Authorization);
         Assert.Equal("application/x-ndjson", handler.Accept);

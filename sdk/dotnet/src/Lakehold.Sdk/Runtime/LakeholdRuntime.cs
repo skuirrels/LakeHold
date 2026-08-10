@@ -335,10 +335,31 @@ public static class LakeholdRuntime
         HttpContent? content = null)
     {
         ArgumentNullException.ThrowIfNull(baseUri);
-        var request = new HttpRequestMessage(method, new Uri(baseUri, relativePath)) { Content = content };
+        var request = new HttpRequestMessage(method, ResolveEndpoint(baseUri, relativePath)) { Content = content };
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", Required(bearerToken, nameof(bearerToken)));
         request.Headers.Accept.ParseAdd("application/x-ndjson");
         return request;
+    }
+
+    private static Uri ResolveEndpoint(Uri baseUri, string relativePath)
+    {
+        if (!baseUri.IsAbsoluteUri
+            || (!string.Equals(baseUri.Scheme, Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase)
+                && !string.Equals(baseUri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase)))
+        {
+            throw new ArgumentException("The base URI must be an absolute HTTP(S) URI.", nameof(baseUri));
+        }
+
+        var normalized = new UriBuilder(baseUri)
+        {
+            Query = string.Empty,
+            Fragment = string.Empty,
+        };
+        if (!normalized.Path.EndsWith('/'))
+        {
+            normalized.Path += '/';
+        }
+        return new Uri(normalized.Uri, relativePath);
     }
 
     private static string Segment(string value) => Uri.EscapeDataString(Required(value, nameof(value)));
