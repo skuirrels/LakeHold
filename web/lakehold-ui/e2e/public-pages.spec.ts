@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test';
 const pages = [
   {
     path: '/',
-    heading: 'LakeHold: an Enterprise LakeHouse, you host yourself',
+    heading: 'LakeHold: an Open Source Enterprise LakeHouse, you host yourself',
     title: /LakeHold/,
   },
   {
@@ -81,7 +81,7 @@ test.describe('@website public product pages', () => {
     await expect(page).toHaveURL(/\/$/);
     await expect(
       page.getByRole('heading', {
-        name: 'LakeHold: an Enterprise LakeHouse, you host yourself',
+        name: 'LakeHold: an Open Source Enterprise LakeHouse, you host yourself',
       }),
     ).toBeVisible();
   });

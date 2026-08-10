@@ -45,7 +45,7 @@ describe('LandingComponent', () => {
 
     const heading = fixture.nativeElement.querySelector('.hero h1') as HTMLHeadingElement;
     expect(heading.textContent?.trim()).toBe(
-      'LakeHold: an Enterprise LakeHouse, you host yourself',
+      'LakeHold: an Open Source Enterprise LakeHouse, you host yourself',
     );
   });
 
