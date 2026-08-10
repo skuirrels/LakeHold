@@ -19,10 +19,11 @@ namespace Lakehold.Engine.Execution;
 /// </summary>
 /// <remarks>
 ///     <para>
-///         A Duckling is the unit of isolation. Tenants never share one, so a runaway query consumes
-///         only its own memory limit and thread budget, and a tenant can only reference the catalogs
-///         attached to its own session. Isolation is enforced by what is attached, not by filtering
-///         the SQL a tenant submits.
+///         A Duckling is the unit of session reuse and selected-catalog attachment. The pool keeps
+///         tenant, catalog, configuration, and attachment-mode identities distinct, and applies a
+///         per-session memory limit and thread budget. This is not complete containment for arbitrary
+///         SQL: external readers, attachments, files, URLs, secrets, and process-visible resources
+///         require a separate worker/filesystem/network boundary.
 ///     </para>
 ///     <para>
 ///         DuckDB is single-writer per instance and <see cref="DbContext"/> is not thread-safe, so
@@ -252,7 +253,8 @@ public sealed class Duckling : IAsyncDisposable
     ///     <c>json_serialize_sql</c> serialises SELECT-shaped statements, including VALUES and
     ///     SELECT-bearing CTEs, and returns an error document for DDL or DML. The SQL text is a
     ///     parameter to that fixed parser query; it is never concatenated or executed. This is
-    ///     authoring validation only—the read-only attachment remains the security boundary.
+    ///     authoring validation only. The selected-catalog attachment constrains catalog writes but
+    ///     is not the process/filesystem/network security boundary for arbitrary SQL.
     /// </remarks>
     public Task<bool> IsReadQueryAsync(string sql, CancellationToken cancellationToken)
     {

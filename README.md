@@ -57,11 +57,15 @@ a quote. The website also gives the fuller “choose LakeHold when / choose them
 alternative. Every LakeHold claim in the matrix is mapped to executable evidence in the browser,
 backend, integration, or deployment test suites.
 
-Catalog isolation is structural — a session can only reference the catalog attached to it — and the
-layer deciding *which* tenant a caller is now exists too: the credential names the tenant and the URL
-segment is validated against it. Every surface requires a credential, including a bare `dotnet run`;
-there is no switch that turns that off. The caveat that remains is granularity: authorization stops
-at a role and optionally one catalog, with no row or column policies.
+Tenant routing and normal catalog access are structural: a credential or the explicitly configured
+demo-reader identity names the tenant, the URL segment is validated against it, and storage plus warm
+sessions are tenant-qualified. Authentication cannot be switched off; credential-less HTTP access is
+limited to that named demo tenant/catalog and MCP never accepts it. This prevents route-level
+cross-tenant selection and same-name catalog collisions, but it is **not** yet a
+sandbox for arbitrary DuckDB SQL: direct file readers, new attachments, external URLs, secrets, and
+extensions still require the worker/process containment tracked in
+[`docs/PRODUCTION-READINESS-ROADMAP.md`](docs/PRODUCTION-READINESS-ROADMAP.md#phase-3--contain-arbitrary-sql).
+Authorization also stops at a role and optionally one catalog, with no row or column policies.
 
 The trade is deliberate: **elasticity and zero-ops for control, openness, and .NET integration.**
 Full analysis, including where MotherDuck is the better choice, in
@@ -321,10 +325,12 @@ LINQ planner uses the provider's non-executing command-plan and exact named-repl
 validates and executes the returned read plan. See
 [`docs/LINQ_WORKBENCH.md`](docs/LINQ_WORKBENCH.md).
 
-A **Duckling** is one tenant's compute session: an in-memory DuckDB instance with that tenant's
-DuckLake catalog attached, under a memory limit and thread budget. Isolation is structural — a
-tenant can only reference the catalog attached to its own session, so cross-tenant access is
-prevented by attachment scope rather than by inspecting submitted SQL.
+A **Duckling** is one tenant's current compute session: an in-memory DuckDB instance with the
+credential-selected DuckLake catalog attached, under a memory limit and thread budget. Tenant-
+qualified storage and session identity keep same-named catalogs distinct, and a read-only attachment
+protects that catalog from writes. The session is not a complete arbitrary-SQL security boundary;
+shared untrusted tenancy still requires a tenant-specific worker with tenant-only mounts, credentials,
+egress, and resource limits. SQL inspection is deliberately not used as a substitute.
 
 Both planes run on the same provider, split by whether they have a model rather than by
 dependency. The data plane is a model-less `DbContext` serving arbitrary SQL through the provider's
@@ -530,10 +536,10 @@ To get signed in for the first time, or to put Keycloak (or any OIDC provider) b
 follow [`docs/IDENTITY-PROVIDER-SETUP.md`](docs/IDENTITY-PROVIDER-SETUP.md) — it is the step-by-step
 version of this section, including the claim mappers an external provider has to emit.
 
-**A credential is required on every surface**, in every configuration, including a fresh checkout.
-The switch that used to make this optional has been removed rather than re-defaulted: because it
-defaulted to off, the authorization layer was inert in the one configuration developers actually
-ran.
+**Authentication cannot be switched off**, including in a fresh checkout. The switch that used to
+make this optional has been removed rather than re-defaulted: because it defaulted to off, the
+authorization layer was inert in the one configuration developers actually ran. The only
+credential-less HTTP path is the explicitly configured demo reader below.
 
 The separate `compose.demo.yaml` overlay configures `Lakehold:Auth:DemoTenant` and
 `Lakehold:Auth:DemoCatalog`. A credential-less request then receives a synthetic reader principal
@@ -580,9 +586,10 @@ Worth knowing:
 - **A token defaults to `reader`**, as does one naming an unrecognised role, so a typo costs read
   access rather than granting everything. Pass `owner` or `editor` deliberately. Tokens issued before
   roles existed remain owners — the column's default preserves what they already were.
-- **Capability is attachment, not policy.** A `reader` token's catalog is attached read-only, so a
-  write fails in the engine rather than in a check that clever SQL might route around — the same
-  reasoning as the isolation model.
+- **Catalog-write capability is attachment, not a verb check.** A `reader` token's selected catalog
+  is attached read-only, so a write through that catalog handle fails in the engine rather than in a
+  check that clever SQL might route around. This does not sandbox arbitrary file, network, secret, or
+  attachment operations; the production-readiness roadmap tracks that separate boundary.
 - **A refusal is a 404, not a 403.** Reaching a tenant or catalog your credential does not name
   returns "not found", because a 403 would confirm it exists.
 - **Maintenance, restore, and eject are owner operations**; querying is a reader's.
@@ -824,14 +831,15 @@ the [`Enterprise Data Platform overview`](docs/ENTERPRISE-DATA-PLATFORM.md) and 
 [`/enterprise-data-platform`](https://lakehold.dev/enterprise-data-platform).
 
 Also shipped: **authentication and tenant identity** — API tokens with tenant and catalog scoping,
-instance-scoped provisioning and bootstrap, read-only capability enforced by attachment, per-statement
+instance-scoped provisioning and bootstrap, read-only selected-catalog attachments, per-statement
 audit, the PostgreSQL wire endpoint on the same token store (so revocation closes both surfaces),
 OIDC, owner/editor/reader roles, and an authenticated **MCP server for AI agents** with read tools,
 resources, OAuth protected-resource metadata, and operator-gated writes. Development enables MCP by
 default, and the instance credential can change its live controls under **System Settings** without
 restarting the API. See
-[`docs/AUTHENTICATION.md`](docs/AUTHENTICATION.md) and [`docs/MCP.md`](docs/MCP.md); every surface
-requires a credential, and MCP refuses one that is missing without consulting demo access at all.
+[`docs/AUTHENTICATION.md`](docs/AUTHENTICATION.md) and [`docs/MCP.md`](docs/MCP.md); HTTP may use only
+the explicitly configured demo reader without a presented credential, and MCP refuses a missing
+credential without consulting demo access at all.
 
 Also implemented in source: a canonical `/api/v1` control surface, production OpenAPI, common
 errors/pagination/idempotency/durable-operation conventions, and generated Java, Go, .NET, and

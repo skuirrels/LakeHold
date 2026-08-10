@@ -9,10 +9,7 @@ import {
 } from '@angular/core';
 import { CatalogPlacementComponent } from './catalog-placement.component';
 import { CatalogPlacementValue } from './models';
-import {
-  WORKSPACE_SLUG_PATTERN,
-  normalizeWorkspaceIdentity,
-} from './workspace-provisioning';
+import { WORKSPACE_SLUG_PATTERN, normalizeWorkspaceIdentity } from './workspace-provisioning';
 
 /** What is standing between this browser and a usable workbench. */
 export type FirstRunMode = 'none' | 'unauthorized' | 'setup';
@@ -121,8 +118,8 @@ export interface WorkspaceRequest {
         } @else {
           <h1>No workspaces yet</h1>
           <p>
-            This node is running and empty. A workspace is a tenant, and a catalog is the isolated
-            unit of data attached to your session — create the first of each to start querying.
+            This node is running and empty. A workspace is a tenant, and a catalog is its
+            tenant-qualified unit of data — create the first of each to start querying.
           </p>
 
           <label class="field">

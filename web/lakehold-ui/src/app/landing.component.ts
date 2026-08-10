@@ -473,9 +473,9 @@ export class LandingComponent {
     {
       tag: 'Security',
       title: 'Authentication and tenant identity',
-      body: 'Every surface requires a credential; there is no mode in which one does not. API tokens are scoped to a tenant and optionally a single catalog, carrying an owner, editor, or reader role, and people sign in through your identity provider. LakeHold federates authentication and owns authorization: what a signed-in person reaches comes from a membership record you administer in the product, so a provider re-asserting a stale role cannot undo a decision made here. The credential names the tenant and the URL segment is validated against it rather than trusted. A reader’s catalog is attached read-only, so a write fails in the engine rather than in a check that clever SQL might route around — and revoking a token closes the HTTP API and the PostgreSQL wire endpoint together, because both resolve against the same store.',
+      body: 'Authentication cannot be switched off. API tokens are scoped to a tenant and optionally a single catalog, carrying an owner, editor, or reader role, and people sign in through your identity provider. The sole credential-less HTTP path is an explicitly configured reader for one demo catalog; MCP never accepts it. LakeHold federates authentication and owns authorization: what a signed-in person reaches comes from a membership record you administer in the product, so a provider re-asserting a stale role cannot undo a decision made here. The credential or demo identity names the tenant and the URL segment is validated against it rather than trusted. A reader’s selected catalog is attached read-only, and revoking a token closes the HTTP API and PostgreSQL wire endpoint together because both resolve against the same store.',
       caveat:
-        'Authorization stops at the catalog: a role, and optionally one catalog. There are no row or column policies, so anyone who can read a table reads all of it. Leaving Lakehold:Oidc:Audience empty disables audience validation and accepts every token that issuer minted — LakeHold warns at start-up, and you should treat it as an error.',
+        'Authorization stops at the catalog: a role, and optionally one catalog. There are no row or column policies, so anyone who can read a table reads all of it. A read-only selected-catalog attachment does not contain arbitrary SQL from process-visible files, URLs, secrets, or new attachments. Leaving Lakehold:Oidc:Audience empty disables audience validation and accepts every token that issuer minted — LakeHold warns at start-up, and you should treat it as an error.',
     },
     {
       tag: 'Portability',
@@ -551,7 +551,7 @@ export class LandingComponent {
     {
       tag: 'Interop',
       title: 'An Iceberg REST endpoint, so other engines read you live',
-      body: 'Eject proves the data is portable, but it is a batch artifact. Serving the Iceberg REST Catalog protocol would let Spark, Trino, Snowflake, or DuckDB attach to a LakeHold catalog directly and read it live, with no export step and the same per-tenant boundary the query path already enforces.',
+      body: 'Eject proves the data is portable, but it is a batch artifact. Serving the Iceberg REST Catalog protocol would let Spark, Trino, Snowflake, or DuckDB attach to a LakeHold catalog directly and read it live, with no export step and the same credential-bound tenant/catalog routing as the query path. That would still require its own containment and authorization review.',
       caveat:
         'DuckLake’s Iceberg support is a copy between formats, not this — the translation is ours to write, and whether merge-on-read delete sidecars map cleanly onto Iceberg deletes is unverified. That test comes before the promise.',
     },

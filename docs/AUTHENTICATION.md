@@ -37,12 +37,15 @@ to trusting whatever the URL claims.
 
 Two invariants govern how far this goes:
 
-- **Invariant 4 stays intact.** Isolation remains structural — a session can only reference the
-  catalog attached to it. Authentication decides *which* catalog gets attached. It never becomes a
-  filter over submitted SQL, because SQL parsing as a security boundary is a losing game.
-- **Capability is expressed as attachment where it can be.** A credential that must not write should
-  produce a session whose catalog is attached read-only (invariant 9), not a permission check that
-  clever SQL might route around. This is the single most important design idea in this document.
+- **Authentication chooses a tenant-qualified catalog; it does not sandbox SQL.** The principal and
+  route decide which catalog LakeHold attaches, and tenant-qualified session/storage identity keeps
+  same-named catalogs distinct. Direct DuckDB SQL can still name process-visible files, URLs, secrets,
+  extensions, and new attachments until the worker boundary in the production-readiness roadmap
+  lands. SQL parsing is deliberately not substituted for that boundary.
+- **Catalog-write capability is expressed as attachment where it can be.** A credential that must not
+  write should produce a session whose selected catalog is attached read-only (invariant 20), not a
+  permission check that clever SQL might route around. This protects writes through that catalog
+  handle; it is not a general filesystem or network sandbox.
 
 ## What we are defending against
 
@@ -50,15 +53,17 @@ Stated plainly, because a control that does not name its threat tends to be the 
 
 | Threat | Today | After |
 |---|---|---|
-| Anyone with network reach reads every tenant's data | Trivial | Requires a credential |
-| A credential for tenant A reads tenant B | Trivial over HTTP | Refused; the credential names the tenant |
+| Anyone with network reach reads every tenant's data | Trivial | Requires a credential; the only exception is one explicitly configured demo catalog |
+| A credential for tenant A selects tenant B through an API/wire route | Trivial over HTTP | Refused; the credential names the tenant |
 | A credential shared for one catalog reads another in the same tenant | No tokens exist | Refused when the token is catalog-scoped |
 | A read-only consumer writes to the lake | Nothing prevents it | Catalog attached read-only |
 | A leaked credential cannot be withdrawn | No credentials exist | Revoked centrally, affects HTTP and the wire endpoint together |
 | An audit trail says what ran but not who | `QueryRun` has no principal | Principal recorded per statement |
 
-Explicitly **not** in scope: protecting a tenant from its own users (that is roles, phase 4), and
-protecting rows within a catalog (row/column security, which stays on the far roadmap).
+Explicitly **not** in scope: protecting a tenant from its own users (that is roles, phase 4),
+protecting rows within a catalog (row/column security, which stays on the far roadmap), and
+containing arbitrary SQL at the process/filesystem/network boundary (the release blocker in
+[`PRODUCTION-READINESS-ROADMAP.md`](PRODUCTION-READINESS-ROADMAP.md#phase-3--contain-arbitrary-sql)).
 
 ## Why tokens before SSO
 
@@ -99,8 +104,9 @@ part is that tokens carry **capability**: a default read/write token, or a **rea
 that cannot write and fans out across read replicas. Organisations group users for administration,
 sharing, and billing.
 
-Taken: capability belongs on the credential, and it is enforced by how the session is provisioned
-rather than by a check on each statement. That maps directly onto read-only attachment.
+Taken: selected-catalog write capability belongs on the credential, and it is enforced by how the
+session is provisioned rather than only by a check on each statement. That maps directly onto a
+read-only selected-catalog attachment; arbitrary-SQL containment remains a separate boundary.
 
 ---
 
@@ -158,9 +164,10 @@ public sealed class ApiToken
 }
 ```
 
-Adding an entity needs no migration: the control plane creates missing tables additively at start-up,
-and `AdditiveSchemaTests` covers exactly this case. Add a test there for the new table rather than
-assuming it.
+Adding or changing a production control-plane entity requires an ordinary EF Core migration and
+upgrade coverage. Production applies ordered migrations under a PostgreSQL advisory lock;
+`EnsureCreated` is confined to tests, and the additive compatibility adapter exists only for legacy
+DuckDB control-plane import.
 
 ### Token subject: tenant, optionally narrowed to a catalog
 
@@ -169,17 +176,19 @@ optionally which catalog — is a separate axis, and the two must not collapse i
 `TokenScope.Catalog` would force the question "does a catalog token also imply a tenant?" and tangle
 the two; a `CatalogName` on the row keeps them orthogonal.
 
-The isolation boundary is the catalog, not the tenant: a `Duckling` attaches one catalog, and a tenant
-is only the ownership grouping around its `Catalogs`. So the two subjects worth expressing are **the
-whole tenant** — the workbench, internal apps, an admin doing tenant-wide work — and **exactly one
-catalog, usually read-only** — a partner, a BI dashboard, anything given least privilege.
+The credential subject boundary may be one catalog or the whole tenant: a `Duckling` selects one
+catalog, while a tenant is the ownership grouping around its `Catalogs`. So the two subjects worth
+expressing are **the whole tenant** — the workbench, internal apps, an admin doing tenant-wide work —
+and **exactly one catalog, usually read-only** — a partner, a BI dashboard, anything given least privilege.
 `CatalogName is null` is the first; a value is the second. Neither pure form suffices on its own:
 tenant-only hands a multi-catalog tenant's every catalog to a consumer that needed one, and
 catalog-only cannot express the admin and workbench paths that legitimately span the tenant.
 
-Enforcement is by attachment, as everywhere else: a catalog-scoped token can only produce a session
-that attaches its one catalog, so this composes with read-only (phase 2) rather than competing with
-it. Two consequences fall out cleanly:
+Route/catalog selection and selected-catalog write capability are enforced through the credential
+and attachment: a catalog-scoped token produces a session whose selected attachment is that catalog,
+so this composes with read-only (phase 2) rather than competing with it. This does not sandbox
+arbitrary SQL from external readers, new attachments, files, URLs, secrets, or network access; that
+separate containment gate remains open. Two token-model consequences still fall out cleanly:
 
 - **Cross-catalog shares still work.** A catalog-scoped token attaching `X` still reads whatever
   read-only shares `X` is configured to attach (invariant 9). The share is a property of the catalog,
@@ -334,7 +343,7 @@ DELETE /api/tenants/{tenant}/tokens/{id}   → revokes
 
 ---
 
-## Phase 2 — Read-only capability by attachment
+## Phase 2 — Read-only selected-catalog capability by attachment
 
 Small, and the highest ratio of safety to effort in this document.
 
@@ -342,10 +351,9 @@ Small, and the highest ratio of safety to effort in this document.
 attached read-only and DuckDB refuses writes. Not a policy check — the engine is simply not holding a
 writable handle.
 
-The one thing to get right: `DucklingPool` keys sessions **by catalog name**, so a read-only session
-and a read-write session for the same catalog would collide and whichever started first would win.
-The pool key has to include the attachment mode. Without that, this phase is worse than not doing it,
-because a read-only token would silently get a writable session.
+The collision risk this phase identified is closed: `DucklingPool` now keys sessions by tenant,
+catalog id and name, configuration version, and attachment mode. Read-only and read-write callers do
+not share a session, and same-named catalogs in different tenants cannot share one either.
 
 ### Acceptance
 
@@ -489,8 +497,8 @@ discovered never. Confirm what was issued with `GET /api/tenants/{tenant}/tokens
 role and never the secret.
 
 Note that this is deliberately *not* the same as the enum's zero value. `Owner` stays zero because
-the additive schema upgrade writes zero into the column for tokens issued before roles existed, and
-those were owners in every respect but name. The two defaults answer different questions: what a new
+the migration introducing the column writes zero for tokens issued before roles existed, and those
+were owners in every respect but name. The two defaults answer different questions: what a new
 credential should be, and what an old one already was.
 
 ```
@@ -702,14 +710,15 @@ add anything. Everything after is depth.
 - **Step 4** — machine and break-glass tokens remain in `sessionStorage` and are attached only to
   `/api`. Interactive humans use `/auth/login`; the server performs code + PKCE and returns an
   HttpOnly cookie. The Workbench never receives the provider token.
-- **Step 5** — a read-only principal produces a read-only attachment: `LakehouseService` narrows the
-  descriptor and `DucklingPool` now keys sessions by catalog **and attachment mode**, so a read-only
-  and a read-write session for one catalog cannot collide. `EvictAsync` drops both modes.
+- **Step 5** — a read-only principal produces a read-only selected-catalog attachment:
+  `LakehouseService` narrows the descriptor and `DucklingPool` keys sessions by tenant, catalog id
+  and name, configuration version, and attachment mode, so same-named tenants and read-only/read-write
+  callers cannot collide. `EvictAsync` uses the same tenant/catalog identity.
 - **Step 6** — mutually exclusive `QueryRun.TokenId` / `MemberId`, plus `ActorKind` and `Origin`,
   threaded through Workbench, REST, PgWire, MCP, import, connectors, and saved-query execution and
   surfaced in the history API and panel. Identity columns have no foreign key, so deletion or
-  revocation does not remove audit history; PostgreSQL migrations and DuckDB compatibility defaults
-  apply the additive fields to existing databases.
+  revocation does not remove audit history; PostgreSQL migrations and legacy DuckDB compatibility
+  defaults apply the fields to existing databases.
 - **Step 7** — `Lakehold:PgWire:AllowTokenAuthentication` accepts an API token as the password,
   verified against the same store, so **revoking a credential closes the BI tool and the API
   together**. It uses the cleartext exchange by necessity (a hashed store cannot answer MD5's

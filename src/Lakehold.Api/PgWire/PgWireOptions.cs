@@ -82,9 +82,9 @@ public sealed class PgWireOptions
     /// <remarks>
     ///     <see cref="Password"/> authenticates the connection but not the tenant it named: any
     ///     holder of it can present themselves as any tenant, so on a multi-tenant node one
-    ///     credential is every credential. These bind a secret to a single tenant, which is what
-    ///     makes the isolation boundary meaningful from outside the process rather than only inside
-    ///     it. Values are secrets and belong in <c>.env</c> as
+    ///     credential is every credential. These bind a secret to a single tenant, which makes the
+    ///     tenant-authentication boundary meaningful to a network client. This does not contain
+    ///     arbitrary SQL inside the shared process. Values are secrets and belong in <c>.env</c> as
     ///     <c>Lakehold__PgWire__TenantPasswords__demo</c>.
     /// </remarks>
     public Dictionary<string, string> TenantPasswords { get; } = new(StringComparer.OrdinalIgnoreCase);

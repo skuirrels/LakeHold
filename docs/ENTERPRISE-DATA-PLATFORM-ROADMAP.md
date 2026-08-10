@@ -3,7 +3,7 @@
 This is the delivery and status record for positioning LakeHold as a focused Enterprise Data
 Platform (EDP), not merely a SQL endpoint over open storage.
 
-**Status date:** 3 August 2026
+**Status date:** 10 August 2026
 
 **Status vocabulary:**
 
@@ -24,9 +24,9 @@ Platform (EDP), not merely a SQL endpoint over open storage.
 | P1.1 Managed ingestion foundation   | **Shipped**               | v1.3.0 includes REST JSON-array/NDJSON and gRPC full snapshots, durable definitions/runs, schedules, fencing, target ownership, quality, egress, scratch controls, telemetry, API outcomes, and production-path tests | Post-release migration and real connector-refresh deployment evidence                                                                                 |
 | P1.2 Connector platform             | **Shipped**               | v1.3.0 includes the versioned adapter SDK/manifest, commit-fenced checkpoints, replay-safe keyed upsert, retry/dead-letter lifecycle, mappings, schema policy, external secrets, approved auth, PostgreSQL, and HubSpot | Deployment evidence and a broader production-certified adapter catalogue                                                                              |
 | P1.3 Catalog and governance         | **Partial**               | Owners, descriptions, tags, quality policy, audit, and connector run lineage exist on initial surfaces                                                                                                | Stable identity for every asset, search, classification, freshness, policy administration, end-to-end lineage graph, and row/column-level security    |
-| P1.4 Public API and client SDKs     | **Partial**               | v1.4.0 public API images; canonical `/api/v1`, NDJSON query/CDC streams, snapshot detail/keysets, production OpenAPI, semantic compatibility gate, generated/tested Java, Go, .NET, and Python clients, released-image authentication/query/isolation/cancellation conformance, documentation, examples, matrices, and a successful 0.1.0 non-publishing package/provenance dry run | Complete exhaustive public-error conformance; sign, publish, index, and clean-install all four public packages |
+| P1.4 Public API and client SDKs     | **Partial**               | v1.4.0 public API images; canonical `/api/v1`, NDJSON query/CDC streams, snapshot detail/keysets, production OpenAPI, semantic compatibility gate, generated/tested Java, Go, .NET, and Python clients, released-image authentication/query/tenant-routing/cancellation conformance, documentation, examples, matrices, and a successful 0.1.0 non-publishing package/provenance dry run | Complete exhaustive public-error conformance; sign, publish, index, and clean-install all four public packages |
 | P1.5 Semantic and consumption layer | **Partial**               | HTTP, Workbench, MCP, EF Core, PostgreSQL wire for psql/DBeaver/Npgsql, and saved-query publication                                                                                                   | Governed metrics/semantic models, Power BI fix, supported JDBC/ODBC, and open multi-engine catalog access                                            |
-| P1.6 Enterprise operations          | **Partial**               | Maintenance, leases, telemetry, backup/restore, verified eject, bounded connector resources, connector lifecycle operations, and safe errors                                                           | Connector UI, freshness/SLO dashboards, alerting, usage/cost reporting, and release runbooks                                                          |
+| P1.6 Enterprise operations          | **Partial**               | Maintenance, leases, telemetry, backup/restore, verified eject, bounded connector resources, Workbench connector administration/run history, connector lifecycle operations, and safe errors           | Freshness/SLO dashboards, alerting, usage/cost reporting, and release runbooks                                                                        |
 
 ## Shipped scope
 
@@ -133,13 +133,13 @@ The most-requested governance gap, and the only P1.3 item that does not fit the 
 stands. It is listed here rather than scheduled, because the design question below has to be settled
 before any of it can be estimated honestly.
 
-**The problem.** Invariants 4 and 20 say capability is expressed as *attachment*: a reader gets a
-read-only catalog handle, so a write fails in the engine rather than in a policy check that clever
-SQL might route around. Parsing, filtering, or rewriting submitted SQL is explicitly not the
-security boundary. But a row is not attachable, and DuckDB has no native row policies and no in-process user
-system to hang them on. So row-level security cannot be expressed the way every other capability in
-LakeHold is — which is precisely why it has stayed unbuilt, and why "add a predicate to the query"
-is the wrong first move.
+**The problem.** Invariants 4 and 20 express selected-catalog write capability as *attachment*: a
+reader gets a read-only catalog handle, so a write through that handle fails in the engine rather
+than only in a verb check. That does not make arbitrary SQL safe, and parsing, filtering, or rewriting
+submitted SQL is explicitly not a substitute for containment. A row is not attachable, DuckDB has
+no native row policies, and there is no in-process user system to hang them on. Row-level security
+therefore cannot be expressed through the existing catalog handle, which is why "add a predicate to
+the query" is the wrong first move.
 
 **Candidate approaches**, none yet chosen:
 
@@ -240,7 +240,7 @@ The detailed endpoint contract and staged migration remain in
 - [x] Run the shared language-neutral reliability fixture through all four source SDKs for typed
       problems, pagination, retries, idempotency, operation polling, transport-appropriate cancellation, request ids,
       timeouts, user agents, token redaction, and unknown additive fields.
-- [x] Run authenticated query-streaming, tenant-isolation, and streaming-cancellation conformance
+- [x] Run authenticated query-streaming, tenant/catalog-routing, and streaming-cancellation conformance
       through all four SDKs against an immutable released API image. **Evidence is dated, not
       standing:** `sdk-conformance.yml` runs on a weekly schedule and on manual dispatch against a
       pinned image tag, so this box records the most recent run rather than every commit. It is not
@@ -271,7 +271,7 @@ a published general-purpose SDK and must not be presented as one.
 
 ### P1.6 enterprise operations
 
-- [ ] Workbench connector administration and run-history experience.
+- [x] Workbench connector administration and run-history experience.
 - [x] Operator retry, pause, resume, dead-letter listing, and checkpoint inspection over the owner API.
 - [ ] Freshness and connector service-level objectives.
 - [ ] Alerts for repeated failures, stale data, lease contention, and capacity pressure.
@@ -294,9 +294,11 @@ Demonstrable independently of governance and consumption work:
 - **Store and process:** publication remains atomic on source, quality, schema, cancellation, and
   node failure; large reads remain bounded and observable.
 - **Secure:** credentials use an external secret provider, egress stays allowlisted and DNS-pinned,
-  tenant boundaries are structural, and no source credential or source row appears in logs or
-  durable errors. The first-start instance bootstrap token remains the documented one-time operator
-  log exception unless it is injected through `Lakehold__BootstrapToken`.
+  connector definitions, secrets, destinations, and target catalogs remain tenant-qualified, and no
+  source credential or source row appears in logs or durable errors. This connector gate does not
+  claim arbitrary-SQL containment; that separate shared-query boundary remains Phase 3 of the
+  production-readiness roadmap. The first-start instance bootstrap token remains the documented
+  one-time operator log exception unless it is injected through `Lakehold__BootstrapToken`.
 
 P1a is met in source and shipped in v1.3.0. It closes when post-release migration and a real
 connector refresh are proven in a deployed environment.
@@ -315,7 +317,7 @@ Each depends on work that is currently unstarted, and none may be claimed early:
 ## Next implementation
 
 The P1.4 server contract ships in v1.4.0 and its four source SDKs pass released-image authentication,
-query-streaming, tenant-isolation, and cancellation conformance. Continue in this order:
+query-streaming, tenant/catalog-routing, and cancellation conformance. Continue in this order:
 
 ### Future SDK registry publication
 

@@ -7,9 +7,9 @@ open as listed below.
 retries, retention, and multi-node dispatch, then use that hardened feed to maintain a
 transactionally consistent mirror in another DuckDB database.
 
-This plan does not supersede `PRODUCTION-READINESS-ROADMAP.md`. Its tenant-isolation,
-authentication, and arbitrary-SQL containment gates remain release blockers for an untrusted
-shared deployment.
+This plan does not supersede `PRODUCTION-READINESS-ROADMAP.md`. Its tenant-qualification proof,
+authentication hardening, and arbitrary-SQL containment gates still govern an untrusted shared
+deployment.
 
 ## Execution record
 

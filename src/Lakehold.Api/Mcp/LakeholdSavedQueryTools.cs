@@ -111,7 +111,9 @@ public sealed class LakeholdSavedQueryTools(
     }
 
     [McpServerTool(Name = "execute_saved_query", Title = "Execute saved query", ReadOnly = true, Destructive = false)]
-    [Description("Executes a saved definition through a structurally read-only catalog attachment.")]
+    [Description(
+        "Executes a saved definition with the selected catalog attached read-only. External-access "
+        + "containment is a separate deployment boundary.")]
     public async Task<McpSavedQueryResult> ExecuteAsync(
         string tenant,
         string catalog,

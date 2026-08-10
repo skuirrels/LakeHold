@@ -4,7 +4,7 @@ The plan for a public HTTP API to control **time travel** and the **whole lakeho
 schema, snapshots and rollback, maintenance, backup, eject, change feeds, provisioning, and schedules
 — as one versioned, authenticated, documented surface.
 
-**Status date:** 3 August 2026
+**Status reviewed:** 10 August 2026
 
 **Current boundary:** LakeHold v1.4.0 ships the canonical `/api/v1` server contract, retains `/api`
 as a sunset-advertised compatibility alias, and publishes OpenAPI in production. Java, Go, .NET,
@@ -26,12 +26,11 @@ provisioning endpoints, the principal model, roles, and audit. Versioning, commo
 bounded cursor pagination, durable operations, idempotency, capability discovery, and production
 OpenAPI, NDJSON query/CDC streaming, snapshot keysets/detail/table preview, the shared SDK runtime
 layer, and semantic compatibility automation ship in v1.4.0. Released-image SDK conformance covers
-authenticated query streaming, tenant isolation, and cancellation in all four languages. Exhaustive
+authenticated query streaming, tenant/catalog routing, and cancellation in all four languages. Exhaustive
 public-error fixtures and public package publication remain open.
 The caveat that used to carry forward here — `RequireAuthentication` defaulting to false — is gone
-with the switch. Every installation requires a credential on HTTP routes. A deployment may still
-configure demo access, which serves a credential-less request as a reader scoped to one named
-catalog.
+with the switch. Authentication cannot be disabled. A deployment may still configure the sole
+credential-less HTTP path: demo access serves the request as a reader scoped to one named catalog.
 
 ## Implemented source boundary
 
@@ -48,7 +47,7 @@ families. Tenant and catalog route segments are checked against the resolved pri
 | Collections | Opaque, request-bound cursor envelopes with a 24-hour lifetime; snapshot history freezes a native snapshot-id keyset and CDC uses its native snapshot/row cursor | Replace remaining offset cursors only where a source-native ordering can provide stable traversal |
 | Retryable mutations | Durable, content-type/query/payload-bound idempotency records on bounded control mutations; visible-ASCII keys are hashed at rest, bodies are capped at 1 MiB, and completed records are retained for seven days | Streaming imports and one-time token issuance are deliberately excluded because neither response can be safely replayed |
 | Long work | Maintenance compact/backup, restore backup, and eject enqueue durable operations on v1; legacy calls retain their old synchronous behavior | Progress/cancellation and remaining future long-running resources |
-| SDKs | Digest-pinned generation plus shared authentication, streaming query/CDC, typed problems, retry, pagination, idempotency, operation polling, cancellation, correlation, timeout, user-agent, redaction, docs/examples/matrices, and released-image query/isolation/cancellation conformance for all four languages | Complete exhaustive public-error conformance; publish, index, and clean-install public packages |
+| SDKs | Digest-pinned generation plus shared authentication, streaming query/CDC, typed problems, retry, pagination, idempotency, operation polling, cancellation, correlation, timeout, user-agent, redaction, docs/examples/matrices, and released-image query/tenant-routing/cancellation conformance for all four languages | Complete exhaustive public-error conformance; publish, index, and clean-install public packages |
 
 ### Query-language contract
 
@@ -88,8 +87,10 @@ attachment, authorization, execution, limits, telemetry, and history. See
 `POST /api/v1/tenants/{tenant}/catalogs/{catalog}/query:stream` accepts a SQL query request and emits
 `application/x-ndjson`: one `schema` record, zero or more `row` records, and one `complete` record.
 Only SQL is accepted on this transport; optional planners compile source before a stream is opened.
-The server validates the statement as read-only before writing response headers, executes through a
-structural read-only attachment, flushes each record, and honours disconnect cancellation. A failure
+The server validates the statement as read-only before writing response headers, executes against a
+read-only selected-catalog attachment, flushes each record, and honours disconnect cancellation. The
+attachment prevents writes through that catalog handle; it is not the process/filesystem/network
+containment boundary for arbitrary SQL. A failure
 before streaming is RFC 9457; a failure after headers is a bounded `error` record. A client must not
 treat EOF without `complete` as success.
 
@@ -193,8 +194,8 @@ Every SDK must provide the same observable contract:
 
 The shared source fixtures run through Java, Go, .NET, and Python and prove reliability plus
 incremental NDJSON behavior appropriate to each transport model. The authenticated workflow pulls
-an immutable released API image, provisions an isolated catalog-scoped reader, and verifies query
-streaming, tenant isolation, and cancellation in every SDK. Exhaustive public-error fixtures remain.
+an immutable released API image, provisions a catalog-scoped reader, and verifies query streaming,
+tenant/catalog routing, and cancellation in every SDK. Exhaustive public-error fixtures remain.
 An SDK is not released merely because generated code compiles: package signing/provenance,
 reference documentation, examples, supported runtime versions, compatibility tables, and a clean
 install test from the public registry are release gates.
@@ -203,12 +204,15 @@ install test from the public registry are release gates.
 
 Stated as the API's obligations, so a reviewer can check each endpoint against them:
 
-1. **Isolation is structural (invariant 4).** Access is chosen by *which catalog is attached* to the
-   session, decided by the principal — never by parsing, filtering, or rewriting submitted SQL. The
-   as-of read path below attaches the catalog at a snapshot; it does not rewrite the query.
-2. **Capability is attachment (invariant 9, `AUTHENTICATION.md`).** A read-only token, or an as-of
-   read, produces a read-only attachment. DuckDB refuses the write; there is no permission check for
-   clever SQL to route around.
+1. **Tenant/catalog selection is structural; arbitrary-SQL containment is separate (invariant 4).**
+   The principal chooses a tenant-qualified catalog attachment — never by parsing, filtering, or
+   rewriting submitted SQL. That prevents route-level cross-tenant selection and same-name catalog
+   collisions, but does not sandbox process-visible files, URLs, secrets, extensions, or new
+   attachments. The as-of read path attaches the selected catalog at a snapshot; it does not rewrite
+   the query.
+2. **Catalog-write capability is attachment (invariant 20, `AUTHENTICATION.md`).** A read-only token,
+   or an as-of read, produces a read-only selected-catalog attachment. DuckDB refuses writes through
+   that catalog handle; this is not a general file or network write guarantee.
 3. **The row cap belongs to materialising paths only (invariant 6).** `POST …/query` caps a JSON
    response; `POST …/query:stream` does not, and honours the same purpose by construction — rows are
    encoded to the socket and forgotten, exactly as the wire endpoint already does.

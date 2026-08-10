@@ -1430,8 +1430,8 @@ public static class LakehouseEndpoints
         ControlPlaneContext context,
         CancellationToken cancellationToken)
     {
-        // Scoped to the tenant and catalog from the route, so a subscription id alone cannot reach
-        // across the isolation boundary.
+        // Scoped to the tenant and catalog from the route, so a subscription id alone cannot cross
+        // the control-plane authorization scope.
         var subscription = await context.ChangeSubscriptions
             .FirstOrDefaultAsync(
                 s => s.Id == id && s.Tenant.Slug == tenantSlug && s.CatalogName == catalogName,

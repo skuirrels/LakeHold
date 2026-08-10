@@ -508,8 +508,9 @@ affected" rather than "0 rows".
 
 The classification is deliberately kept where it belongs. LakeHold is a SQL front end and already
 owes its clients a command tag naming the verb, so the keyword is something it must know anyway; a
-provider owes nobody that. It is a reporting choice and not a security one — isolation is still which
-catalog is attached (invariant 4) — and a statement it fails to recognise, such as a CTE-led write,
+provider owes nobody that. It is a reporting choice and not a security one — authentication chooses
+the tenant-qualified catalog, while arbitrary-SQL containment requires the separate worker boundary
+tracked by invariant 4 — and a statement it fails to recognise, such as a CTE-led write,
 streams exactly as before and reports no count. Losing a number is recoverable; losing a result set
 is not, which is why `RETURNING` is excluded rather than assumed away.
 

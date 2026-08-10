@@ -33,19 +33,21 @@ arriving late.
 
 The differentiator is not that LakeHold has an MCP server. It is *how it refuses*.
 
-### Capability is attachment — restated for agents
+### Selected-catalog write capability is attachment — restated for agents
 
-Every competing MCP server enforces agent safety in a policy layer above the SQL: the agent asks for
-something, a guard inspects the request, and the guard decides. That guard is inspecting text a
-language model generated, which is the losing game invariant 4 exists to avoid.
+Many MCP servers enforce agent safety only in a policy layer above SQL: the agent asks for something,
+a guard inspects the request, and the guard decides. Inspecting model-generated text is not a durable
+arbitrary-SQL boundary, which is the losing game invariant 4 exists to avoid.
 
 LakeHold does not have to play it:
 
 > An MCP tool declares a `Capability` exactly as a route does, and the same policy that guards
-> the HTTP API enforces it. A read-only agent credential produces a read-only **attachment**, so an
-> agent that writes fails **in DuckDB**, not in a check that a cleverly generated `INSERT` might route
-> around. `DucklingPool` already keys sessions by catalog *and attachment mode* (invariant 20), so an
-> agent's session can never be handed the writable handle a human's session opened.
+> the HTTP API enforces it. A read-only agent credential produces a read-only selected-catalog
+> **attachment**, so a write through that catalog handle fails **in DuckDB**, not in a check that a
+> cleverly generated `INSERT` might route around. `DucklingPool` keys sessions by tenant, catalog,
+> configuration version, and attachment mode (invariant 20), so an agent's session cannot inherit a
+> human's writable catalog handle. This protects the selected catalog; general arbitrary-SQL
+> containment remains the separate Phase 3 worker-boundary gate.
 
 That is invariants 4, 19, and 20 doing exactly what they were built for, on a surface that did not
 exist when they were written. It is the one claim in this market that is not a prompt-engineering
@@ -214,15 +216,15 @@ wire endpoint does.
 |---|---|---|
 | `list_tenants` | `Listing` | **Shipped.** Tenants *and* their catalogs, scoped to the principal. A separate `list_catalogs` was specified and then dropped: catalogs come back nested here, so a second tool would answer a question already answered and cost the agent context to read. Stricter than the HTTP listing route in one way — a catalog-narrowed credential sees only its own catalog, because naming one the caller cannot query wastes its next call |
 | `describe_schema` | `TenantData` | **Shipped.** Schemas, tables, columns. `ducklake_*` internals are filtered by `CatalogBrowser` at the source — verified behaviours 2 and 9 in `ARCHITECTURE.md` — which matters more here than in the workbench: a human scrolls past ~28 internal tables, an agent reasons about them |
-| `query` | `TenantData` | **Shipped.** Read-only; see below. A materialising path, so a row cap applies (invariant 6) |
+| `query` | `TenantData` | **Shipped.** Selected catalog attached read-only; arbitrary-SQL caveat below. A materialising path, so a row cap applies (invariant 6) |
 | `list_snapshots` | `TenantData` | **Shipped.** Time travel, which the closest peer's own roadmap still lists as forthcoming. It also supplies the bounds `list_changes` takes |
 | `get_snapshot` | `TenantData` | **Implemented in source.** Returns one retained snapshot by native id and refuses a missing id without inventing a second snapshot store |
-| `query_snapshot` | `TenantData` | **Implemented in source.** Bounded table preview at an exact retained snapshot through the same structural read-only attachment as REST; it does not present a materialized MCP result as streaming |
+| `query_snapshot` | `TenantData` | **Implemented in source.** Bounded table preview at an exact retained snapshot through the same selected-catalog read-only attachment as REST; it does not present a materialized MCP result as streaming |
 | `list_changes` | `TenantData` | **Shipped.** The CDC feed, paged. Inclusive at both ends (invariant 18, verified behaviour 6), and the tool's *description* says so — an agent that assumes exclusivity skips a window. Omitting the upper bound reads to the newest snapshot, which is also what keeps a caller clear of verified behaviour 7, where a range ending before the table existed raises. The engine's complaint is forwarded verbatim when it does |
 | `get_storage`, `list_storage_files` | `TenantData` | **Shipped.** Read-only physical file counts and bounded file inventory, optionally at a snapshot |
 | `get_table_detail`, `get_table_profile`, `get_column_distribution` | `TenantData` | **Shipped.** Logical/storage detail and bounded profiling through the same inspection services as HTTP |
 | `query_history` | `TenantData` | **Shipped.** Catalog-scoped audit history including token/member actor and transport origin |
-| `list_saved_queries`, `get_saved_query`, `execute_saved_query` | `TenantData` | **Shipped.** Reusable definitions and structurally read-only execution |
+| `list_saved_queries`, `get_saved_query`, `execute_saved_query` | `TenantData` | **Shipped.** Reusable definitions and execution through a selected-catalog read-only attachment; Phase 3 arbitrary-SQL containment still applies |
 | `create_saved_query`, `update_saved_query`, `delete_saved_query`, `publish_saved_query`, `unpublish_saved_query` | `TenantWrite` | **Shipped behind Allow writes.** Uses optimistic revisions and the existing saved-query application service |
 | `plan_maintenance`, `apply_maintenance` | `TenantOwner` | **Shipped behind Allow operator commands.** Apply requires the exact snapshot id returned by plan; an intervening commit forces review again. Backup is excluded until Tasks and public operations share one job model |
 
@@ -446,9 +448,12 @@ sharp edge entirely.
 
 ### Reads and writes are different tools
 
-The `query` tool attaches the catalog **read-only regardless of the credential's capability**, and that
-never changes — not even where writes are enabled. A credential that may write over HTTP cannot write
-through `query`.
+The `query` tool attaches the selected catalog **read-only regardless of the credential's
+capability**, and that never changes — not even where the explicit write tools are enabled. It cannot
+mutate the selected DuckLake catalog through that handle. Until Phase 3 containment lands, however,
+the attachment does not make arbitrary SQL itself read-only: external readers, `ATTACH`, `COPY`,
+files, URLs, secrets, extensions, and other process-visible capabilities remain outside that handle.
+The MCP `readOnly` annotation describes the intended tool contract, not a complete security sandbox.
 
 Writes are *separate* tools, exposed only when **Allow write commands** is saved in System Settings. The
 reason is the tool annotations: MCP clients read `readOnly` and `destructive` to decide whether to ask
@@ -459,9 +464,10 @@ true, and buys a second property worth having: **the tool list itself says wheth
 permits writes**, visible to an operator or an agent that cannot read the configuration.
 
 Two gates, not one. The operator opts in *and* the credential must not be read-only. A read-only
-credential still produces a read-only attachment, so its refusal comes from DuckDB (invariants 4
-and 20); the explicit check exists only so the agent reads "your credential cannot write" instead of an
-engine error about the catalog.
+credential still produces a read-only selected-catalog attachment, so a catalog-write refusal comes
+from DuckDB (invariants 4 and 20); the explicit check exists so the agent reads "your credential
+cannot write" instead of a catalog error. This statement is limited to the selected catalog and does
+not supersede the arbitrary-SQL warning above.
 
 **The gate is the annotation, not a list of names.** The list-tools filter removes every tool whose
 `readOnly` hint is not true, and the call-tools filter resolves the same annotation for the requested

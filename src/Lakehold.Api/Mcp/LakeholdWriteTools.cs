@@ -28,8 +28,9 @@ namespace Lakehold.Api.Mcp;
 ///     <para>
 ///         Both gates must hold. The operator opts in with <see cref="McpOptions.AllowWrites"/>, and
 ///         the credential must not be read-only — and a read-only credential still produces a
-///         read-only <em>attachment</em>, so its refusal comes from DuckDB rather than from this check
-///         (invariants 4 and 20). The check exists to give a clear message, not to be the boundary.
+///         read-only selected-catalog <em>attachment</em>, so a catalog-write refusal also comes from
+///         DuckDB (invariants 4 and 20). The check gives a clear message. Neither mechanism replaces
+///         the separate arbitrary-SQL containment boundary.
 ///     </para>
 /// </remarks>
 [McpServerToolType]
@@ -68,8 +69,8 @@ public sealed class LakeholdWriteTools(LakehouseService lakehouse, IHttpContextA
 
         if (principal.IsReadOnly)
         {
-            // The engine would refuse anyway, on a read-only attachment. Saying so here means the
-            // agent reads "your credential cannot write" instead of a DuckDB error about the catalog.
+            // The engine would also refuse a selected-catalog write on the read-only attachment.
+            // Saying so here gives the agent a clear credential error instead of a catalog error.
             throw new McpException(
                 "This credential is read-only. Writing through MCP needs a read-write credential.");
         }

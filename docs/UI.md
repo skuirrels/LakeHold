@@ -163,9 +163,10 @@ Before this work the engine touched almost none of it — only `ducklake_snapsho
 | `ducklake_file_column_stats` | Per file per column: `column_size_bytes`, `value_count`, `null_count`, min/max | **Metadata table** — by name, from the session |
 | `SUMMARIZE SELECT …` | Live logical column profile: min/max, approximate distinct count, mean/stddev and quartiles | Ordinary Duckling session over the table, optionally at a snapshot |
 
-**Table functions run on the session.** They need no attach, no second connection, and no special
-casing — a Duckling can call them exactly as it runs user SQL, and they therefore inherit the tenant
-isolation of invariant 4 for free.
+**Table functions run on the session.** They need no second connection or special casing — a
+Duckling can call them exactly as it runs user SQL, and they operate on the credential-selected
+catalog. That is catalog scoping, not proof that arbitrary SQL is contained from process-visible
+files, URLs, secrets, extensions, or new attachments; invariant 4 keeps that separate.
 
 **So do targeted reads of the metadata tables — and this corrects the specification.** The original
 draft asserted that anything sourced from a `ducklake_*` metadata table has to pay

@@ -205,13 +205,13 @@ export class ComparisonComponent {
         'A predictable VM bill beats per-second billing for your workload.',
       ],
       chooseThem: [
-        'You need per-user accounts and row- or column-level permissions with a console to administer them — LakeHold authenticates with tenant-scoped API tokens, OIDC, and three roles, but per-user administration is not a product surface yet.',
-        'You need a shared multi-tenant production service today — LakeHold still has same-name catalog isolation work to complete.',
+        'You need fine-grained custom roles or row- and column-level permissions — LakeHold has in-product users, memberships, scoped tokens, OIDC, and owner/editor/reader roles, but no row or column policy layer.',
+        'You need a shared service for mutually untrusted SQL tenants today — tenant-qualified same-name catalogs work, but arbitrary SQL is not yet contained at a per-tenant process, filesystem, credential, and network boundary.',
         'You want zero operations and nothing to run.',
         'You need to scale past a single node without re-architecting.',
         'Hybrid local-and-cloud dual execution is valuable to you — it is genuinely clever and we have not replicated it.',
         'You want a released broad library of incremental database and SaaS connectors, plus a more mature web UI today.',
-        'Your team is Python-first.',
+        'You need publicly packaged clients and the breadth of a mature Python-first ecosystem today.',
       ],
     },
     {

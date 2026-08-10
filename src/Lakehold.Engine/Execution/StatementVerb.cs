@@ -6,9 +6,10 @@ namespace Lakehold.Engine.Execution;
 /// </summary>
 /// <remarks>
 ///     <para>
-///         This is a reporting concern, never a security one. Isolation comes from which catalog is
-///         attached to a session, so nothing here filters, rewrites, or authorises SQL — it only
-///         chooses which execution path reports the statement's outcome honestly. A statement this
+///         This is a reporting concern, never a security one. Credential resolution chooses the
+///         tenant-qualified catalog, while arbitrary SQL requires a separate containment boundary.
+///         Nothing here filters, rewrites, or authorises SQL — it only chooses which execution path
+///         reports the statement's outcome honestly. A statement this
 ///         cannot classify takes the ordinary streaming path, which is what every statement did
 ///         before, so the failure mode is a missing count rather than a wrong result.
 ///     </para>

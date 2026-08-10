@@ -7,7 +7,7 @@ smaller, private platform with open storage, explicit operations, and an exit pa
 
 > **Current boundary:** LakeHold v1.3.0 introduced the managed connector platform, and v1.4.0 ships
 > the `/api/v1` public server contract. Generated Java, Go, .NET, and Python 0.1.0 SDK candidates
-> pass released-image authentication, query-streaming, tenant-isolation, and cancellation checks,
+> pass released-image authentication, query-streaming, tenant/catalog-routing, and cancellation checks,
 > but they are not publicly installed packages.
 > Searchable governance, end-to-end lineage, a semantic layer, mature BI compatibility, full SDK
 > convenience/conformance coverage, and a broad adapter ecosystem remain incomplete.
@@ -21,6 +21,11 @@ smaller, private platform with open storage, explicit operations, and an exit pa
 > queries. Size nodes for peak concurrency, and treat workload isolation between tenants as an
 > operational responsibility rather than a platform guarantee. Aggregate admission control is
 > tracked in [`PRODUCTION-READINESS-ROADMAP.md`](PRODUCTION-READINESS-ROADMAP.md).
+
+> **Security boundary:** credential-bound tenant/catalog routing, tenant-qualified storage, and
+> read-only selected-catalog attachments are implemented. They do not contain arbitrary DuckDB SQL
+> at a process, filesystem, credential, or network boundary. Shared, mutually untrusted SQL tenants
+> remain unsupported until Phase 3 of the production-readiness roadmap is complete.
 
 ## What an EDP does
 
@@ -77,12 +82,14 @@ The managed connector contract and operator settings are documented in
 
 - Browser Workbench, HTTP APIs, MCP resources/tools, EF Core integration, and direct SQL through the
   PostgreSQL wire endpoint.
+- The Workbench and owner API/MCP surfaces administer connector definitions and inspect run history,
+  retries, dead letters, and checkpoints.
 - `psql`, DBeaver, and Npgsql work through the wire endpoint. Power BI remains blocked by the
   documented PostgreSQL type-catalogue compatibility gap.
 - LakeHold v1.4.0 ships canonical `/api/v1` routes, production OpenAPI, RFC 9457 errors, cursor
   pages, idempotent bounded mutations, durable long-running operations, and capability discovery.
 - Generated Java, Go, .NET, and Python clients cover the frozen v1 contract and have authentication,
-  reliability, pagination, operation-waiter, streaming, tenant-isolation, and cancellation
+  reliability, pagination, operation-waiter, streaming, tenant/catalog-routing, and cancellation
   conformance tests against the released API image. They remain source candidates rather than
   released packages; exhaustive public-error coverage and registry publication are still open.
 - The older source-only `Lakehold.Client` project still supports the first-party .NET replication
@@ -95,8 +102,10 @@ The managed connector contract and operator settings are documented in
   retained refresh history.
 - Give applications, analysts, SQL tools, and AI agents access to the same catalog and authorization
   decisions.
-- Operate a private lakehouse in a VM, Kubernetes, an air-gapped network, or infrastructure governed
-  by organisational data-residency policy.
+- Operate a private lakehouse with the supported Compose profile on a laptop or VM, including an
+  air-gapped network or infrastructure governed by organisational data-residency policy. The
+  containers are portable, but a maintained and validated Kubernetes profile is not currently
+  shipped.
 - Replace opaque warehouse lock-in with open Parquet, ordinary SQL metadata, tested backup/restore,
   and a signed export path.
 
@@ -113,10 +122,9 @@ open:
 - Governed metrics and semantic models.
 - Power BI compatibility, a supported JDBC/ODBC strategy, and live open-engine access through an
   Iceberg-compatible catalog.
-- A connector administration experience in the Workbench.
 - Connector service objectives, alerting, and resource/cost reporting.
 - Exhaustive released-server public-error coverage and publicly signed Java, Go, .NET, and Python
-  packages. Released-image authentication, query-streaming, tenant-isolation, and cancellation
+  packages. Released-image authentication, query-streaming, tenant/catalog-routing, and cancellation
   coverage is implemented; the remaining acceptance gates and exact source-versus-release boundary
   are tracked in the delivery plan.
 

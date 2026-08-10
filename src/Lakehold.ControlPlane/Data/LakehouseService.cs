@@ -31,10 +31,10 @@ public sealed class LakehouseService(
     ///     Executes <paramref name="sql"/> against a tenant's catalog and records the run.
     /// </summary>
     /// <remarks>
-    ///     Tenant isolation comes from resolving the catalog through the tenant's own record and
-    ///     attaching only that catalog to the session. The SQL itself is never inspected for
-    ///     cross-tenant references, because a tenant's session has no other catalog attached to
-    ///     reference.
+    ///     Tenant/catalog routing comes from resolving the catalog through the tenant's own record
+    ///     and using the full tenant/catalog identity for attachment and session reuse. The SQL itself
+    ///     is not inspected as a security boundary; process-visible files, URLs, secrets, extensions,
+    ///     and additional attachments require separate containment.
     /// </remarks>
     public async Task<QueryResult> ExecuteAsync(
         string tenantSlug,
@@ -967,8 +967,8 @@ public sealed class LakehouseService(
         string catalogName,
         CancellationToken cancellationToken)
     {
-        // Resolving through the tenant keeps backup listing inside the same isolation boundary as
-        // querying: you cannot enumerate another tenant's generations by guessing a catalog name.
+        // Resolving through the tenant keeps backup listing inside the same tenant/catalog
+        // authorization scope: a catalog name alone cannot enumerate another tenant's generations.
         var resolved = await ResolveCatalogAsync(tenantSlug, catalogName, cancellationToken).ConfigureAwait(false);
         return await CatalogRestore
             .ListGenerationsAsync(
