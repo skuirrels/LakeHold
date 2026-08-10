@@ -21,6 +21,7 @@ const (
 	SDKVersion      = "0.1.0"
 	SDKUserAgent    = "lakehold-sdk/" + SDKVersion + " (go)"
 	RequestIDHeader = "X-Request-Id"
+	maximumDuration = time.Duration(1<<63 - 1)
 )
 
 // ConfigureRuntime applies the supported user-agent and a whole-request timeout without mutating
@@ -89,7 +90,9 @@ func parseProblemBody(response *http.Response, body []byte, err error, fallbackC
 	if response != nil {
 		problem.Status = response.StatusCode
 		problem.RequestID = response.Header.Get(RequestIDHeader)
-		problem.RetryAfter = parseRetryAfter(response.Header.Get("Retry-After"), time.Now())
+		if delay, present := parseRetryAfter(response.Header.Get("Retry-After"), time.Now()); present {
+			problem.RetryAfter = delay
+		}
 	}
 	var details PublicApiProblemDetails
 	if len(body) > 0 && json.Unmarshal(body, &details) == nil {
@@ -164,7 +167,7 @@ func ExecuteWithRetry[T any](
 		}
 		delay := 100 * time.Millisecond * time.Duration(1<<exponent)
 		if response != nil {
-			if advertised := parseRetryAfter(response.Header.Get("Retry-After"), time.Now()); advertised > 0 {
+			if advertised, present := parseRetryAfter(response.Header.Get("Retry-After"), time.Now()); present {
 				delay = advertised
 			}
 		}
@@ -423,11 +426,17 @@ func WaitForOperation[T any](
 	if loader == nil {
 		return zero, errors.New("operation loader is required")
 	}
-	deadline := time.NewTimer(timeout)
-	defer deadline.Stop()
+	pollContext, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
 	for {
-		operation, err := loader(ctx)
+		if err := pollContext.Err(); err != nil {
+			return zero, err
+		}
+		operation, err := loader(pollContext)
 		if err != nil {
+			return zero, err
+		}
+		if err := pollContext.Err(); err != nil {
 			return zero, err
 		}
 		switch strings.ToLower(operation.Status) {
@@ -441,12 +450,9 @@ func WaitForOperation[T any](
 		}
 		timer := time.NewTimer(pollInterval)
 		select {
-		case <-ctx.Done():
+		case <-pollContext.Done():
 			timer.Stop()
-			return zero, ctx.Err()
-		case <-deadline.C:
-			timer.Stop()
-			return zero, context.DeadlineExceeded
+			return zero, pollContext.Err()
 		case <-timer.C:
 		}
 	}
@@ -463,21 +469,27 @@ func transientStatus(status int) bool {
 	return status == 408 || status == 429 || status == 500 || status == 502 || status == 503 || status == 504
 }
 
-func parseRetryAfter(value string, now time.Time) time.Duration {
-	if value == "" {
-		return 0
+func parseRetryAfter(value string, now time.Time) (time.Duration, bool) {
+	if strings.TrimSpace(value) == "" {
+		return 0, false
 	}
 	if seconds, err := strconv.ParseInt(strings.TrimSpace(value), 10, 64); err == nil {
 		if seconds < 0 {
-			return 0
+			return 0, false
 		}
-		return time.Duration(seconds) * time.Second
+		if seconds > int64(maximumDuration/time.Second) {
+			return maximumDuration, true
+		}
+		return time.Duration(seconds) * time.Second, true
 	}
 	when, err := http.ParseTime(value)
-	if err != nil || when.Before(now) {
-		return 0
+	if err != nil {
+		return 0, false
 	}
-	return when.Sub(now)
+	if when.Before(now) {
+		return 0, true
+	}
+	return when.Sub(now), true
 }
 
 func min(left, right int) int {

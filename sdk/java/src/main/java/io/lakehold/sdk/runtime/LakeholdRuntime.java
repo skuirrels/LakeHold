@@ -20,6 +20,10 @@ import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.FutureTask;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import okhttp3.HttpUrl;
@@ -33,6 +37,7 @@ import okio.BufferedSource;
 public final class LakeholdRuntime {
     private static final long MAXIMUM_STREAM_RECORD_BYTES = 64L * 1024L * 1024L;
     private static final long MAXIMUM_ERROR_BODY_BYTES = 1024L * 1024L;
+    private static final long CANCELLATION_POLL_NANOSECONDS = TimeUnit.MILLISECONDS.toNanos(50);
     public static final String VERSION = "0.1.0";
     public static final String USER_AGENT = "lakehold-sdk/" + VERSION + " (java)";
     public static final String REQUEST_ID_HEADER = "X-Request-Id";
@@ -43,11 +48,14 @@ public final class LakeholdRuntime {
     public static ApiClient configure(ApiClient client, Duration timeout) {
         Objects.requireNonNull(client, "client");
         int milliseconds = exactMilliseconds(timeout);
-        return client
-            .setUserAgent(USER_AGENT)
-            .setConnectTimeout(milliseconds)
-            .setReadTimeout(milliseconds)
-            .setWriteTimeout(milliseconds);
+        client.setUserAgent(USER_AGENT);
+        client.setHttpClient(client.getHttpClient().newBuilder()
+            .callTimeout(milliseconds, TimeUnit.MILLISECONDS)
+            .connectTimeout(milliseconds, TimeUnit.MILLISECONDS)
+            .readTimeout(milliseconds, TimeUnit.MILLISECONDS)
+            .writeTimeout(milliseconds, TimeUnit.MILLISECONDS)
+            .build());
+        return client;
     }
 
     public static String createIdempotencyKey() {
@@ -273,13 +281,16 @@ public final class LakeholdRuntime {
         BooleanSupplier cancelled) throws ApiException, InterruptedException {
         Objects.requireNonNull(loader, "loader");
         Objects.requireNonNull(cancelled, "cancelled");
-        Instant deadline = Instant.now().plus(requirePositive(timeout, "timeout"));
-        Duration interval = requirePositive(pollInterval, "pollInterval");
+        long timeoutNanoseconds = boundedNanoseconds(requirePositive(timeout, "timeout"));
+        long intervalNanoseconds = boundedNanoseconds(
+            requireAtLeastOneMillisecond(pollInterval, "pollInterval"));
+        long started = System.nanoTime();
         while (true) {
             if (cancelled.getAsBoolean()) {
                 throw new CancellationException("Operation polling was cancelled.");
             }
-            OperationSnapshot<T> operation = loader.load();
+            OperationSnapshot<T> operation = loadBeforeDeadline(
+                loader, started, timeoutNanoseconds, cancelled);
             String status = operation.status().toLowerCase(Locale.ROOT);
             if (status.equals("succeeded")) {
                 return operation;
@@ -290,16 +301,70 @@ public final class LakeholdRuntime {
             if (!status.equals("queued") && !status.equals("running")) {
                 throw new IllegalStateException("Unknown operation status '" + operation.status() + "'.");
             }
-            Instant now = Instant.now();
-            if (!now.isBefore(deadline)) {
+            long remainingNanoseconds = remainingNanoseconds(started, timeoutNanoseconds);
+            if (remainingNanoseconds <= 0) {
                 throw new OperationTimeoutException("The operation did not complete before the timeout.");
             }
-            long remainingMilliseconds = Duration.between(now, deadline).toMillis();
-            if (remainingMilliseconds <= 0) {
-                throw new OperationTimeoutException("The operation did not complete before the timeout.");
-            }
-            Thread.sleep(Math.min(exactMilliseconds(interval, "pollInterval"), remainingMilliseconds));
+            TimeUnit.NANOSECONDS.sleep(Math.min(intervalNanoseconds, remainingNanoseconds));
         }
+    }
+
+    private static <T> OperationSnapshot<T> loadBeforeDeadline(
+        OperationLoader<T> loader,
+        long started,
+        long timeoutNanoseconds,
+        BooleanSupplier cancelled) throws ApiException, InterruptedException {
+        FutureTask<OperationSnapshot<T>> pending = new FutureTask<>(loader::load);
+        Thread worker = new Thread(pending, "lakehold-operation-loader");
+        worker.setDaemon(true);
+        worker.setContextClassLoader(Thread.currentThread().getContextClassLoader());
+        worker.start();
+        while (true) {
+            if (cancelled.getAsBoolean()) {
+                pending.cancel(true);
+                throw new CancellationException("Operation polling was cancelled.");
+            }
+            long remainingNanoseconds = remainingNanoseconds(started, timeoutNanoseconds);
+            if (remainingNanoseconds <= 0) {
+                pending.cancel(true);
+                throw new OperationTimeoutException("The operation did not complete before the timeout.");
+            }
+            try {
+                return pending.get(
+                    Math.min(remainingNanoseconds, CANCELLATION_POLL_NANOSECONDS),
+                    TimeUnit.NANOSECONDS);
+            } catch (TimeoutException exception) {
+                // Recheck the overall deadline and cooperative cancellation signal.
+            } catch (ExecutionException exception) {
+                Throwable cause = exception.getCause();
+                if (cause instanceof ApiException) {
+                    throw (ApiException) cause;
+                }
+                if (cause instanceof RuntimeException) {
+                    throw (RuntimeException) cause;
+                }
+                if (cause instanceof Error) {
+                    throw (Error) cause;
+                }
+                throw new IllegalStateException("The operation loader failed.", cause);
+            } catch (InterruptedException exception) {
+                pending.cancel(true);
+                throw exception;
+            }
+        }
+    }
+
+    private static long boundedNanoseconds(Duration duration) {
+        try {
+            return duration.toNanos();
+        } catch (ArithmeticException exception) {
+            return Long.MAX_VALUE;
+        }
+    }
+
+    private static long remainingNanoseconds(long started, long timeoutNanoseconds) {
+        long elapsed = System.nanoTime() - started;
+        return elapsed >= timeoutNanoseconds ? 0 : timeoutNanoseconds - elapsed;
     }
 
     public static final class Page<T> {

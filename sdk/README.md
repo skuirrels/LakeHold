@@ -15,7 +15,7 @@ idempotency, error, and durable-operation contract.
 Regenerate all libraries with `./scripts/generate-sdks.sh`. Generated source is reviewed and built
 in CI; do not edit it directly. Add handwritten conveniences only outside generator-owned files.
 
-Each client provides typed models and low-level operations for all 66 operations in the frozen v1
+Each client provides typed models and low-level operations for every operation in the frozen v1
 contract. A small handwritten runtime layer adds the shared supported behavior that generators do
 not provide consistently:
 

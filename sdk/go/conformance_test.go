@@ -91,6 +91,48 @@ func TestSharedReliabilityFixture(t *testing.T) {
 		t.Fatalf("unexpected retry result: value=%q attempts=%d delays=%v err=%v", value, attempts, delays, err)
 	}
 
+	response.Header.Set("Retry-After", "0")
+	zeroDelayAttempts := 0
+	var zeroDelays []time.Duration
+	_, _, err = ExecuteWithRetry(context.Background(), RetryOptions{
+		MaximumRetries: 1,
+		MaximumDelay:   30 * time.Second,
+		Sleep: func(_ context.Context, delay time.Duration) error {
+			zeroDelays = append(zeroDelays, delay)
+			return nil
+		},
+	}, true, func(context.Context) (string, *http.Response, error) {
+		zeroDelayAttempts++
+		if zeroDelayAttempts == 1 {
+			return "", response, apiError
+		}
+		return "ok", &http.Response{StatusCode: http.StatusOK}, nil
+	})
+	if err != nil || len(zeroDelays) != 1 || zeroDelays[0] != 0 {
+		t.Fatalf("Retry-After zero was not preserved: delays=%v err=%v", zeroDelays, err)
+	}
+
+	response.Header.Set("Retry-After", "9223372036854775807")
+	var boundedDelays []time.Duration
+	largeDelayAttempts := 0
+	_, _, err = ExecuteWithRetry(context.Background(), RetryOptions{
+		MaximumRetries: 1,
+		MaximumDelay:   30 * time.Second,
+		Sleep: func(_ context.Context, delay time.Duration) error {
+			boundedDelays = append(boundedDelays, delay)
+			return nil
+		},
+	}, true, func(context.Context) (string, *http.Response, error) {
+		largeDelayAttempts++
+		if largeDelayAttempts == 1 {
+			return "", response, apiError
+		}
+		return "ok", &http.Response{StatusCode: http.StatusOK}, nil
+	})
+	if err != nil || len(boundedDelays) != 1 || boundedDelays[0] != 30*time.Second {
+		t.Fatalf("large Retry-After was not bounded: delays=%v err=%v", boundedDelays, err)
+	}
+
 	unsafeAttempts := 0
 	_, _, err = ExecuteWithRetry(context.Background(), RetryOptions{
 		MaximumRetries: 2,
@@ -147,6 +189,25 @@ func TestSharedReliabilityFixture(t *testing.T) {
 		})
 	if err == nil {
 		t.Fatal("cancelled operation polling did not fail")
+	}
+
+	started := time.Now()
+	_, err = WaitForOperation(context.Background(), 25*time.Millisecond, time.Second,
+		func(ctx context.Context) (OperationSnapshot[string], error) {
+			<-ctx.Done()
+			return OperationSnapshot[string]{}, ctx.Err()
+		})
+	if !errors.Is(err, context.DeadlineExceeded) || time.Since(started) >= time.Second {
+		t.Fatalf("operation loader exceeded polling timeout: elapsed=%s err=%v", time.Since(started), err)
+	}
+
+	_, err = WaitForOperation(context.Background(), 10*time.Millisecond, time.Second,
+		func(context.Context) (OperationSnapshot[string], error) {
+			time.Sleep(25 * time.Millisecond)
+			return OperationSnapshot[string]{Status: "succeeded", Result: "late"}, nil
+		})
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("late operation success bypassed polling timeout: %v", err)
 	}
 
 	if err := ValidateIdempotencyKey(conformanceFixture.IdempotencyKey); err != nil {
