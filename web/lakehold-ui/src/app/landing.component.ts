@@ -64,7 +64,7 @@ import { ThemeToggleComponent } from './theme-toggle.component';
             only page on the site that *states* what LakeHold is was the documentation, which is how
             a getting-started guide comes to answer a search for the product's own name.
           -->
-          <h1>LakeHold: an Enterprise LakeHouse, you host yourself</h1>
+          <h1>LakeHold: an Open Source Enterprise LakeHouse, you host yourself</h1>
           <p class="lede">
             LakeHold is self-hostable, tenant-aware, and built on open Parquet — governed data
             infrastructure that stays on <em>your</em> infrastructure.
