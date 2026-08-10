@@ -33,15 +33,19 @@ export LAKEHOLD_LINQ_PLANNER_KEY='<a long random secret>'
 docker compose -f compose.production.yaml --profile linq up -d
 ```
 
-The public evaluation deployment enables LINQ without operator-managed feature configuration:
+The public evaluation deployment enables LINQ without operator-managed feature configuration. Build
+the latest `main` branch from source, or pin and pull published release images respectively:
 
 ```bash
 make demo
+LAKEHOLD_TAG=v2.3.0 make demo-release
 ```
 
-`make demo` builds and starts the `linq` profile automatically. It generates one high-entropy
-planner credential in memory, supplies it to the API and compiler for that deployment, and rotates
-both together on the next deployment. The value is not printed or persisted.
+Both targets start the `linq` profile automatically. `make demo` builds from source;
+`make demo-release` pulls the published API, web, and compiler images without switching branches or
+building. Each generates one high-entropy planner credential in memory, supplies it to the API and
+compiler for that deployment, and rotates both together on the next deployment. The value is not
+printed or persisted.
 
 Omit the `linq` profile to remove the compiler. Discovery then finds no planner configured at all
 and the selector offers SQL alone.
@@ -192,7 +196,7 @@ shaper. Remaining model-mapping opportunities are tracked in
 | Symptom | Check |
 |---|---|
 | C# LINQ reads "(unavailable)" in the selector | Select it: the toolbar states why, and the API logs the same reason as a warning naming the planner. A rejected planner key means the API and compiler hold different `LAKEHOLD_LINQ_PLANNER_KEY` values; a missed deadline means the compiler is cold, saturated, or unreachable — check `/ready` from the internal network. |
-| C# LINQ is absent from the selector entirely | No planner is configured for this deployment, so nothing was health-checked. Confirm the `linq` profile is enabled and that `Lakehold:Querying:Planners` reached the API — with `make demo` the profile and credential are automatic. |
+| C# LINQ is absent from the selector entirely | No planner is configured for this deployment, so nothing was health-checked. Confirm the `linq` profile is enabled and that `Lakehold:Querying:Planners` reached the API — with either demo target the profile and credential are automatic. |
 | `503` while planning | The configured planner is unavailable or exceeded its timeout. SQL remains usable; inspect compiler health and bounded-queue saturation. |
 | `LINQ001`–`LINQ003` | The expression crosses the read-only source allow-list. Remove side effects, arbitrary method calls, or disallowed static members. |
 | `LINQ004` | The catalog cannot produce a usable dynamic EF model, commonly because it has no supported columns. Use SQL for omitted native types. |

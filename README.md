@@ -136,8 +136,8 @@ docker compose -f compose.production.yaml logs api | grep -i bootstrap
 SQL is always built in. In a standard private production deployment, add the isolated C# LINQ
 planner by setting `LAKEHOLD_LINQ_PLANNER_KEY` and adding `--profile linq` to the Compose command.
 Removing that profile returns the same deployment to SQL-only operation. The separate public
-evaluation target, `make demo`, enables the profile and generates its internal credential
-automatically. See [C# LINQ in the Workbench](docs/LINQ_WORKBENCH.md).
+evaluation targets, `make demo` and `make demo-release`, enable the profile and generate its
+internal credential automatically. See [C# LINQ in the Workbench](docs/LINQ_WORKBENCH.md).
 
 Pin `LAKEHOLD_TAG` to a release rather than tracking `latest`, or a redeploy silently moves you to
 whatever was tagged since. From a checkout, `make deploy` pulls and restarts in one step, and
@@ -176,8 +176,8 @@ Worth knowing:
   yourself if something outside the compose network needs it.
 - **The public pages are demo-only.** The image contains the prerendered landing, comparison,
   documentation, and provider pages, but the production nginx mode cannot serve them: `/` redirects
-  to `/workbench` and public or unknown routes return 404. `make demo` explicitly selects the
-  website mode that exposes those pages.
+  to `/workbench` and public or unknown routes return 404. The two demo targets explicitly select
+  the website mode that exposes those pages.
 - **Demo seeding is off.** `Lakehold:SeedDemoData` defaults to the environment, so a production node
   never invents a `demo` tenant holding 250,000 rows. Schema initialisation still runs — that is
   what creates tables added since a database was first initialised.
@@ -185,7 +185,7 @@ Worth knowing:
   shared application control plane and the default DuckLake metadata catalog. Point the two
   connection strings at managed or operator-owned PostgreSQL; they may use separate databases/users
   for least privilege. The separate evaluation-only demo overlay includes a private PostgreSQL
-  container so `make demo` is self-contained.
+  container so both demo targets are self-contained.
 - **Parquet storage is independent.** A local path remains supported for a deliberate single-node
   or shared-filesystem deployment. S3/S3-compatible, GCS, and Azure Blob/ADLS profiles are the
   recommended multi-node choices.
@@ -235,8 +235,8 @@ traffic.
 ### Demo deployment overlay
 
 Demo mode is intentionally absent from the customer production file and `.env.example`. It is the
-only deployment target that enables the public website. To run that separate evaluation deployment,
-add its overlay:
+only deployment mode that enables the public website. Build the current `main` branch and start that
+separate evaluation deployment with:
 
 ```bash
 make demo
@@ -249,6 +249,19 @@ C# LINQ is enabled in the Workbench by default. `make demo` generates and suppli
 planner credential, so no feature key needs to be configured or retained by the operator. The site
 listens on port `8080` by default; use `LAKEHOLD_PORT=8081 make demo` when that port is already
 occupied.
+
+To run the same website and demo Workbench entirely from published GHCR images, pin a release and
+use the image-backed target instead:
+
+```bash
+LAKEHOLD_TAG=v2.3.0 make demo-release
+```
+
+`make demo-release` pulls the published API, web, and C# LINQ compiler images before changing the
+running deployment. It does not require a clean worktree, switch branches, pull Git commits, or
+build source. Omitting `LAKEHOLD_TAG` tracks `latest`; pinning the release is the reproducible path.
+It otherwise uses the same demo overlay, generated planner credential, port overrides, seeded data,
+and persistent volumes as `make demo`.
 
 `compose.demo.yaml` owns the website mode, demo seeding, authentication, the read-only visitor
 scope, and a private PostgreSQL 17 service whose metadata survives restarts in the

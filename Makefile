@@ -9,6 +9,7 @@
 #   make test         Run the complete backend, frontend, integration, and browser test suite.
 #   make dev          Start the local development stack with hot reload.
 #   make demo         Update main, build, and start the public demo with C# LINQ enabled.
+#   make demo-release Pull and start the public demo from published release images.
 #   make prune-worktrees  List finished agent worktrees; APPLY=1 removes them.
 #
 # Deployment targets drive compose.production.yaml and `make dev` drives compose.yaml, but the three
@@ -24,18 +25,19 @@
 # does so before anything is taken down — a broken build or a diverged checkout leaves the current
 # containers serving traffic untouched.
 
-COMPOSE        := docker compose -f compose.production.yaml
-COMPOSE_SOURCE := docker compose -f compose.production.yaml -f compose.build.yaml
-COMPOSE_DEMO   := $(COMPOSE_SOURCE) -f compose.demo.yaml --profile linq
-COMPOSE_DEV    := docker compose
-BRANCH         := $(shell git rev-parse --abbrev-ref HEAD 2>/dev/null)
+COMPOSE              := docker compose -f compose.production.yaml
+COMPOSE_SOURCE       := docker compose -f compose.production.yaml -f compose.build.yaml
+COMPOSE_DEMO         := $(COMPOSE_SOURCE) -f compose.demo.yaml --profile linq
+COMPOSE_DEMO_RELEASE := $(COMPOSE) -f compose.demo.yaml --profile linq
+COMPOSE_DEV          := docker compose
+BRANCH               := $(shell git rev-parse --abbrev-ref HEAD 2>/dev/null)
 
 # The demo compiler stays authenticated without making an operator provision a feature key. One
-# high-entropy value is generated in memory for the whole `make demo` invocation, exported to both
-# API and compiler through Compose, and rotated together on the next demo deployment. It is neither
-# printed nor persisted. Other production paths still require an operator-managed key when LINQ is
-# enabled because their compiler may be deployed outside this single-host topology.
-ifneq ($(filter demo build-demo,$(MAKECMDGOALS)),)
+# high-entropy value is generated in memory for the whole demo invocation, exported to both API and
+# compiler through Compose, and rotated together on the next demo deployment. It is neither printed
+# nor persisted. Other production paths still require an operator-managed key when LINQ is enabled
+# because their compiler may be deployed outside this single-host topology.
+ifneq ($(filter demo demo-release build-demo,$(MAKECMDGOALS)),)
 ifeq ($(strip $(LAKEHOLD_LINQ_PLANNER_KEY)),)
 override LAKEHOLD_LINQ_PLANNER_KEY := $(shell od -An -N32 -tx1 /dev/urandom | tr -d ' \n')
 endif
@@ -60,7 +62,7 @@ KEYCLOAK_PORT ?= 5401
 
 .DEFAULT_GOAL := help
 
-.PHONY: help test dev demo deploy production check-tree pull pull-main build build-demo up status logs stop backup-state prune-worktrees
+.PHONY: help test dev demo demo-release deploy production check-tree pull pull-main build build-demo up status logs stop backup-state prune-worktrees
 
 help:
 	@echo "Lakehold — make targets"
@@ -68,6 +70,7 @@ help:
 	@echo "  test          Run every test, including live integrations and both E2E suites"
 	@echo "  dev           Start the local development stack with hot reload"
 	@echo "  demo          Update main, build, and start the public website and demo workbench"
+	@echo "  demo-release  Pull and start the public website and demo workbench from release images"
 	@echo "  deploy        Update this deployment to the current published images"
 	@echo "  production    Update the private workbench and services from source"
 	@echo "  status        Show whichever stack is running, and its health"
@@ -79,7 +82,7 @@ help:
 	@echo ""
 	@echo "  Overrides:    WAIT_TIMEOUT=$(WAIT_TIMEOUT) (seconds to wait for healthy containers)"
 	@echo "                LAKEHOLD_PORT=<port> (host port; defaults to 8080)"
-	@echo "                LAKEHOLD_TAG=2.0.1 or v2.0.1 (which published images deploy pulls)"
+	@echo "                LAKEHOLD_TAG=2.0.1 or v2.0.1 (images deploy/demo-release pull)"
 	@echo "                ARCHIVE=<file> (what backup-state writes, in this directory)"
 
 # The test script owns a uniquely named Compose project and removes only that project's volumes.
@@ -110,10 +113,10 @@ dev:
 	@echo "    Machines and agents use API tokens instead; see docs/IDENTITY-PROVIDER-SETUP.md."
 	$(COMPOSE_DEV) --profile linq up
 
-# Demo is deliberately a separate opt-in overlay; it is the only target that enables the public
-# website and starts the isolated C# LINQ compiler. The standard production configuration serves
-# the authentication-protected workbench and contains no demo settings. The build overlay is
-# required here so this target builds the latest `origin/main` rather than whichever published
+# Demo is deliberately a separate opt-in overlay; both demo targets enable the public website and
+# start the isolated C# LINQ compiler. The standard production configuration serves the
+# authentication-protected workbench and contains no demo settings. The build overlay is required
+# here so this source-backed target builds the latest `origin/main` rather than whichever published
 # images happen to be cached or whichever feature branch an operator last inspected.
 #
 # The recursive makes are intentional. `pull-main` switches the checkout, so reloading the Makefile
@@ -128,6 +131,18 @@ demo: check-tree
 	@$(COMPOSE_DEMO) ps
 	@echo ""
 	@echo "==> deployed demo from main at $$(git rev-parse --short HEAD)"
+
+# The published-image equivalent of `make demo`. It activates the same website/demo-data overlay
+# and C# LINQ profile, but it deliberately has no Git or build step. Pull every image before `up` so
+# a missing tag or registry failure leaves the currently running deployment untouched.
+demo-release:
+	@echo "==> pulling published demo images"
+	$(COMPOSE_DEMO_RELEASE) pull
+	@echo "==> restarting changed containers with the public website, demo access, and C# LINQ"
+	$(COMPOSE_DEMO_RELEASE) up -d --remove-orphans --wait --wait-timeout $(WAIT_TIMEOUT)
+	@$(COMPOSE_DEMO_RELEASE) ps
+	@echo ""
+	@echo "==> deployed demo $${LAKEHOLD_TAG:-latest} from published images"
 
 # The published-image path. No git, no build: whatever LAKEHOLD_TAG names is pulled and started.
 # Pinning that to a released version rather than the default `latest` is what makes a redeploy
