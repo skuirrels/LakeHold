@@ -49,7 +49,7 @@ describe('LandingComponent', () => {
     );
   });
 
-  it('presents the public developer surface across Java, .NET, and Go', async () => {
+  it('presents the public developer surface across Java, .NET, Go, and Python', async () => {
     const fixture = TestBed.createComponent(LandingComponent);
     await fixture.whenStable();
 
@@ -57,8 +57,13 @@ describe('LandingComponent', () => {
     const pillars = fixture.nativeElement.querySelector('.pillars') as HTMLElement;
     const topology = fixture.nativeElement.querySelector('.topology') as HTMLElement;
 
-    expect(eyebrow.textContent?.replace(/\s+/g, ' ').trim()).toContain('Java · .NET · Go');
-    expect(pillars.textContent).toContain('Java · .NET · Go');
-    expect(topology.getAttribute('aria-label')).toContain('SQL, Java, .NET, Go, or open Parquet');
+    expect(eyebrow.textContent?.replace(/\s+/g, ' ').trim()).toContain(
+      'PostgreSQL + DuckDB + DuckLake',
+    );
+    expect(eyebrow.textContent?.replace(/\s+/g, ' ').trim()).toContain('Java · .NET · Go · Python');
+    expect(pillars.textContent).toContain('Java · .NET · Go · Python');
+    expect(topology.getAttribute('aria-label')).toContain(
+      'SQL, Java, .NET, Go, Python, or open Parquet',
+    );
   });
 });

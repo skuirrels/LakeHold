@@ -55,7 +55,10 @@ import { ThemeToggleComponent } from './theme-toggle.component';
     <div class="landing">
       <section class="hero">
         <div class="hero-copy">
-          <span class="eyebrow">Open-source lakehouse · DuckDB + DuckLake · Java · .NET · Go</span>
+          <span class="eyebrow"
+            >Open-source lakehouse · PostgreSQL + DuckDB + DuckLake · Java · .NET · Go ·
+            Python</span
+          >
           <!--
             The product name belongs in the heading and in the sentence below it. Without it the
             only page on the site that *states* what LakeHold is was the documentation, which is how
@@ -75,7 +78,7 @@ import { ThemeToggleComponent } from './theme-toggle.component';
         <div
           class="topology"
           role="img"
-          aria-label="LakeHold connectivity map: PostgreSQL, Kafka with Avro, and REST or gRPC feed governed LakeHold; people connect through enterprise SSO, agents connect through the MCP server, and consumers use SQL, Java, .NET, Go, or open Parquet."
+          aria-label="LakeHold connectivity map: PostgreSQL, Kafka with Avro, and REST or gRPC feed governed LakeHold; people connect through enterprise SSO, agents connect through the MCP server, and consumers use SQL, Java, .NET, Go, Python, or open Parquet."
         >
           <div class="topology-grid" aria-hidden="true"></div>
           <span class="topology-label sources-label">Sources</span>
@@ -169,7 +172,10 @@ import { ThemeToggleComponent } from './theme-toggle.component';
             </div>
             <div class="topology-node">
               <span class="protocol-icon">API</span>
-              <span><strong>Java · .NET · Go</strong><small>First-party source SDKs</small></span>
+              <span
+                ><strong>Java · .NET · Go · Python</strong
+                ><small>First-party source SDKs</small></span
+              >
             </div>
             <div class="topology-node">
               <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -355,8 +361,8 @@ import { ThemeToggleComponent } from './theme-toggle.component';
               <li>You want your tables as open Parquet in a bucket you control.</li>
               <li>Procurement wants a provable exit, not a clause promising one.</li>
               <li>
-                You want one governed API across Java, .NET, and Go, with EF Core where it adds
-                value.
+                You want one governed API across Java, .NET, Go, and Python, with EF Core where it
+                adds value.
               </li>
               <li>You want change data capture without running Debezium and Kafka.</li>
               <li>
@@ -392,7 +398,9 @@ import { ThemeToggleComponent } from './theme-toggle.component';
       <footer class="foot">
         <p class="domain"><a href="https://lakehold.dev">lakehold.dev</a></p>
         <p>
-          Built on <a href="https://duckdb.org" target="_blank" rel="noopener">DuckDB</a>,
+          Built on
+          <a href="https://www.postgresql.org" target="_blank" rel="noopener">PostgreSQL</a>,
+          <a href="https://duckdb.org" target="_blank" rel="noopener">DuckDB</a>,
           <a href="https://ducklake.select" target="_blank" rel="noopener">DuckLake</a>, .NET 10,
           and Angular. Apache-2.0.
         </p>
@@ -433,7 +441,7 @@ export class LandingComponent {
     },
     {
       icon: 'sdk',
-      title: 'Java · .NET · Go',
+      title: 'Java · .NET · Go · Python',
       body: 'First-party source SDKs share one versioned API, with first-class EF Core integration for .NET applications.',
     },
     {
