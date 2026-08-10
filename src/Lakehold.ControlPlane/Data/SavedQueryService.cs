@@ -38,9 +38,10 @@ public sealed class SavedQueryConflictException : Exception
 ///         deliberate publication visible to every SQL client.
 ///     </para>
 ///     <para>
-///         Execution always requests a read-only Duckling, regardless of the caller's role. The
-///         single-statement and leading-query checks improve authoring feedback, but they are not
-///         the security boundary: a saved definition cannot acquire a writable attachment.
+    ///         Execution always requests a read-only Duckling, regardless of the caller's role. The
+    ///         single-statement and leading-query checks improve authoring feedback, but they are not
+    ///         a security boundary. A saved definition cannot acquire a writable selected-catalog
+    ///         attachment; external-access containment remains separate.
 ///     </para>
 /// </remarks>
 public sealed class SavedQueryService(
@@ -237,7 +238,10 @@ public sealed class SavedQueryService(
             .ConfigureAwait(false);
     }
 
-    /// <summary>Executes the persisted definition through a structurally read-only attachment.</summary>
+    /// <summary>
+    ///     Executes the persisted definition with the selected catalog attached read-only. This does
+    ///     not claim arbitrary-SQL process/filesystem/network containment.
+    /// </summary>
     public async Task<QueryResult> ExecuteAsync(
         string tenantSlug,
         string catalogName,

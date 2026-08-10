@@ -40,7 +40,7 @@ export class SavedQueriesPanelComponent {
 
   /** Loads a definition into the editor without executing it. */
   readonly openSource = output<WorkbenchQuerySource>();
-  /** Requests server-resolved, structurally read-only execution of the saved definition. */
+  /** Requests execution with the server-selected catalog attached read-only. */
   readonly executeQuery = output<number>();
   /** A view was created, replaced, or dropped; the catalog explorer must refresh. */
   readonly schemaChanged = output<void>();

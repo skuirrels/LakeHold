@@ -143,8 +143,9 @@ public enum ApiOperationStatus
 }
 
 /// <summary>
-///     An isolation boundary: an organisation, team, or environment. A tenant owns catalogs, and
-///     a query always executes in exactly one tenant's context.
+///     An authorization and storage namespace: an organisation, team, or environment. A tenant owns
+///     catalogs, and a query is routed in exactly one tenant's context. Arbitrary-SQL containment is
+///     a separate worker boundary.
 /// </summary>
 public sealed class Tenant
 {

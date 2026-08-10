@@ -207,8 +207,9 @@ PostgreSQL-wire surfaces together.
 
 MCP is at `/mcp` and **always requires a credential**, even where other surfaces might not. Writes
 have two independent gates: the instance-level *Allow write commands* switch, and the caller's own
-role. A read-only agent token produces a read-only *attachment*, so a write fails in the engine
-rather than in a check the agent might talk its way around.
+role. A read-only agent token produces a read-only selected-catalog *attachment*, so a catalog write
+fails in the engine rather than only in a verb check. This does not contain arbitrary SQL from
+process-visible files, URLs, secrets, extensions, or new attachments.
 
 Give each machine agent its own token with a short expiry, so revoking one does not disturb the
 others. To let an interactive agent sign in **as the person operating it**, register a second public,

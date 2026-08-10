@@ -119,9 +119,14 @@ Preserve these unless the task explicitly changes the architecture and updates i
 3. `LakeContext` is intentionally model-less. Arbitrary result shapes must use the provider's
    streaming `SqlQueryDynamicRawAsync` path; do not add fake entity types or reintroduce a parallel
    raw `DuckDBConnection` stack without a demonstrated provider gap.
-4. A `Duckling` is the tenant isolation and compute unit. Isolation comes from which catalog is
-   attached to a session. Do not treat parsing, filtering, or rewriting submitted SQL as the
-   security boundary. `StatementVerb` reads a statement's leading keyword only to choose how its
+4. A `Duckling` is the current compute and catalog-scoping unit, not a complete sandbox for
+   arbitrary tenant SQL. The credential chooses the tenant-qualified catalog attachment, which
+   prevents route-level cross-tenant selection and accidental warm-session/path collisions; it does
+   not stop DuckDB file readers, new attachments, external URLs, secrets, or extensions from reaching
+   resources visible to the process. Until the Phase 3 worker boundary in
+   `docs/PRODUCTION-READINESS-ROADMAP.md` lands, do not claim safe shared multi-tenancy for mutually
+   untrusted SQL. Never substitute parsing, filtering, or rewriting submitted SQL for that boundary.
+   `StatementVerb` reads a statement's leading keyword only to choose how its
    outcome is *reported* — counted DML (`INSERT`/`UPDATE`/`DELETE`/`MERGE` without `RETURNING`) runs
    as a non-query because the provider's dynamic path has no affected-row count. A statement it does
    not recognise must always fall back to the ordinary streaming path, never be refused, and user SQL
@@ -202,10 +207,13 @@ Preserve these unless the task explicitly changes the architecture and updates i
     reading the table yields nothing usable. The single exception to "never log a credential" is the
     bootstrap token, logged once because it is otherwise unrecoverable and grants provisioning only.
 20. Capability is expressed as attachment wherever it can be. A read-only credential produces a
-    read-only *attachment*, so a write fails in the engine rather than in a policy check that clever
-    SQL might route around — the same reasoning as invariant 4. `DucklingPool` therefore keys sessions
-    by catalog **and attachment mode**: sharing one session between a read-only and a read-write
-    credential would silently hand the former a writable handle.
+    read-only *catalog attachment*, so a write through that catalog handle fails in the engine rather
+    than in a verb check that clever SQL might route around. This is a catalog-write guarantee, not a
+    claim that arbitrary SQL cannot write files, contact a network destination, or create other
+    process-visible state; invariant 4 keeps that distinction explicit. `DucklingPool` therefore keys
+    sessions by tenant, catalog identity, configuration version, and attachment mode: sharing one
+    session between a read-only and a read-write credential would silently hand the former a writable
+    catalog handle.
 21. An agent-reachable surface declares its capability like a route and always requires a credential.
     An MCP tool names a `Capability` and the *same* policy that guards the HTTP route enforces
     it — the rules live in one transport-neutral place, never copied into a second dispatch, or the

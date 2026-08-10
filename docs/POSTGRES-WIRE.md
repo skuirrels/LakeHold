@@ -29,9 +29,11 @@ Host=localhost  Port=5433  Database=analytics  Username=demo  Password=…
 ```
 
 This maps onto `LakehouseService.ExecuteAsync(tenantSlug, catalogName, …)` one-for-one, so the wire
-endpoint enters the engine through the same seam the HTTP API does. Tenant isolation therefore
-remains structural (invariant 4): a connection reaches exactly the catalog attached to the session
-its `user`/`database` pair resolved to, and no SQL it submits is inspected to enforce that.
+endpoint enters the engine through the same authenticated catalog-resolution seam as HTTP. A
+tenant-bound credential and the `user`/`database` pair choose one tenant-qualified catalog; SQL is not
+inspected to make that choice. The attachment is not a complete sandbox for arbitrary SQL, so the
+worker/filesystem/network containment gate in `PRODUCTION-READINESS-ROADMAP.md` applies equally to
+wire clients.
 
 ## Authentication
 
@@ -215,8 +217,9 @@ what it changed.
 
 Two boundaries are worth stating, because the classification looks like SQL parsing and is not:
 
-- **It is a reporting choice, never a security one.** Isolation is still which catalog is attached to
-  the session (invariant 4). Nothing here filters, rewrites, or authorises a statement, and a
+- **It is a reporting choice, never a security one.** Authentication still chooses the tenant-
+  qualified catalog, while the separate worker boundary must contain arbitrary SQL (invariant 4).
+  Nothing here filters, rewrites, or authorises a statement, and a
   statement the classifier does not recognise — a CTE-led write, say — simply streams as before and
   reports no count. The unrecognised case loses a number; it cannot lose a result.
 - **User SQL is not put through EF's raw-SQL formatting.** `ExecuteSqlRawAsync` parses its statement
@@ -408,8 +411,9 @@ abandons the rest of the message, as PostgreSQL does.
 
 The split is lexical, not a parse: it skips string literals, quoted identifiers, dollar-quoted
 bodies, and both comment styles, purely to know when a semicolon is *inside* something. Nothing about
-a statement's meaning is inspected, so this does not become the SQL-parsing security boundary that
-invariant 4 rules out. It also fixes `psql` users sending several statements at once, which was
+a statement's meaning is inspected, so this does not become the SQL-parsing substitute for a real
+worker/filesystem/network security boundary that invariant 4 rules out. It also fixes `psql` users
+sending several statements at once, which was
 broken for the same reason.
 
 ### Still open: the catalogue itself

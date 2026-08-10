@@ -116,7 +116,8 @@ Cover:
 - Logical types and supported nested values.
 - Schema evolution represented by separate input files.
 - Malformed files, unsupported recursive schemas or codecs, and oversized files.
-- Authorisation, tenant isolation, target conflicts, cleanup after failure, and no unbounded scratch growth.
+- Authorisation, tenant-qualified connector/target routing, target conflicts, cleanup after failure,
+  and no unbounded scratch growth. Arbitrary-SQL containment is a separate platform gate.
 - Packaged execution on every supported LakeHold platform.
 - A smoke demonstration: upload an Avro file, create a table, query it, and confirm its durable DuckLake/Parquet representation.
 - A Kafka demonstration: consume compatible Avro records from a protected topic, materialise a governed table, restart safely, and prove replay does not create duplicate effects.

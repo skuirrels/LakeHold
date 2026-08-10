@@ -73,7 +73,7 @@ cleanup, or restore.
 | Product surface                                   |      Unit/component |                              Integration |                           Browser journey |
 | ------------------------------------------------- | ------------------: | ---------------------------------------: | ----------------------------------------: |
 | Tenant, catalog, and token provisioning           |                 Yes |                            API test host |                       First-run component |
-| Authentication, role policy, and tenant isolation |                 Yes |   Read-only Duckling and PostgreSQL wire | Credential and anonymous request boundary |
+| Authentication, role policy, and tenant/catalog routing |           Yes |   Read-only Duckling and PostgreSQL wire | Credential and anonymous request boundary |
 | SQL execution, result types, row limits, errors   |                 Yes |                     Live DuckDB/DuckLake |                Run, render, fail, recover |
 | Optional C# LINQ planning and replay              | Compiler policy/provider plans | Live DuckDB/DuckLake with isolated planner | Private and default-demo discovery, complete, diagnose, run, save, unplug |
 | Catalog schemas and table discovery               |                 Yes |                             Live catalog |                   Filter, insert SQL, run |
@@ -165,8 +165,9 @@ The remaining Phase 2 expansion scenarios are:
 
 - repeat backup, restore, eject, and storage inspection with PostgreSQL metadata and S3 data through
   the user-facing APIs;
-- run two tenants and concurrent operators to prove isolation, queueing, cancellation, and session
-  eviction under contention.
+- run two same-named tenant catalogs and concurrent operators to prove tenant-qualified routing,
+  queueing, cancellation, and session eviction under contention. This does not replace the separate
+  adversarial arbitrary-SQL containment suite required by the production-readiness roadmap.
 
 ## CDC and DuckDB replication lanes
 

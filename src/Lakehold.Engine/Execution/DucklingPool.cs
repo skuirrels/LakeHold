@@ -66,10 +66,10 @@ public sealed class DucklingPool : IAsyncDisposable
 
         await EvictIdleAsync().ConfigureAwait(false);
 
-        // Sessions are keyed by catalog name *and* attachment mode: a read-only credential and a
-        // read-write one for the same catalog must not share a session, or whichever started first
-        // would decide the other's write access. Without the mode in the key, a read-only token would
-        // silently inherit a writable handle — worse than not having the read-only feature at all.
+        // Sessions are keyed by tenant, durable catalog identity, name, configuration version, and
+        // attachment mode. Same-named catalogs from different tenants and read-only/read-write callers
+        // must not share a session, or whichever started first could decide the other's catalog and
+        // selected-handle write access.
         var key = SessionKey(catalog);
 
         // Recorded before GetOrAdd so a miss is attributed to the caller that actually pays the

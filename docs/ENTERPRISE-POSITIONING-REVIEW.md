@@ -124,9 +124,11 @@ When two competitors who agree on nothing else ship the same architecture simult
 the category moving.
 
 An enterprise data platform in late 2026 is judged on the agentic question. LakeHold has a shipped
-answer that is unusually strong and unusually specific: **capability is enforced as attachment**
-(invariants 4 and 20), so a read-only agent token yields a read-only *attachment* and a write fails
-in the engine rather than in a policy check an agent might route around. Given the practitioner
+answer that is unusually strong and unusually specific: credential and attachment mode determine
+the selected catalog, so a read-only agent token yields a read-only *selected-catalog attachment*
+and an attempted catalog write fails in the engine rather than only in an API policy check. This is
+not arbitrary-SQL containment; external readers and process-visible resources remain the Phase 3
+blocker. Given the practitioner
 complaint recorded in the same research — that MCP servers differ most in *how they authenticate* —
 that is a sharper claim than "enterprise", and it is true today. See [`MCP.md`](MCP.md).
 
@@ -142,7 +144,7 @@ Each row below was checked against the code rather than the documentation.
 | SSO, RBAC, fine-grained data policy | **Partial.** Three flat roles, no row/column policy | [`TokenRole.cs`](../src/Lakehold.ControlPlane/Model/TokenRole.cs) |
 | Immutable audit, lineage, policy records | **Partial.** Audit yes; connector-run lineage yes; immutability and table-to-table lineage no | `ConnectorRun` lineage in `Entities.cs` |
 | Tested backup, PITR, DR, controlled upgrades | **Partial.** Documented; control-plane restore absent | [Roadmap](PRODUCTION-READINESS-ROADMAP.md) Phase 5 |
-| Multi-tenant isolation under untrusted SQL | **Open release blocker** | [Roadmap](PRODUCTION-READINESS-ROADMAP.md) Phases 1 and 3 |
+| Multi-tenant isolation under untrusted SQL | **Open release blocker** | Tenant-qualified identity/storage substantially landed; [Roadmap](PRODUCTION-READINESS-ROADMAP.md) Phase 3 containment remains open |
 | Published SLOs, capacity metrics, diagnostics | **Partial.** Telemetry yes; SLOs undefined | [`OPERATIONS.md`](OPERATIONS.md) |
 | Production PostgreSQL wire, JDBC/ODBC, BI | **Partial.** PG wire ships; Power BI blocked | Type-catalogue shim outstanding |
 
@@ -235,11 +237,12 @@ The gap is depth, not quality:
 ### Multi-tenancy is not yet safe for untrusted tenants
 
 This is the largest capability gap behind the label, and it is already documented rather than
-discovered here. [`PRODUCTION-READINESS-ROADMAP.md`](PRODUCTION-READINESS-ROADMAP.md) Phases 1 and 3
-are both marked release blockers and both open. Phase 3 is the serious one: arbitrary DuckDB SQL is
-not contained, so `ATTACH`, `COPY`, `read_parquet`, `glob`, secret creation, extension installation,
-and outbound network access are all reachable from tenant SQL. The roadmap correctly refuses to
-treat keyword parsing as a boundary, consistent with invariant 4.
+discovered here. Tenant-qualified descriptors, paths, artifacts, maintenance identity, and warm
+sessions have substantially landed; focused end-to-end proof and the legacy blank-tenant fallback
+remain Phase 1 hardening. Phase 3 is the serious open blocker: arbitrary DuckDB SQL is not contained,
+so `ATTACH`, `COPY`, `read_parquet`, `glob`, secret creation, extension installation, and outbound
+network access are all reachable from tenant SQL. The roadmap correctly refuses to treat keyword
+parsing or the selected attachment as the complete boundary.
 
 The roadmap's own conclusion is unambiguous: LakeHold "should not be represented or deployed as a
 secure shared multi-tenant service until the isolation and production-security gates below are
@@ -248,16 +251,17 @@ complete."
 An enterprise data platform is multi-tenant by definition. **The category requires a gate the
 project's own roadmap says is not yet passed**, and no amount of positioning changes that ordering.
 
-### Recovery and upgrade are documented, not implemented
+### Recovery remains incomplete; versioned migrations have landed
 
 Phase 5 remains open on exactly the items a buyer asks about first: no control-plane backup and
 restore (tenants, tokens, subscriptions, audit state), backups not guaranteed outside the primary
 failure domain, no automated restore drill, and no defined RPO or RTO. Enterprise procurement asks
 for recovery-point and recovery-time objectives in the first technical meeting.
 
-Schema upgrades still run on `EnsureCreated` plus open-ended additive repair (Phase 7). That is a
-development-stage mechanism, and it is not one an enterprise can accept for a system holding its
-catalog metadata.
+The production PostgreSQL control plane now runs ordered EF Core migrations under a PostgreSQL
+advisory lock; `EnsureCreated` is confined to tests. The additive adapter is a bounded legacy DuckDB
+import bridge, not the production schema lifecycle. Released-version upgrade fixtures,
+restart/rollback evidence, and a tested recovery path remain open.
 
 ### What an enterprise framing under-weights
 
@@ -356,7 +360,7 @@ Recommendations, not commitments — each names the finding that produced it.
 > data teams", with an explicit current-boundary note naming what is not yet built — which answers
 > the substance of the objection even though it keeps the label. The recommendations are retained
 > unedited as the record of the argument, not as live advice. What remains live is the sequencing:
-> the execution seam, the isolation gates, and Iceberg interoperability are still unbuilt and still
+> the execution seam, arbitrary-SQL containment, and Iceberg interoperability are still unbuilt and still
 > gate the claim.
 
 **Adopt the engineering discipline, not the label.** Everything an enterprise claim would require

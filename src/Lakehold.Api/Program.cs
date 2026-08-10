@@ -323,8 +323,9 @@ builder.Services.AddSingleton<QueryPlanCache>();
 builder.Services.AddScoped<QueryExecutionCoordinator>();
 
 // Authentication: resolve a bearer token or browser identity to a principal, then validate the
-// route against it in the endpoint filter. Development may allow credential-less requests; a
-// presented credential is always validated and can never fall through to that legacy path.
+// route against it in the endpoint filter. Credential-less requests exist only through an explicitly
+// configured, catalog-scoped demo reader; a presented credential is always validated and cannot
+// fall through to that identity.
 builder.Services.Configure<LakeholdAuthOptions>(builder.Configuration.GetSection(LakeholdAuthOptions.Section));
 builder.Services.TryAddSingleton(TimeProvider.System);
 builder.Services.AddScoped<ApiTokenAuthenticator>();

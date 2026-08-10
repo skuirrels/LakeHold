@@ -110,7 +110,8 @@ traffic, verify all of the following:
 - `OTEL_EXPORTER_OTLP_ENDPOINT` sends logs, metrics, and traces to a retained backend, and the
   dashboards and alerts in the monitoring runbook exist.
 - `/health` is monitored through the same private ingress path clients use. `/health` and `/alive`
-  are not exposed by a public ingress.
+  are not exposed by a public ingress. The optional PostgreSQL-wire listener is not currently part
+  of HTTP readiness; when enabled, probe its TCP port and an authenticated query separately.
 - The incident contacts and communications channel are assigned.
 - A restore drill has met the deployment's approved recovery-point and recovery-time objectives.
 - Host capacity leaves headroom above the API container limit; disk or volume alerts fire before
@@ -118,6 +119,9 @@ traffic, verify all of the following:
 - If the optional C# LINQ surface is enabled, its shared secret is non-default, `/ready` proves a
   provider translation, it is reachable only from the API network, and removing the profile has
   been verified to leave SQL execution healthy.
+- This deployment is limited to one tenant or mutually trusted SQL users. Do not accept mutually
+  untrusted tenants on a shared query node until Phase 3 arbitrary-SQL containment in the
+  [production-readiness roadmap](PRODUCTION-READINESS-ROADMAP.md) is complete.
 
 If any item is intentionally absent, record the owner, compensating control, expiry date, and risk
 acceptance. An undocumented exception is an operational gap.
@@ -221,10 +225,12 @@ LAKEHOLD_TAG=v2.0.0 make deploy
 `v2.0.0` stands in for the last release known good in *this* deployment, which is whatever the
 deployment record names — not necessarily the immediate predecessor.
 
-This rolls back images, not state. The control plane still uses additive schema initialization
-rather than a versioned migration/rollback system. Do not assume an older image can safely read
-state first opened by a newer image. If the change touched persisted state, use the disaster-recovery
-runbook and the pre-upgrade backup in an isolated environment before changing production.
+This rolls back images, not state. The production PostgreSQL control plane applies ordered EF Core
+migrations under an advisory lock; LakeHold does not automatically run down-migrations when an
+older image is redeployed. Do not assume an older image can safely read state first opened by a
+newer image. If the change touched persisted state, use the disaster-recovery runbook and the
+pre-upgrade backup in an isolated environment before changing production. The additive schema
+adapter is only a compatibility bridge for importing legacy DuckDB control-plane files.
 
 ## Changes requiring an operator review
 

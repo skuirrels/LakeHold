@@ -73,19 +73,19 @@ the workbench asks who you are before it shows you anything.
 The development stack bundles an identity provider (Keycloak) and enables it by default, with a
 realm already seeded. `make dev` prints everything below as it starts:
 
-| | |
-|---|---|
-| Website | http://localhost:5399 |
-| API | http://localhost:5200 |
+|                   |                                                               |
+| ----------------- | ------------------------------------------------------------- |
+| Website           | http://localhost:5399                                         |
+| API               | http://localhost:5200                                         |
 | Identity provider | http://localhost:5401 — Keycloak console is `admin` / `admin` |
 
 Visit http://localhost:5399, click **Open the workbench**, then **Continue with your identity
 provider**. Two users are seeded, both with the password `lakehold`:
 
-| Sign in as | You get |
-|---|---|
-| `analyst` | Owner of the `demo` workspace — query, write, maintenance, backup, and eject |
-| `admin` | Instance administration — provision workspaces, catalogs, and credentials, and administer users in any workspace |
+| Sign in as | You get                                                                                                          |
+| ---------- | ---------------------------------------------------------------------------------------------------------------- |
+| `analyst`  | Owner of the `demo` workspace — query, write, maintenance, backup, and eject                                     |
+| `admin`    | Instance administration — provision workspaces, catalogs, and credentials, and administer users in any workspace |
 
 Either way you land on a seeded catalog: a `demo` workspace with an `analytics` catalog of 250,000
 events and 5,000 customers, so there is something to run against before you load data of your own.
@@ -114,16 +114,18 @@ npm run build --prefix web/lakehold-ui
 
 ## The tools you'll use
 
-There are five ways into a LakeHold catalog. They resolve through the same capability and session
-boundaries, so you can mix them freely. All five require a credential; MCP is the strictest, because
-it will not accept the demo reader that can publish a catalog to anonymous visitors.
+There are five ways into a LakeHold catalog. LakeHold-hosted surfaces resolve through the same
+capability and session boundaries, so you can mix them freely. HTTP may use only an explicitly
+configured, catalog-scoped demo reader without a presented credential; MCP is stricter and never
+accepts that identity. An application embedding the EF Core provider supplies its own database and
+storage connection configuration.
 
-| Tool                  | What it is                                                                                                                                                                                                                                                                            | Best for                                                              |
-| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
-| **The workbench**     | A browser query IDE with built-in SQL and an optional isolated C# LINQ planner, catalog-aware completion, generated SQL, diagnostics, history, snapshots, and maintenance. Ships seeded.                                                                                              | Exploration, authoring, and operations.                               |
-| **A Postgres client** | LakeHold speaks the PostgreSQL wire protocol, so `psql`, DBeaver, or Npgsql connect to a catalog with no driver or plugin. The user is the tenant and the database is the catalog.                                                                                                    | Existing SQL clients and streamed results.                            |
-| **.NET & EF Core**    | Through `DuckDB.EFCoreProvider` your application model and your lake tables are one model.                                                                                                                                                                                            | .NET applications on the same schema.                                 |
-| **The HTTP API**      | Minimal-API endpoints for queries, schemas, history, snapshots, maintenance, eject, backup/restore, and change-feed subscriptions.                                                                                                                                                    | Automation and integration.                                           |
+| Tool                  | What it is                                                                                                                                                                                                                                                                                                                                                   | Best for                                                              |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------- |
+| **The workbench**     | A browser query IDE with built-in SQL and an optional isolated C# LINQ planner, catalog-aware completion, generated SQL, diagnostics, history, snapshots, and maintenance. Ships seeded.                                                                                                                                                                     | Exploration, authoring, and operations.                               |
+| **A Postgres client** | LakeHold speaks the PostgreSQL wire protocol, so `psql`, DBeaver, or Npgsql connect to a catalog with no driver or plugin. The user is the tenant and the database is the catalog.                                                                                                                                                                           | Existing SQL clients and streamed results.                            |
+| **.NET & EF Core**    | Through `DuckDB.EFCoreProvider` your application model and your lake tables are one model.                                                                                                                                                                                                                                                                   | .NET applications on the same schema.                                 |
+| **The HTTP API**      | Minimal-API endpoints for queries, schemas, history, snapshots, maintenance, eject, backup/restore, and change-feed subscriptions.                                                                                                                                                                                                                           | Automation and integration.                                           |
 | **MCP**               | An authenticated Model Context Protocol server with catalog, time-travel, CDC, physical-inspection, audit-history, saved-query, connector, and snapshot-bound maintenance tools. Writes and operator commands are separately gated. Development enables it by default; an instance operator changes the live controls under System Settings with no restart. | AI agents that need discoverable, capability-scoped lakehouse access. |
 
 ### Connect Codex or Claude Code as yourself
@@ -207,9 +209,10 @@ output pane below it with eight panels — **Results**, **Query history**, **Dat
 
 ### Workspace and catalog pickers — _top bar_
 
-A workspace is a tenant; a catalog is the isolated data unit attached to your session. Pick one of
-each — every query, history entry, and maintenance run is scoped to that pair. Isolation comes from
-which catalog is attached, not from anything in the SQL you submit.
+A workspace is a tenant; a catalog is the tenant-qualified data unit selected for your session. Pick
+one of each — every query, history entry, and maintenance run is routed to that pair. The selected
+attachment and read-only mode protect catalog routing and catalog writes; they do not sandbox
+arbitrary SQL from process-visible files, URLs, secrets, or new attachments.
 
 An instance administrator creates additional tenants under **System Settings → New workspace**.
 The workspace slug is its stable identifier in URLs and credentials; its display name is what the
@@ -838,9 +841,11 @@ with `GET /api/tenants/{tenant}/tokens`, which shows the role and never the secr
 
 ### Capability comes from attachment
 
-A `reader` token does not get a permission check that clever SQL might route around — its catalog is
-attached **read-only**, so a write fails in the engine itself. That is the same reasoning behind
-LakeHold's isolation model: a session can only reference the catalog attached to it.
+A `reader` token does not get a verb check that clever SQL might route around — its selected catalog
+is attached **read-only**, so a write through that catalog handle fails in the engine itself.
+Tenant-qualified routing and storage keep same-named catalogs distinct, but the attachment is not a
+general sandbox for process-visible files, URLs, secrets, extensions, or new attachments. Shared
+untrusted SQL remains behind the documented worker-containment gate.
 
 ### Revoking
 

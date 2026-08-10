@@ -222,9 +222,10 @@ From the 2026 State of Data Engineering and adjacent reporting, for direction on
 Recommendations, not commitments. Each names the evidence above that produced it.
 
 **MCP is shipped; lead with how it authenticates and refuses.** Every competitor shipped one this
-year, but LakeHold has a claim none of them can make: **capability is attachment** (invariants 4 and
-20), so a read-only agent token yields a read-only *attachment* and a write fails in the engine.
-Write execution adds a separate operator switch and still requires a writer credential. Given the
+year, but LakeHold has a specific credential model: a read-only agent token yields a read-only
+selected-catalog *attachment*, so a write through that catalog handle fails in the engine (invariants
+4 and 20). This is not arbitrary-SQL containment; process-visible external access remains the Phase 3
+gate. Write tools add a separate operator switch and still require a writer credential. Given the
 practitioner complaint that MCP authentication models are where servers actually differ, those
 enforced boundaries — not merely having an MCP endpoint — are the differentiator to lead with.
 

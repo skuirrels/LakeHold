@@ -6,8 +6,10 @@ LakeHold is an open-source lakehouse platform: a tenant-aware query service, cat
 built on **DuckDB** (the engine) and **DuckLake** (the open table format), with a .NET backend and an
 Angular frontend. PostgreSQL holds the shared control plane and each new DuckLake metadata schema.
 DuckDB remains an in-process worker engine: nodes scale request and tenant concurrency, while a
-single query remains node-bound rather than becoming distributed SQL. Remaining shared-artifact and
-background-job isolation work is explicit in
+single query remains node-bound rather than becoming distributed SQL. Tenant-qualified storage and
+session identity have landed, but arbitrary SQL is not yet contained at a per-tenant process,
+filesystem, credential, and network boundary. That shared-tenancy blocker, plus remaining recovery
+and background-job work, is explicit in
 [`PRODUCTION-READINESS-ROADMAP.md`](PRODUCTION-READINESS-ROADMAP.md).
 
 It is the self-hostable answer to MotherDuck.
@@ -26,9 +28,11 @@ MotherDuck is a hosted service. Your data goes to their account, and the compute
 theirs. That is disqualifying for regulated industries, data-residency requirements, and anyone
 whose security review asks "where does the data live?"
 
-LakeHold deploys into your environment — laptop, single VM, Kubernetes, or an air-gapped network.
-Parquet can live on local/shared filesystems or in S3, GCS, and Azure object storage. Object storage
-is the recommended multi-node mode, not a paid add-on. There is no vendor-hosted control plane.
+LakeHold deploys into your environment — the supported repository profile is Compose on a laptop or
+single VM, including an air-gapped network. The containers are portable to orchestrators, but the
+repository does not currently ship or validate a supported Kubernetes profile. Parquet can live on
+local/shared filesystems or in S3, GCS, and Azure object storage. Object storage is the recommended
+multi-node mode, not a paid add-on. There is no vendor-hosted control plane.
 
 ### 2. Open format, no lock-in
 
@@ -197,14 +201,18 @@ The full before/after is in [`docs/PROVIDER-FEEDBACK.md`](PROVIDER-FEEDBACK.md).
 **EF Core's machinery is still not on the path for arbitrary SQL, but you no longer have to leave
 the provider to skip it.**
 
-### Ducklings: the isolation unit
+### Ducklings: the session and catalog-scoping unit
 
-A **Duckling** is one tenant's compute session — an in-memory DuckDB instance with that tenant's
-DuckLake catalog attached and selected, plus a memory limit and thread budget.
+A **Duckling** is one tenant/catalog compute session — an in-memory DuckDB instance with the
+credential-selected DuckLake catalog attached and selected, plus a memory limit and thread budget.
+The session key includes tenant, durable catalog identity, configuration version, and attachment
+mode, and read-only callers receive a read-only selected-catalog handle.
 
-Isolation is structural: a tenant can only reference the one catalog attached to its own session,
-so cross-tenant access is prevented by *what is attached* rather than by inspecting the SQL a
-tenant submits. SQL parsing as a security boundary is a losing game; attachment scope is not.
+That structure prevents accidental catalog/session reuse and catalog writes through a reader's
+selected attachment. It is not a sandbox for arbitrary DuckDB SQL: external readers, new
+attachments, local paths, URLs, secrets, extensions, and outbound access remain capabilities of the
+shared process. Secure mutually untrusted tenancy therefore requires the Phase 3 per-tenant
+process/filesystem/credential/network boundary. SQL parsing is not an acceptable substitute.
 
 Because all durable state lives in DuckLake (metadata catalog + Parquet), a session holds no data
 and is cheap to evict. That is what makes an aggressive idle timeout safe, and it is the same
@@ -331,7 +339,7 @@ readable by Spark, Trino, or Snowflake.
 | Readable live by Spark / Trino / Snowflake (no export) | ⚠️ | ⚠️ via Unity | ⚠️ via Polaris | ✅ | ✅ | 🛠️ USP 5, Iceberg REST |
 | Serverless-feel / auto-suspend compute | ✅ | ✅ | ✅ | ⚠️ | ❌ | ✅ Ducklings idle-evict |
 | Elastic scale-out (multi-node) | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ single-writer node |
-| Per-tenant isolation as a product primitive | ✅ hypertenancy | ✅ | ✅ | ⚠️ projects | ❌ DIY | ✅ engine-level + credential, see below |
+| Per-tenant isolation as a product primitive | ✅ hypertenancy | ✅ | ✅ | ⚠️ projects | ❌ DIY | ⚠️ tenant-qualified routing; arbitrary-SQL containment open |
 | Authentication / tenant identity | ✅ | ✅ | ✅ | ✅ | ⚠️ DIY | ✅ required on every surface |
 | SSO / OIDC | ✅ | ✅ | ✅ | ✅ | ⚠️ | ✅ browser sign-in + in-product membership |
 | RBAC beyond tenancy | ✅ | ✅ | ✅ | ✅ | ⚠️ | ⚠️ owner/editor/reader per token |
@@ -362,19 +370,15 @@ readable by Spark, Trino, or Snowflake.
 Legend: ✅ shipped/strong · ⚠️ partial, gated, or connector-only · 🛠️ roadmap · ❌ not available ·
 — not applicable to that product's architecture
 
-**On the isolation row.** Isolation between attached catalogs is structural and holds exactly as
-"Ducklings: the isolation unit" describes — a session can only reference what is attached to it, and
-no amount of submitted SQL changes that. The layer that decides *which* tenant a caller is now exists
-too: API tokens, OIDC, and roles, all specified and implemented per
-[`AUTHENTICATION.md`](AUTHENTICATION.md). The credential names the tenant and the URL segment is
-validated against it.
+**On the isolation row.** Credential-bound tenant and catalog selection is implemented: API tokens,
+OIDC, and roles determine the tenant, the route is validated against it, durable paths are
+tenant-qualified, and the complete identity participates in session reuse. Read-only mode also
+prevents writes through the selected catalog handle.
 
-Those are two different claims and the matrix previously ran them together. The engine-level boundary
-was always real; the product-level guarantee a security review asks about now exists as well. Both
-rows read ⚠️ until recently for one reason: `Lakehold:Auth:RequireAuthentication` defaulted to
-false, so a deployment that did not set it accepted token-less requests and trusted the route. That
-switch
-has been removed — enforcement is unconditional — and the rows are ✅ accordingly.
+Those guarantees do not imply that arbitrary SQL is confined to that attachment. DuckDB can access
+resources visible to its process through functions and statements outside the selected catalog.
+Authentication is unconditional and the old fail-open switch is gone, but the isolation row remains
+⚠️ until the Phase 3 worker/filesystem/credential/network boundary passes adversarial tests.
 
 What is still ⚠️ is the row below them: authorization granularity stops at a role and optionally one
 catalog. There are no row or column policies, so a reader who can reach a table reads all of it.
@@ -478,8 +482,9 @@ Package the Duckling/`LakeContext` path as a library so a .NET app runs a single
 in-process (edge, desktop, air-gapped appliance, integration tests), then points identical code at a
 LakeHold server with no query changes. This is the self-hostable answer to MotherDuck's dual
 local↔cloud execution, and it is only possible because the data plane is already a model-less .NET
-`DbContext` rather than a JVM cluster. Would need to keep the isolation boundary structural
-(invariant 4) and the writer serialised (invariant 5) in-process.
+`DbContext` rather than a JVM cluster. It would need to preserve structural tenant/catalog session
+identity, add a real containment boundary for any untrusted SQL, and keep the writer serialised
+(invariant 5) in-process.
 
 ### 4. Continuous exit attestation — not built
 
@@ -585,17 +590,17 @@ deserialises from that rather than introducing a second conversion path.
   row is the differentiator, and the first is only its delivery vehicle.
 - **Would extend**: `ChangeFeed`, the API contracts, and a new client project.
 
-### Precondition for all three: authentication — met
+### Precondition for all three: authentication — met; arbitrary-SQL containment remains open
 
 USPs 4–6 are all *externally reachable surfaces*, and serving an Iceberg REST endpoint or a client SDK
-on top of an unauthenticated API would widen the exposure rather than the moat. That precondition has
-since been met: the whole plan in [`AUTHENTICATION.md`](AUTHENTICATION.md) — API tokens, instance-
-scoped provisioning, read-only capability by attachment, per-statement audit, the wire endpoint on the
-same token store, OIDC, and roles — is implemented.
+on top of an unauthenticated API would widen the exposure rather than the moat. That authentication
+precondition has since been met: the plan in [`AUTHENTICATION.md`](AUTHENTICATION.md) — API tokens,
+instance-scoped provisioning, credential-selected read-only catalog handles, per-statement audit,
+the wire endpoint on the same token store, OIDC, and roles — is implemented.
 
-Invariant 4 was never violated by the earlier gap: isolation between attached catalogs is structural
-and always held. What was missing was the layer deciding *which* tenant a caller is, and it now
-exists, with the credential naming the tenant and the route validated against it.
+The credential now names the tenant and the route is validated against it. That closes the identity
+gap, but not the arbitrary-SQL boundary: externally reachable query surfaces must still be treated as
+trusted-user surfaces until Phase 3 containment is complete.
 
 The one caveat for anything built on top: a deployment may configure demo access, so a new
 externally reachable surface must not assume every request carries a *named* credential. It may be
@@ -613,11 +618,12 @@ checkpoints, replay-safe upsert, retries, schema contracts, and run lineage (`CO
 **Now** also includes the PostgreSQL wire endpoint (`docs/POSTGRES-WIRE.md`) — parity rather than
 differentiation, as the matrix says; `psql`, DBeaver, and Npgsql work, while Power BI still awaits the
 type-catalogue shim — and **authentication and tenant identity** (`docs/AUTHENTICATION.md`): API
-tokens, provisioning, read-only capability by attachment, audit, wire convergence, OIDC, and roles.
+tokens, provisioning, read-only selected-catalog attachments, audit, wire convergence, OIDC, and roles.
 The authenticated MCP server (`docs/MCP.md`) is also shipped, with catalog, time-travel, CDC,
 physical-inspection, audit-history, saved-query, connector, and snapshot-bound maintenance tools.
-Mutating and operator tools are separately gated. Every surface requires a credential; MCP
-additionally refuses the demo identity, so it can never be reached anonymously.
+Mutating and operator tools are separately gated. HTTP may use the explicitly configured,
+catalog-scoped demo reader without a presented credential; MCP refuses both a missing credential and
+the demo identity, so it can never be reached anonymously.
 
 **Next** — complete and release the Java, Go, .NET, and Python SDK programme (USP 6), add an Iceberg
 REST Catalog endpoint (USP 5), and add read-only share links.

@@ -17,8 +17,9 @@ import { Injectable, computed, signal } from '@angular/core';
  * This is the machine and break-glass path either way. Interactive humans use the same-origin OIDC
  * session, where JavaScript never receives the identity-provider token at all.
  *
- * While the API leaves authentication optional, no token is needed and the workbench works exactly
- * as before; setting one is what lets it keep working once a deployment requires authentication.
+ * API authentication is unconditional. A missing token is useful only when the deployment has
+ * deliberately configured its scoped demo-reader identity; the stored-token path remains the
+ * machine and break-glass alternative to an OIDC browser session.
  */
 const STORAGE_KEY = 'lakehold.token';
 

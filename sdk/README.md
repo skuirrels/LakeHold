@@ -51,8 +51,9 @@ transport-appropriate cancellation, correlation identifiers, user agents, timeou
 additive-field compatibility, plus incremental query/CDC stream framing.
 
 The dedicated `sdk-conformance.yml` workflow pulls an immutable released LakeHold API image and
-provisions an isolated catalog-scoped reader independently for each language. It verifies
-authenticated query streaming, tenant isolation, and transport-appropriate cancellation. Exhaustive
+provisions a tenant/catalog-scoped reader independently for each language. It verifies authenticated
+query streaming, credential-bound tenant/catalog routing, and transport-appropriate cancellation. It
+does not exercise the Phase 3 arbitrary-SQL process/filesystem/network containment boundary. Exhaustive
 coverage of every stable public error code remains open.
 See [`REFERENCE.md`](REFERENCE.md), [`COMPATIBILITY.md`](COMPATIBILITY.md), and
 [`examples`](examples/) for the supported runtime surface.

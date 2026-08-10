@@ -1,5 +1,7 @@
 # LakeHold production-readiness roadmap
 
+**Status reviewed:** 10 August 2026
+
 ## Readiness conclusion
 
 LakeHold has a strong technical foundation: a clear control-plane/data-plane split, typed APIs,
@@ -7,34 +9,42 @@ cancellable streaming queries, bounded materialised results, dry-run destructive
 verified backup/eject manifests, structured telemetry, real-engine integration tests, and non-root
 production images with health checks and resource limits.
 
-It is suitable for trusted development and evaluation today. It should not be represented or
-deployed as a secure shared multi-tenant service until the isolation and production-security gates
-below are complete. New product features should not take priority over Phases 1–3.
+It is suitable for a single tenant, trusted internal users, development, and evaluation today. It
+should not be represented or deployed as a secure shared service for mutually untrusted tenants
+until the arbitrary-SQL containment and production-security gates below are complete. Tenant-
+qualified storage/session identity and unconditional authentication have landed; Phase 3 is now the
+decisive isolation blocker. New product features should not take priority over that boundary,
+aggregate workload admission, or a clean-machine recovery drill.
 
-## Phase 1 — Make tenant isolation a proved invariant
+## Phase 1 — Make tenant-qualified identity and routing a proved invariant
 
-**Priority:** Release blocker.
+**Implementation status:** Substantially landed; focused end-to-end proof and legacy hardening remain.
 
-Every persisted artifact and every piece of node-local state must be keyed by tenant identity as
-well as catalog name. Two tenants are currently allowed to use the same catalog name, so catalog
-name alone cannot identify storage or a warm session.
+The current control-plane path carries tenant and catalog identity into engine descriptors. Default
+data, backup, and eject locations are tenant-qualified; warm sessions include tenant, catalog id and
+name, configuration version, and attachment mode; maintenance leases are tenant/catalog qualified.
+Two tenants may use the same catalog name without sharing those identities. The remaining work is to
+remove or isolate the engine's legacy blank-tenant fallback and prove the full lifecycle in one
+production-path test.
 
 ### Actions
 
-- Define one canonical tenant/catalog identity and carry it from the control-plane resolution into
+- **Landed:** define one canonical tenant/catalog identity and carry it from control-plane resolution into
   the engine descriptor.
-- Derive default metadata and data locations from both tenant and catalog. Prevent
+- **Landed:** derive default metadata and data locations from both tenant and catalog. Prevent
   `alpha/analytics` and `beta/analytics` from resolving to the same DuckLake metadata file or
   Parquet root.
-- Key warm sessions by tenant, catalog, and attachment mode. Make eviction and inspection use the
-  same full key so changing or deleting one tenant's catalog cannot affect another tenant's
-  session.
-- Namespace backup generations, restore discovery, and eject bundles by tenant and catalog.
-- Review every catalog-name-only cache, path, lease, subscription, audit, and maintenance lookup;
-  either make it tenant-aware or document why it is intentionally global.
-- Define an upgrade path for existing catalog-name-only storage. During transition, fail closed on
+- **Landed:** key warm sessions by tenant, catalog identity, configuration version, and attachment
+  mode. Eviction uses the same tenant/catalog identity.
+- **Landed:** namespace backup generations, restore discovery, eject bundles, and maintenance leases
+  by tenant and catalog.
+- **Substantially landed:** current control-plane caches, paths, connector/subscription state, audit,
+  and maintenance resolution use tenant or durable catalog identity. Keep this in the review
+  checklist as new surfaces are added.
+- **Open hardening:** define an upgrade path for existing catalog-name-only storage and remove the
+  normal runtime's blank-tenant descriptor fallback. During transition, fail closed on
   ambiguous layouts instead of attaching whichever path already exists.
-- Keep read-only and read-write attachments separate within the tenant-aware key.
+- **Landed:** keep read-only and read-write attachments separate within the tenant-aware key.
 
 ### Success criteria
 
@@ -62,24 +72,28 @@ name alone cannot identify storage or a warm session.
 
 ## Phase 2 — Fail closed in production
 
-**Priority:** Release blocker.
+**Implementation status:** Core release blocker closed; rate limiting and route-inventory hardening remain.
 
 ### Actions
 
-- **Partly landed:** production Compose enables authentication by default. Remaining work is to limit
-  token-less legacy mode to an explicit development setting and refuse production start-up when it
-  is enabled accidentally.
+- **Landed:** authentication is unconditional. The former `RequireAuthentication` switch and
+  token-less legacy mode no longer exist. Optional anonymous access is a named `DemoTenant` plus
+  `DemoCatalog` reader identity and fails closed when either value is absent.
 - **Landed:** `/api/maintenance/schedule` carries the authorization filter, requires `Listing`, and
   projects only the tenant and catalog runs reachable by the credential.
-- Review all routes outside the authenticated tenant group and add a test that inventories the
+- **Open hardening:** review all routes outside the authenticated tenant group and add a test that inventories the
   intended public endpoints.
-- Add authentication-attempt rate limiting and document TLS termination requirements.
+- **Open hardening:** add authentication-attempt rate limiting. TLS requirements for OIDC, tokens on
+  PostgreSQL wire, and external connections are documented.
 
 ### Exit gate
 
 A default production deployment exposes no tenant, query, provisioning, maintenance, backup, or
 operational data without a valid credential, while the documented development flow remains easy to
 run deliberately.
+
+**Core exit-gate status:** Met in source and current authentication tests. Rate limiting remains a
+separate abuse-control task rather than an authentication-enforcement switch.
 
 ## Phase 3 — Contain arbitrary SQL
 
@@ -108,22 +122,29 @@ LakeHold's control-plane/runtime files, even when paths and catalog names are kn
 
 ## Phase 4 — Secure webhook delivery
 
+**Implementation status:** Application controls substantially landed; network enforcement and
+address-classification hardening remain.
+
 ### Actions
 
-- Give subscription creation, mutation, and deletion an explicit capability; do not grant
-  persistent outbound integration management merely because a principal can read data.
-- Default to HTTPS and support an operator-controlled destination allowlist.
-- Block loopback, link-local, private, metadata-service, and otherwise prohibited destinations,
+- **Landed:** subscription creation, mutation, and deletion require `TenantWrite`; reading data alone
+  does not grant persistent outbound-integration management.
+- **Landed:** default to HTTPS and support an operator-controlled destination allowlist.
+- **Substantially landed:** block loopback, link-local, private, metadata-service, multicast, CGNAT,
+  and unique-local destinations,
   including after DNS resolution and redirects. Revalidate on every delivery to address DNS
-  rebinding.
-- Apply egress network policy outside the application as a second boundary.
-- Bound redirects, response headers, connection lifetime, payload size, retry volume, and total
+  rebinding. Connections are pinned to the approved address and redirects are disabled. Complete
+  IANA special-use and NAT64 classification remains open.
+- **Deployment gate:** apply egress network policy outside the application as a second boundary.
+- **Landed:** disable redirects; bound connection lifetime, payload size, retry/backoff volume, and total
   concurrent delivery work.
 
 ### Exit gate
 
-Webhook tests cover private-address targets, redirects, DNS changes, authorization roles, timeout
-and backoff behavior, and prove that signing secrets and response bodies do not enter logs or APIs.
+Webhook tests cover private-address targets, host allowlists, address pinning, authorization roles,
+timeouts, backoff, concurrency, stable signed payloads, and omission of response bodies from durable
+errors. Add NAT64/special-use cases and retain an infrastructure egress-policy test before treating
+this gate as complete in an untrusted network.
 
 ## Phase 5 — Make recovery and HA operationally credible
 
@@ -136,8 +157,8 @@ and backoff behavior, and prove that signing secrets and response bodies do not 
   explicit limitations, alert gates, and drill evidence. The implementation items below remain
   readiness work; documentation does not make a same-volume backup off-host or add control-plane
   restore support.
-- Make metadata, data, backup, and eject roots genuinely configurable; do not overwrite explicitly
-  bound values while resolving defaults from the state root.
+- **Landed:** metadata, data, backup, and eject roots are configurable and explicitly bound values are
+  preserved while relative defaults resolve from the state root.
 - Keep recoverable backups and eject bundles outside the primary host/volume failure domain.
 - Add backup and restore for the control plane, including tenants, catalog descriptors, tokens,
   subscriptions, and required audit state.
@@ -158,13 +179,19 @@ cross-tenant ambiguity or undocumented manual database edits.
 
 ## Phase 6 — Enforce quality gates in CI
 
+**Implementation status:** Functional and production-path coverage is broad; adversarial isolation
+and supply-chain security gates remain.
+
 ### Actions
 
-- **Partly landed:** CI restores and tests the backend. Remaining gates are explicit build,
-  format/style, and dedicated integration lanes.
-- **Partly landed:** CI runs `npm ci`, the frontend unit suite, and the production build. Remaining
-  gates are lint/format and a small end-to-end workbench smoke suite.
-- Add dedicated PostgreSQL metadata, object-store, PostgreSQL-wire, and two-tenant isolation lanes.
+- **Landed:** CI restores, builds, and tests the backend and verifies Kafka Avro through trusted
+  proxy gateways.
+- **Landed:** CI runs `npm ci`, frontend unit tests, the production build, real Chromium journeys,
+  and a destructive disposable production-operator simulation. Explicit lint/Prettier enforcement
+  remains open.
+- **Landed in dedicated or real-client coverage:** PostgreSQL metadata and S3 integration run with
+  skipped-test detection; PostgreSQL wire is exercised through Npgsql and socket-level tests.
+  A production-path adversarial two-tenant SQL-containment lane remains open.
 - Add dependency vulnerability review, secret scanning, container build/scanning, and reproducible
   lockfile checks.
 - Split the largest implementation hotspots as behavior changes require it; avoid a speculative
@@ -178,16 +205,20 @@ passing. Required checks are branch-protected and produce retained diagnostic ou
 
 ## Phase 7 — Adopt versioned control-plane migrations
 
+**Implementation status:** Versioned production migrations landed; lifecycle evidence remains.
+
 ### Actions
 
-- Replace `EnsureCreated` plus open-ended additive repair as the long-term upgrade mechanism with a
-  versioned, ordered migration history.
+- **Landed:** the production PostgreSQL control plane runs a versioned, ordered EF migration history
+  under a PostgreSQL advisory lock. `EnsureCreated` is confined to tests. The narrow additive adapter
+  remains only for copying legacy DuckDB control-plane files into a migration-managed PostgreSQL
+  target.
 - Define supported forward-upgrade, restart-after-interruption, backup-before-migration, and rollback
   behavior.
 - Add fixtures from every released schema version and test upgrades with representative existing
   data, constraints, token roles, and audit records.
-- Keep the additive repair path only as a bounded compatibility bridge, with an explicit removal
-  plan.
+- Keep the legacy import adapter as a bounded compatibility bridge, with an explicit support and
+  removal plan.
 
 ### Exit gate
 
@@ -196,13 +227,18 @@ and a failed migration cannot silently leave a partially upgraded control plane.
 
 ## Phase 8 — Reconcile documentation and claims
 
+**Implementation status:** Repository-wide reconciliation performed 10 August 2026; automated drift
+prevention remains.
+
 ### Actions
 
-- Update the README's authentication, provisioning, provider-version, deployment, and status
-  sections from the runtime source of truth.
-- Describe isolation as implemented and tested, not intended. Remove the shared multi-tenant claim
-  until the Phase 1 and Phase 3 gates pass.
-- Distinguish the one-node production profile from any future HA/multi-node profile.
+- **Landed in the 10 August reconciliation:** update authentication, tenant qualification,
+  migrations, CI, deployment-support, and status claims from the runtime source of truth.
+- **Landed in documentation:** distinguish credential-bound tenant/catalog routing from the still-open
+  arbitrary-SQL process/filesystem/network boundary. Do not claim secure shared untrusted tenancy
+  until Phase 3 passes.
+- **Landed in documentation:** distinguish the supported Compose/single-node profile, worker-local
+  multi-node behaviour, and container portability from a supported Kubernetes profile.
 - Make configuration examples executable and add checks that important documented keys are actually
   honored.
 - Keep architecture, authentication, exit-path, PostgreSQL-wire, public-API, and agent guidance
@@ -210,7 +246,8 @@ and a failed migration cannot silently leave a partially upgraded control plane.
 
 ### Final readiness gate
 
-Call LakeHold production-ready for shared multi-tenancy only after Phases 1–6 are complete and a
-release candidate passes an adversarial isolation review and a clean-machine recovery drill.
-Phases 7–8 should complete before promising durable upgrades and publishing broad production
-guidance.
+Call LakeHold production-ready for shared, mutually untrusted multi-tenancy only after the Phase 1
+proof is complete, Phase 3 containment plus aggregate admission control has landed, and a release
+candidate passes adversarial isolation, supply-chain, and clean-machine recovery gates. Versioned
+migrations have landed, but released-version upgrade fixtures and automated documentation-drift
+checks remain necessary before promising a broad long-term support lifecycle.
