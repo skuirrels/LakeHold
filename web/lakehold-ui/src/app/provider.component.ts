@@ -1,7 +1,65 @@
-import { ChangeDetectionStrategy, Component } from '@angular/core';
+import {
+  afterNextRender,
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  signal,
+} from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { BrandMarkComponent } from './brand-mark.component';
 import { ThemeToggleComponent } from './theme-toggle.component';
+
+const PROVIDER_VERSIONS_URL =
+  'https://api.nuget.org/v3-flatcontainer/duckdb.efcoreprovider/index.json';
+
+interface NugetVersionIndex {
+  readonly versions?: unknown;
+}
+
+/** Returns the newest stable normalized package version, independent of index ordering. */
+export function latestStableProviderVersion(index: unknown): string | null {
+  if (typeof index !== 'object' || index === null) {
+    return null;
+  }
+
+  const versions = (index as NugetVersionIndex).versions;
+  if (!Array.isArray(versions)) {
+    return null;
+  }
+
+  let latest: { version: string; parts: readonly number[] } | null = null;
+  for (const value of versions) {
+    if (typeof value !== 'string') {
+      continue;
+    }
+
+    const version = value.trim();
+    if (!/^\d+\.\d+\.\d+(?:\.\d+)?$/.test(version)) {
+      continue;
+    }
+
+    const parts = version.split('.').map(Number);
+    if (!parts.every(Number.isSafeInteger)) {
+      continue;
+    }
+
+    if (latest === null || compareVersionParts(parts, latest.parts) > 0) {
+      latest = { version, parts };
+    }
+  }
+
+  return latest?.version ?? null;
+}
+
+function compareVersionParts(left: readonly number[], right: readonly number[]): number {
+  for (let index = 0; index < Math.max(left.length, right.length); index++) {
+    const difference = (left[index] ?? 0) - (right[index] ?? 0);
+    if (difference !== 0) {
+      return difference;
+    }
+  }
+  return 0;
+}
 
 /**
  * The DuckDB.EFCoreProvider surface: the provider's value proposition.
@@ -20,12 +78,37 @@ import { ThemeToggleComponent } from './theme-toggle.component';
   styleUrls: ['./site-header.css', './provider.component.css'],
 })
 export class ProviderComponent {
-  protected readonly stats = [
+  private readonly providerVersion = signal('Latest');
+
+  protected readonly stats = computed(() => [
     { value: 'EF Core 10', label: 'Native provider, .NET 10' },
-    { value: 'v1.17', label: 'Current release on NuGet' },
+    { value: this.providerVersion(), label: 'Current release on NuGet' },
     { value: 'S3 · GCS · Azure', label: 'Verified archive paths' },
     { value: 'MIT', label: 'Licence, open source' },
-  ];
+  ]);
+
+  constructor() {
+    // Keep the prerender truthful without making the build depend on NuGet. The browser replaces
+    // "Latest" only after NuGet returns a valid stable version, so an outage cannot leave a stale
+    // release number behind or prevent the provider documentation from rendering.
+    afterNextRender(() => void this.loadLatestProviderVersion());
+  }
+
+  private async loadLatestProviderVersion(): Promise<void> {
+    try {
+      const response = await globalThis.fetch(PROVIDER_VERSIONS_URL, { credentials: 'omit' });
+      if (!response.ok) {
+        return;
+      }
+
+      const latest = latestStableProviderVersion(await response.json());
+      if (latest !== null) {
+        this.providerVersion.set(`v${latest}`);
+      }
+    } catch {
+      // NuGet is an enhancement for this one display value, not a page availability dependency.
+    }
+  }
 
   protected readonly pillars = [
     {
