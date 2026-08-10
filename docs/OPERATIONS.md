@@ -48,10 +48,13 @@ The public host port is `8080` by default. nginx proxies `/health` and `/api`; i
 `/alive`. Probe `/alive` only from the container or private service network.
 
 The evaluation-only `make demo` path switches a clean deployment checkout to `main`, fast-forwards
-it from `origin/main`, and then enables and builds the LINQ profile by default. It generates a
-high-entropy planner credential in memory and supplies the same value to the API and compiler, so
-the demo operator does not configure or retain a key. Standard and remote production deployments
-continue to take their planner credential from the deployment secret store.
+it from `origin/main`, and then enables and builds the LINQ profile by default. The equivalent
+`LAKEHOLD_TAG=v2.3.0 make demo-release` path pulls the published API, web, and compiler images and
+does no Git or source build work. Both generate a high-entropy planner credential in memory and
+supply the same value to the API and compiler, so the demo operator does not configure or retain a
+key. Standard and remote production deployments continue to take their planner credential from the
+deployment secret store. Pin `LAKEHOLD_TAG` for a reproducible image-backed demo; omitting it tracks
+`latest`.
 
 The published API image includes the signed DuckDB extension binaries required by LakeHold plus the
 Excel extension used for `.xlsx` imports. They are pinned to the exact DuckDB engine version and to
