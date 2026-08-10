@@ -242,11 +242,13 @@ add its overlay:
 make demo
 ```
 
-This refuses tracked local changes, pulls the current branch with `--ff-only`, then builds the API,
-UI, and isolated C# LINQ compiler images before starting them in website mode. C# LINQ is enabled in
-the Workbench by default. `make demo` generates and supplies the internal planner credential, so no
-feature key needs to be configured or retained by the operator. The site listens on port `8080` by
-default; use `LAKEHOLD_PORT=8081 make demo` when that port is already occupied.
+This refuses tracked local changes, switches the deployment checkout to `main`, fast-forwards it
+from `origin/main`, then builds the API, UI, and isolated C# LINQ compiler images before starting
+them in website mode. It never deploys the feature branch an operator happened to inspect last.
+C# LINQ is enabled in the Workbench by default. `make demo` generates and supplies the internal
+planner credential, so no feature key needs to be configured or retained by the operator. The site
+listens on port `8080` by default; use `LAKEHOLD_PORT=8081 make demo` when that port is already
+occupied.
 
 `compose.demo.yaml` owns the website mode, demo seeding, authentication, the read-only visitor
 scope, and a private PostgreSQL 17 service whose metadata survives restarts in the

@@ -47,7 +47,8 @@ has no state/catalog volume, and is bounded by the Compose CPU, memory, and proc
 The public host port is `8080` by default. nginx proxies `/health` and `/api`; it does not expose
 `/alive`. Probe `/alive` only from the container or private service network.
 
-The evaluation-only `make demo` path enables and builds the LINQ profile by default. It generates a
+The evaluation-only `make demo` path switches a clean deployment checkout to `main`, fast-forwards
+it from `origin/main`, and then enables and builds the LINQ profile by default. It generates a
 high-entropy planner credential in memory and supplies the same value to the API and compiler, so
 the demo operator does not configure or retain a key. Standard and remote production deployments
 continue to take their planner credential from the deployment secret store.
