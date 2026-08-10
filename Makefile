@@ -8,7 +8,7 @@
 #   make backup-state Archive the state volume to a tarball in the working directory.
 #   make test         Run the complete backend, frontend, integration, and browser test suite.
 #   make dev          Start the local development stack with hot reload.
-#   make demo         Pull, build, and start the public demo with C# LINQ enabled.
+#   make demo         Update main, build, and start the public demo with C# LINQ enabled.
 #   make prune-worktrees  List finished agent worktrees; APPLY=1 removes them.
 #
 # Deployment targets drive compose.production.yaml and `make dev` drives compose.yaml, but the three
@@ -60,14 +60,14 @@ KEYCLOAK_PORT ?= 5401
 
 .DEFAULT_GOAL := help
 
-.PHONY: help test dev demo deploy production check-tree pull build build-demo up status logs stop backup-state prune-worktrees
+.PHONY: help test dev demo deploy production check-tree pull pull-main build build-demo up status logs stop backup-state prune-worktrees
 
 help:
 	@echo "Lakehold — make targets"
 	@echo ""
 	@echo "  test          Run every test, including live integrations and both E2E suites"
 	@echo "  dev           Start the local development stack with hot reload"
-	@echo "  demo          Pull, build, and start the public website and demo workbench"
+	@echo "  demo          Update main, build, and start the public website and demo workbench"
 	@echo "  deploy        Update this deployment to the current published images"
 	@echo "  production    Update the private workbench and services from source"
 	@echo "  status        Show whichever stack is running, and its health"
@@ -113,16 +113,21 @@ dev:
 # Demo is deliberately a separate opt-in overlay; it is the only target that enables the public
 # website and starts the isolated C# LINQ compiler. The standard production configuration serves
 # the authentication-protected workbench and contains no demo settings. The build overlay is
-# required here so this target runs the current checkout rather than whichever published images
-# happen to be cached.
-# As with `production`, local tracked changes fail before pulling so an update can never overwrite
-# an uncommitted deployment-host edit.
-demo: check-tree pull build-demo
+# required here so this target builds the latest `origin/main` rather than whichever published
+# images happen to be cached or whichever feature branch an operator last inspected.
+#
+# The recursive makes are intentional. `pull-main` switches the checkout, so reloading the Makefile
+# before `build-demo` guarantees that the build recipe itself also comes from the newly updated main
+# branch. Local tracked changes fail before switching so an update can never overwrite an
+# uncommitted deployment-host edit.
+demo: check-tree
+	@$(MAKE) --no-print-directory pull-main
+	@$(MAKE) --no-print-directory build-demo
 	@echo "==> restarting changed containers with the public website, demo access, and C# LINQ"
 	$(COMPOSE_DEMO) up -d --remove-orphans --wait --wait-timeout $(WAIT_TIMEOUT)
 	@$(COMPOSE_DEMO) ps
 	@echo ""
-	@echo "==> deployed demo from $(BRANCH) at $$(git rev-parse --short HEAD)"
+	@echo "==> deployed demo from main at $$(git rev-parse --short HEAD)"
 
 # The published-image path. No git, no build: whatever LAKEHOLD_TAG names is pulled and started.
 # Pinning that to a released version rather than the default `latest` is what makes a redeploy
@@ -153,6 +158,14 @@ check-tree:
 pull:
 	@echo "==> git pull --ff-only ($(BRANCH))"
 	git pull --ff-only
+
+# The public demo is the deployed lakehold.dev surface, not a feature-branch preview. Always move a
+# clean deployment checkout to main and fast-forward it from the named remote branch before any
+# image is built. `git switch` and `--ff-only` both fail safely rather than discarding local state.
+pull-main:
+	@echo "==> switching to main and fast-forwarding from origin/main"
+	git switch main
+	git pull --ff-only origin main
 
 # --pull refreshes the base images too. Both Dockerfiles track floating tags (aspnet:10.0,
 # nginx:alpine), so without this a long-lived host keeps rebuilding onto whatever base it cached
