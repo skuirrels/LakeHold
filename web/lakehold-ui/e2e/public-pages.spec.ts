@@ -92,11 +92,20 @@ test.describe('@website public product pages', () => {
 
     const header = await page.locator('.nav').boundingBox();
     const topology = await page.locator('.topology').boundingBox();
+    const outputs = await page.locator('.output-stack').boundingBox();
+    const controlPlane = await page.locator('.control-plane').boundingBox();
+    const controlPlaneTitle = await page.locator('.control-plane-title').boundingBox();
 
     expect(header).not.toBeNull();
     expect(topology).not.toBeNull();
+    expect(outputs).not.toBeNull();
+    expect(controlPlane).not.toBeNull();
+    expect(controlPlaneTitle).not.toBeNull();
     expect(header!.height).toBeLessThanOrEqual(96);
     expect(topology!.height).toBeLessThanOrEqual(800);
+    expect(Math.abs(controlPlane!.x - outputs!.x)).toBeLessThanOrEqual(1);
+    expect(Math.abs(controlPlane!.width - outputs!.width)).toBeLessThanOrEqual(1);
+    expect(controlPlaneTitle!.y).toBeGreaterThanOrEqual(outputs!.y + outputs!.height);
     await expect(page.locator('lh-landing')).toHaveJSProperty('scrollLeft', 0);
 
     const hasHorizontalOverflow = await page.locator('lh-landing').evaluate((landing) => {
