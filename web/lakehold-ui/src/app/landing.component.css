@@ -36,15 +36,32 @@
    new link without another measurement. */
 @media (max-width: 640px) {
   .nav-inner {
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 10px;
-    padding: 12px 20px;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 12px 18px;
+    padding: 12px 20px 11px;
   }
 
   .nav-links {
-    flex-wrap: wrap;
-    justify-content: center;
+    display: contents;
+  }
+
+  .nav-primary {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    width: 100%;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .nav-primary a {
+    font-size: 12px;
+  }
+
+  .nav-actions {
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: end;
     gap: 16px;
   }
 
@@ -561,48 +578,99 @@ h1 {
     padding-inline: 20px;
   }
 
+  .hero {
+    padding-top: 26px;
+    gap: 30px;
+  }
+
+  .eyebrow {
+    max-width: 100%;
+    padding: 5px 11px;
+    font-size: 11px;
+    line-height: 1.45;
+  }
+
+  h1 {
+    margin: 22px 0 18px;
+    font-size: clamp(2.15rem, 10vw, 2.75rem);
+    line-height: 1.06;
+    letter-spacing: -0.04em;
+  }
+
+  .lede {
+    font-size: 16px;
+    line-height: 1.58;
+    text-wrap: pretty;
+  }
+
+  .hero-actions {
+    display: grid;
+    grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+    gap: 10px;
+    margin-top: 24px;
+  }
+
   .hero-actions .btn {
-    flex: 1 1 180px;
+    min-width: 0;
+    padding-inline: 10px;
     text-align: center;
   }
 
   .topology {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    padding: 42px 12px 14px;
   }
 
   .source-stack,
   .output-stack {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
   }
 
-  .sso-node,
-  .mcp-node {
-    grid-column: 1;
+  .source-stack .topology-node,
+  .output-stack .topology-node,
+  .access-node {
+    min-height: 84px;
+    padding: 8px 4px;
+    flex-direction: column;
+    justify-content: center;
+    gap: 6px;
+    text-align: center;
   }
 
-  .sso-node {
-    grid-row: 3;
+  .source-stack .topology-node > svg,
+  .output-stack .topology-node > svg,
+  .access-node > svg {
+    width: 22px;
+    height: 22px;
   }
 
-  .mcp-node {
-    grid-row: 4;
+  .source-stack .topology-node strong,
+  .output-stack .topology-node strong,
+  .access-node strong {
+    font-size: 10px;
+  }
+
+  .source-stack .topology-node small,
+  .output-stack .topology-node small,
+  .access-node small {
+    display: none;
+  }
+
+  .protocol-icon {
+    min-width: 32px;
+    padding: 6px 3px;
+    font-size: 9px;
   }
 
   .lakehold-node {
-    grid-row: 5;
-  }
-
-  .outputs-label {
-    grid-row: 6;
-  }
-
-  .output-stack {
-    grid-row: 7;
+    min-height: 140px;
   }
 
   .control-plane {
-    grid-row: 8;
     grid-template-columns: repeat(2, minmax(0, 1fr));
+    margin-top: 8px;
     padding-top: 26px;
   }
 
@@ -613,6 +681,32 @@ h1 {
   .control-plane > div:nth-of-type(n + 3) {
     border-top: 1px solid var(--border);
     padding-top: 12px;
+  }
+
+  .pillar {
+    padding: 20px;
+    gap: 14px;
+  }
+
+  .pillar-icon {
+    flex-basis: 42px;
+    width: 42px;
+    height: 42px;
+  }
+}
+
+@media (max-width: 340px) {
+  .nav-inner,
+  .landing {
+    padding-inline: 16px;
+  }
+
+  .nav-primary a {
+    font-size: 11px;
+  }
+
+  .hero-actions {
+    grid-template-columns: 1fr;
   }
 }
 
