@@ -77,6 +77,13 @@
   gap: 10px 20px;
 }
 
+.nav-primary,
+.nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
 .nav-links a {
   color: var(--info);
   text-decoration: none;

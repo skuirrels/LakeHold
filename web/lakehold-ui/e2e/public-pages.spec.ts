@@ -85,4 +85,23 @@ test.describe('@website public product pages', () => {
       }),
     ).toBeVisible();
   });
+
+  test('the mobile landing stays compact without horizontal overflow', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/');
+
+    const header = await page.locator('.nav').boundingBox();
+    const topology = await page.locator('.topology').boundingBox();
+
+    expect(header).not.toBeNull();
+    expect(topology).not.toBeNull();
+    expect(header!.height).toBeLessThanOrEqual(96);
+    expect(topology!.height).toBeLessThanOrEqual(800);
+    await expect(page.locator('lh-landing')).toHaveJSProperty('scrollLeft', 0);
+
+    const hasHorizontalOverflow = await page.locator('lh-landing').evaluate((landing) => {
+      return landing.scrollWidth > landing.clientWidth;
+    });
+    expect(hasHorizontalOverflow).toBe(false);
+  });
 });
