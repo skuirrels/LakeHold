@@ -1,6 +1,6 @@
 {
   "name": "lakehold-ui",
-  "version": "2.3.0",
+  "version": "2.3.1",
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
@@ -8,7 +8,7 @@
     "watch": "ng build --watch --configuration development",
     "test": "npm run test:brand && ng test",
     "test:brand": "../../scripts/check-brand-casing.sh",
-    "test:unit": "npm run test:brand && ng test --watch=false",
+    "test:unit": "npm run test:brand && bash ../../scripts/test-ui-unit.sh",
     "test:e2e": "playwright test",
     "test:e2e:demo": "../../scripts/test-demo.sh",
     "test:e2e:phase2": "../../scripts/test-phase2.sh",
@@ -18,6 +18,14 @@
   "packageManager": "npm@11.12.1",
   "overrides": {
     "@hono/node-server": "^2.0.5"
+  },
+  "allowScripts": {
+    "@parcel/watcher@2.6.0": true,
+    "esbuild@0.28.1": true,
+    "fsevents@2.3.2": true,
+    "fsevents@2.3.3": true,
+    "lmdb@3.5.4": true,
+    "msgpackr-extract@3.0.4": true
   },
   "dependencies": {
     "@angular/common": "^22.0.8",

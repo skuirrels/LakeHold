@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Locator, type Page } from '@playwright/test';
 
 /**
  * Browser sign-in through the bundled identity provider.
@@ -23,7 +23,10 @@ async function signInWith(page: Page, username: string): Promise<void> {
   await expect(page.locator('#kc-form-login')).toBeVisible();
   await page.locator('#username').fill(username);
   await page.locator('#password').fill('lakehold');
-  await page.locator('#kc-form-login').getByRole('button', { name: /sign in/i }).click();
+  await page
+    .locator('#kc-form-login')
+    .getByRole('button', { name: /sign in/i })
+    .click();
 
   await page.waitForURL(/\/workbench/);
 }
@@ -32,6 +35,20 @@ async function signInWith(page: Page, username: string): Promise<void> {
 async function openUsers(page: Page): Promise<void> {
   await page.getByRole('button', { name: 'Users' }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'Users' })).toBeVisible();
+}
+
+/** Changes a membership only after the API has committed it, so a reload cannot race the save. */
+async function selectRole(page: Page, picker: Locator, role: string): Promise<void> {
+  const persisted = page.waitForResponse((response) => {
+    const path = new URL(response.url()).pathname;
+    return (
+      response.request().method() === 'PATCH' && /\/api\/tenants\/[^/]+\/members\/\d+$/.test(path)
+    );
+  });
+
+  await picker.selectOption(role);
+  expect((await persisted).ok()).toBe(true);
+  await expect(picker).toHaveValue(role);
 }
 
 /** Reads the session the API reports for this browser. */
@@ -54,7 +71,9 @@ test.describe('identity provider sign-in', () => {
 
     // The affordance an operator looks for first. When no provider is configured this is absent and
     // the token box is all there is, which is the state that made users ask where the login was.
-    await expect(page.getByRole('link', { name: /continue with your identity provider/i })).toBeVisible();
+    await expect(
+      page.getByRole('link', { name: /continue with your identity provider/i }),
+    ).toBeVisible();
   });
 
   test('signs a workspace owner in and gives them the workspace', async ({ page }) => {
@@ -115,8 +134,7 @@ test.describe('identity provider sign-in', () => {
 
     // Deliberately not asserting the starting role: this test changes server state, so depending on
     // what it was would make a retry fail against the value the first attempt already wrote.
-    await role.selectOption('reader');
-    await expect(role).toHaveValue('reader');
+    await selectRole(page, role, 'reader');
 
     // The claim still says owner on every login. Reloading proves LakeHold's decision is the one
     // that holds -- which is the entire reason membership exists rather than trusting the claim.
@@ -129,8 +147,7 @@ test.describe('identity provider sign-in', () => {
     await expect(users.getByRole('button', { name: 'Remove' })).toBeVisible();
 
     // Leave the workspace as it was found, so this suite can run twice in a row.
-    await users.getByLabel('Role for Owen Owner').selectOption('owner');
-    await expect(users.getByLabel('Role for Owen Owner')).toHaveValue('owner');
+    await selectRole(page, users.getByLabel('Role for Owen Owner'), 'owner');
   });
 
   test('shows an administrator how to issue credentials for clients and agents', async ({

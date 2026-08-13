@@ -7,6 +7,31 @@ and LakeHold follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.3.1] - 2026-08-13
+
+Updates the DuckDB EF Core provider and removes the warnings found while validating the upgrade.
+
+### Changed
+
+- **DuckDB.EFCoreProvider is updated from 1.17.1 to 1.19.1.** The demo assertions now match the
+  current homepage, operator-token label, and session contract exposed by the upgraded application.
+- **The frontend dependency tree is audit-clean.** Reviewed native install scripts are allow-listed
+  explicitly, and the affected transitive packages are updated without widening direct dependency
+  ranges.
+
+### Fixed
+
+- **The complete test suite owns its identity-provider state.** Private browser tests now start a
+  disposable Keycloak realm, wait for membership updates to persist before reloading, and preserve
+  the browser-facing host and port through nginx. This removes dependence on a development realm and
+  closes the role-update race that made retries intermittent.
+- **Production frontend builds no longer emit component-style budget warnings.** The landing-page
+  topology is an isolated component and shared brand and destructive-action rules live in the global
+  stylesheet instead of being duplicated across components.
+- **Frontend unit tests run reliably on Node.js 24.** The test launcher applies the required
+  WebCrypto compatibility option only for affected Node versions and leaves older supported runtimes
+  unchanged.
+
 ## [2.3.0] - 2026-08-09
 
 User administration, and the fixes that came out of chasing a failing journey.
@@ -477,7 +502,8 @@ works the way every instruction says it does.
 - Production API and web container images for Linux amd64 and arm64, Compose deployment, health
   checks, telemetry, and a reproducible end-to-end test suite.
 
-[Unreleased]: https://github.com/skuirrels/LakeHold/compare/v2.3.0...HEAD
+[Unreleased]: https://github.com/skuirrels/LakeHold/compare/v2.3.1...HEAD
+[2.3.1]: https://github.com/skuirrels/LakeHold/compare/v2.3.0...v2.3.1
 [2.3.0]: https://github.com/skuirrels/LakeHold/compare/v2.2.2...v2.3.0
 [2.2.2]: https://github.com/skuirrels/LakeHold/compare/v2.2.1...v2.2.2
 [2.2.1]: https://github.com/skuirrels/LakeHold/compare/v2.2.0...v2.2.1

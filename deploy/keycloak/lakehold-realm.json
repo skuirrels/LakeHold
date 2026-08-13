@@ -32,16 +32,20 @@
       "redirectUris": [
         "http://localhost:5399/auth/callback",
         "http://127.0.0.1:5399/auth/callback",
+        "http://localhost:6499/auth/callback",
+        "http://127.0.0.1:6499/auth/callback",
         "http://localhost:8080/auth/callback"
       ],
       "webOrigins": [
         "http://localhost:5399",
         "http://127.0.0.1:5399",
+        "http://localhost:6499",
+        "http://127.0.0.1:6499",
         "http://localhost:8080"
       ],
       "attributes": {
         "pkce.code.challenge.method": "S256",
-        "post.logout.redirect.uris": "http://localhost:5399/auth/signed-out##http://127.0.0.1:5399/auth/signed-out##http://localhost:8080/auth/signed-out##http://localhost:5399/workbench##http://127.0.0.1:5399/workbench##http://localhost:8080/workbench"
+        "post.logout.redirect.uris": "http://localhost:5399/auth/signed-out##http://127.0.0.1:5399/auth/signed-out##http://localhost:6499/auth/signed-out##http://127.0.0.1:6499/auth/signed-out##http://localhost:8080/auth/signed-out##http://localhost:5399/workbench##http://127.0.0.1:5399/workbench##http://localhost:6499/workbench##http://127.0.0.1:6499/workbench##http://localhost:8080/workbench"
       },
       "protocolMappers": [
         {

@@ -113,8 +113,8 @@
   --shadow-dialog: 0 24px 72px rgb(0 0 0 / 0.55);
   --shadow-drawer: 16px 0 32px rgb(0 0 0 / 0.4);
 
-  --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
-  --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
+  --sans: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 
   --radius: 8px;
   --radius-sm: 5px;
@@ -250,6 +250,27 @@ button:disabled {
   opacity: 0.5;
 }
 
+/* Every product surface uses the same compact LakeHold wordmark. Keeping it global avoids
+   recompiling identical brand chrome into each component stylesheet. */
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  color: var(--text);
+  text-decoration: none;
+}
+
+.brand:hover .name {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.mark {
+  color: var(--accent);
+}
+
 /* Focus is never removed, only replaced — this app is keyboard-heavy. */
 :focus-visible {
   outline: 2px solid var(--info);
@@ -285,7 +306,9 @@ button:disabled {
   color: var(--text);
   font-size: 13px;
   font-weight: 500;
-  transition: background 0.12s ease, border-color 0.12s ease;
+  transition:
+    background 0.12s ease,
+    border-color 0.12s ease;
 }
 
 .btn:hover:not(:disabled) {
@@ -303,6 +326,18 @@ button:disabled {
 .btn-primary:hover:not(:disabled) {
   background: var(--accent-fill-hover);
   border-color: var(--accent-fill-hover);
+}
+
+.btn-danger {
+  background: var(--error);
+  border-color: var(--error);
+  color: var(--on-error);
+  font-weight: 600;
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: var(--error-hover);
+  border-color: var(--error-hover);
 }
 
 .kbd {
@@ -344,6 +379,17 @@ button:disabled {
   font: 12px var(--mono);
 }
 
-.generated-sql { margin: 10px 12px 0; color: var(--text-muted); }
-.generated-sql summary { cursor: pointer; font-size: 11px; }
-.generated-sql pre { max-height: 180px; overflow: auto; color: var(--text); font: 11px/1.5 var(--mono); }
+.generated-sql {
+  margin: 10px 12px 0;
+  color: var(--text-muted);
+}
+.generated-sql summary {
+  cursor: pointer;
+  font-size: 11px;
+}
+.generated-sql pre {
+  max-height: 180px;
+  overflow: auto;
+  color: var(--text);
+  font: 11px/1.5 var(--mono);
+}

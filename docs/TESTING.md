@@ -21,7 +21,9 @@ It restores and builds both applications, runs every backend test with disposabl
 S3-compatible services, rejects skipped backend tests, runs the frontend unit suite and production
 build, runs the normal Chromium journeys against a fresh seeded production-shaped node, and then
 runs a separate authentication-required demo journey before the destructive Phase 2 operator
-journey. The demo harness mirrors `make demo`: it activates and builds the `linq` profile, generates
+journey. The private node includes a disposable Keycloak realm, so its identity-provider journeys
+exercise clean state without sharing the development stack. The demo harness mirrors `make demo`: it
+activates and builds the `linq` profile, generates
 the shared internal planner credential, requires discovery to return both SQL and C# LINQ, and runs
 a provider-translated LINQ query as the read-only visitor. Its Compose projects, host ports,
 networks, and volumes are isolated from the development and production stacks and removed on exit.
