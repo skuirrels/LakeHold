@@ -10,7 +10,7 @@ test.describe('demo workbench', () => {
     await expect(page).toHaveURL(/\/$/);
     await expect(
       page.getByRole('heading', {
-        name: 'A feature-rich lakehouse. You host it yourself.',
+        name: 'LakeHold: an Open Source Enterprise LakeHouse, you host yourself',
       }),
     ).toBeVisible();
 
@@ -20,7 +20,7 @@ test.describe('demo workbench', () => {
     await expect(page.getByLabel('Workspace')).toHaveValue('demo');
     await expect(page.locator('.selectors').getByLabel('Catalog')).toHaveValue('analytics');
     await expect(page.getByLabel('SQL editor')).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Operator sign in' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Operator token' })).toBeVisible();
     await expect(page.getByText('This deployment requires a credential')).toHaveCount(0);
     await expect(page.getByText('docker compose')).toHaveCount(0);
 
@@ -59,6 +59,8 @@ test.describe('demo workbench', () => {
       role: 'reader',
       readOnly: true,
       systemAdmin: false,
+      tenantAdmin: false,
+      canCreateUsers: false,
     });
 
     const visible = await request.get(`${baseURL}/api/tenants`);

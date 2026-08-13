@@ -17,13 +17,59 @@ services:
       ConnectionStrings__ControlPlane: Host=postgres;Port=5432;Database=lakeholdmeta;Username=lakehold;Password=lakehold
       ConnectionStrings__DuckLakeMetadata: Host=postgres;Port=5432;Database=lakeholdmeta;Username=lakehold;Password=lakehold
       Lakehold__Querying__Planners__0__SharedSecret: lakehold-test-linq-planner
+      # The private browser suite exercises human sign-in too. The issuer is the browser-facing
+      # address embedded in tokens; discovery and provisioning use the Compose-network address.
+      Lakehold__Oidc__Authority: http://localhost:${LAKEHOLD_TEST_KEYCLOAK_PORT:-6401}/realms/lakehold
+      Lakehold__Oidc__MetadataAddress: http://keycloak:${LAKEHOLD_TEST_KEYCLOAK_PORT:-6401}/realms/lakehold/.well-known/openid-configuration
+      Lakehold__Oidc__Audience: lakehold-workbench
+      Lakehold__Oidc__ClientId: lakehold-workbench
+      Lakehold__Oidc__McpClientId: lakehold-mcp
+      Lakehold__Oidc__ClientSecret: lakehold-development-client-secret
+      Lakehold__Oidc__RequireHttpsMetadata: "false"
+      Lakehold__Oidc__Mode: BuiltIn
+      Lakehold__Oidc__Provisioning__AdminBaseUrl: http://keycloak:${LAKEHOLD_TEST_KEYCLOAK_PORT:-6401}
+      Lakehold__Oidc__Provisioning__Realm: lakehold
+      Lakehold__Oidc__Provisioning__ClientId: lakehold-provisioner
+      Lakehold__Oidc__Provisioning__ClientSecret: lakehold-provisioner-development-secret
+      Lakehold__Oidc__TenantClaim: tenant
+      Lakehold__Oidc__RoleClaim: role
+      Lakehold__Oidc__SystemAdminClaim: groups
+      Lakehold__Oidc__SystemAdminValue: lakehold-administrators
     depends_on:
       postgres:
+        condition: service_healthy
+      keycloak:
         condition: service_healthy
 
   linq-compiler:
     environment:
       Lakehold__LinqCompiler__SharedSecret: lakehold-test-linq-planner
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.4
+    command: start-dev --import-realm
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+      KC_HOSTNAME: http://localhost:${LAKEHOLD_TEST_KEYCLOAK_PORT:-6401}
+      KC_HOSTNAME_BACKCHANNEL_DYNAMIC: "true"
+      KC_HTTP_ENABLED: "true"
+      KC_HEALTH_ENABLED: "true"
+      KC_HTTP_PORT: "${LAKEHOLD_TEST_KEYCLOAK_PORT:-6401}"
+    ports:
+      - "${LAKEHOLD_TEST_KEYCLOAK_PORT:-6401}:${LAKEHOLD_TEST_KEYCLOAK_PORT:-6401}"
+    volumes:
+      - ./deploy/keycloak:/opt/keycloak/data/import:ro
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "exec 3<>/dev/tcp/127.0.0.1/9000 && echo -e 'GET /health/ready HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3 && cat <&3 | grep -q '\"status\": \"UP\"'",
+        ]
+      interval: 2s
+      timeout: 5s
+      retries: 40
+      start_period: 20s
 
   postgres:
     image: postgres:17-alpine

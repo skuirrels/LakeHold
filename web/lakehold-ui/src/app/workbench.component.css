@@ -49,28 +49,6 @@
   stroke-linecap: round;
 }
 
-/* The brand is the way back to the marketing site, so it is an anchor rather than a label. Colour
-   is pinned to --text: it is a link, but styling it like body copy keeps the chrome quiet, and
-   inheriting the default link blue would read as an error state next to the amber mark. */
-.brand {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-weight: 650;
-  letter-spacing: -0.01em;
-  color: var(--text);
-  text-decoration: none;
-}
-
-.brand:hover .name {
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
-
-.mark {
-  color: var(--accent);
-}
-
 .topbar-spacer {
   flex: 1;
 }
@@ -500,7 +478,6 @@
   border-bottom: 1px solid var(--border);
 }
 
-
 .summary {
   font-size: 12px;
   color: var(--text-muted);
@@ -521,7 +498,6 @@
   min-height: 0;
   background: var(--surface-0);
 }
-
 
 .tabs {
   display: flex;
@@ -623,18 +599,6 @@
 .dry-actions strong {
   color: var(--warn);
   font-family: var(--sans);
-}
-
-.btn-danger {
-  background: var(--error);
-  border-color: var(--error);
-  color: var(--on-error);
-  font-weight: 600;
-}
-
-.btn-danger:hover:not(:disabled) {
-  background: var(--error-hover);
-  border-color: var(--error-hover);
 }
 
 .ok-banner {

@@ -57,19 +57,6 @@
   padding: 16px 28px;
 }
 
-.brand {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-weight: 650;
-  color: var(--text);
-  text-decoration: none;
-}
-
-.mark {
-  color: var(--accent);
-}
-
 .nav-links {
   display: flex;
   align-items: center;
