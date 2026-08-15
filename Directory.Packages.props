@@ -63,11 +63,12 @@
     <PackageVersion Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" Version="10.0.10" />
     <PackageVersion Include="Microsoft.AspNetCore.DataProtection.EntityFrameworkCore" Version="10.0.10" />
     <!--
-      SDK 2.0 tracks MCP revision 2026-07-28; 1.4.x tracks the superseded one, so shipping against
+      SDK 2.x tracks MCP revision 2026-07-28; 1.4.x tracks the superseded one, so shipping against
       1.4.x would mean rewriting immediately. Held at 2.0.0-rc.1 for that reason until the stable
-      2.0.0 published, then moved on 3 August 2026. Do not go back to 1.4.x. See docs/MCP.md.
+      2.0.0 published, then advanced to 2.2.0 on 15 August 2026. Do not go back to 1.4.x. See
+      docs/MCP.md.
     -->
-    <PackageVersion Include="ModelContextProtocol.AspNetCore" Version="2.0.0" />
+    <PackageVersion Include="ModelContextProtocol.AspNetCore" Version="2.2.0" />
     <!-- Managed connector gRPC contract and streaming client. Stable package lines verified from
          NuGet; Grpc.Tools is build-only and does not ship in the API image. -->
     <PackageVersion Include="Google.Protobuf" Version="3.35.1" />

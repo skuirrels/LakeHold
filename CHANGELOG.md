@@ -7,6 +7,16 @@ and LakeHold follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.3.2] - 2026-08-15
+
+Updates the MCP server SDK to the latest stable release.
+
+### Changed
+
+- **`ModelContextProtocol.AspNetCore` is updated from 2.0.0 to 2.2.0.** LakeHold retains the MCP
+  2026-07-28 protocol line while gaining hybrid stateful/stateless HTTP compatibility and the
+  upstream malformed-header decoding fix.
+
 ## [2.3.1] - 2026-08-13
 
 Updates the DuckDB EF Core provider and removes the warnings found while validating the upgrade.
@@ -502,7 +512,8 @@ works the way every instruction says it does.
 - Production API and web container images for Linux amd64 and arm64, Compose deployment, health
   checks, telemetry, and a reproducible end-to-end test suite.
 
-[Unreleased]: https://github.com/skuirrels/LakeHold/compare/v2.3.1...HEAD
+[Unreleased]: https://github.com/skuirrels/LakeHold/compare/v2.3.2...HEAD
+[2.3.2]: https://github.com/skuirrels/LakeHold/compare/v2.3.1...v2.3.2
 [2.3.1]: https://github.com/skuirrels/LakeHold/compare/v2.3.0...v2.3.1
 [2.3.0]: https://github.com/skuirrels/LakeHold/compare/v2.2.2...v2.3.0
 [2.2.2]: https://github.com/skuirrels/LakeHold/compare/v2.2.1...v2.2.2

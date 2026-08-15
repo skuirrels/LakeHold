@@ -81,12 +81,13 @@ other client. That is a UI product and a separate decision. It is out of scope h
 | | |
 |---|---|
 | Transport | Streamable HTTP at `/mcp`; no stdio shim |
-| C# SDK | `ModelContextProtocol.AspNetCore` **2.0.0** |
+| C# SDK | `ModelContextProtocol.AspNetCore` **2.2.0** |
 | OAuth discovery | RFC 9728 protected-resource metadata at both canonical locations |
 
-The dependency first landed on `2.0.0-rc.1` while the surface was under development and moved to
-stable `2.0.0` on 3 August 2026. The package restores and builds with warnings-as-errors, and the
-server is exercised through the SDK's own client over a real HTTP transport.
+The dependency first landed on `2.0.0-rc.1` while the surface was under development, moved to stable
+`2.0.0` on 3 August 2026, and advanced to `2.2.0` on 15 August 2026. The package restores and builds
+with warnings-as-errors, and the server is exercised through the SDK's own client over a real HTTP
+transport.
 
 The package reference carries this reasoning as a comment in `Directory.Packages.props`, because the
 version history is otherwise unexplained to a later reader.
@@ -557,12 +558,12 @@ unchanged by the existing filter tests, new direct coverage of the rules. No MCP
 outstanding from this phase: **verify the 2026-07-28 specification text** against the assumptions
 above, which needs the published spec rather than the reporting summarising it.
 
-**Phase 2 — the server. Landed.** `ModelContextProtocol.AspNetCore` **2.0.0** (taken 3 August 2026;
-landed originally on `2.0.0-rc.1` under the deliberate decision that nothing here ships as stable
-before the SDK does) — see the note in `Directory.Packages.props`. The endpoint is hosted at `Lakehold:Mcp:Route`, guarded by
-`McpAuthenticationFilter`, and began with exactly one tool: `query`, read-only. Protected-resource
-metadata now ships at both RFC 9728 locations, with the exact MCP resource audience, supported
-scopes, and the optional pre-registered public-client extension.
+**Phase 2 — the server. Landed.** `ModelContextProtocol.AspNetCore` landed on **2.0.0** (taken 3 August
+2026; originally `2.0.0-rc.1` under the deliberate decision that nothing here ships as stable before
+the SDK does) and now runs on **2.2.0** — see the note in `Directory.Packages.props`. The endpoint is
+hosted at `Lakehold:Mcp:Route`, guarded by `McpAuthenticationFilter`, and began with exactly one tool:
+`query`, read-only. Protected-resource metadata now ships at both RFC 9728 locations, with the exact
+MCP resource audience, supported scopes, and the optional pre-registered public-client extension.
 
 **Phase 3 — discovery. Landed.** `list_tenants`, `describe_schema`, and the schema resource. The
 separately specified `list_catalogs` was dropped for the reason given in the tool table. An agent can
