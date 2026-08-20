@@ -1,3 +1,5 @@
+using System.Diagnostics;
+using Lakehold.Engine.Telemetry;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using ModelContextProtocol;
@@ -18,18 +20,38 @@ public static class McpExtensions
 
         builder.Services.Configure<McpOptions>(builder.Configuration.GetSection(McpOptions.SectionName));
         builder.Services.TryAddScoped<McpRuntimeSettingsStore>();
+        builder.Services.AddLakeholdMcpRateLimiter();
 
         // Tools read the resolved principal off the request, which is how a tool learns who is calling
         // without the protocol carrying identity itself.
         builder.Services.AddHttpContextAccessor();
 
         builder.Services
-            .AddMcpServer()
+            .AddMcpServer(options =>
+            {
+                options.ServerInfo = new Implementation
+                {
+                    Name = "lakehold",
+                    Title = "LakeHold",
+                    Version = McpServerDescription.Version,
+                };
+
+                // Cross-cutting context that belongs to no single tool. Anything that fits in one
+                // tool's description stays there; see the remarks on McpServerDescription.
+                options.ServerInstructions = McpServerDescription.Instructions;
+
+                // Completion for the resource templates' arguments. The templates disclose nothing by
+                // being listed, which is the point of their being templates; this is the supported way
+                // for a client to discover the values, and it answers per credential.
+                options.Handlers.CompleteHandler = LakeholdCompletions.CompleteAsync;
+            })
             .WithHttpTransport()
             .WithTools<LakeholdTools>()
+            .WithTools<LakeholdQueryLanguageTools>()
             .WithTools<LakeholdInspectionTools>()
             .WithTools<LakeholdSavedQueryTools>()
             .WithTools<LakeholdMaintenanceTools>()
+            .WithTools<LakeholdRestoreTools>()
             .WithTools<LakeholdWriteTools>()
             .WithTools<LakeholdConnectorTools>()
             .WithResources<LakeholdResources>()
@@ -38,12 +60,7 @@ public static class McpExtensions
                 filters.AddListToolsFilter(next => async (context, cancellationToken) =>
                 {
                     var result = await next(context, cancellationToken).ConfigureAwait(false);
-                    var services = context.Services
-                        ?? throw new McpException("No request services are available.");
-                    var settings = await services
-                        .GetRequiredService<McpRuntimeSettingsStore>()
-                        .GetAsync(cancellationToken)
-                        .ConfigureAwait(false);
+                    var settings = await SettingsAsync(context.Services, cancellationToken).ConfigureAwait(false);
 
                     if (!settings.AllowOperatorCommands)
                     {
@@ -76,38 +93,128 @@ public static class McpExtensions
 
                 filters.AddCallToolFilter(next => async (context, cancellationToken) =>
                 {
-                    var services = context.Services
-                        ?? throw new McpException("No request services are available.");
+                    var toolName = context.Params.Name;
 
-                    // Removing a tool from discovery is not enforcement: a client with a stale tool
-                    // cache calls it by name. Resolve the same annotation the list filter reads, so
-                    // discovery and enforcement cannot describe different surfaces.
-                    var tools = services.GetRequiredService<IOptions<McpServerOptions>>().Value.ToolCollection;
-                    if (tools is not null && tools.TryGetPrimitive(context.Params.Name, out var tool))
+                    // One span per tool call. Without it every agent request is an indistinguishable
+                    // `POST /mcp` in the trace, and the engine spans underneath have no parent naming
+                    // what asked for them.
+                    using var activity = LakeholdTelemetry.Source.StartActivity("lakehold.mcp.tool");
+                    activity?.SetTag(LakeholdTelemetry.ToolKey, toolName);
+                    var startedAt = TimeProvider.System.GetTimestamp();
+
+                    var mutating = IsMutating(context, toolName);
+
+                    try
                     {
-                        var settings = await services
-                            .GetRequiredService<McpRuntimeSettingsStore>()
-                            .GetAsync(cancellationToken)
-                            .ConfigureAwait(false);
-                        if (IsOperatorCommand(tool.ProtocolTool.Meta) && !settings.AllowOperatorCommands)
+                        await EnsureToolIsEnabledAsync(context, toolName, cancellationToken).ConfigureAwait(false);
+                        var result = await next(context, cancellationToken).ConfigureAwait(false);
+
+                        // The SDK reports a tool failure as a result with IsError set rather than by
+                        // throwing, so an outcome read from the exception alone would call every
+                        // refusal a success.
+                        var outcome = result.IsError is true
+                            ? LakeholdTelemetry.OutcomeError
+                            : LakeholdTelemetry.OutcomeSuccess;
+                        Record(startedAt, toolName, outcome);
+                        activity?.SetTag(LakeholdTelemetry.OutcomeKey, outcome);
+                        if (mutating)
                         {
-                            throw new McpException(
-                                "Operator commands are disabled in LakeHold System Settings.");
+                            McpAudit.RecordMutation(context.Services!, context, toolName, outcome);
                         }
 
-                        if (tool.ProtocolTool.Annotations?.ReadOnlyHint is not true && !settings.AllowWrites)
-                        {
-                            throw new McpException(
-                                "Writing through MCP is disabled in LakeHold System Settings.");
-                        }
+                        return result;
                     }
+                    catch (Exception exception)
+                    {
+                        Record(startedAt, toolName, LakeholdTelemetry.OutcomeError);
+                        activity?.SetTag(LakeholdTelemetry.OutcomeKey, LakeholdTelemetry.OutcomeError);
+                        activity?.AddException(exception);
+                        activity?.SetStatus(ActivityStatusCode.Error);
+                        if (mutating)
+                        {
+                            // A refused mutation is worth a record too: a run of them is an agent
+                            // repeatedly reaching for something it may not have.
+                            McpAudit.RecordMutation(
+                                context.Services!, context, toolName, LakeholdTelemetry.OutcomeError);
+                        }
 
-                    return await next(context, cancellationToken).ConfigureAwait(false);
+                        throw;
+                    }
                 });
             });
 
         return builder;
     }
+
+    /// <summary>
+    ///     Refuses a call to a tool the current runtime settings do not serve.
+    /// </summary>
+    /// <remarks>
+    ///     Removing a tool from discovery is not enforcement: a client with a stale tool cache calls
+    ///     it by name. Resolve the same annotation the list filter reads, so discovery and enforcement
+    ///     cannot describe different surfaces.
+    /// </remarks>
+    private static async ValueTask EnsureToolIsEnabledAsync(
+        RequestContext<CallToolRequestParams> context,
+        string toolName,
+        CancellationToken cancellationToken)
+    {
+        var tools = context.Services!.GetRequiredService<IOptions<McpServerOptions>>().Value.ToolCollection;
+        if (tools is null || !tools.TryGetPrimitive(toolName, out var tool))
+        {
+            return;
+        }
+
+        var settings = await SettingsAsync(context.Services, cancellationToken).ConfigureAwait(false);
+        if (IsOperatorCommand(tool.ProtocolTool.Meta) && !settings.AllowOperatorCommands)
+        {
+            LakeholdTelemetry.McpToolsGated.Add(1, Tool(toolName));
+            throw new McpException("Operator commands are disabled in LakeHold System Settings.");
+        }
+
+        if (tool.ProtocolTool.Annotations?.ReadOnlyHint is not true && !settings.AllowWrites)
+        {
+            LakeholdTelemetry.McpToolsGated.Add(1, Tool(toolName));
+            throw new McpException("Writing through MCP is disabled in LakeHold System Settings.");
+        }
+    }
+
+    /// <summary>
+    ///     Whether a tool changes anything, read from the same annotation the gates read.
+    /// </summary>
+    /// <remarks>
+    ///     An unknown name is treated as non-mutating: it cannot run, so the SDK will refuse it, and
+    ///     auditing a call that never reached a tool would fill the record with noise.
+    /// </remarks>
+    private static bool IsMutating(RequestContext<CallToolRequestParams> context, string toolName)
+    {
+        var tools = context.Services?.GetService<IOptions<McpServerOptions>>()?.Value.ToolCollection;
+        return tools is not null
+            && tools.TryGetPrimitive(toolName, out var tool)
+            && tool.ProtocolTool.Annotations?.ReadOnlyHint is not true;
+    }
+
+    private static ValueTask<McpRuntimeSettings> SettingsAsync(
+        IServiceProvider? services,
+        CancellationToken cancellationToken)
+        => McpCaller.SettingsAsync(
+            services ?? throw new McpException("No request services are available."),
+            cancellationToken);
+
+    private static void Record(long startedAt, string tool, string outcome)
+    {
+        LakeholdTelemetry.McpToolCalls.Add(
+            1,
+            Tool(tool),
+            new KeyValuePair<string, object?>(LakeholdTelemetry.OutcomeKey, outcome));
+        LakeholdTelemetry.McpToolDuration.Record(
+            TimeProvider.System.GetElapsedTime(startedAt).TotalSeconds,
+            Tool(tool),
+            new KeyValuePair<string, object?>(LakeholdTelemetry.OutcomeKey, outcome));
+    }
+
+    private static KeyValuePair<string, object?> Tool(string tool)
+        => new(LakeholdTelemetry.ToolKey, tool);
 
     private static bool IsOperatorCommand(System.Text.Json.Nodes.JsonObject? metadata) =>
         metadata is not null
@@ -130,6 +237,10 @@ public static class McpExtensions
         // returns an IEndpointConventionBuilder, which carries no endpoint filters of its own; a
         // group applies one to all of them, and to any the SDK adds in a later version.
         var group = app.MapGroup(options.Route);
+
+        // Ahead of the authentication filter deliberately: a caller hammering the endpoint with a
+        // bad credential should be shed before it costs a token lookup per request.
+        group.RequireRateLimiting(McpRateLimiter.PolicyName);
         group.AddEndpointFilter<McpAuthenticationFilter>();
         group.MapMcp(string.Empty);
 

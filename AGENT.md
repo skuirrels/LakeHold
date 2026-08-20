@@ -213,7 +213,18 @@ Preserve these unless the task explicitly changes the architecture and updates i
     process-visible state; invariant 4 keeps that distinction explicit. `DucklingPool` therefore keys
     sessions by tenant, catalog identity, configuration version, and attachment mode: sharing one
     session between a read-only and a read-write credential would silently hand the former a writable
-    catalog handle.
+    catalog handle. **The corollary is that a committing statement must invalidate the catalog's warm
+    reader.** A DuckLake catalog attached read-only answers from the snapshot it attached at and does
+    not observe a commit made through a separate read-write attachment, so two sessions kept apart for
+    capability are also two sessions that can disagree about the data. `StatementVerb.MayCommit` and
+    `DucklingPool.EvictReaders` close that on the writing node — the reader is dropped and reattaches
+    at the new snapshot, while the writer stays warm because it already sees its own work. The
+    classification is an allow-list of *reads* that also scans for a committing keyword, because a CTE
+    may precede a write; an unrecognised statement invalidates rather than risks serving stale rows.
+    Removal from the pool is synchronous, but **disposal is not awaited and drains the session's
+    gate**: `Duckling.DisposeAsync` waits for a statement already running before disposing, or a write
+    would fault an unrelated in-flight read instead of merely making it stale. This is per-node:
+    another node's warm reader is stale until its own write or idle timeout.
 21. An agent-reachable surface declares its capability like a route and always requires a credential.
     An MCP tool names a `Capability` and the *same* policy that guards the HTTP route enforces
     it — the rules live in one transport-neutral place, never copied into a second dispatch, or the

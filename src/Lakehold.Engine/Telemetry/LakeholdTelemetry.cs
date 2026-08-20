@@ -212,7 +212,34 @@ public static class LakeholdTelemetry
     public static readonly UpDownCounter<long> ConnectorWorkersActive = Meter.CreateUpDownCounter<long>(
         "lakehold.connector.workers.active", "{worker}", "Connector workers currently active on this node.");
 
+    // ---- model context protocol ----
+
+    /// <summary>Tool invocations, tagged by tool name and outcome.</summary>
+    /// <remarks>
+    ///     HTTP instrumentation sees one <c>POST /mcp</c> and cannot say which tool ran inside it, so
+    ///     every agent call looks alike in a dashboard. The tool name is a bounded set fixed at
+    ///     compile time, which is what makes it safe as a metric tag where tenant and catalog are not.
+    /// </remarks>
+    public static readonly Counter<long> McpToolCalls = Meter.CreateCounter<long>(
+        "lakehold.mcp.tool.calls", "{call}", "MCP tool invocations by tool and outcome.");
+
+    /// <summary>End-to-end duration of one MCP tool invocation.</summary>
+    public static readonly Histogram<double> McpToolDuration = Meter.CreateHistogram<double>(
+        "lakehold.mcp.tool.duration", "s", "Duration of one MCP tool invocation.");
+
+    /// <summary>Tool calls refused by a runtime gate rather than by capability.</summary>
+    /// <remarks>
+    ///     Separate from the error outcome because it means something different to an operator: a
+    ///     rising count is an agent repeatedly reaching for a surface that System Settings has turned
+    ///     off, which is a configuration conversation rather than a fault.
+    /// </remarks>
+    public static readonly Counter<long> McpToolsGated = Meter.CreateCounter<long>(
+        "lakehold.mcp.tool.gated", "{call}", "MCP tool calls refused by a runtime setting.");
+
     // ---- tag keys ----
+
+    /// <summary>MCP tool name. Bounded by the compiled tool set, so safe on a metric.</summary>
+    public const string ToolKey = "lakehold.tool";
 
     /// <summary>Tenant slug. Spans only — see the cardinality note on this class.</summary>
     public const string TenantKey = "lakehold.tenant";

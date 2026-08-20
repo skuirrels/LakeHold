@@ -35,7 +35,7 @@ public sealed class LakeholdTools(
     ///     </para>
     /// </remarks>
     [McpServerTool(Name = "list_tenants", Title = "List reachable tenants and catalogs", ReadOnly = true,
-        Destructive = false)]
+        Destructive = false, UseStructuredContent = true, OpenWorld = false)]
     [Description(
         "Lists the tenants and catalogs this credential can reach. Call this first: every other tool "
         + "needs a tenant and catalog name, and these are the only valid ones.")]
@@ -86,18 +86,18 @@ public sealed class LakeholdTools(
     ///     them as though they were the tenant's data.
     /// </remarks>
     [McpServerTool(Name = "describe_schema", Title = "Describe a catalog's tables and columns",
-        ReadOnly = true, Destructive = false)]
+        ReadOnly = true, Destructive = false, UseStructuredContent = true, OpenWorld = false)]
     [Description(
         "Returns the schemas, tables, and columns of a catalog, so a query can be written against "
         + "real column names and types rather than guessed ones.")]
-    public async Task<IReadOnlyList<McpSchema>> DescribeSchemaAsync(
+    public Task<IReadOnlyList<McpSchema>> DescribeSchemaAsync(
         [Description("Tenant slug the catalog belongs to.")] string tenant,
         [Description("Catalog to describe.")] string catalog,
         CancellationToken cancellationToken)
     {
         McpCaller.Authorize(httpContextAccessor, tenant, catalog);
 
-        try
+        return McpFailure.GuardAsync<IReadOnlyList<McpSchema>>(async () =>
         {
             var schemas = await lakehouse.GetSchemasAsync(tenant, catalog, cancellationToken).ConfigureAwait(false);
 
@@ -112,11 +112,7 @@ public sealed class LakeholdTools(
                             [.. t.Columns.Select(c => new McpSchemaColumn(c.Name, c.DataType, c.IsNullable))])),
                     ])),
             ];
-        }
-        catch (CatalogNotFoundException ex)
-        {
-            throw new McpException(ex.Message);
-        }
+        });
     }
 
     /// <summary>Returns a catalog's snapshot history, newest first.</summary>
@@ -126,11 +122,11 @@ public sealed class LakeholdTools(
     ///     also how a caller finds the bounds to hand to <c>list_changes</c>.
     /// </remarks>
     [McpServerTool(Name = "list_snapshots", Title = "List a catalog's snapshots", ReadOnly = true,
-        Destructive = false)]
+        Destructive = false, UseStructuredContent = true, OpenWorld = false)]
     [Description(
         "Lists a catalog's snapshots, newest first: id, commit time, schema version, and commit "
         + "message. Snapshot ids are the bounds the list_changes tool takes.")]
-    public async Task<IReadOnlyList<McpSnapshot>> ListSnapshotsAsync(
+    public Task<IReadOnlyList<McpSnapshot>> ListSnapshotsAsync(
         [Description("Tenant slug the catalog belongs to.")] string tenant,
         [Description("Catalog whose history to read.")] string catalog,
         CancellationToken cancellationToken,
@@ -140,35 +136,31 @@ public sealed class LakeholdTools(
         McpCaller.Authorize(httpContextAccessor, tenant, catalog);
         var settings = McpCaller.Settings(httpContextAccessor);
 
-        try
+        return McpFailure.GuardAsync<IReadOnlyList<McpSnapshot>>(async () =>
         {
             var snapshots = await lakehouse
                 .GetSnapshotsAsync(tenant, catalog, settings.BoundPageSize(limit, 500), cancellationToken)
                 .ConfigureAwait(false);
 
             return [.. snapshots.Select(s => new McpSnapshot(s.SnapshotId, s.CommittedAt, s.SchemaVersion, s.CommitMessage))];
-        }
-        catch (CatalogNotFoundException ex)
-        {
-            throw new McpException(ex.Message);
-        }
+        });
     }
 
     /// <summary>Returns one retained snapshot by its native DuckLake identifier.</summary>
     [McpServerTool(Name = "get_snapshot", Title = "Get one catalog snapshot", ReadOnly = true,
-        Destructive = false)]
+        Destructive = false, UseStructuredContent = true, OpenWorld = false)]
     [Description(
         "Returns one retained snapshot by id, including commit time, schema version, and commit message. "
         + "Use list_snapshots to discover valid ids.")]
-    public async Task<McpSnapshot> GetSnapshotAsync(
+    public Task<McpSnapshot> GetSnapshotAsync(
         [Description("Tenant slug the catalog belongs to.")] string tenant,
         [Description("Catalog whose history to read.")] string catalog,
-        [Description("Source-native snapshot identifier.")] long snapshotId,
+        [Description("Source-native snapshot identifier, from list_snapshots.")] long snapshotId,
         CancellationToken cancellationToken)
     {
         McpCaller.Authorize(httpContextAccessor, tenant, catalog);
 
-        try
+        return McpFailure.GuardAsync(async () =>
         {
             var snapshot = await lakehouse
                 .GetSnapshotAsync(tenant, catalog, snapshotId, cancellationToken)
@@ -180,27 +172,19 @@ public sealed class LakeholdTools(
                     snapshot.CommittedAt,
                     snapshot.SchemaVersion,
                     snapshot.CommitMessage);
-        }
-        catch (CatalogNotFoundException ex)
-        {
-            throw new McpException(ex.Message);
-        }
-        catch (ArgumentOutOfRangeException ex)
-        {
-            throw new McpException(ex.Message);
-        }
+        });
     }
 
     /// <summary>Returns a bounded, read-only table preview at an exact snapshot.</summary>
     [McpServerTool(Name = "query_snapshot", Title = "Preview a table at a snapshot", ReadOnly = true,
-        Destructive = false)]
+        Destructive = false, UseStructuredContent = true, OpenWorld = false)]
     [Description(
         "Returns a bounded table preview at an exact retained snapshot. This is a materialized MCP "
         + "result, not a stream; use the REST query:stream endpoint for unbounded row streaming.")]
-    public async Task<McpQueryResult> QuerySnapshotAsync(
+    public Task<McpQueryResult> QuerySnapshotAsync(
         [Description("Tenant slug the catalog belongs to.")] string tenant,
         [Description("Catalog holding the table.")] string catalog,
-        [Description("Source-native snapshot identifier.")] long snapshotId,
+        [Description("Source-native snapshot identifier, from list_snapshots.")] long snapshotId,
         [Description("Table to preview.")] string table,
         CancellationToken cancellationToken,
         [Description("Schema holding the table. Defaults to 'main'.")] string schema = "main",
@@ -210,7 +194,7 @@ public sealed class LakeholdTools(
         var settings = McpCaller.Settings(httpContextAccessor);
         var bounded = settings.BoundPageSize(limit, 500);
 
-        try
+        return McpFailure.GuardAsync(async () =>
         {
             var result = await lakehouse
                 .ReadTableAtSnapshotAsync(
@@ -225,19 +209,7 @@ public sealed class LakeholdTools(
                     QueryAuditContext.From(principal, QueryOrigin.Mcp))
                 .ConfigureAwait(false);
             return ToMcpQueryResult(result, settings.MaxRowsPerResult);
-        }
-        catch (CatalogNotFoundException ex)
-        {
-            throw new McpException(ex.Message);
-        }
-        catch (ArgumentException ex)
-        {
-            throw new McpException(ex.Message);
-        }
-        catch (DuckDB.NET.Data.DuckDBException ex)
-        {
-            throw new McpException(ex.Message);
-        }
+        });
     }
 
     /// <summary>Reads a table's row-level changes over an inclusive snapshot range.</summary>
@@ -264,13 +236,13 @@ public sealed class LakeholdTools(
     ///     </para>
     /// </remarks>
     [McpServerTool(Name = "list_changes", Title = "Read a table's changes between snapshots",
-        ReadOnly = true, Destructive = false)]
+        ReadOnly = true, Destructive = false, UseStructuredContent = true, OpenWorld = false)]
     [Description(
         "Reads row-level changes for one table across a snapshot range. The range is INCLUSIVE at both "
         + "ends, so to continue after snapshot L, pass fromSnapshot = L + 1. An update appears as two "
         + "entries sharing a rowId: update_preimage and update_postimage. Omit toSnapshot to read to "
         + "the newest snapshot.")]
-    public async Task<McpChangePage> ListChangesAsync(
+    public Task<McpChangePage> ListChangesAsync(
         [Description("Tenant slug the catalog belongs to.")] string tenant,
         [Description("Catalog holding the table.")] string catalog,
         [Description("Table to read changes for.")] string table,
@@ -284,7 +256,10 @@ public sealed class LakeholdTools(
         McpCaller.Authorize(httpContextAccessor, tenant, catalog);
         var settings = McpCaller.Settings(httpContextAccessor);
 
-        try
+        // An unknown table, or a range whose end predates the table's creation, arrives as a
+        // DuckDBException. The engine names the problem precisely and an agent can correct itself
+        // from that, so the message is forwarded rather than paraphrased.
+        return McpFailure.GuardAsync(async () =>
         {
             var to = toSnapshot
                 ?? await lakehouse.GetLatestSnapshotAsync(tenant, catalog, cancellationToken).ConfigureAwait(false)
@@ -304,21 +279,7 @@ public sealed class LakeholdTools(
                 page.Truncated,
                 [.. page.Changes.Select(c => new McpChange(c.SnapshotId, c.RowId, ChangeTypeName(c.Change), c.Row))],
                 page.NextCursor);
-        }
-        catch (CatalogNotFoundException ex)
-        {
-            throw new McpException(ex.Message);
-        }
-        catch (ArgumentException ex)
-        {
-            throw new McpException(ex.Message);
-        }
-        catch (DuckDB.NET.Data.DuckDBException ex)
-        {
-            // An unknown table, or a range whose end predates the table's creation. The engine names
-            // the problem precisely, and an agent can correct itself from that.
-            throw new McpException(ex.Message);
-        }
+        });
     }
 
     /// <summary>The wire name for a change type, identical to the HTTP contract's.</summary>
@@ -350,11 +311,12 @@ public sealed class LakeholdTools(
     ///         forbidden would confirm it exists (invariant 19).
     ///     </para>
     /// </remarks>
-    [McpServerTool(Name = "query", Title = "Query a Lakehold catalog", ReadOnly = true, Destructive = false)]
+    [McpServerTool(Name = "query", Title = "Query a Lakehold catalog", ReadOnly = true, Destructive = false,
+        UseStructuredContent = true, OpenWorld = false)]
     [Description(
         "Runs a read-only SQL query against a Lakehold catalog and returns the rows. "
         + "DuckDB SQL dialect. Writes and DDL are rejected by the engine.")]
-    public async Task<McpQueryResult> QueryAsync(
+    public Task<McpQueryResult> QueryAsync(
         [Description("Tenant slug the catalog belongs to.")] string tenant,
         [Description("Catalog to query.")] string catalog,
         [Description("A single SQL SELECT statement.")] string sql,
@@ -367,7 +329,9 @@ public sealed class LakeholdTools(
 
         var principal = McpCaller.Authorize(httpContextAccessor, tenant, catalog);
 
-        try
+        // The engine's message names the offending token, which is exactly what lets an agent
+        // correct its own SQL on the next call rather than guessing.
+        return McpFailure.GuardAsync(async () =>
         {
             // readOnly: true unconditionally — see the remarks above.
             var result = await lakehouse
@@ -385,20 +349,10 @@ public sealed class LakeholdTools(
             // empty result that claimed to be truncated, which reads as "the table is empty" to a
             // caller that cannot see the configuration.
             return ToMcpQueryResult(result, McpCaller.Settings(httpContextAccessor).MaxRowsPerResult);
-        }
-        catch (CatalogNotFoundException ex)
-        {
-            throw new McpException(ex.Message);
-        }
-        catch (DuckDB.NET.Data.DuckDBException ex)
-        {
-            // The engine's message names the offending token, which is exactly what lets an agent
-            // correct its own SQL on the next call rather than guessing.
-            throw new McpException(ex.Message);
-        }
+        });
     }
 
-    private static McpQueryResult ToMcpQueryResult(QueryResult result, int cap)
+    internal static McpQueryResult ToMcpQueryResult(QueryResult result, int cap)
     {
         var rows = cap > 0 && result.Rows.Count > cap
             ? result.Rows.Take(cap).ToList()

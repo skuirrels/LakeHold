@@ -78,4 +78,28 @@ public sealed class McpOptions
     /// </remarks>
     public int MaxRowsPerResult { get; set; } = 200;
 
+    /// <summary>
+    ///     Requests one credential may make to the MCP endpoint per minute. Zero or less disables the
+    ///     limit.
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///         On by default, and generously. An agent is a program deciding what to call next from
+    ///         the result of the last call, so a loop that re-reads a truncated result, or retries a
+    ///         refusal it cannot interpret, issues requests as fast as the network allows and does not
+    ///         get bored. Nothing else on this surface bounds that: the row ceiling bounds one
+    ///         result's size, not how many results are asked for.
+    ///     </para>
+    ///     <para>
+    ///         The default is well above what deliberate work needs — two requests a second sustained,
+    ///         with a full minute's worth available as a burst — so it should never be reached by an
+    ///         agent that is getting somewhere. It is a backstop against one that is not.
+    ///     </para>
+    ///     <para>
+    ///         Deliberately a startup setting rather than a System Settings one. It protects the node
+    ///         from a client, and a control the same operator surface could switch off is one an
+    ///         incident will find switched off.
+    ///     </para>
+    /// </remarks>
+    public int RequestsPerMinutePerCredential { get; set; } = 120;
 }

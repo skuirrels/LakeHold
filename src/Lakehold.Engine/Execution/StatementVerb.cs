@@ -72,6 +72,79 @@ public static class StatementVerb
         return !ContainsWord(sql, "RETURNING");
     }
 
+    /// <summary>
+    ///     Statements whose leading keyword means the catalog cannot have advanced.
+    /// </summary>
+    /// <remarks>
+    ///     Deliberately an allow-list of <em>reads</em>, so the unknown case falls on the safe side.
+    ///     Getting this wrong in the other direction discards a warm session for nothing; getting it
+    ///     wrong in this direction serves a caller data from before their own write.
+    /// </remarks>
+    private static readonly HashSet<string> NonCommitting = new(StringComparer.Ordinal)
+    {
+        "SELECT", "WITH", "FROM", "VALUES", "TABLE",
+        "DESCRIBE", "SHOW", "EXPLAIN", "SUMMARIZE", "PRAGMA",
+    };
+
+    /// <summary>
+    ///     Keywords that make a statement a write however it begins.
+    /// </summary>
+    /// <remarks>
+    ///     Needed because <c>WITH</c> is in the read list and DuckDB accepts a CTE in front of a
+    ///     write: <c>WITH x AS (…) INSERT INTO t SELECT * FROM x</c> leads with <c>WITH</c> and
+    ///     commits. Scanning for these as whole words is the same technique
+    ///     <see cref="ReportsAffectedRows"/> already uses for <c>RETURNING</c>, and it is safe in the
+    ///     same way: the scan does not exclude string literals, so a read whose text happens to
+    ///     contain one of these words is treated as a write and costs a warm session, which is the
+    ///     side to be wrong on.
+    /// </remarks>
+    private static readonly string[] CommittingKeywords =
+    [
+        "INSERT", "UPDATE", "DELETE", "MERGE", "CREATE", "DROP", "ALTER",
+        "TRUNCATE", "COPY", "ATTACH", "DETACH", "CALL", "INSTALL", "LOAD",
+    ];
+
+    /// <summary>
+    ///     Whether this statement could have advanced the catalog to a new snapshot.
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///         Like <see cref="ReportsAffectedRows"/> this reads the leading keyword only, and like it
+    ///         this is a bookkeeping concern rather than a security one — it decides whether other
+    ///         warm sessions for the catalog still hold a current view of it, never whether a
+    ///         statement is permitted.
+    ///     </para>
+    ///     <para>
+    ///         It exists because a DuckLake catalog attached read-only does not observe commits made
+    ///         through a separate read-write attachment, and LakeHold keeps those in separate pooled
+    ///         sessions on purpose (invariant 20). Without this, an agent that wrote through
+    ///         <c>execute</c> and read back through <c>query</c> was answered from the snapshot its
+    ///         read-only session attached at — silently, and for as long as that session stayed warm.
+    ///     </para>
+    /// </remarks>
+    public static bool MayCommit(string sql)
+    {
+        ArgumentNullException.ThrowIfNull(sql);
+
+        var verb = Of(sql);
+        if (verb.Length == 0 || !NonCommitting.Contains(verb))
+        {
+            return true;
+        }
+
+        // The leading keyword says "read", but a CTE can precede a write, and a submission may carry
+        // more than one statement. Confirm no committing keyword appears anywhere before trusting it.
+        foreach (var keyword in CommittingKeywords)
+        {
+            if (ContainsWord(sql, keyword))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     /// <summary>Skips whitespace, <c>--</c> line comments, and <c>/* */</c> block comments.</summary>
     private static ReadOnlySpan<char> SkipLeading(ReadOnlySpan<char> span)
     {

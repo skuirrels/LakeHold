@@ -726,7 +726,27 @@ public sealed class Duckling : IAsyncDisposable
         return projected;
     }
 
-    /// <inheritdoc/>
+    /// <summary>Disposes the session, waiting for any statement already running on it.</summary>
+    /// <remarks>
+    ///     <para>
+    ///         The wait is the point. Disposing <see cref="_context"/> and <see cref="_gate"/> out
+    ///         from under an in-flight statement faults it — the caller sees
+    ///         <c>ObjectDisposedException</c> on the semaphore, or a native DuckDB failure, in place
+    ///         of its result. Eviction removes the session from the pool <em>before</em> disposing it,
+    ///         so no new caller can reach it; taking the gate here lets the one already inside finish.
+    ///     </para>
+    ///     <para>
+    ///         Bounded by the statement timeout plus slack, because a session whose gate is still held
+    ///         well past the point its own statement should have been cancelled is stuck, and leaking
+    ///         the DuckDB instance to wait on it forever is the worse failure. Disposal then proceeds
+    ///         regardless, which is the pre-existing behaviour for that case rather than a new risk.
+    ///     </para>
+    ///     <para>
+    ///         A caller that took a reference from the pool but has not yet entered the gate can still
+    ///         race disposal. Closing that needs reference counting in <c>DucklingPool</c>; this closes
+    ///         the window that is wide enough to hit in practice.
+    ///     </para>
+    /// </remarks>
     public async ValueTask DisposeAsync()
     {
         if (_disposed)
@@ -735,6 +755,15 @@ public sealed class Duckling : IAsyncDisposable
         }
 
         _disposed = true;
+
+        var drained = await _gate
+            .WaitAsync(_options.StatementTimeout + TimeSpan.FromSeconds(30))
+            .ConfigureAwait(false);
+        if (!drained)
+        {
+            EngineLog.DucklingDisposedWhileBusy(_logger, Catalog.CatalogName);
+        }
+
         await _context.DisposeAsync().ConfigureAwait(false);
         _gate.Dispose();
 

@@ -849,7 +849,8 @@ Also shipped: **authentication and tenant identity** — API tokens with tenant 
 instance-scoped provisioning and bootstrap, read-only selected-catalog attachments, per-statement
 audit, the PostgreSQL wire endpoint on the same token store (so revocation closes both surfaces),
 OIDC, owner/editor/reader roles, and an authenticated **MCP server for AI agents** with read tools,
-resources, OAuth protected-resource metadata, and operator-gated writes. Development enables MCP by
+resources, argument completion, OAuth protected-resource metadata, per-credential rate limiting, and
+operator-gated writes. Development enables MCP by
 default, and the instance credential can change its live controls under **System Settings** without
 restarting the API. See
 [`docs/AUTHENTICATION.md`](docs/AUTHENTICATION.md) and [`docs/MCP.md`](docs/MCP.md); HTTP may use only
