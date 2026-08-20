@@ -113,28 +113,57 @@ public sealed class McpWriteToolTests : IAsyncLifetime
             $"'{tool.Name}' is advertised while writes are disabled but is not annotated read-only."));
     }
 
-    [Theory]
-    [InlineData("execute")]
-    [InlineData("create_connector")]
-    [InlineData("update_connector")]
-    [InlineData("retire_connector")]
-    [InlineData("run_connector")]
-    [InlineData("retry_connector")]
-    [InlineData("pause_connector")]
-    [InlineData("resume_connector")]
-    public async Task A_mutating_tool_is_refused_by_name_while_writes_are_disabled(string tool)
+    [Fact]
+    public async Task Every_mutating_tool_is_refused_by_name_while_writes_are_disabled()
+    {
+        // The companion to the discovery assertion, and it has to be derived the same way. A hand-kept
+        // [InlineData] list covered eight of the fourteen mutating tools while the documentation
+        // claimed all of them, which is the same drift the annotation gate was introduced to end.
+        // Enumerating the compiled tool set instead means a mutating tool added later is covered the
+        // moment it is registered.
+        var allowed = await StartAsync(allowWrites: true, allowOperatorCommands: true);
+        string[] mutating;
+        await using (var discovery = await ConnectAsync(allowed, _writerToken))
+        {
+            mutating =
+            [
+                .. (await discovery.ListToolsAsync())
+                    .Where(tool => tool.ProtocolTool.Annotations?.ReadOnlyHint is not true)
+                    .Select(tool => tool.Name),
+            ];
+        }
+
+        // Sanity: the enumeration found the surface, rather than finding nothing and asserting nothing.
+        Assert.Contains("execute", mutating);
+        Assert.True(mutating.Length >= 14, $"Only {mutating.Length} mutating tools were discovered.");
+
+        var app = await StartAsync(allowWrites: false, allowOperatorCommands: true);
+        await using var client = await ConnectAsync(app, _writerToken);
+
+        foreach (var tool in mutating)
+        {
+            await AssertRefusedAsync(client, tool);
+        }
+    }
+
+    private static async Task AssertRefusedAsync(McpClient client, string tool)
     {
         // Removing a tool from discovery is not enforcement. A client with a cached tool list calls
         // it by name, so the call has to fail too — and fail before the tool does any work.
-        var app = await StartAsync(allowWrites: false);
-        await using var client = await ConnectAsync(app, _writerToken);
-
         var arguments = new Dictionary<string, object?>
         {
             ["tenant"] = "demo",
             ["catalog"] = "analytics",
             ["sql"] = "CREATE TABLE writes_are_disabled (id INTEGER)",
+            ["source"] = "SELECT 1",
+            ["name"] = "refused",
+            ["viewName"] = "refused_view",
+            ["table"] = "seeded",
+            ["operation"] = "flush",
+            ["snapshotId"] = 1L,
+            ["currentSnapshotId"] = 1L,
             ["id"] = 1,
+            ["revision"] = 1,
             ["version"] = 1,
             ["definition"] = null,
         };
@@ -154,6 +183,68 @@ public sealed class McpWriteToolTests : IAsyncLifetime
         }
 
         Assert.Contains("disabled", message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task An_agent_exceeding_the_request_ceiling_is_shed_rather_than_served()
+    {
+        // An agent decides its next call from the result of the last one, so a loop that misreads a
+        // refusal issues requests as fast as the network allows and does not get bored. Nothing else
+        // on this surface bounds that: the row ceiling bounds one result, not how many are asked for.
+        var app = await StartAsync(allowWrites: false, requestsPerMinute: 3);
+
+        var refused = 0;
+        for (var attempt = 0; attempt < 12; attempt++)
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Post, "http://localhost/mcp");
+            request.Headers.TryAddWithoutValidation("Authorization", "Bearer " + _writerToken);
+            request.Headers.TryAddWithoutValidation("Accept", "application/json, text/event-stream");
+            request.Content = new StringContent(
+                """{"jsonrpc":"2.0","id":1,"method":"tools/list"}""",
+                System.Text.Encoding.UTF8,
+                "application/json");
+
+            using var response = await app.GetTestClient().SendAsync(request);
+            if (response.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
+            {
+                refused++;
+                Assert.True(
+                    response.Headers.RetryAfter is not null,
+                    "A shed request must say when to come back.");
+            }
+        }
+
+        Assert.True(refused > 0, "The ceiling never bit; the limiter is not in the pipeline.");
+    }
+
+    [Fact]
+    public async Task Cycling_credentials_does_not_buy_more_budget()
+    {
+        // The credential is caller-supplied, so partitioning on it alone means a fresh random bearer
+        // per request lands in a new partition every time and is never limited — unlimited traffic,
+        // one rate-limiter partition per value, and a token lookup for each, which is precisely what
+        // running the limiter ahead of authentication is supposed to prevent. A peer ceiling backs it.
+        var app = await StartAsync(allowWrites: false, requestsPerMinute: 2);
+
+        var refused = 0;
+        for (var attempt = 0; attempt < 60; attempt++)
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Post, "http://localhost/mcp");
+            request.Headers.TryAddWithoutValidation("Authorization", "Bearer lkh_" + Guid.NewGuid().ToString("N"));
+            request.Headers.TryAddWithoutValidation("Accept", "application/json, text/event-stream");
+            request.Content = new StringContent(
+                """{"jsonrpc":"2.0","id":1,"method":"tools/list"}""",
+                System.Text.Encoding.UTF8,
+                "application/json");
+
+            using var response = await app.GetTestClient().SendAsync(request);
+            if (response.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
+            {
+                refused++;
+            }
+        }
+
+        Assert.True(refused > 0, "A caller cycling credentials was never shed.");
     }
 
     [Fact]
@@ -438,10 +529,13 @@ public sealed class McpWriteToolTests : IAsyncLifetime
     private static string Text(CallToolResult result) =>
         string.Join(" ", result.Content.OfType<TextContentBlock>().Select(c => c.Text));
 
-    private async Task<WebApplication> StartAsync(bool allowWrites, bool allowOperatorCommands = false)
+    private async Task<WebApplication> StartAsync(
+        bool allowWrites,
+        bool allowOperatorCommands = false,
+        int? requestsPerMinute = null)
     {
         // Each case gets its own state root so catalogs and persisted runtime settings stay independent.
-        var root = Path.Combine(_root, allowWrites ? "rw" : "ro", Guid.NewGuid().ToString("N"));
+        var root = Path.Combine(_root, Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(root);
 
         var builder = WebApplication.CreateSlimBuilder();
@@ -452,29 +546,19 @@ public sealed class McpWriteToolTests : IAsyncLifetime
             ["Lakehold:Mcp:AllowWrites"] = allowWrites ? "true" : "false",
             ["Lakehold:Mcp:AllowOperatorCommands"] = allowOperatorCommands ? "true" : "false",
             ["Lakehold:Mcp:PublicBaseUrl"] = "http://localhost",
+            ["Lakehold:Mcp:RequestsPerMinutePerCredential"] =
+                requestsPerMinute?.ToString(System.Globalization.CultureInfo.InvariantCulture),
         });
 
-        builder.Services.AddDbContext<ControlPlaneContext>(
-            o => o.UseDuckDB($"Data Source={Path.Combine(root, "cp.duckdb")}"));
-        builder.Services.AddScoped<ApiTokenAuthenticator>();
-        builder.Services.AddScoped<MemberDirectory>();
-        builder.Services.AddSingleton(TimeProvider.System);
         builder.Services.Configure<LakeholdOidcOptions>(options =>
         {
             options.Authority = "https://idp.example.com/realms/lakehold";
             options.Audience = "lakehold-api";
         });
-        builder.Services.Configure<LakehouseOptions>(o =>
-        {
-            o.MetadataRoot = Path.Combine(root, "catalogs");
-            o.DataRoot = Path.Combine(root, "data");
-        });
-        builder.Services.AddSingleton<DucklingPool>();
-        builder.Services.AddSingleton<CatalogCache>();
-        builder.Services.AddScoped<LakehouseService>();
-        builder.AddLakeholdMcp();
+        builder.AddLakeholdMcpForTests(root);
 
         var app = builder.Build();
+        app.UseRateLimiter();
         app.Use(async (http, next) =>
         {
             var authorization = http.Request.Headers.Authorization.ToString();

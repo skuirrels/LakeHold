@@ -164,6 +164,71 @@ public sealed class DucklingPool : IAsyncDisposable
         }
     }
 
+    /// <summary>
+    ///     Evicts the <em>read-only</em> session for a catalog, leaving a read-write one warm.
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///         A DuckLake catalog attached read-only does not observe commits made through a separate
+    ///         read-write attachment: it answers from the snapshot it attached at, and keeps doing so
+    ///         for as long as the session is warm. Because sessions are keyed by attachment mode
+    ///         (invariant 20), a caller that writes and then reads is using two of them — and on the
+    ///         MCP surface that is not an edge case but the normal path, since reads always attach
+    ///         read-only and writes never do.
+    ///     </para>
+    ///     <para>
+    ///         So a committing statement drops the reader, and the next read reattaches at the new
+    ///         snapshot. The writer is deliberately left alone: it already sees its own commit, and
+    ///         evicting it would make every write pay for a cold start it does not need.
+    ///     </para>
+    ///     <para>
+    ///         Removal from the pool is synchronous and is what makes the next read correct: no caller
+    ///         can reach the stale session once it is out of the dictionary. <b>Disposal is not
+    ///         awaited.</b> <see cref="Duckling.DisposeAsync"/> waits for the session's gate so a
+    ///         statement already running on it finishes rather than faulting, and making the writer
+    ///         wait for that would stall a one-row insert behind an unrelated minutes-long read.
+    ///     </para>
+    ///     <para>
+    ///         This is per-node. Another API node's warm reader is still stale until its own write or
+    ///         idle timeout, which is a smaller window than "until something restarts" but not zero;
+    ///         closing it entirely needs a version check at session use rather than an eviction here.
+    ///     </para>
+    /// </remarks>
+    public void EvictReaders(string tenantKey, int catalogId)
+    {
+        var prefix = string.Join(
+            '\0',
+            tenantKey,
+            catalogId.ToString(System.Globalization.CultureInfo.InvariantCulture)) + '\0';
+
+        foreach (var key in _sessions.Keys.Where(key =>
+                     key.StartsWith(prefix, StringComparison.Ordinal)
+                     && key.EndsWith("\0ro", StringComparison.Ordinal)))
+        {
+            if (!_sessions.TryRemove(key, out var entry))
+            {
+                continue;
+            }
+
+            LakeholdTelemetry.SessionEvictions.Add(
+                1, new KeyValuePair<string, object?>(LakeholdTelemetry.ReasonKey, "stale_reader"));
+
+            var name = CatalogNameOf(key);
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await DisposeEntryAsync(entry).ConfigureAwait(false);
+                }
+                catch (Exception exception)
+                {
+                    // Nothing is awaiting this, so an unobserved fault would otherwise be silent.
+                    EngineLog.DucklingBackgroundDisposeFailed(_logger, exception, name);
+                }
+            });
+        }
+    }
+
     /// <summary>Currently warm catalog names, deduplicated across attachment modes.</summary>
     public IReadOnlyCollection<string> WarmCatalogs =>
         _sessions.Keys.Select(CatalogNameOf).Distinct(StringComparer.Ordinal).ToArray();

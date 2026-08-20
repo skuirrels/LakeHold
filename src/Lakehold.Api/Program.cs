@@ -533,6 +533,11 @@ if (app.Environment.IsDevelopment())
 
 app.UseExceptionHandler();
 
+// Endpoints opt in with RequireRateLimiting; today only the MCP group does. The middleware has to be
+// in the pipeline for that metadata to mean anything, and it is a no-op for every endpoint that does
+// not ask for it.
+app.UseRateLimiter();
+
 // Only when an authority is configured: without a registered scheme these throw, and the endpoint
 // filter is what enforces access in either case — this middleware only populates HttpContext.User.
 if (oidc.Enabled)

@@ -43,4 +43,17 @@ internal static partial class EngineLog
         Level = LogLevel.Information,
         Message = "Evicting Duckling for catalog {Catalog} to stay within the warm-session ceiling")]
     public static partial void DucklingEvictedOverflow(ILogger logger, string catalog);
+
+    [LoggerMessage(
+        EventId = 1005,
+        Level = LogLevel.Warning,
+        Message = "Disposed Duckling for catalog {Catalog} while a statement still held its gate; "
+            + "the statement outlived its own timeout and its result may be lost")]
+    public static partial void DucklingDisposedWhileBusy(ILogger logger, string catalog);
+
+    [LoggerMessage(
+        EventId = 1006,
+        Level = LogLevel.Warning,
+        Message = "Background disposal of the evicted Duckling for catalog {Catalog} failed")]
+    public static partial void DucklingBackgroundDisposeFailed(ILogger logger, Exception exception, string catalog);
 }

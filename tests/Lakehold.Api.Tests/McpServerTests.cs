@@ -49,24 +49,11 @@ public sealed class McpServerTests : IAsyncLifetime
             ["Lakehold:Mcp:MaxRowsPerResult"] = "5",
         });
 
-        builder.Services.AddDbContext<ControlPlaneContext>(
-            o => o.UseDuckDB($"Data Source={Path.Combine(_root, "cp.duckdb")}"));
-        builder.Services.AddScoped<ApiTokenAuthenticator>();
-        builder.Services.AddScoped<MemberDirectory>();
-        builder.Services.AddSingleton(TimeProvider.System);
         builder.Services.Configure<LakeholdOidcOptions>(_ => { });
-        builder.Services.Configure<LakehouseOptions>(o =>
-        {
-            o.MetadataRoot = Path.Combine(_root, "catalogs");
-            o.DataRoot = Path.Combine(_root, "data");
-        });
-        builder.Services.AddSingleton<DucklingPool>();
-        builder.Services.AddSingleton<CatalogCache>();
-        builder.Services.AddScoped<LakehouseService>();
-
-        builder.AddLakeholdMcp();
+        builder.AddLakeholdMcpForTests(_root);
 
         _app = builder.Build();
+        _app.UseRateLimiter();
         _app.MapLakeholdMcp();
         await _app.StartAsync();
 
@@ -137,12 +124,15 @@ public sealed class McpServerTests : IAsyncLifetime
     [Fact]
     public async Task Only_the_specified_tools_are_exposed()
     {
-        // Maintenance, eject, provisioning, and token minting are deliberately absent (docs/MCP.md).
-        // Asserting the whole set means adding a tool is a decision, not an accident.
+        // Eject, backup/restore, provisioning, token minting, and CDC subscriptions are deliberately
+        // absent (docs/MCP.md). Asserting the whole set means adding a tool is a decision, not an
+        // accident.
         //
         // This host leaves writes disabled, which is the default, so the set is the read-only
-        // surface: `execute` and the mutating half of the connector control plane are gated behind
-        // Allow writes and proved absent in McpWriteToolTests.
+        // surface: `execute`, the mutating half of the connector control plane, the saved-query
+        // mutators, and apply_table_restore are gated behind Allow writes and proved absent in
+        // McpWriteToolTests. plan_maintenance and apply_maintenance sit behind Allow operator
+        // commands and are absent here for that reason instead.
         await using var client = await ConnectAsync(_demoToken);
 
         var names = (await client.ListToolsAsync()).Select(t => t.Name).OrderBy(n => n).ToArray();
@@ -162,12 +152,15 @@ public sealed class McpServerTests : IAsyncLifetime
                 "list_connector_dead_letters",
                 "list_connector_runs",
                 "list_connectors",
+                "list_query_languages",
                 "list_saved_queries",
                 "list_snapshots",
                 "list_storage_files",
                 "list_tenants",
+                "plan_table_restore",
                 "query",
                 "query_history",
+                "query_language",
                 "query_snapshot",
                 "validate_connector",
             ],

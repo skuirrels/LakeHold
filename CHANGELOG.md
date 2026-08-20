@@ -7,6 +7,54 @@ and LakeHold follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.4.0] - 2026-08-20
+
+Completes the MCP server's agent-facing contract and fixes a data-correctness bug found while
+covering it.
+
+### Added
+
+- **Every MCP tool reports an output schema and describes every argument.** Structured content was
+  off, so tools returned their records to clients as unvalidated JSON strings that neither the client
+  nor the model could check; thirteen tools additionally had arguments with no description at all,
+  leaving an agent to guess at `schema`, `limit`, `revision`, and `version`.
+- **The MCP handshake carries server instructions and a real version.** Instructions hold the
+  cross-cutting knowledge that belongs to no single tool — call `list_tenants` first, change ranges
+  are inclusive at both ends, an update is two rows sharing a `rowId`, reads attach read-only
+  whatever the credential says.
+- **Table-data restore is reachable over MCP** as `plan_table_restore` and `apply_table_restore`,
+  fenced on the snapshot the plan returned. Its absence had been an omission rather than a decision,
+  and it left an agent able to read what a table used to contain with no supported way to put it back.
+- **The query languages a deployment installs are discoverable** through `list_query_languages`, with
+  `query_language` to run one — the missing half of a `language` argument the saved-query tools had
+  always taken. An unavailable language reports why rather than being omitted.
+- **Resource-template arguments complete** against what the calling credential can reach. An
+  unreachable tenant completes to nothing rather than to a refusal, which would answer whether it
+  exists.
+- **The MCP endpoint is rate-limited**, per credential and per peer, on by default. An agent decides
+  its next call from the result of the last one, so a loop that misreads a refusal issues requests as
+  fast as the network allows.
+- **Per-tool spans and metrics**, and a structured record of every mutating call naming the actor.
+  Tool arguments are never recorded: the mutating set includes `execute`, whose argument is submitted
+  SQL, and the connector tools, whose definitions carry secret references.
+
+### Fixed
+
+- **A read now sees a write made through the same MCP session.** `query` always attaches a catalog
+  read-only and `execute` never does, so an agent writing and reading back always used two pooled
+  sessions — and a DuckLake catalog attached read-only answers from the snapshot it attached at. An
+  `INSERT` followed by a `SELECT` returned the pre-write rows, silently and with no error, for as
+  long as the session stayed warm; a published saved query could not be selected from. A committing
+  statement now drops the catalog's reader, which reattaches at the new snapshot.
+- **Evicting a session no longer faults a statement running on it.** Disposal drains the session's
+  gate, so a read already in flight finishes instead of dying on a disposed semaphore, and the write
+  that triggered the eviction does not wait for it.
+- **Domain failures reach an agent readable.** One shared guard replaces four `catch` lists that
+  disagreed, so an unknown column or a stale revision explains itself instead of arriving as the
+  SDK's opaque "an error occurred".
+- **`Directory.Build.props` sets the product version**, which the MCP server advertises. It reported
+  `1.0.0` on a 2.3.x release because nothing in the build set one.
+
 ## [2.3.2] - 2026-08-15
 
 Updates the MCP server SDK to the latest stable release.
@@ -512,7 +560,8 @@ works the way every instruction says it does.
 - Production API and web container images for Linux amd64 and arm64, Compose deployment, health
   checks, telemetry, and a reproducible end-to-end test suite.
 
-[Unreleased]: https://github.com/skuirrels/LakeHold/compare/v2.3.2...HEAD
+[Unreleased]: https://github.com/skuirrels/LakeHold/compare/v2.4.0...HEAD
+[2.4.0]: https://github.com/skuirrels/LakeHold/compare/v2.3.2...v2.4.0
 [2.3.2]: https://github.com/skuirrels/LakeHold/compare/v2.3.1...v2.3.2
 [2.3.1]: https://github.com/skuirrels/LakeHold/compare/v2.3.0...v2.3.1
 [2.3.0]: https://github.com/skuirrels/LakeHold/compare/v2.2.2...v2.3.0

@@ -57,4 +57,61 @@ public sealed class StatementVerbTests
         Assert.True(StatementVerb.ReportsAffectedRows("UPDATE t SET returning_customers = 1"));
         Assert.True(StatementVerb.ReportsAffectedRows("INSERT INTO prereturning VALUES (1)"));
     }
+
+    /// <summary>
+    ///     A statement that only reads leaves other sessions' view of the catalog current.
+    /// </summary>
+    [Theory]
+    [InlineData("SELECT * FROM t")]
+    [InlineData("  \n-- comment\nselect 1")]
+    [InlineData("WITH s AS (SELECT 1) SELECT * FROM s")]
+    [InlineData("FROM t SELECT *")]
+    [InlineData("DESCRIBE t")]
+    [InlineData("SHOW TABLES")]
+    [InlineData("EXPLAIN SELECT 1")]
+    [InlineData("SUMMARIZE t")]
+    public void Reads_do_not_commit(string sql)
+        => Assert.False(StatementVerb.MayCommit(sql));
+
+    /// <summary>
+    ///     Anything that can advance the catalog does, including the shapes whose *leading* keyword
+    ///     reads like a query.
+    /// </summary>
+    /// <remarks>
+    ///     The CTE-prefixed cases are the ones worth pinning. DuckDB accepts a CTE in front of a
+    ///     write, so classifying on the leading keyword alone reported them as reads and left another
+    ///     session answering from the snapshot it attached at — the stale read this classification
+    ///     exists to prevent, still open for a common SQL shape.
+    /// </remarks>
+    [Theory]
+    [InlineData("INSERT INTO t VALUES (1)")]
+    [InlineData("UPDATE t SET i = 1")]
+    [InlineData("DELETE FROM t")]
+    [InlineData("CREATE TABLE t (i INT)")]
+    [InlineData("DROP TABLE t")]
+    [InlineData("ALTER TABLE t ADD COLUMN j INT")]
+    [InlineData("COPY t TO 'x.parquet'")]
+    [InlineData("CALL something()")]
+    [InlineData("WITH x AS (SELECT 1 AS i) INSERT INTO t SELECT * FROM x")]
+    [InlineData("with new_rows as (select 1) delete from t where id in (select * from new_rows)")]
+    [InlineData("WITH x AS (SELECT 1) UPDATE t SET i = 1")]
+    [InlineData("SELECT 1; INSERT INTO t VALUES (1)")]
+    public void Writes_may_commit(string sql)
+        => Assert.True(StatementVerb.MayCommit(sql));
+
+    /// <summary>
+    ///     An unrecognised leading keyword is treated as committing.
+    /// </summary>
+    /// <remarks>
+    ///     The opposite of the fall-through <c>ReportsAffectedRows</c> takes, and deliberately so:
+    ///     there, being wrong costs a missing row count; here, being wrong serves a caller data from
+    ///     before their own write.
+    /// </remarks>
+    [Theory]
+    [InlineData("VACUUM")]
+    [InlineData("CHECKPOINT")]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void An_unknown_statement_is_assumed_to_commit(string sql)
+        => Assert.True(StatementVerb.MayCommit(sql));
 }

@@ -12,11 +12,14 @@ it rather than restating why.
 
 **Status: the authenticated operator surface has landed, with the explicitly blocked contracts still
 withheld.** In addition to catalog discovery, SQL, snapshots, CDC, and managed connectors, an agent can
-inspect physical storage and query audit history, manage and execute saved queries, and run
-snapshot-bound two-step maintenance. OAuth metadata is served at both RFC 9728 locations, includes
-scopes and an optional pre-registered public client, and MCP JWTs are audience-bound to the exact
-resource URL. Backup/restore Tasks, import content, eject, token minting, and instance provisioning
-remain withheld for the reasons recorded below.
+inspect physical storage and query audit history, manage and execute saved queries, run snapshot-bound
+two-step maintenance, restore a table from a snapshot, and discover and run the non-SQL query languages
+the deployment installs. Every tool reports an output schema and describes every parameter, the
+handshake carries server instructions, resource-template arguments complete against what the credential
+can reach, and the endpoint is rate-limited per credential. OAuth metadata is served at both RFC 9728
+locations, includes scopes and an optional pre-registered public client, and MCP JWTs are audience-bound
+to the exact resource URL. Backup/restore Tasks, import content, eject, token minting, and instance
+provisioning remain withheld for the reasons recorded below.
 
 It is enabled for `make dev` and the development Compose stack. Production configuration remains
 closed before first use. An instance operator can then change Enabled, Allow writes, Allow operator
@@ -228,6 +231,10 @@ wire endpoint does.
 | `list_saved_queries`, `get_saved_query`, `execute_saved_query` | `TenantData` | **Shipped.** Reusable definitions and execution through a selected-catalog read-only attachment; Phase 3 arbitrary-SQL containment still applies |
 | `create_saved_query`, `update_saved_query`, `delete_saved_query`, `publish_saved_query`, `unpublish_saved_query` | `TenantWrite` | **Shipped behind Allow writes.** Uses optimistic revisions and the existing saved-query application service |
 | `plan_maintenance`, `apply_maintenance` | `TenantOwner` | **Shipped behind Allow operator commands.** Apply requires the exact snapshot id returned by plan; an intervening commit forces review again. Backup is excluded until Tasks and public operations share one job model |
+| `plan_table_restore` | `TenantWrite` | **Shipped.** Read-only review of what restoring a table from a snapshot would change. Annotated read-only, so it survives with writes disabled and reports the historical and current row counts either way |
+| `apply_table_restore` | `TenantWrite` | **Shipped behind Allow writes.** Fenced on the snapshot the plan returned. Capability matches the HTTP route rather than maintenance's `TenantOwner`: a restore rewrites one table's rows, which is an `UPDATE`'s authority, and destroys no history |
+| `list_query_languages` | credential only | **Shipped.** The missing half of a `language` argument the saved-query tools have always taken. An unavailable language is reported *with its reason* rather than omitted, so an agent stops guessing at ids instead of concluding the language never existed |
+| `query_language` | `TenantData` | **Shipped.** Runs a non-SQL source and returns the compiled SQL alongside the rows. A separate tool type from `query`, so plain SQL keeps working when the out-of-process compiler is down |
 
 **Resources.** `lakehold://{tenant}/{catalog}/schema` carries the same information
 `describe_schema` returns, so a client can pin it as standing context instead of spending a tool call
@@ -479,6 +486,12 @@ were reachable on a deployment with writes turned off, and nothing in the design
 annotated `ReadOnly = false` is now covered the moment it is registered, and `McpWriteToolTests` asserts
 over the whole advertised set rather than over a list somebody has to remember to extend.
 
+**The by-name assertion is derived the same way, and used not to be.** It was a hand-kept
+`[InlineData]` list covering eight of the fourteen mutating tools while this document claimed all of
+them — the same drift, one layer down, in the test written to prove the drift had ended. It now
+enumerates the compiled tool set and refuses each one, so a mutating tool added later is covered the
+moment it is registered.
+
 ### The connector control plane
 
 `list_connectors`, `get_connector`, `validate_connector`, `list_connector_runs`, and
@@ -489,7 +502,7 @@ over the whole advertised set rather than over a list somebody has to remember t
 They are here rather than withheld because a managed connector is ordinary durable catalog
 configuration that an administrator already edits in the Workbench, and both surfaces call the *same*
 validation boundary — `DataConnectorEndpoints.ValidateAsync` — so an agent cannot save a definition the
-administrator UI would refuse. All eleven declare `Capability.TenantOwner`, the same capability the
+administrator UI would refuse. All **twelve** declare `Capability.TenantOwner`, the same capability the
 HTTP routes declare, enforced by the same policy (invariant 21). Secret *references* are accepted;
 secret values never are, on either surface.
 
@@ -504,8 +517,16 @@ The section that makes this document useful, in the same spirit as `POSTGRES-WIR
 Maintenance is no longer in this table. `plan_maintenance` is a non-mutating review step and
 `apply_maintenance` rechecks the plan's snapshot before changing anything. Both require tenant-owner
 capability and the separate **Allow operator commands** switch; apply additionally requires **Allow
-write commands**. Backup and restore remain withheld because their long-running Tasks contract is
-still unresolved.
+write commands**. *Catalog* backup and restore remain withheld because their long-running Tasks
+contract is still unresolved.
+
+**Table-data restore is no longer in this table either, and its absence had been an omission rather
+than a decision.** It was neither exposed nor listed here as withheld, which left an agent able to read
+what a table used to contain with no supported way to put it back — and therefore an incentive to
+improvise the hand-written `CREATE OR REPLACE TABLE … AT (…)` that invariant 22 exists to forbid. The
+endpoint already had exactly the contract this surface wants: a dry-run plan, an apply fenced on the
+plan's snapshot, and a transaction that rolls back on any incompatibility. Projecting it gives the
+agent the safe path instead of a reason to invent a dangerous one.
 
 | Not exposed | Why |
 |---|---|
@@ -521,6 +542,143 @@ Long-running operations, if any of the above are ever exposed, go through the SD
 extension rather than a bespoke mechanism — and Tasks is structurally the same thing as
 `PUBLIC-API.md`'s `202 Accepted` + `operationId` job model. Those two designs must be reconciled, not
 invented twice.
+
+## What the server says about itself
+
+Three things a client reads before it reads any tool, and all three were empty.
+
+**Server instructions.** MCP clients typically place them in the model's system prompt, which makes
+them the one place for knowledge belonging to *no single tool*: call `list_tenants` first, change
+ranges are inclusive at both ends, an update is two rows sharing a `rowId`, reads attach read-only
+whatever the credential says, a truncated result is a prefix and not an answer, a catalog that has
+never been written to cannot be attached read-only. Every one of those was already written down —
+in a tool description, a code comment, or this document — and reached the agent only if it happened
+to read the right one. `McpServerDescription` holds them, and the test of whether a line belongs
+there is whether an agent gets it wrong *before* reading the relevant tool's description. Argument
+meanings do not qualify; those stay on the parameter.
+
+**Server identity.** `serverInfo` reports `lakehold` and the assembly's product version. It reported
+`1.0.0` on a 2.3.x release, because nothing in the build set a version at all — so
+`Directory.Build.props` now carries `<Version>`, which a release may override with `-p:Version=`.
+Reading it from the assembly rather than writing it here is what keeps it from drifting.
+
+**Output schemas.** The SDK's `UseStructuredContent` defaults to off, so every tool had been returning
+its carefully designed record as an unvalidated JSON *string*: `CallToolResult.StructuredContent` was
+always null, and neither the client nor the model could check the shape it got. Every tool that returns
+a value now declares one. `McpToolCoverageTests` asserts it over the whole advertised set rather than
+over a list, and reads results through `StructuredContent` so a regression that drops it fails the
+suite rather than passing silently through the text fallback.
+
+**Parameter descriptions.** An agent never sees a method signature, only the generated JSON schema.
+Thirteen of the read tools had parameters with no description at all — `schema`, `limit`, `revision`,
+`version`, `maxBuckets` — leaving an agent to guess, and a confident wrong guess is the failure mode
+this surface produces. Every parameter is described, and a test fails the build if one is not.
+
+## Completion
+
+`completion/complete` answers the resource templates' arguments: `tenant`, `catalog`, and `snapshotId`,
+prefix-filtered.
+
+The templates are templates rather than a concrete resource list because enumerating every reachable
+catalog during resource *listing* is the one place a mistake would hand names to a caller that cannot
+reach them. Completion is the supported way back, and it keeps that property: it is a request the
+client makes with the same credential, for one argument at a time. Tenants and catalogs come from the
+same principal-scoped query `list_tenants` uses, narrowing rule included; snapshot ids go through
+`McpCaller.Authorize` exactly as `list_snapshots` does. An unreachable catalog completes to **nothing**
+rather than to a refusal, because a refusal would answer "does that catalog exist?" through a side
+channel the tools are careful to close (invariant 19).
+
+## The endpoint is rate-limited
+
+`Lakehold:Mcp:RequestsPerMinutePerCredential`, defaulting to **120 and on**.
+
+An agent decides its next call from the result of the last one, so a loop that re-reads a truncated
+result or retries a refusal it cannot interpret issues requests as fast as the network allows and does
+not get bored. Nothing else here bounded that: the row ceiling bounds one result's size, not how many
+results are asked for.
+
+**Two chained ceilings, because one key cannot do both jobs.** Partitioning by credential is right for
+real agents — several behind one proxy would otherwise share a budget while one that reconnects would
+get a fresh one. But the credential is caller-supplied, and a first version of this partitioned on it
+alone: a caller sending a fresh random bearer per request landed in a new partition every time, was
+never limited, and created one rate-limiter partition per value. That defeats the reason the limiter
+runs ahead of authentication, which is to shed bad credentials before each one costs a token lookup.
+
+So a per-remote-address ceiling runs on the global limiter, scoped to the MCP path, and the
+per-credential policy runs behind it. The address ceiling is deliberately the looser of the two, since
+a shared egress IP is a normal deployment and must not throttle a whole office to one agent's
+allowance. It reads the connection's remote address and **not** `X-Forwarded-For`, which is
+caller-supplied unless the proxy list is pinned and would put the key straight back under the caller's
+control.
+
+The credential partition key is a **hash** of the `Authorization` header, never the header: the
+limiter runs before the endpoint filter has resolved a principal, so the raw header is all there is to
+key on, and holding a bearer token as a live dictionary key for a minute is the kind of incidental
+credential storage the rest of this code avoids.
+
+Deliberately a startup setting rather than a System Settings one, and deliberately on by default. It
+protects the node from a client, and a control the same operator surface could switch off is one an
+incident finds switched off.
+
+## Reads see writes
+
+A DuckLake catalog attached **read-only does not observe a commit made through a separate read-write
+attachment**. It answers from the snapshot it attached at, for as long as the session stays warm.
+
+On this surface that is not an edge case but the normal path: `query` always attaches read-only and
+`execute` never does, so an agent that writes and reads back is always using two pooled sessions —
+which is exactly what invariant 20 keys them apart for. The result was that an agent could `execute` an
+`INSERT`, read the table back through `query`, and be told the row was not there. No error, no
+truncation flag, no way for the agent to tell. A published saved query behaved the same way: the view
+was created, and selecting from it failed.
+
+`StatementVerb.MayCommit` classifies a statement and `DucklingPool.EvictReaders` drops the catalog's
+warm reader, which reattaches at the new snapshot on the next read. The writer is left warm because it
+already sees its own commit. The classification is an allow-list of **reads** that also scans for a
+committing keyword anywhere in the statement, because DuckDB accepts a CTE in front of a write and
+`WITH … INSERT` would otherwise read as a query; an unrecognised statement invalidates rather than
+risks serving stale rows — the opposite of the fall-through in invariant 4, and for the opposite
+reason: there, refusing a statement is the harm; here, serving one is.
+
+Two details of *how* it invalidates matter as much as when. Removal from the pool is synchronous, but
+**disposal is neither awaited nor immediate**: `Duckling.DisposeAsync` first drains the session's gate,
+so a statement already running on the reader finishes instead of dying with an `ObjectDisposedException`
+on a semaphore disposed underneath it — and the writer does not wait for that drain, or a one-row
+insert would block behind an unrelated minutes-long read. And the invalidation runs in a `finally`
+rather than on the success path, because the provider prepares multiple statements per command: a
+submission that commits one statement and throws on the next has still moved the catalog.
+
+Both were review findings on the first version of this fix, and the second was the more embarrassing:
+eviction had previously only fired when an administrator changed a catalog's configuration, so putting
+it on the write path turned a rare latent race into a routine one. A stale read had been traded for a
+crashed read.
+
+Maintenance and table restore invalidate on the same seam. This is per-node: another API node's warm
+reader is stale until its own write or its idle timeout, which is a smaller window than "until
+something restarts" but is not zero. Closing it entirely needs a snapshot check when a session is
+taken from the pool rather than an eviction when one is written through.
+
+This was found by writing the tool-coverage tests, not by review.
+
+## Telemetry and the mutating-call record
+
+HTTP instrumentation sees one `POST /mcp` and cannot say which tool ran inside it, so every agent call
+looked alike. A call-tool filter opens `lakehold.mcp.tool` and records `lakehold.mcp.tool.calls`,
+`lakehold.mcp.tool.duration`, and `lakehold.mcp.tool.gated`, tagged by tool name — a bounded set fixed
+at compile time, which is what makes it safe on a metric where tenant and catalog are not. Refusals by
+a runtime gate are counted separately from errors because they mean something different to an operator:
+an agent reaching for a surface System Settings has turned off is a configuration conversation, not a
+fault.
+
+`QueryRun` already attributes statements, including MCP ones. What it does not cover is the mutating
+tools that are not statements — retiring a connector, running one, applying maintenance. Those now emit
+a structured record naming the actor, tool, tenant, catalog, and outcome. **Arguments are never
+recorded**, and that is a rule rather than an oversight: the mutating set includes `execute`, whose
+argument is submitted SQL, and the connector tools, whose definitions carry secret references.
+
+It is a log, not a durable audit row. Connector and maintenance entities carry no actor columns, and
+adding them is a schema change to *those* subsystems rather than to this one — worth doing, and worth
+doing on its own branch. Recorded here so the gap is a decision rather than an omission.
 
 ## The context budget is a separate budget
 
@@ -607,7 +765,8 @@ requires rebuilding the endpoint table.
     "PublicBaseUrl": "",     // required behind a reverse proxy; see below
     "AllowWrites": false,    // bootstrap only; System Settings controls the live tool list
     "AllowOperatorCommands": false, // maintenance tier; also requires writes to apply
-    "MaxRowsPerResult": 200  // bootstrap only; the UI accepts 1..10,000
+    "MaxRowsPerResult": 200, // bootstrap only; the UI accepts 1..10,000
+    "RequestsPerMinutePerCredential": 120 // startup only, and deliberately not a live setting
   }
 }
 ```
@@ -674,6 +833,42 @@ discovery and call so they can vary without restarting the server.
 - Columns carry their declared type.
 - An empty statement is refused before the engine is touched.
 
+**`McpToolCoverageTests`** — every tool driven through the SDK client, against a host that can
+actually construct it.
+
+This suite exists because of what the others could not do. They asserted the exposed tool *set*
+exhaustively and then exercised seven of the tools; the rest were covered by their name appearing in an
+`Assert.Equal` list. That was not a matter of nobody getting round to it: both fixtures registered
+`LakehouseService` and nothing else, so constructing a saved-query, connector, or query-language tool
+failed in the DI container before it reached any code worth asserting on. Listing tools only reflects
+attributes, so the set assertion passed regardless, and twenty tools' authorization, paging, and error
+handling stayed claims rather than facts. `McpTestHost` now owns the registrations, so a tool whose
+dependency is missing fails every MCP suite at once instead of quietly narrowing what they can reach.
+
+- Every advertised tool reports an output schema, and every parameter is described — asserted over the
+  whole set, so a tool added without them fails the build.
+- The handshake carries instructions and a server version that is not the unset-assembly `1.0.0`.
+- A domain failure comes back readable rather than as the SDK's opaque "an error occurred". Writing
+  this found `QueryLanguageUnavailableException` missing from the expected set, which is the shape of
+  bug it was written to catch.
+- The saved-query lifecycle end to end: create, list, get, execute, update, publish, **select through
+  the published view**, unpublish, delete. A stale revision is refused with a message that explains
+  itself.
+- The connector control plane end to end, and a definition the administration UI would refuse cannot
+  be created through MCP either — the shared validation boundary, asserted rather than asserted about.
+- Table restore: plan reports the row counts, apply restores them, and a stale fence is refused *and
+  leaves the interloping row in place*, so the refusal is proven to have changed nothing.
+- Maintenance plans and applies against the snapshot it reviewed, and refuses an unknown operation.
+- Query languages are discoverable including an unavailable one, and a non-SQL source runs and reports
+  the SQL it compiled to.
+- Completion suggests only what the credential can reach, and suggests **nothing** for an unreachable
+  tenant rather than refusing.
+- The snapshot resource returns one snapshot and refuses another tenant.
+- A read sees a write made through `execute`, for rows and for DDL. The read-only session is warmed
+  first, deliberately — without that the reader attaches after the write and the test passes for the
+  wrong reason.
+- A cancelled call leaves the session usable for the next one.
+
 **Unchanged, and that is the point** — `LakeholdAuthorizationFilterTests`, `TenantAccessPolicyTests`,
 and `TokenRoleTests` passed untouched through Phase 1. `CapabilityPolicyTests` covers the shared rules
 directly.
@@ -686,7 +881,11 @@ directly.
   `PublicBaseUrl` overrides what the request saw.
 - An instance credential cannot query. Holds by construction through `CapabilityPolicy`, which is
   covered — but not yet asserted *over MCP*.
-- Cancellation propagating from the transport through the engine.
+- ~~Cancellation propagating from the transport through the engine.~~ Covered at the level that
+  matters to a client: a cancelled call leaves the session usable. That a cancellation reaches the
+  DuckDB statement itself, rather than only abandoning the await, is still unproven.
+- A second API node's warm reader observing another node's commit. Out of reach of an in-process
+  fixture, and the honest statement of the limitation is in "Reads see writes" above.
 - ~~Query-history attribution asserted end to end.~~ Covered for both API-token and OIDC-member MCP
   calls, including mutual exclusion and `Origin = Mcp`.
 - Verified behaviour 7 asserted directly: a range whose *explicit* end predates the table's creation.

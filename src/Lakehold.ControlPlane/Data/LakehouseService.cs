@@ -111,6 +111,16 @@ public sealed class LakehouseService(
         }
         finally
         {
+            // In the finally, not on the success path: the provider prepares multiple statements per
+            // command, so `CREATE TABLE a; CREATE TABLE a;` commits the first and throws on the
+            // second, and a cancellation can arrive after the commit. Either way the catalog moved and
+            // a warm reader is now stale, so the failure path has to invalidate too. Evicting a reader
+            // for a statement that turned out to commit nothing costs one cold start.
+            if (!readOnly && StatementVerb.MayCommit(sql))
+            {
+                InvalidateReaders(duckling);
+            }
+
             if (recordHistory)
             {
                 await SaveQueryRunAsync(run).ConfigureAwait(false);
@@ -709,7 +719,7 @@ public sealed class LakehouseService(
         CancellationToken cancellationToken)
     {
         var (duckling, _) = await ResolveAsync(tenantSlug, catalogName, cancellationToken).ConfigureAwait(false);
-        return await TableRestore
+        var result = await TableRestore
             .RunAsync(
                 duckling,
                 schema,
@@ -719,6 +729,13 @@ public sealed class LakehouseService(
                 expectedCurrentSnapshotId,
                 cancellationToken)
             .ConfigureAwait(false);
+
+        if (apply)
+        {
+            InvalidateReaders(duckling);
+        }
+
+        return result;
     }
 
     /// <summary>Runs a named maintenance operation against a tenant's catalog.</summary>
@@ -760,7 +777,7 @@ public sealed class LakehouseService(
 
         try
         {
-            var result = await RunMaintenanceCoreAsync(
+            var (result, duckling) = await RunMaintenanceCoreAsync(
                     tenantSlug,
                     catalogName,
                     operation,
@@ -768,6 +785,18 @@ public sealed class LakehouseService(
                     expectedCurrentSnapshotId,
                     cancellationToken)
                 .ConfigureAwait(false);
+
+            // Flush and compaction commit, and expiry and cleanup remove files a reader may still be
+            // pointing at. A dry run changes nothing and leaves warm readers alone.
+            //
+            // The session comes back from the core run rather than being resolved again: a second
+            // lookup after the operation has already committed can throw — the catalog deleted
+            // concurrently, or a cold session failing to start — and would report a maintenance run
+            // that succeeded as one that failed, inviting a retry of something destructive.
+            if (!result.DryRun)
+            {
+                InvalidateReaders(duckling);
+            }
 
             RecordMaintenance(startedAt, operation, apply, LakeholdTelemetry.OutcomeSuccess);
             return result;
@@ -788,7 +817,7 @@ public sealed class LakehouseService(
             new KeyValuePair<string, object?>(LakeholdTelemetry.DryRunKey, !apply),
             new KeyValuePair<string, object?>(LakeholdTelemetry.OutcomeKey, outcome));
 
-    private async Task<MaintenanceResult> RunMaintenanceCoreAsync(
+    private async Task<(MaintenanceResult Result, Duckling Duckling)> RunMaintenanceCoreAsync(
         string tenantSlug,
         string catalogName,
         string operation,
@@ -817,15 +846,19 @@ public sealed class LakehouseService(
                     throw new InvalidOperationException(blocker);
                 }
 
-                return new MaintenanceResult(
-                    "expire",
-                    $"CDC retention watermark blocks apply: {blocker}",
-                    TimeSpan.Zero,
-                    DryRun: true);
+                return (
+                    new MaintenanceResult(
+                        "expire",
+                        $"CDC retention watermark blocks apply: {blocker}",
+                        TimeSpan.Zero,
+                        DryRun: true),
+                    duckling);
             }
         }
 
-        return operation switch
+        return (await RunOperationAsync().ConfigureAwait(false), duckling);
+
+        async Task<MaintenanceResult> RunOperationAsync() => operation switch
         {
             // Non-destructive: they rewrite storage layout without dropping recoverable state.
             "flush" => await LakehouseMaintenance
@@ -1171,6 +1204,18 @@ public sealed class LakehouseService(
 
         return new ResolvedCatalog(catalog.ToDescriptor(), catalog.TenantId);
     }
+
+    /// <summary>
+    ///     Drops the catalog's warm read-only session after something committed to it.
+    /// </summary>
+    /// <remarks>
+    ///     A read-only DuckLake attachment keeps answering from the snapshot it attached at, so a
+    ///     reader that outlives a write serves data from before it. See
+    ///     <see cref="DucklingPool.EvictReadersAsync"/> for why the writer is left warm and what this
+    ///     does not cover.
+    /// </remarks>
+    private void InvalidateReaders(Duckling duckling)
+        => _pool.EvictReaders(duckling.Catalog.TenantKey, duckling.Catalog.CatalogId);
 
     private async Task<(Duckling Duckling, int TenantId)> ResolveAsync(
         string tenantSlug,

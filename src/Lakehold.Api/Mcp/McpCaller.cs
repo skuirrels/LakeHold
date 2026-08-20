@@ -45,6 +45,38 @@ internal static class McpCaller
                 : throw new McpException("MCP runtime settings were not resolved for this request.");
     }
 
+    /// <summary>
+    ///     The settings snapshot for the current request, for a filter that has request services but
+    ///     no <see cref="HttpContext"/> in hand.
+    /// </summary>
+    /// <remarks>
+    ///     <see cref="McpAuthenticationFilter"/> has already loaded and stashed the row before any
+    ///     filter or tool runs, so reading it back costs nothing. Reloading it instead — which the
+    ///     discovery and call filters used to do — spent two further PostgreSQL round trips on every
+    ///     JSON-RPC message and, worse, let one request see two different snapshots if an operator
+    ///     saved between them. The store is still the fallback, so a transport that has not run the
+    ///     authentication filter degrades to a correct answer rather than a throw.
+    /// </remarks>
+    public static async ValueTask<McpRuntimeSettings> SettingsAsync(
+        IServiceProvider services,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+
+        var http = services.GetService<IHttpContextAccessor>()?.HttpContext;
+        if (http is not null
+            && http.Items.TryGetValue(SettingsItemKey, out var value)
+            && value is McpRuntimeSettings settings)
+        {
+            return settings;
+        }
+
+        return await services
+            .GetRequiredService<McpRuntimeSettingsStore>()
+            .GetAsync(cancellationToken)
+            .ConfigureAwait(false);
+    }
+
     /// <summary>Resolves the principal and enforces <see cref="Capability.TenantData"/>, or throws.</summary>
     /// <remarks>
     ///     The refusal wording for an unreachable subject deliberately matches the engine's own
@@ -81,6 +113,23 @@ internal static class McpCaller
 
         return principal;
     }
+
+    /// <summary>
+    ///     Enforces tenant-write capability <em>without</em> the MCP write opt-in, for a non-mutating
+    ///     step of a mutating workflow.
+    /// </summary>
+    /// <remarks>
+    ///     A restore plan changes nothing, so it is annotated read-only and survives the discovery
+    ///     filter when writes are disabled. Requiring the write opt-in as well would advertise a tool
+    ///     that could never succeed. The capability still holds: planning a restore reveals a table's
+    ///     historical row counts, which is not a reader's to see, and it is only useful to a caller
+    ///     that could go on to apply it.
+    /// </remarks>
+    public static ILakeholdPrincipal AuthorizeWriter(
+        IHttpContextAccessor accessor,
+        string tenant,
+        string catalog)
+        => AuthorizeCapability(accessor, Capability.TenantWrite, tenant, catalog);
 
     /// <summary>Enforces ordinary tenant-write capability plus the shared MCP write opt-in.</summary>
     public static ILakeholdPrincipal AuthorizeForWrite(

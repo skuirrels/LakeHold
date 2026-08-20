@@ -2,36 +2,46 @@ using System.ComponentModel;
 using Lakehold.ControlPlane.Data;
 using Lakehold.Engine.Catalog;
 using Microsoft.EntityFrameworkCore;
-using ModelContextProtocol;
 using ModelContextProtocol.Server;
 
 namespace Lakehold.Api.Mcp;
 
 /// <summary>Read-only physical-layer and audit projections for operational diagnosis.</summary>
+/// <remarks>
+///     Every parameter carries a description. An agent cannot see a method signature, only the JSON
+///     schema built from these attributes, so an undescribed <c>schema</c> or <c>limit</c> is a value
+///     it has to guess — and the guess is what produces a confident, wrong call.
+/// </remarks>
 [McpServerToolType]
 public sealed class LakeholdInspectionTools(
     LakehouseService lakehouse,
     ControlPlaneContext controlPlane,
     IHttpContextAccessor httpContextAccessor)
 {
-    [McpServerTool(Name = "get_storage", Title = "Inspect catalog storage", ReadOnly = true, Destructive = false)]
-    [Description("Returns table-by-table DuckLake storage footprint, file counts, deletes, and inlined rows.")]
+    [McpServerTool(Name = "get_storage", Title = "Inspect catalog storage", ReadOnly = true, Destructive = false, UseStructuredContent = true, OpenWorld = false)]
+    [Description(
+        "Returns table-by-table DuckLake storage footprint, file counts, deletes, and inlined rows. "
+        + "Read from the catalog's own metadata, not by listing files, so it is exact rather than an "
+        + "estimate. Use it to decide whether compaction or a flush is worth proposing.")]
     public Task<CatalogStorageInfo> GetStorageAsync(
-        string tenant,
-        string catalog,
+        [Description("Tenant slug the catalog belongs to.")] string tenant,
+        [Description("Catalog to inspect.")] string catalog,
         CancellationToken cancellationToken) =>
         ReadAsync(tenant, catalog, () => lakehouse.GetStorageAsync(tenant, catalog, cancellationToken));
 
-    [McpServerTool(Name = "list_storage_files", Title = "List table storage files", ReadOnly = true, Destructive = false)]
-    [Description("Lists the bounded physical data files backing a table, optionally at one retained snapshot.")]
+    [McpServerTool(Name = "list_storage_files", Title = "List table storage files", ReadOnly = true, Destructive = false, UseStructuredContent = true, OpenWorld = false)]
+    [Description(
+        "Lists the physical Parquet data files backing one table, optionally as of a retained snapshot. "
+        + "Bounded by the server's MCP page ceiling.")]
     public Task<TableFileList> ListStorageFilesAsync(
-        string tenant,
-        string catalog,
-        string table,
+        [Description("Tenant slug the catalog belongs to.")] string tenant,
+        [Description("Catalog holding the table.")] string catalog,
+        [Description("Table whose data files to list.")] string table,
         CancellationToken cancellationToken,
-        string schema = "main",
+        [Description("Schema holding the table. Defaults to 'main'.")] string schema = "main",
+        [Description("Retained snapshot to list files as of. Omit for the current state. Ids come from list_snapshots.")]
         long? snapshotId = null,
-        int limit = 100) =>
+        [Description("Maximum files to return. Bounded by the server's MCP page ceiling.")] int limit = 100) =>
         ReadAsync(
             tenant,
             catalog,
@@ -44,27 +54,33 @@ public sealed class LakeholdInspectionTools(
                 McpCaller.Settings(httpContextAccessor).BoundPageSize(limit, 500),
                 cancellationToken));
 
-    [McpServerTool(Name = "get_table_detail", Title = "Inspect table detail", ReadOnly = true, Destructive = false)]
-    [Description("Returns logical, storage, partition, and snapshot detail for one table.")]
+    [McpServerTool(Name = "get_table_detail", Title = "Inspect table detail", ReadOnly = true, Destructive = false, UseStructuredContent = true, OpenWorld = false)]
+    [Description(
+        "Returns one table's logical shape, storage footprint, partitioning, and snapshot history in a "
+        + "single call. Prefer this over several narrower calls when orienting on an unfamiliar table.")]
     public Task<TableDetailInfo> GetTableDetailAsync(
-        string tenant,
-        string catalog,
-        string table,
+        [Description("Tenant slug the catalog belongs to.")] string tenant,
+        [Description("Catalog holding the table.")] string catalog,
+        [Description("Table to inspect.")] string table,
         CancellationToken cancellationToken,
-        string schema = "main") =>
+        [Description("Schema holding the table. Defaults to 'main'.")] string schema = "main") =>
         ReadAsync(
             tenant,
             catalog,
             () => lakehouse.GetTableDetailAsync(tenant, catalog, schema, table, cancellationToken));
 
-    [McpServerTool(Name = "get_table_profile", Title = "Profile table columns", ReadOnly = true, Destructive = false)]
-    [Description("Profiles every column over live logical rows, optionally at one retained snapshot.")]
+    [McpServerTool(Name = "get_table_profile", Title = "Profile table columns", ReadOnly = true, Destructive = false, UseStructuredContent = true, OpenWorld = false)]
+    [Description(
+        "Profiles every column of a table over live logical rows — null counts, distinct counts, and "
+        + "ranges — optionally as of a retained snapshot. Cheaper and more reliable than writing your "
+        + "own aggregate query per column.")]
     public Task<TableProfileInfo> GetTableProfileAsync(
-        string tenant,
-        string catalog,
-        string table,
+        [Description("Tenant slug the catalog belongs to.")] string tenant,
+        [Description("Catalog holding the table.")] string catalog,
+        [Description("Table to profile.")] string table,
         CancellationToken cancellationToken,
-        string schema = "main",
+        [Description("Schema holding the table. Defaults to 'main'.")] string schema = "main",
+        [Description("Retained snapshot to profile as of. Omit to profile the current state.")]
         long? snapshotId = null) =>
         ReadAsync(
             tenant,
@@ -72,16 +88,19 @@ public sealed class LakeholdInspectionTools(
             () => lakehouse.GetTableProfileAsync(
                 tenant, catalog, schema, table, snapshotId, cancellationToken));
 
-    [McpServerTool(Name = "get_column_distribution", Title = "Inspect a column distribution", ReadOnly = true, Destructive = false)]
-    [Description("Returns a bounded range or categorical distribution for one table column.")]
+    [McpServerTool(Name = "get_column_distribution", Title = "Inspect a column distribution", ReadOnly = true, Destructive = false, UseStructuredContent = true, OpenWorld = false)]
+    [Description(
+        "Returns a bounded distribution for one column: numeric and temporal columns come back as "
+        + "ranged buckets, low-cardinality ones as categories with counts.")]
     public Task<ColumnDistributionInfo> GetColumnDistributionAsync(
-        string tenant,
-        string catalog,
-        string table,
-        string column,
+        [Description("Tenant slug the catalog belongs to.")] string tenant,
+        [Description("Catalog holding the table.")] string catalog,
+        [Description("Table holding the column.")] string table,
+        [Description("Column to summarise. Names come from describe_schema.")] string column,
         CancellationToken cancellationToken,
-        string schema = "main",
-        long? snapshotId = null,
+        [Description("Schema holding the table. Defaults to 'main'.")] string schema = "main",
+        [Description("Retained snapshot to read as of. Omit for the current state.")] long? snapshotId = null,
+        [Description("Maximum buckets or categories to return, from 1 to 100. Defaults to 20.")]
         int maxBuckets = 20) =>
         ReadAsync(
             tenant,
@@ -96,18 +115,24 @@ public sealed class LakeholdInspectionTools(
                 Math.Clamp(maxBuckets, 1, 100),
                 cancellationToken));
 
-    [McpServerTool(Name = "query_history", Title = "Read query audit history", ReadOnly = true, Destructive = false)]
-    [Description("Lists recent query runs for one catalog, including actor and transport attribution.")]
-    public async Task<IReadOnlyList<McpQueryRun>> QueryHistoryAsync(
-        string tenant,
-        string catalog,
+    [McpServerTool(Name = "query_history", Title = "Read query audit history", ReadOnly = true, Destructive = false, UseStructuredContent = true, OpenWorld = false)]
+    [Description(
+        "Lists recent query runs for one catalog, newest first, with the statement, its outcome and "
+        + "duration, and which person or token ran it over which transport. Use it to see what has "
+        + "already been asked before repeating work, or to explain a slow catalog.")]
+    public Task<IReadOnlyList<McpQueryRun>> QueryHistoryAsync(
+        [Description("Tenant slug the catalog belongs to.")] string tenant,
+        [Description("Catalog whose history to read.")] string catalog,
         CancellationToken cancellationToken,
+        [Description("Maximum runs to return, newest first. Bounded by the server's MCP page ceiling.")]
         int limit = 50)
     {
         McpCaller.Authorize(httpContextAccessor, tenant, catalog);
         var bounded = McpCaller.Settings(httpContextAccessor).BoundPageSize(limit, 200);
 
-        return await controlPlane.QueryRuns
+        // Guarded like every other tool. This one had no wrapper at all, so an EF or provider failure
+        // reached the agent as a bare "an error occurred" with nothing to act on.
+        return McpFailure.GuardAsync<IReadOnlyList<McpQueryRun>>(async () => await controlPlane.QueryRuns
             .AsNoTracking()
             .Where(run => run.Tenant.Slug == tenant && run.CatalogName == catalog)
             .OrderByDescending(run => run.StartedUtc)
@@ -134,23 +159,20 @@ public sealed class LakeholdInspectionTools(
                         .Select(token => token.Name)
                         .FirstOrDefault()))
             .ToListAsync(cancellationToken)
-            .ConfigureAwait(false);
+            .ConfigureAwait(false));
     }
 
-    private async Task<T> ReadAsync<T>(string tenant, string catalog, Func<Task<T>> read)
+    private Task<T> ReadAsync<T>(string tenant, string catalog, Func<Task<T>> read)
     {
         McpCaller.Authorize(httpContextAccessor, tenant, catalog);
-        try
-        {
-            return await read().ConfigureAwait(false);
-        }
-        catch (Exception exception) when (exception is CatalogNotFoundException or ArgumentException)
-        {
-            throw new McpException(exception.Message);
-        }
+        return McpFailure.GuardAsync(read);
     }
 }
 
+/// <summary>One recorded query run, as an agent sees it.</summary>
+/// <param name="ActorKind">Whether an API token or a signed-in person ran it; never both.</param>
+/// <param name="Origin">Which surface it came from: Workbench, Rest, PgWire, Mcp, Import, or Connector.</param>
+/// <param name="ActorName">The token's or member's display name, where the actor still exists.</param>
 public sealed record McpQueryRun(
     int Id,
     string Sql,

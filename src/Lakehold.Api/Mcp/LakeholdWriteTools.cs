@@ -42,7 +42,7 @@ public sealed class LakeholdWriteTools(LakehouseService lakehouse, IHttpContextA
         Title = "Execute a writing statement",
         ReadOnly = false,
         Destructive = true,
-        Idempotent = false)]
+        Idempotent = false, UseStructuredContent = true, OpenWorld = false)]
     [Description(
         "Runs a SQL statement that may modify data or schema — INSERT, UPDATE, DELETE, MERGE, CREATE, "
         + "ALTER, DROP. Requires a read-write credential. Use the query tool for reads: this one is "
@@ -75,7 +75,7 @@ public sealed class LakeholdWriteTools(LakehouseService lakehouse, IHttpContextA
                 "This credential is read-only. Writing through MCP needs a read-write credential.");
         }
 
-        try
+        return await McpFailure.GuardAsync(async () =>
         {
             var result = await lakehouse
                 .ExecuteAsync(
@@ -89,15 +89,7 @@ public sealed class LakeholdWriteTools(LakehouseService lakehouse, IHttpContextA
                 .ConfigureAwait(false);
 
             return new McpExecuteResult(result.RowsAffected, result.Rows.Count);
-        }
-        catch (CatalogNotFoundException ex)
-        {
-            throw new McpException(ex.Message);
-        }
-        catch (DuckDB.NET.Data.DuckDBException ex)
-        {
-            throw new McpException(ex.Message);
-        }
+        }).ConfigureAwait(false);
     }
 }
 

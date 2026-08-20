@@ -38,7 +38,7 @@ public sealed class LakeholdResources(LakehouseService lakehouse, IHttpContextAc
     {
         McpCaller.Authorize(httpContextAccessor, tenant, catalog);
 
-        try
+        return await McpFailure.GuardAsync(async () =>
         {
             var schemas = await lakehouse.GetSchemasAsync(tenant, catalog, cancellationToken).ConfigureAwait(false);
 
@@ -52,11 +52,7 @@ public sealed class LakeholdResources(LakehouseService lakehouse, IHttpContextAc
                             [.. t.Columns.Select(c => new McpSchemaColumn(c.Name, c.DataType, c.IsNullable))])),
                     ])),
                 McpJson.Options);
-        }
-        catch (CatalogNotFoundException ex)
-        {
-            throw new McpException(ex.Message);
-        }
+        }).ConfigureAwait(false);
     }
 
     [McpServerResource(
@@ -74,7 +70,7 @@ public sealed class LakeholdResources(LakehouseService lakehouse, IHttpContextAc
     {
         McpCaller.Authorize(httpContextAccessor, tenant, catalog);
 
-        try
+        return await McpFailure.GuardAsync(async () =>
         {
             var snapshot = await lakehouse
                 .GetSnapshotAsync(tenant, catalog, snapshotId, cancellationToken)
@@ -91,15 +87,7 @@ public sealed class LakeholdResources(LakehouseService lakehouse, IHttpContextAc
                     snapshot.SchemaVersion,
                     snapshot.CommitMessage),
                 McpJson.Options);
-        }
-        catch (CatalogNotFoundException ex)
-        {
-            throw new McpException(ex.Message);
-        }
-        catch (ArgumentOutOfRangeException ex)
-        {
-            throw new McpException(ex.Message);
-        }
+        }).ConfigureAwait(false);
     }
 }
 
