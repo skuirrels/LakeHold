@@ -187,7 +187,9 @@ test.describe('workbench user journeys', () => {
     await expect(page.locator('table.history-timeline tbody tr').first()).toBeVisible();
 
     await navigation.getByRole('button', { name: 'Storage', exact: true }).click();
-    await expect(page.getByText('events', { exact: true }).first()).toBeVisible();
+    await expect(
+      page.getByRole('button', { name: 'Show data files for main.events' }),
+    ).toBeVisible();
     await expect(page.getByText(/Rows|Files/).first()).toBeVisible();
   });
 

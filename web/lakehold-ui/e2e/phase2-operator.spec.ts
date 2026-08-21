@@ -70,7 +70,7 @@ test.describe('disposable operator simulation', () => {
       await runSql(page, 'SELECT id, message FROM phase2_events ORDER BY id');
       await expect(page.getByRole('cell', { name: 'created', exact: true })).toBeVisible();
 
-      await page.getByRole('main').getByRole('button', { name: 'Query history' }).click();
+      await navigateTo(page, 'Query history');
       await expect(
         page.locator('.history-row').filter({ hasText: 'phase2_events' }).first(),
       ).toBeVisible();
@@ -301,7 +301,7 @@ test.describe('disposable operator simulation', () => {
         body: JSON.stringify({ count: 1 }),
       });
 
-      await page.getByRole('main').getByRole('button', { name: 'Changes' }).click();
+      await navigateTo(page, 'Changes');
       await page.getByRole('button', { name: 'New subscription' }).click();
       await page.getByLabel('Endpoint URL').fill('http://webhook:9080/hook');
       await page.getByLabel('Signing secret').fill('phase2-webhook-signing-secret');
@@ -341,7 +341,7 @@ test.describe('disposable operator simulation', () => {
       expect(receiverState.deliveries[1].signature).toBe(receiverState.deliveries[0].signature);
       expect(receiverState.deliveries[1].timestamp).toBe(receiverState.deliveries[0].timestamp);
 
-      await page.getByRole('main').getByRole('button', { name: 'Changes' }).click();
+      await navigateTo(page, 'Changes');
       await expect(page.getByText('delivering', { exact: true })).toBeVisible();
       await expect(page.locator('.subs tbody tr').first()).toContainText('snapshot');
       await page.getByRole('button', { name: 'Read changes' }).click();
@@ -360,7 +360,7 @@ test.describe('disposable operator simulation', () => {
         '1',
       );
 
-      await page.getByRole('main').getByRole('button', { name: 'Data history' }).click();
+      await navigateTo(page, 'Data history');
       await page.getByLabel('History table').selectOption({ label: 'main.phase2_events' });
       const snapshotRow = page
         .locator('table.history-timeline tbody tr')
@@ -388,9 +388,14 @@ test.describe('disposable operator simulation', () => {
     });
 
     await test.step('backup, restore to a new catalog file, and refuse overwrite', async () => {
-      await page.getByRole('button', { name: 'Backup', exact: true }).click();
+      await navigateTo(page, 'Workbench');
+      await page.getByRole('button', { name: 'Maintain', exact: true }).click();
+      await page
+        .locator('.maintenance-popover')
+        .getByRole('button', { name: /^Backup/ })
+        .click();
       await expect(page.locator('.ok-banner')).toContainText(/backup/i);
-      await page.getByRole('main').getByRole('button', { name: 'Backups' }).click();
+      await navigateTo(page, 'Backups');
       await page.getByRole('button', { name: 'Restore…' }).first().click();
       await page.getByLabel('Target metadata path').fill('phase2-restored.ducklake');
       await page.getByRole('button', { name: 'Restore', exact: true }).click();
@@ -408,14 +413,19 @@ test.describe('disposable operator simulation', () => {
 
     await test.step('apply destructive maintenance only on disposable state and verify signed export', async () => {
       for (const operation of ['Expire', 'Cleanup']) {
-        await page.getByRole('button', { name: operation }).click();
+        await navigateTo(page, 'Workbench');
+        await page.getByRole('button', { name: 'Maintain', exact: true }).click();
+        await page
+          .locator('.maintenance-popover')
+          .getByRole('button', { name: new RegExp(`^${operation}`) })
+          .click();
         await expect(page.getByText('Dry run — nothing was changed.')).toBeVisible();
         await page.getByRole('button', { name: 'Apply for real' }).click();
         await expect(page.getByRole('button', { name: 'Apply for real' })).toBeHidden();
         await expect(page.locator('.ok-banner')).toContainText(new RegExp(operation, 'i'));
       }
 
-      await page.getByRole('main').getByRole('button', { name: 'Eject' }).click();
+      await navigateTo(page, 'Eject');
       await page.getByRole('button', { name: 'Eject now' }).click();
       await expect(page.locator('lh-eject-panel .ok-banner')).toContainText('Verified. Signed.', {
         timeout: 30_000,
@@ -448,6 +458,7 @@ test.describe('disposable operator simulation', () => {
 });
 
 async function runSql(page: Page, sql: string): Promise<void> {
+  await navigateTo(page, 'Workbench');
   await page.getByLabel('SQL editor').fill(sql);
   const responsePromise = page.waitForResponse(
     (response) =>
@@ -458,6 +469,13 @@ async function runSql(page: Page, sql: string): Promise<void> {
   const response = await responsePromise;
   expect(response.ok(), await response.text()).toBe(true);
   await expect(page.getByRole('button', { name: /^Run/ })).toBeEnabled();
+}
+
+async function navigateTo(page: Page, destination: string): Promise<void> {
+  await page
+    .locator('#workbench-navigation')
+    .getByRole('button', { name: destination, exact: true })
+    .click();
 }
 
 async function apiJson<T>(

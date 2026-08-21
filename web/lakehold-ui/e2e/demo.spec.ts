@@ -46,10 +46,11 @@ test.describe('demo workbench', () => {
       await expect(page.getByRole('button', { name: operation, exact: true })).toHaveCount(0);
     }
 
-    await page.getByRole('main').getByRole('button', { name: 'Changes', exact: true }).click();
+    const navigation = page.locator('#workbench-navigation');
+    await navigation.getByRole('button', { name: 'Changes', exact: true }).click();
     await expect(page.getByRole('button', { name: 'New subscription' })).toHaveCount(0);
 
-    await page.getByRole('main').getByRole('button', { name: 'Eject', exact: true }).click();
+    await navigation.getByRole('button', { name: 'Eject', exact: true }).click();
     await expect(page.getByRole('button', { name: 'Eject now' })).toHaveCount(0);
 
     const access = await request.get(`${baseURL}/api/access`);

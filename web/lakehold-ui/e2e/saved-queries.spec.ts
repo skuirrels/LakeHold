@@ -128,7 +128,7 @@ test.describe('saved query lifecycle', () => {
 
     const panel = await openSavedQueries(page);
     await panel.getByRole('button', { name: 'Save current' }).click();
-    await panel.getByLabel('Name').fill(name);
+    await panel.locator('.query-form').getByLabel('Name', { exact: true }).fill(name);
     await panel.getByLabel('Description').fill('Created by the saved-query browser journey.');
     await panel.getByRole('button', { name: 'Save', exact: true }).click();
 
@@ -154,7 +154,7 @@ test.describe('saved query lifecycle', () => {
 
     const panel = await openSavedQueries(page);
     await panel.getByRole('button', { name: 'Save current' }).click();
-    await panel.getByLabel('Name').fill(name);
+    await panel.locator('.query-form').getByLabel('Name', { exact: true }).fill(name);
     await panel.getByRole('button', { name: 'Save', exact: true }).click();
 
     const entry = panel.locator('li', { hasText: name });
@@ -215,7 +215,7 @@ test.describe('saved query lifecycle', () => {
 
     const panel = await openSavedQueries(page);
     await panel.getByRole('button', { name: 'Save current' }).click();
-    await panel.getByLabel('Name').fill(name);
+    await panel.locator('.query-form').getByLabel('Name', { exact: true }).fill(name);
     await panel.getByRole('button', { name: 'Save', exact: true }).click();
 
     const entry = panel.locator('li', { hasText: name });

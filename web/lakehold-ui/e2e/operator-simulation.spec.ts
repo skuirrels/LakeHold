@@ -58,7 +58,10 @@ test('operator simulation exercises the lakehouse control surfaces', async ({ pa
     await expect(page.locator('.banner.ok-banner')).toContainText(/flush/i);
 
     await page.getByRole('button', { name: 'Maintain' }).click();
-    await page.getByRole('button', { name: 'Backup', exact: true }).click();
+    await page
+      .locator('.maintenance-popover')
+      .getByRole('button', { name: /^Backup/ })
+      .click();
     await expect(page.locator('.banner.ok-banner')).toContainText(/backup/i);
     await navigation.getByRole('button', { name: 'Backups', exact: true }).click();
 
