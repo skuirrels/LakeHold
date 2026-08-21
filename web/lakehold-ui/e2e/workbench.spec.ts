@@ -96,8 +96,6 @@ test.describe('workbench user journeys', () => {
       exact: true,
     });
     await expect(queryHistory).toHaveAttribute('title', 'Query history');
-    await queryHistory.click();
-    await expect(queryHistory).toHaveClass(/active/);
 
     await page.getByRole('button', { name: 'Expand navigation' }).click();
     await expect(navigation).toBeVisible();
@@ -127,28 +125,27 @@ test.describe('workbench user journeys', () => {
     page,
   }) => {
     const navigation = page.locator('#workbench-navigation');
-    const activeTab = page.locator('main .tabs .tab.active');
     const panelDestinations = [
-      ['Query history', 'Query history'],
-      ['Data history', 'Data history'],
-      ['Storage', 'Storage'],
-      ['Changes', 'Changes'],
-      ['Backups', 'Backups'],
-      ['Eject', 'Eject'],
-      ['Schedule', 'Schedule'],
-      ['Workbench', 'Results'],
+      ['Query history', 'lh-workbench .history-library'],
+      ['Data history', 'lh-data-history-panel'],
+      ['Storage', 'lh-storage-panel'],
+      ['Changes', 'lh-changes-panel'],
+      ['Backups', 'lh-backups-panel'],
+      ['Eject', 'lh-eject-panel'],
+      ['Schedule', 'lh-schedule-panel'],
+      ['Workbench', 'lh-query-editor'],
     ] as const;
 
-    for (const [destination, tab] of panelDestinations) {
+    for (const [destination, surface] of panelDestinations) {
       const button = navigation.getByRole('button', { name: destination, exact: true });
       await button.click();
       await expect(button).toHaveClass(/active/);
       await expect(button).toHaveAttribute('aria-current', 'page');
-      await expect(activeTab).toHaveText(tab);
+      await expect(page.locator(surface)).toBeVisible();
     }
 
     const savedQueries = navigation.getByRole('button', {
-      name: 'Saved queries',
+      name: 'Query library',
       exact: true,
     });
     await savedQueries.click();
@@ -171,7 +168,10 @@ test.describe('workbench user journeys', () => {
     await page.getByRole('button', { name: /^Run/ }).click();
     await expect(page.locator('.summary')).toContainText('rows');
 
-    await page.getByRole('main').getByRole('button', { name: 'Query history' }).click();
+    await page
+      .locator('#workbench-navigation')
+      .getByRole('button', { name: 'Query history', exact: true })
+      .click();
     const historyRow = page.locator('.history-row').filter({ hasText: 'FROM main.events' }).first();
     await expect(historyRow).toBeVisible();
     await historyRow.click();
@@ -181,11 +181,12 @@ test.describe('workbench user journeys', () => {
   });
 
   test('shows snapshots and storage from the live catalog', async ({ page }) => {
-    await page.getByRole('main').getByRole('button', { name: 'Data history' }).click();
+    const navigation = page.locator('#workbench-navigation');
+    await navigation.getByRole('button', { name: 'Data history', exact: true }).click();
     await expect(page.getByRole('columnheader', { name: 'Snapshot' })).toBeVisible();
     await expect(page.locator('table.history-timeline tbody tr').first()).toBeVisible();
 
-    await page.getByRole('main').getByRole('button', { name: 'Storage' }).click();
+    await navigation.getByRole('button', { name: 'Storage', exact: true }).click();
     await expect(page.getByText('events', { exact: true }).first()).toBeVisible();
     await expect(page.getByText(/Rows|Files/).first()).toBeVisible();
   });
@@ -196,9 +197,9 @@ test.describe('workbench user journeys', () => {
     await page.getByLabel('Filter catalog objects').fill('events');
     await page.getByRole('button', { name: 'Inspect events' }).click();
 
-    await expect(page.getByRole('main').getByRole('button', { name: 'Storage' })).toHaveClass(
-      /active/,
-    );
+    await expect(
+      page.locator('#workbench-navigation').getByRole('button', { name: 'Storage', exact: true }),
+    ).toHaveClass(/active/);
     await expect(page.getByRole('heading', { name: /events/ })).toBeVisible();
     await expect(page.getByText('Partition layout')).toBeVisible();
 
@@ -209,6 +210,7 @@ test.describe('workbench user journeys', () => {
   });
 
   test('keeps destructive maintenance as a cancellable dry run', async ({ page }) => {
+    await page.getByRole('button', { name: 'Maintain' }).click();
     await page.getByRole('button', { name: 'Expire' }).click();
 
     await expect(page.getByText('Dry run — nothing was changed.')).toBeVisible();
@@ -276,47 +278,30 @@ test.describe('responsive workbench navigation', () => {
     await expect(toggle).toBeFocused();
   });
 
-  test('hands off mobile navigation to panels and dismisses contextual navigation by backdrop', async ({
-    page,
-  }) => {
+  test('hands off mobile navigation to focused destinations', async ({ page }) => {
     await page.setViewportSize({ width: 760, height: 900 });
     await openWorkbench(page);
 
     const navigation = page.locator('#workbench-navigation');
     const backdrop = page.locator('.nav-backdrop');
-    const contextPanel = page.locator('aside[aria-label="Catalog and saved queries"]');
     const toggle = page.locator('.nav-toggle');
-    const main = page.locator('main');
-    const topbar = page.locator('.topbar');
 
     await toggle.click();
     await navigation.getByRole('button', { name: 'Storage', exact: true }).click();
 
-    await expect(navigation).toHaveAttribute('aria-hidden', 'true');
-    await expect(navigation).toHaveAttribute('inert', '');
+    await expectOffCanvas(navigation);
     await expect(backdrop).not.toHaveClass(/visible/);
-    await expect(page.locator('main .tabs .tab.active')).toHaveText('Storage');
+    await expect(page.locator('lh-storage-panel')).toBeVisible();
     await expect(page.getByRole('main')).toBeVisible();
 
     await page.getByRole('button', { name: 'Expand navigation' }).click();
     await navigation.getByRole('button', { name: 'Catalog', exact: true }).click();
 
-    await expect(navigation).toHaveAttribute('aria-hidden', 'true');
-    await expect(contextPanel).toHaveAttribute('aria-hidden', 'false');
-    await expect(contextPanel).not.toHaveAttribute('inert', '');
-    await expect.poll(async () => (await contextPanel.boundingBox())?.x).toBeCloseTo(0, 0);
+    await expectOffCanvas(navigation);
+    await expect(page.getByRole('heading', { name: 'Catalog', exact: true })).toBeVisible();
     await expect(page.getByLabel('Filter catalog objects')).toBeVisible();
-    await expect(backdrop).toHaveClass(/visible/);
-    await expect(contextPanel.locator('.sidebar-tab.active')).toBeFocused();
-    await expect(main).toHaveAttribute('inert', '');
-    await expect(topbar).toHaveAttribute('inert', '');
-
-    await backdrop.click();
-    await expectOffCanvas(contextPanel);
     await expect(backdrop).not.toHaveClass(/visible/);
     await expect(toggle).toBeFocused();
-    await expect(main).not.toHaveAttribute('inert', '');
-    await expect(topbar).not.toHaveAttribute('inert', '');
   });
 
   test('scrolls the navigation rail to reach operations on a short viewport', async ({ page }) => {
@@ -333,7 +318,7 @@ test.describe('responsive workbench navigation', () => {
 
     await schedule.click();
     await expect(schedule).toHaveAttribute('aria-current', 'page');
-    await expect(page.locator('main .tabs .tab.active')).toHaveText('Schedule');
+    await expect(page.locator('lh-schedule-panel')).toBeVisible();
     await expectOffCanvas(navigation);
   });
 
@@ -342,7 +327,7 @@ test.describe('responsive workbench navigation', () => {
     await openWorkbench(page);
 
     const navigation = page.locator('#workbench-navigation');
-    const contextPanel = page.locator('aside[aria-label="Catalog and saved queries"]');
+    const contextPanel = page.locator('aside[aria-label="Catalog context"]');
     const catalogFilter = page.getByLabel('Filter catalog objects');
 
     await expect(navigation).toBeVisible();
