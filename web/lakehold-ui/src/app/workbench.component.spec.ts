@@ -68,19 +68,12 @@ describe('WorkbenchComponent', () => {
     await fixture.whenStable();
   }
 
-  /** Clicks a bottom-panel tab by its label. */
-  async function openTab(label: string): Promise<void> {
-    const tab = [...fixture.nativeElement.querySelectorAll('.tabs .tab')].find(
-      (b) => (b as HTMLElement).textContent?.trim() === label,
-    ) as HTMLButtonElement;
-    tab.click();
-    await fixture.whenStable();
-  }
-
   /** Clicks a maintenance button by its label. */
   async function maintain(label: string): Promise<void> {
-    const button = [...fixture.nativeElement.querySelectorAll('.maintenance .btn')].find(
-      (b) => (b as HTMLElement).textContent?.trim() === label,
+    (fixture.nativeElement.querySelector('.maintenance-menu > .btn') as HTMLButtonElement).click();
+    await fixture.whenStable();
+    const button = [...fixture.nativeElement.querySelectorAll('.maintenance-popover button')].find(
+      (b) => (b as HTMLElement).querySelector('strong')?.textContent?.trim() === label,
     ) as HTMLButtonElement;
     button.click();
     await fixture.whenStable();
@@ -149,8 +142,9 @@ describe('WorkbenchComponent', () => {
 
     await mount();
 
-    const labels = [...fixture.nativeElement.querySelectorAll('lh-workbench-navigation .nav-item')]
-      .map((item) => (item as HTMLElement).getAttribute('aria-label'));
+    const labels = [
+      ...fixture.nativeElement.querySelectorAll('lh-workbench-navigation .nav-item'),
+    ].map((item) => (item as HTMLElement).getAttribute('aria-label'));
     // Every control on System Settings requires Capability.Instance, so offering the destination to
     // an owner offers a page whose one card returns an error.
     expect(labels).toContain('Users');
@@ -337,18 +331,24 @@ describe('WorkbenchComponent', () => {
     });
     await mount();
 
-    const language = fixture.nativeElement.querySelector('.language-picker select') as HTMLSelectElement;
+    const language = fixture.nativeElement.querySelector(
+      '.language-picker select',
+    ) as HTMLSelectElement;
     language.value = 'csharp-linq';
     language.dispatchEvent(new Event('change'));
     await fixture.whenStable();
 
-    const editor = fixture.nativeElement.querySelector('[aria-label="C# LINQ editor"]') as HTMLElement;
+    const editor = fixture.nativeElement.querySelector(
+      '[aria-label="C# LINQ editor"]',
+    ) as HTMLElement;
     expect(editor.textContent).toBe('from row in _123Data.OrderItems select row');
     expect(api.lastArgs('getQueryStarter')).toEqual(['demo', 'analytics', 'csharp-linq']);
     setEditorValue('Main.Events.Count()');
     await fixture.whenStable();
 
-    (fixture.nativeElement.querySelector('.editor-toolbar .btn-primary') as HTMLButtonElement).click();
+    (
+      fixture.nativeElement.querySelector('.editor-toolbar .btn-primary') as HTMLButtonElement
+    ).click();
     await fixture.whenStable();
     expect(api.lastArgs('execute')).toEqual([
       'demo',
@@ -360,8 +360,9 @@ describe('WorkbenchComponent', () => {
     language.value = 'sql';
     language.dispatchEvent(new Event('change'));
     await fixture.whenStable();
-    expect((fixture.nativeElement.querySelector('[aria-label="SQL editor"]') as HTMLElement).textContent)
-      .toContain('SELECT');
+    expect(
+      (fixture.nativeElement.querySelector('[aria-label="SQL editor"]') as HTMLElement).textContent,
+    ).toContain('SELECT');
   });
 
   it('keeps an unhealthy planner in the selector and says why it cannot run', async () => {
@@ -379,9 +380,11 @@ describe('WorkbenchComponent', () => {
     });
     await mount();
 
-    const language = fixture.nativeElement.querySelector('.language-picker select') as HTMLSelectElement;
+    const language = fixture.nativeElement.querySelector(
+      '.language-picker select',
+    ) as HTMLSelectElement;
     const option = [...language.options].find((candidate) => candidate.value === 'csharp-linq')!;
-    expect(option.textContent).toBe('C# LINQ (unavailable)');
+    expect(option.textContent?.trim()).toBe('C# LINQ (unavailable)');
     expect(option.title).toBe('The planner did not answer within the 1s discovery deadline.');
 
     language.value = 'csharp-linq';
@@ -391,7 +394,9 @@ describe('WorkbenchComponent', () => {
     expect(text()).toContain(
       'Planner unavailable — The planner did not answer within the 1s discovery deadline.',
     );
-    const run = fixture.nativeElement.querySelector('.editor-toolbar .btn-primary') as HTMLButtonElement;
+    const run = fixture.nativeElement.querySelector(
+      '.editor-toolbar .btn-primary',
+    ) as HTMLButtonElement;
     expect(run.disabled).toBe(true);
     run.click();
     expect(api.countOf('execute')).toBe(0);
@@ -412,20 +417,18 @@ describe('WorkbenchComponent', () => {
     const editor = fixture.nativeElement.querySelector(
       '[aria-label="legacy-linq (unavailable) editor"]',
     ) as HTMLElement;
-    const run = fixture.nativeElement.querySelector('.editor-toolbar .btn-primary') as HTMLButtonElement;
+    const run = fixture.nativeElement.querySelector(
+      '.editor-toolbar .btn-primary',
+    ) as HTMLButtonElement;
     expect(editor.textContent).toBe('Legacy.Events.Where(e => e.Active)');
     expect(run.disabled).toBe(true);
     run.click();
     expect(api.countOf('execute')).toBe(0);
 
-    const savedQueries = [...fixture.nativeElement.querySelectorAll('.sidebar-tab')].find(
-      (button) => (button as HTMLElement).textContent?.trim() === 'Saved queries',
-    ) as HTMLButtonElement;
-    savedQueries.click();
-    await fixture.whenStable();
-    expect((fixture.nativeElement.querySelector('.query-head button') as HTMLButtonElement).disabled)
-      .toBe(true);
-    expect(text()).toContain('Planner unavailable');
+    await navigateTo('queries');
+    expect(
+      (fixture.nativeElement.querySelector('.query-head button') as HTMLButtonElement).disabled,
+    ).toBe(true);
   });
 
   describe('navigation shell', () => {
@@ -456,20 +459,16 @@ describe('WorkbenchComponent', () => {
       expect(navigation.hasAttribute('inert')).toBe(false);
       expect(navigation.classList.contains('closed')).toBe(true);
 
-      const queryHistory = navigation.querySelector(
-        '[aria-label="Query history"]',
-      ) as HTMLButtonElement;
-      queryHistory.click();
-      await fixture.whenStable();
-
-      expect(fixture.nativeElement.querySelector('.tabs .tab.active')?.textContent?.trim()).toBe(
-        'Query history',
-      );
-
       toggle.click();
       await fixture.whenStable();
 
-      expect(filter.value).toBe('events');
+      expect(
+        (
+          fixture.nativeElement.querySelector(
+            '[aria-label="Filter catalog objects"]',
+          ) as HTMLInputElement
+        ).value,
+      ).toBe('events');
       expect(navigation.getAttribute('aria-hidden')).toBe('false');
     });
 
@@ -483,9 +482,32 @@ describe('WorkbenchComponent', () => {
       await fixture.whenStable();
 
       expect(queryHistory.classList.contains('active')).toBe(true);
-      expect(fixture.nativeElement.querySelector('.tabs .tab.active')?.textContent?.trim()).toBe(
+      expect(fixture.nativeElement.querySelector('.destination-page h1')?.textContent?.trim()).toBe(
         'Query history',
       );
+    });
+
+    it('uses an Add data adapter choice for one connector handoff only', async () => {
+      await mount();
+      await navigateTo('add-data');
+
+      const search = fixture.nativeElement.querySelector(
+        '.source-search input',
+      ) as HTMLInputElement;
+      search.value = 'hubspot';
+      search.dispatchEvent(new Event('input'));
+      await fixture.whenStable();
+      (fixture.nativeElement.querySelector('.configure') as HTMLButtonElement).click();
+      await fixture.whenStable();
+
+      expect(
+        (fixture.nativeElement.querySelector('.panel.editor select') as HTMLSelectElement).value,
+      ).toBe('hubspot');
+
+      await navigateTo('workbench');
+      await navigateTo('connectors');
+
+      expect(fixture.nativeElement.querySelector('.panel.editor')).toBeNull();
     });
 
     it('starts compact navigation closed and dismisses its drawer with Escape', async () => {
@@ -526,7 +548,13 @@ describe('WorkbenchComponent', () => {
     });
 
     it('opens a friendly read-only demo without exposing mutation controls', async () => {
-      api.access = { mode: 'demo', role: 'reader', readOnly: true, systemAdmin: false, tenantAdmin: false };
+      api.access = {
+        mode: 'demo',
+        role: 'reader',
+        readOnly: true,
+        systemAdmin: false,
+        tenantAdmin: false,
+      };
       api.backups = [
         {
           generation: '20260726T120000Z',
@@ -543,16 +571,16 @@ describe('WorkbenchComponent', () => {
       // The escape hatch from the demo is a pasted operator token, so it is labelled as one. It was
       // "Operator sign in", which described a login the demo has no way to perform.
       expect(text()).toContain('Operator token');
-      expect(fixture.nativeElement.querySelector('.maintenance')).toBeNull();
+      expect(fixture.nativeElement.querySelector('.maintenance-menu')).toBeNull();
       expect(fixture.nativeElement.querySelector('[aria-label="SQL editor"]')).not.toBeNull();
 
-      await openTab('Changes');
+      await navigateTo('changes');
       expect(text()).not.toContain('New subscription');
 
-      await openTab('Backups');
+      await navigateTo('backups');
       expect(text()).not.toContain('Restore…');
 
-      await openTab('Eject');
+      await navigateTo('ejects');
       expect(text()).not.toContain('Eject now');
     });
 
@@ -631,7 +659,7 @@ describe('WorkbenchComponent', () => {
       ];
 
       await mount();
-      await openTab('Changes');
+      await navigateTo('changes');
 
       const options = [...fixture.nativeElement.querySelectorAll('.panel-controls option')].map(
         (o) => (o as HTMLElement).textContent?.trim(),
@@ -654,9 +682,10 @@ describe('WorkbenchComponent', () => {
       (fixture.nativeElement.querySelector('button.inspect') as HTMLButtonElement).click();
       await fixture.whenStable();
 
-      expect(fixture.nativeElement.querySelector('.tabs .tab.active')?.textContent?.trim()).toBe(
-        'Storage',
-      );
+      expect(fixture.nativeElement.querySelector('lh-storage-panel')).toBeTruthy();
+      expect(
+        fixture.nativeElement.querySelector('[aria-label="Storage"]')?.classList.contains('active'),
+      ).toBe(true);
       expect(api.lastArgs('getTableDetail')).toEqual(['demo', 'analytics', 'main', 'orders']);
     });
   });
@@ -670,7 +699,13 @@ describe('WorkbenchComponent', () => {
           slug: 'current',
           displayName: 'Current workspace',
           catalogs: [
-            { name: 'current_catalog', dataPath: '/current', isReadOnly: false, storageKind: 'Local', storageProfile: null },
+            {
+              name: 'current_catalog',
+              dataPath: '/current',
+              isReadOnly: false,
+              storageKind: 'Local',
+              storageProfile: null,
+            },
           ],
         },
       ];
@@ -679,7 +714,13 @@ describe('WorkbenchComponent', () => {
           slug: 'stale',
           displayName: 'Stale workspace',
           catalogs: [
-            { name: 'stale_catalog', dataPath: '/stale', isReadOnly: false, storageKind: 'Local', storageProfile: null },
+            {
+              name: 'stale_catalog',
+              dataPath: '/stale',
+              isReadOnly: false,
+              storageKind: 'Local',
+              storageProfile: null,
+            },
           ],
         },
       ];
@@ -807,7 +848,7 @@ describe('WorkbenchComponent', () => {
       await fixture.whenStable();
       expect(text()).toContain('syntax error');
 
-      await openTab('Schedule');
+      await navigateTo('schedule');
       expect(text()).not.toContain('syntax error');
     });
   });
@@ -850,12 +891,9 @@ describe('WorkbenchComponent', () => {
       // so the workbench reaches into it through a viewChild once the operation lands.
       api.storage = { ...api.storage, tables: [tableStorage()] };
       await mount();
-      await openTab('Storage');
-      const before = api.countOf('getStorage');
-
       await maintain('Compact');
-
-      expect(api.countOf('getStorage')).toBe(before + 1);
+      await navigateTo('storage');
+      expect(api.countOf('getStorage')).toBe(1);
     });
 
     it('does not refresh anything after a dry run, which changed nothing', async () => {
@@ -867,22 +905,15 @@ describe('WorkbenchComponent', () => {
         dryRun: true,
       };
       await mount();
-      await openTab('Storage');
-      const before = api.countOf('getStorage');
-
       await maintain('Expire');
-
-      expect(api.countOf('getStorage')).toBe(before);
+      expect(api.countOf('getStorage')).toBe(0);
     });
 
     it('refreshes the backups panel after a backup, since that is what it lists', async () => {
       await mount();
-      await openTab('Backups');
-      const before = api.countOf('listBackups');
-
       await maintain('Backup');
-
-      expect(api.countOf('listBackups')).toBe(before + 1);
+      await navigateTo('backups');
+      expect(api.countOf('listBackups')).toBe(1);
     });
   });
 
@@ -913,12 +944,11 @@ describe('WorkbenchComponent', () => {
       };
 
       await mount();
-      await openTab('Data history');
+      await navigateTo('snapshots');
       (fixture.nativeElement.querySelector('.restore-btn') as HTMLButtonElement).click();
       await fixture.whenStable();
 
-      const editor = fixture.nativeElement.querySelector('.cm-content') as HTMLElement;
-      expect(editor.textContent).not.toContain('CREATE OR REPLACE TABLE');
+      expect(fixture.nativeElement.querySelector('.cm-content')).toBeNull();
       expect(api.lastArgs('restoreTable')).toEqual([
         'demo',
         'analytics',
@@ -934,24 +964,97 @@ describe('WorkbenchComponent', () => {
   });
 
   describe('changing catalog', () => {
+    it('scopes query history to the selected catalog', async () => {
+      const run = (id: number, catalogName: string, sql: string) => ({
+        id,
+        catalogName,
+        sql,
+        language: 'sql',
+        startedUtc: '2026-08-21T12:00:00Z',
+        elapsedMilliseconds: 1,
+        rowCount: 1,
+        succeeded: true,
+        error: null,
+        tokenId: null,
+        tokenName: null,
+        memberId: null,
+        actorKind: 'Unknown' as const,
+        actorName: null,
+        origin: 'Workbench' as const,
+      });
+      api.history = [
+        run(1, 'analytics', 'select analytics_only'),
+        run(2, 'archive', 'select archive_only'),
+      ];
+      api.tenants = [
+        {
+          slug: 'demo',
+          displayName: 'Demo workspace',
+          catalogs: [
+            {
+              name: 'analytics',
+              dataPath: '/a',
+              isReadOnly: false,
+              storageKind: 'Local',
+              storageProfile: null,
+            },
+            {
+              name: 'archive',
+              dataPath: '/b',
+              isReadOnly: true,
+              storageKind: 'Local',
+              storageProfile: null,
+            },
+          ],
+        },
+      ];
+
+      await mount();
+      await navigateTo('history');
+      expect(text()).toContain('analytics_only');
+      expect(text()).not.toContain('archive_only');
+
+      const catalog = fixture.nativeElement.querySelectorAll(
+        '.destination-context select',
+      )[1] as HTMLSelectElement;
+      catalog.value = 'archive';
+      catalog.dispatchEvent(new Event('change'));
+      await fixture.whenStable();
+      expect(text()).toContain('archive_only');
+      expect(text()).not.toContain('analytics_only');
+    });
+
     it('hands the new catalog to the panels', async () => {
       api.tenants = [
         {
           slug: 'demo',
           displayName: 'Demo workspace',
           catalogs: [
-            { name: 'analytics', dataPath: '/a', isReadOnly: false, storageKind: 'Local', storageProfile: null },
-            { name: 'archive', dataPath: '/b', isReadOnly: true, storageKind: 'Local', storageProfile: null },
+            {
+              name: 'analytics',
+              dataPath: '/a',
+              isReadOnly: false,
+              storageKind: 'Local',
+              storageProfile: null,
+            },
+            {
+              name: 'archive',
+              dataPath: '/b',
+              isReadOnly: true,
+              storageKind: 'Local',
+              storageProfile: null,
+            },
           ],
         },
       ];
       api.storage = { ...api.storage, tables: [tableStorage()] };
 
       await mount();
-      await openTab('Storage');
+      await navigateTo('storage');
       expect(api.lastArgs('getStorage')).toEqual(['demo', 'analytics']);
+      const historyRequests = api.countOf('getHistory');
 
-      const select = [...fixture.nativeElement.querySelectorAll('.selectors select')].at(
+      const select = [...fixture.nativeElement.querySelectorAll('.destination-context select')].at(
         -1,
       ) as HTMLSelectElement;
       select.value = 'archive';
@@ -961,6 +1064,8 @@ describe('WorkbenchComponent', () => {
       // The panel takes the catalog as an input and reloads itself — there is no per-panel state for
       // the workbench to remember to clear.
       expect(api.lastArgs('getStorage')).toEqual(['demo', 'archive']);
+      expect(api.lastArgs('getHistory')).toEqual(['demo']);
+      expect(api.countOf('getHistory')).toBe(historyRequests + 1);
     });
   });
 
@@ -975,7 +1080,9 @@ describe('WorkbenchComponent', () => {
 
       await mount();
 
-      const control = fixture.nativeElement.querySelector('.credential button') as HTMLButtonElement;
+      const control = fixture.nativeElement.querySelector(
+        '.credential button',
+      ) as HTMLButtonElement;
       // "Sign in" promises an account. This control takes a machine token and there is no identity
       // provider configured, so calling it a sign-in describes something the node cannot do.
       expect(control.textContent?.trim()).toBe('API token');
@@ -999,12 +1106,16 @@ describe('WorkbenchComponent', () => {
 
       await mount();
 
-      const login = fixture.nativeElement.querySelector('a[href^="/auth/login"]') as HTMLAnchorElement;
+      const login = fixture.nativeElement.querySelector(
+        'a[href^="/auth/login"]',
+      ) as HTMLAnchorElement;
       expect(login).toBeTruthy();
       expect(login.textContent?.trim()).toBe('Sign in');
 
       // The token box stays available beside it, still labelled for what it is.
-      const control = fixture.nativeElement.querySelector('.credential button') as HTMLButtonElement;
+      const control = fixture.nativeElement.querySelector(
+        '.credential button',
+      ) as HTMLButtonElement;
       expect(control.textContent?.trim()).toBe('API token');
     });
 

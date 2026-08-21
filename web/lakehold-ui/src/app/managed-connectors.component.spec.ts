@@ -1,5 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideZonelessChangeDetection } from '@angular/core';
+import { Subject } from 'rxjs';
 import { LakehouseService } from './lakehouse.service';
 import { ManagedConnectorsComponent } from './managed-connectors.component';
 import { FakeLakehouseService, dataConnector } from './test-doubles';
@@ -26,8 +27,13 @@ describe('ManagedConnectorsComponent', () => {
       (b: HTMLButtonElement) => b.textContent?.trim() === label,
     ) as HTMLButtonElement | undefined;
     if (!button) {
-      throw new Error(`No button labelled '${label}'. Buttons: ${
-        [...fixture.nativeElement.querySelectorAll('button')].map((b: HTMLButtonElement) => b.textContent?.trim()).join(', ')}`);
+      throw new Error(
+        `No button labelled '${label}'. Buttons: ${[
+          ...fixture.nativeElement.querySelectorAll('button'),
+        ]
+          .map((b: HTMLButtonElement) => b.textContent?.trim())
+          .join(', ')}`,
+      );
     }
     button.click();
     fixture.detectChanges();
@@ -46,6 +52,29 @@ describe('ManagedConnectorsComponent', () => {
 
     expect(api.lastArgs('listConnectors')).toEqual(['acme', 'analytics']);
     expect(text()).toContain('orders');
+  });
+
+  it('ignores a late connector list from the previously selected catalog', async () => {
+    const analytics = new Subject<ReturnType<typeof dataConnector>[]>();
+    const finance = new Subject<ReturnType<typeof dataConnector>[]>();
+    vi.spyOn(api, 'listConnectors').mockImplementation((_, catalog) =>
+      catalog === 'analytics' ? analytics : finance,
+    );
+    await mount();
+
+    click('Add connector');
+    expect(fixture.nativeElement.querySelector('.panel.editor')).toBeTruthy();
+
+    fixture.componentRef.setInput('catalog', 'finance');
+    fixture.detectChanges();
+    analytics.next([dataConnector({ name: 'late analytics source' })]);
+    finance.next([dataConnector({ name: 'finance source' })]);
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(text()).toContain('finance source');
+    expect(text()).not.toContain('late analytics source');
+    expect(fixture.nativeElement.querySelector('.panel.editor')).toBeNull();
   });
 
   // The 202 outcome is the whole point of the acknowledgement work: the batch is durable but the
@@ -67,7 +96,9 @@ describe('ManagedConnectorsComponent', () => {
     await fixture.whenStable();
     fixture.detectChanges();
 
-    expect(fixture.nativeElement.querySelector('[role="alert"]')?.textContent).toContain('not acknowledged');
+    expect(fixture.nativeElement.querySelector('[role="alert"]')?.textContent).toContain(
+      'not acknowledged',
+    );
     expect(fixture.nativeElement.querySelector('[role="status"]')).toBeNull();
   });
 
@@ -79,7 +110,9 @@ describe('ManagedConnectorsComponent', () => {
     await fixture.whenStable();
     fixture.detectChanges();
 
-    expect(fixture.nativeElement.querySelector('[role="status"]')?.textContent).toContain('succeeded');
+    expect(fixture.nativeElement.querySelector('[role="status"]')?.textContent).toContain(
+      'succeeded',
+    );
     expect(fixture.nativeElement.querySelector('[role="alert"]')).toBeNull();
   });
 
@@ -156,7 +189,9 @@ describe('ManagedConnectorsComponent', () => {
     expect(definition.adapterId).toBe('lakehold.kafka-avro');
     expect(definition.readMode).toBe('incremental');
     expect(definition.keyColumns).toEqual(['id']);
-    expect(definition.authentication.schemaRegistryUsernameSecretReference).toBe('vault://registry-user');
+    expect(definition.authentication.schemaRegistryUsernameSecretReference).toBe(
+      'vault://registry-user',
+    );
   });
 
   it('refuses to save an incremental connector with no key columns instead of letting the server reject it', async () => {
@@ -178,7 +213,9 @@ describe('ManagedConnectorsComponent', () => {
     fixture.detectChanges();
 
     expect(api.countOf('createConnector')).toBe(0);
-    expect(fixture.nativeElement.querySelector('[role="alert"]')?.textContent).toContain('keys are required');
+    expect(fixture.nativeElement.querySelector('[role="alert"]')?.textContent).toContain(
+      'keys are required',
+    );
   });
 
   // `endpointUrl` means something different per adapter — a resource URL, a channel address, a
@@ -212,8 +249,8 @@ describe('ManagedConnectorsComponent', () => {
     click('Add connector');
     const component = fixture.componentInstance as unknown as { chooseKind(value: string): void };
     const pageSize = () =>
-      [...fixture.nativeElement.querySelectorAll('.field > span')].some(
-        (span: HTMLElement) => span.textContent?.includes('Page size'),
+      [...fixture.nativeElement.querySelectorAll('.field > span')].some((span: HTMLElement) =>
+        span.textContent?.includes('Page size'),
       );
 
     expect(pageSize()).toBe(false);
@@ -259,6 +296,8 @@ describe('ManagedConnectorsComponent', () => {
     api.failures.set('listConnectors', 'the control plane is unreachable');
     await mount();
 
-    expect(fixture.nativeElement.querySelector('[role="alert"]')?.textContent).toContain('unreachable');
+    expect(fixture.nativeElement.querySelector('[role="alert"]')?.textContent).toContain(
+      'unreachable',
+    );
   });
 });

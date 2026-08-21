@@ -92,6 +92,20 @@
   border-color: var(--accent-surface-line);
 }
 
+.nav-new {
+  margin-bottom: 7px;
+  color: var(--text);
+  background: color-mix(in srgb, var(--accent) 10%, var(--surface-2));
+  border-color: color-mix(in srgb, var(--accent) 38%, var(--border));
+}
+
+.nav-new:hover,
+.nav-new.active {
+  color: var(--accent);
+  background: var(--accent-surface);
+  border-color: var(--accent-surface-line);
+}
+
 .nav-item svg {
   width: 18px;
   height: 18px;

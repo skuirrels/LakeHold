@@ -48,6 +48,17 @@ describe('SavedQueriesPanelComponent', () => {
     expect(executed).toBe(17);
   });
 
+  it('does not offer catalog-scoped authoring before a catalog is selected', async () => {
+    fixture = TestBed.createComponent(SavedQueriesPanelComponent);
+    fixture.componentRef.setInput('tenant', null);
+    fixture.componentRef.setInput('catalog', null);
+    fixture.componentRef.setInput('sql', 'SELECT 42');
+    await fixture.whenStable();
+
+    expect(text()).toContain('Choose a workspace and catalog');
+    expect(buttons('Save current')[0].disabled).toBe(true);
+  });
+
   it('saves the current editor SQL with its metadata', async () => {
     await mount(false, 'SELECT * FROM events');
     buttons('Save current')[0].click();
@@ -88,7 +99,7 @@ describe('SavedQueriesPanelComponent', () => {
     await mount();
 
     expect(text()).toContain('main.revenue_by_country');
-    expect(text()).toContain('republish needed');
+    expect(text()).toContain('Needs attention · republish');
   });
 
   it('distinguishes catalog schema drift from an edited definition', async () => {
@@ -103,9 +114,10 @@ describe('SavedQueriesPanelComponent', () => {
     ];
     await mount();
 
-    expect(text()).toContain('schema changed');
-    expect(fixture.nativeElement.querySelector('.publication')?.getAttribute('title'))
-      .toContain('catalog schema changed');
+    expect(text()).toContain('Needs attention · schema changed');
+    expect(fixture.nativeElement.querySelector('.publication')?.getAttribute('title')).toContain(
+      'catalog schema changed',
+    );
   });
 
   it('publishes with an explicit schema and view and tells the workbench to refresh', async () => {
@@ -165,6 +177,13 @@ describe('SavedQueriesPanelComponent', () => {
     );
 
     await mount();
+    fixture.componentRef.setInput('layout', 'library');
+    await fixture.whenStable();
+    const search = fixture.nativeElement.querySelector('.library-search input') as HTMLInputElement;
+    search.value = 'analytics';
+    search.dispatchEvent(new Event('input'));
+    await fixture.whenStable();
+
     fixture.componentRef.setInput('catalog', 'finance');
     await fixture.whenStable();
 
@@ -174,6 +193,41 @@ describe('SavedQueriesPanelComponent', () => {
 
     expect(text()).toContain('Finance query');
     expect(text()).not.toContain('Late analytics query');
+    expect(
+      (fixture.nativeElement.querySelector('.library-search input') as HTMLInputElement).value,
+    ).toBe('');
     expect(analytics.observed).toBe(false);
+  });
+
+  it('turns reusable queries into a searchable library with owner and publication health', async () => {
+    api.savedQueries = [
+      savedQuery({
+        id: 8,
+        name: 'Current revenue',
+        createdByTokenId: 41,
+        updatedByTokenId: 42,
+        publishedSchema: 'main',
+        publishedViewName: 'current_revenue',
+        publishedRevision: 1,
+      }),
+      savedQuery({ id: 9, name: 'Customer churn', description: 'Weekly retention watch' }),
+    ];
+    await mount();
+    fixture.componentRef.setInput('layout', 'library');
+    await fixture.whenStable();
+
+    expect(fixture.nativeElement.querySelector('h1')?.textContent).toBe('Query library');
+    expect(text()).toContain('Owner Credential #41');
+    expect(text()).toContain('Modified by Credential #42');
+    expect(text()).toMatch(/main\.current_revenue\s+·\s+Published/);
+    expect(text()).toContain('Draft');
+
+    const search = fixture.nativeElement.querySelector('.library-search input') as HTMLInputElement;
+    search.value = 'retention';
+    search.dispatchEvent(new Event('input'));
+    await fixture.whenStable();
+
+    expect(text()).toContain('Customer churn');
+    expect(text()).not.toContain('Current revenue');
   });
 });

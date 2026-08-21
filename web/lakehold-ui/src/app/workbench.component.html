@@ -1,8 +1,8 @@
 <div class="workbench" (keydown.escape)="closeNavigationOverlays()">
   <header
     class="topbar"
-    [attr.aria-hidden]="navigationOverlayOpen() ? 'true' : null"
-    [attr.inert]="navigationOverlayOpen() ? '' : null"
+    [attr.aria-hidden]="navigationOverlayOpen() || searchOpen() ? 'true' : null"
+    [attr.inert]="navigationOverlayOpen() || searchOpen() ? '' : null"
   >
     @if (firstRun() === 'none') {
       <button
@@ -15,41 +15,33 @@
         [title]="navigationOpen() ? 'Collapse navigation' : 'Expand navigation'"
         (click)="toggleNavigation()"
       >
-        <svg viewBox="0 0 20 20" aria-hidden="true">
-          <path d="M3 5h14M3 10h14M3 15h14" />
-        </svg>
+        <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 5h14M3 10h14M3 15h14" /></svg>
       </button>
     }
-
-    <a class="brand" routerLink="/" title="Back to the LakeHold home page">
-      <lh-brand-mark class="mark" [size]="20" />
-      <span class="name">LakeHold</span>
-    </a>
-
+    <a class="brand" routerLink="/" title="Back to the LakeHold home page"
+      ><lh-brand-mark class="mark" [size]="20" /><span class="name">LakeHold</span></a
+    >
+    @if (firstRun() === 'none') {
+      <button class="global-search-trigger" type="button" (click)="toggleSearch()">
+        <span aria-hidden="true">⌕</span><span>Search data, queries and commands…</span
+        ><kbd>⌘K</kbd>
+      </button>
+    }
     <span class="topbar-spacer"></span>
-
     @if (demoMode()) {
       <span class="access-badge">Live read-only demo</span>
     } @else if (readOnlyAccess()) {
       <span class="access-badge">Read-only access</span>
     }
-
     @if (browserSession()?.authenticated) {
       <div class="browser-session">
-        <span>{{ browserSession()?.displayName || 'Signed in' }}</span>
-        <a class="btn" href="/auth/logout?returnUrl=/workbench">Sign out</a>
+        <span>{{ browserSession()?.displayName || 'Signed in' }}</span
+        ><a class="btn" href="/auth/logout?returnUrl=/workbench">Sign out</a>
       </div>
     } @else {
-      <!--
-        Two different things used to share one "Sign in" button: an identity-provider login, and a
-        box for pasting a machine credential. Only the first is signing in. Labelling the second that
-        way promises an account you do not have, and on a node that does not require authentication
-        it advertises a gate that is not closed.
-      -->
       @if (ssoAvailable()) {
         <a class="btn btn-primary" href="/auth/login?returnUrl=/workbench">Sign in</a>
       }
-
       <div class="credential">
         <button
           class="btn"
@@ -60,28 +52,25 @@
         >
           {{ credentialLabel() }}
         </button>
-
         @if (credentialOpen()) {
           <div class="credential-popover">
-            <label class="field">
-              <span>API token</span>
-              <input
+            <label class="field"
+              ><span>API token</span
+              ><input
                 type="password"
                 autocomplete="off"
                 placeholder="lkh_…"
                 [value]="tokenDraft()"
                 (input)="tokenDraft.set($any($event.target).value)"
                 (keydown.enter)="saveCredential()"
-              />
-            </label>
-            <label class="credential-persist">
-              <input
+            /></label>
+            <label class="credential-persist"
+              ><input
                 type="checkbox"
                 [checked]="rememberCredential()"
                 (change)="rememberCredential.set($any($event.target).checked)"
-              />
-              <span>Keep it on this device</span>
-            </label>
+              /><span>Keep it on this device</span></label
+            >
             <div class="credential-actions">
               <button class="btn btn-primary" type="button" (click)="saveCredential()">Save</button>
               @if (auth.hasToken()) {
@@ -108,9 +97,24 @@
         }
       </div>
     }
-
     <lh-theme-toggle />
   </header>
+
+  <lh-workbench-search
+    [open]="searchOpen()"
+    [tenants]="tenants()"
+    [schemas]="schemas()"
+    [queries]="searchQueries()"
+    [connectors]="searchConnectors()"
+    [history]="history()"
+    [canManageConnectors]="canManageConnectors()"
+    (close)="searchOpen.set(false)"
+    (shortcut)="toggleSearch()"
+    (navigate)="openNavigation($event)"
+    (inspectTable)="inspectTable($event)"
+    (openSource)="openSearchSource($event)"
+    (selectContext)="selectSearchContext($event)"
+  />
 
   @if (firstRun() !== 'none') {
     <lh-first-run
@@ -126,7 +130,12 @@
       (adoptToken)="useIssuedToken()"
     />
   } @else {
-    <div class="body" [class.context-closed]="!contextPanelOpen()">
+    <div
+      class="body"
+      [class.context-closed]="!contextPanelOpen()"
+      [attr.aria-hidden]="searchOpen() ? 'true' : null"
+      [attr.inert]="searchOpen() ? '' : null"
+    >
       <lh-workbench-navigation
         id="workbench-navigation"
         [destination]="navigationDestination()"
@@ -136,7 +145,6 @@
         [canAdminister]="canAdminister()"
         (navigate)="openNavigation($event)"
       />
-
       <button
         class="nav-backdrop"
         type="button"
@@ -149,51 +157,18 @@
         (click)="closeNavigationOverlays()"
       ></button>
 
-      @if (navigationDestination() === 'settings' || navigationDestination() === 'users' || navigationDestination() === 'connectors') {
-        <main
-          class="main admin-main"
-          [attr.aria-hidden]="navigationOverlayOpen() ? 'true' : null"
-          [attr.inert]="navigationOverlayOpen() ? '' : null"
-        >
-          @if (navigationDestination() === 'settings') {
-            <lh-system-settings (resourcesChanged)="refreshWorkspaces()" />
-          } @else if (navigationDestination() === 'connectors') {
-            @if (tenantSlug() && catalogName()) {
-              <lh-managed-connectors [tenant]="tenantSlug()!" [catalog]="catalogName()!" />
-            } @else {
-              <p class="placeholder">Choose a workspace and catalog before administering connectors.</p>
-            }
-          } @else {
-            <lh-users />
-          }
-        </main>
-      } @else {
+      @if (navigationDestination() === 'workbench') {
         <aside
           #contextPanel
           id="workbench-context-panel"
           class="sidebar"
-          aria-label="Catalog and saved queries"
+          aria-label="Catalog context"
           [attr.aria-hidden]="!contextPanelOpen()"
           [attr.inert]="contextPanelOpen() ? null : ''"
         >
-          <div class="sidebar-tabs">
-            <button
-              type="button"
-              class="sidebar-tab"
-              [class.active]="sidebarTab() === 'catalog'"
-              (click)="showSidebar('catalog')"
-            >
-              Catalog
-            </button>
-            <button
-              type="button"
-              class="sidebar-tab"
-              [class.active]="sidebarTab() === 'queries'"
-              (click)="showSidebar('queries')"
-            >
-              Saved queries
-            </button>
-            <button
+          <div class="sidebar-heading">
+            <strong>Catalog</strong
+            ><button
               class="context-toggle"
               type="button"
               aria-label="Collapse catalog panel"
@@ -203,27 +178,12 @@
               ‹
             </button>
           </div>
-          @if (sidebarTab() === 'catalog') {
-            <lh-catalog-explorer
-              [schemas]="schemas()"
-              [loading]="schemasLoading()"
-              (insertSql)="insertSql($event)"
-              (inspectTable)="inspectTable($event)"
-            />
-          } @else {
-            <lh-saved-queries-panel
-              [tenant]="tenantSlug()"
-              [catalog]="catalogName()"
-              [sql]="sql()"
-              [language]="language()"
-              [availableLanguages]="availableSavedQueryLanguages()"
-              [languageAvailable]="activeLanguageCanSave()"
-              [readOnly]="readOnlyAccess()"
-              (openSource)="openSource($event)"
-              (executeQuery)="runSavedQuery($event)"
-              (schemaChanged)="refreshCatalog()"
-            />
-          }
+          <lh-catalog-explorer
+            [schemas]="schemas()"
+            [loading]="schemasLoading()"
+            (insertSql)="insertSql($event)"
+            (inspectTable)="inspectTable($event)"
+          />
         </aside>
 
         <main
@@ -234,29 +194,22 @@
           <header class="workspace-header">
             <div class="workspace-heading">
               <span class="breadcrumb"
-                ><strong>{{ activeLanguage()?.displayName }}</strong><span aria-hidden="true">›</span>Workbench</span
+                ><strong>{{ activeLanguage()?.displayName }}</strong
+                ><span aria-hidden="true">›</span>Workbench</span
               >
               <div class="title-line">
                 <h1>Query editor</h1>
-                <span class="connection-status" [class.disconnected]="!catalogConnected()">
-                  <span class="status-dot" aria-hidden="true"></span>
-                  {{ catalogConnected() ? 'Connected' : 'Not connected' }}
-                </span>
+                <span class="connection-status" [class.disconnected]="!catalogConnected()"
+                  ><span class="status-dot" aria-hidden="true"></span
+                  >{{ catalogConnected() ? 'Connected' : 'Not connected' }}</span
+                >
               </div>
             </div>
-
             <div class="workspace-controls">
               <div class="selectors">
-                <!--
-                  Selectedness is bound per option rather than as [value] on the select. A select
-                  whose value names no option it currently owns falls back to *displaying its first
-                  option*, so binding the value alone reports a workspace as chosen when none is —
-                  which is what made an instance administrator's empty workbench read as a catalog
-                  that had gone missing.
-                -->
-                <label class="field">
-                  <span>Workspace</span>
-                  <select (change)="selectTenant($any($event.target).value)">
+                <label class="field"
+                  ><span>Workspace</span
+                  ><select (change)="selectTenant($any($event.target).value)">
                     @if (tenantSlug() === null) {
                       <option value="" disabled selected>{{ workspacePlaceholder() }}</option>
                     }
@@ -265,12 +218,11 @@
                         {{ tenant.displayName }}
                       </option>
                     }
-                  </select>
-                </label>
-
-                <label class="field">
-                  <span>Catalog</span>
-                  <select (change)="selectCatalog($any($event.target).value)">
+                  </select></label
+                >
+                <label class="field"
+                  ><span>Catalog</span
+                  ><select (change)="selectCatalog($any($event.target).value)">
                     @if (catalogName() === null) {
                       <option value="" disabled selected>{{ catalogPlaceholder() }}</option>
                     }
@@ -279,53 +231,38 @@
                         {{ catalog.name }}
                       </option>
                     }
-                  </select>
-                </label>
+                  </select></label
+                >
               </div>
-
               @if (!readOnlyAccess()) {
-                <div class="maintenance">
-                  <span class="maint-label">Maintenance</span>
+                <div class="maintenance-menu">
                   <button
                     class="btn"
                     type="button"
-                    title="Write inlined commits out as Parquet"
-                    (click)="runMaintenance('flush')"
+                    [attr.aria-expanded]="maintenanceOpen()"
+                    (click)="maintenanceOpen.set(!maintenanceOpen())"
                   >
-                    Flush
+                    Maintain <span aria-hidden="true">⌄</span>
                   </button>
-                  <button
-                    class="btn"
-                    type="button"
-                    title="Merge small Parquet files"
-                    (click)="runMaintenance('compact')"
-                  >
-                    Compact
-                  </button>
-                  <button
-                    class="btn"
-                    type="button"
-                    title="Export catalog metadata to Parquet beside the data"
-                    (click)="runMaintenance('backup')"
-                  >
-                    Backup
-                  </button>
-                  <button
-                    class="btn"
-                    type="button"
-                    title="Drop snapshots older than 7 days"
-                    (click)="runMaintenance('expire')"
-                  >
-                    Expire
-                  </button>
-                  <button
-                    class="btn"
-                    type="button"
-                    title="Delete data files no longer referenced by any snapshot"
-                    (click)="runMaintenance('cleanup')"
-                  >
-                    Cleanup
-                  </button>
+                  @if (maintenanceOpen()) {
+                    <div class="maintenance-popover">
+                      <button type="button" (click)="runMaintenance('flush')">
+                        <strong>Flush</strong><span>Write inlined commits as Parquet</span>
+                      </button>
+                      <button type="button" (click)="runMaintenance('compact')">
+                        <strong>Compact</strong><span>Merge small Parquet files</span>
+                      </button>
+                      <button type="button" (click)="runMaintenance('backup')">
+                        <strong>Backup</strong><span>Export recoverable catalog metadata</span>
+                      </button>
+                      <button type="button" (click)="runMaintenance('expire')">
+                        <strong>Expire</strong><span>Preview snapshot expiry after 7 days</span>
+                      </button>
+                      <button type="button" (click)="runMaintenance('cleanup')">
+                        <strong>Cleanup</strong><span>Preview unreferenced-file deletion</span>
+                      </button>
+                    </div>
+                  }
                 </div>
               }
             </div>
@@ -333,51 +270,44 @@
 
           @if (demoMode()) {
             <div class="demo-banner">
-              <strong>You’re exploring a live LakeHold demo.</strong>
-              Browse the seeded catalog and run read-only SQL. Changes are disabled, so everyone
-              gets the same safe workspace.
+              <strong>You’re exploring a live LakeHold demo.</strong> Browse the seeded catalog and
+              run read-only SQL. Changes are disabled, so everyone gets the same safe workspace.
             </div>
           }
           @if (instanceAdminWithoutData()) {
             <div class="demo-banner admin-banner">
-              <strong>You’re signed in as an instance administrator.</strong>
-              That credential administers this node — workspaces, users, and settings — and
-              deliberately reaches no catalog, so there is nothing here to query. Granting this
-              identity a workspace membership would not change that; instance administration is
-              resolved from your provider before membership is read. To run queries, sign in as an
-              identity that is a workspace member and not an administrator.
+              <strong>You’re signed in as an instance administrator.</strong> That credential
+              administers this node and deliberately reaches no catalog. To run queries, sign in as
+              a workspace member.
             </div>
           }
+
           <section class="editor-pane">
             <div class="editor-toolbar">
-              <label class="language-picker">
-                <span>Language</span>
-                <select [value]="language()" (change)="switchLanguage($any($event.target).value)">
+              <label class="language-picker"
+                ><span>Language</span
+                ><select [value]="language()" (change)="switchLanguage($any($event.target).value)">
                   @for (option of queryLanguages(); track option.id) {
-                    <!-- Selectable even when unavailable: choosing it is how you get told why. -->
-                    <option [value]="option.id" [selected]="option.id === language()" [title]="option.unavailableReason ?? ''">{{ option.displayName }}</option>
+                    <option
+                      [value]="option.id"
+                      [selected]="option.id === language()"
+                      [title]="option.unavailableReason ?? ''"
+                    >
+                      {{ option.displayName }}
+                    </option>
                   }
-                </select>
-              </label>
+                </select></label
+              >
               <button
                 class="btn btn-primary"
                 type="button"
                 [disabled]="running() || !ready() || !activeLanguageAvailable()"
                 (click)="run()"
               >
-                {{ running() ? 'Running…' : 'Run' }}
-                <span class="kbd">⌘⏎</span>
+                {{ running() ? 'Running…' : 'Run' }} <span class="kbd">⌘⏎</span>
               </button>
               @if (!activeLanguageAvailable()) {
                 <span class="tag warn-tag">{{ activeLanguageUnavailableMessage() }}</span>
-              }
-              @if (!readOnlyAccess()) {
-                <lh-tabular-import
-                  [tenant]="tenantSlug()"
-                  [catalog]="catalogName()"
-                  [schemas]="schemas()"
-                  (imported)="onFileImported($event)"
-                />
               }
               @if (summary(); as text) {
                 <span class="summary">{{ text }}</span>
@@ -386,7 +316,6 @@
                 <span class="tag warn-tag">Row limit reached — showing a prefix of the result</span>
               }
             </div>
-
             <lh-query-editor
               [value]="sql()"
               [language]="language()"
@@ -406,9 +335,8 @@
                 [class.active]="tab() === 'results'"
                 (click)="showTab('results')"
               >
-                Results
-              </button>
-              <button
+                Results</button
+              ><button
                 type="button"
                 class="tab"
                 [class.active]="tab() === 'history'"
@@ -416,56 +344,7 @@
               >
                 Query history
               </button>
-              <button
-                type="button"
-                class="tab"
-                [class.active]="tab() === 'snapshots'"
-                (click)="showTab('snapshots')"
-              >
-                Data history
-              </button>
-              <button
-                type="button"
-                class="tab"
-                [class.active]="tab() === 'storage'"
-                (click)="showTab('storage')"
-              >
-                Storage
-              </button>
-              <button
-                type="button"
-                class="tab"
-                [class.active]="tab() === 'changes'"
-                (click)="showTab('changes')"
-              >
-                Changes
-              </button>
-              <button
-                type="button"
-                class="tab"
-                [class.active]="tab() === 'backups'"
-                (click)="showTab('backups')"
-              >
-                Backups
-              </button>
-              <button
-                type="button"
-                class="tab"
-                [class.active]="tab() === 'ejects'"
-                (click)="showTab('ejects')"
-              >
-                Eject
-              </button>
-              <button
-                type="button"
-                class="tab"
-                [class.active]="tab() === 'schedule'"
-                (click)="showTab('schedule')"
-              >
-                Schedule
-              </button>
             </div>
-
             <div class="output-body">
               @if (catalogError(); as message) {
                 <div class="banner error-banner">
@@ -473,14 +352,12 @@
                   <pre>{{ message }}</pre>
                 </div>
               }
-
               @if (error(); as message) {
                 <div class="banner error-banner">
                   <strong>{{ errorTitle() }}</strong>
                   <pre>{{ message }}</pre>
                 </div>
               }
-
               @if (notice(); as message) {
                 <div
                   class="banner"
@@ -489,113 +366,231 @@
                 >
                   <span>{{ message }}</span>
                   @if (pendingApply()) {
-                    <span class="dry-actions">
-                      <strong>Dry run — nothing was changed.</strong>
-                      <button class="btn btn-danger" type="button" (click)="confirmApply()">
-                        Apply for real
-                      </button>
-                      <button class="btn" type="button" (click)="cancelApply()">Cancel</button>
-                    </span>
+                    <span class="dry-actions"
+                      ><strong>Dry run — nothing was changed.</strong
+                      ><button class="btn btn-danger" type="button" (click)="confirmApply()">
+                        Apply for real</button
+                      ><button class="btn" type="button" (click)="cancelApply()">
+                        Cancel
+                      </button></span
+                    >
                   }
                 </div>
               }
-
-              @switch (tab()) {
-              @case ('results') {
-                  @if (result()?.generatedSql; as generatedSql) {
-                    <details class="generated-sql">
-                      <summary>Generated SQL</summary>
-                      <pre>{{ generatedSql }}</pre>
-                    </details>
-                  }
-                  @if (result()) {
-                    <lh-result-grid [result]="result()" />
-                  } @else if (!error()) {
-                    <p class="placeholder">Run a statement to see results.</p>
-                  }
+              @if (tab() === 'results') {
+                @if (result()?.generatedSql; as generatedSql) {
+                  <details class="generated-sql">
+                    <summary>Generated SQL</summary>
+                    <pre>{{ generatedSql }}</pre>
+                  </details>
                 }
-
-                @case ('history') {
-                  @if (history().length === 0) {
-                    <p class="placeholder">No queries yet.</p>
-                  } @else {
-                    <ul class="history">
-                      @for (run of history(); track run.id) {
-                        <li>
-                          <button type="button" class="history-row" (click)="replay(run)">
-                            <span class="status" [class.failed]="!run.succeeded">{{
-                              run.succeeded ? '●' : '▲'
-                            }}</span>
-                            <span class="history-sql">{{ run.sql }}</span>
-                            <span class="history-meta">
-                              {{ run.language ?? 'sql' }} · {{ run.rowCount }} rows · {{ run.elapsedMilliseconds.toFixed(0) }} ms
-                              ·
-                              {{ formatTime(run.startedUtc) }}
-                              @if (run.actorName) {
-                                · <span class="history-token">{{ run.actorName }}</span>
-                              }
-                              · {{ run.origin }}
-                            </span>
-                          </button>
-                        </li>
-                      }
-                    </ul>
-                  }
+                @if (result()) {
+                  <lh-result-grid [result]="result()" />
+                } @else if (!error()) {
+                  <p class="placeholder">Run a statement to see results.</p>
                 }
-
-                @case ('snapshots') {
-                  <lh-data-history-panel
-                    [tenant]="tenantSlug()"
-                    [catalog]="catalogName()"
-                    [tables]="baseTableReferences()"
-                    [readOnly]="readOnlyAccess()"
-                    (prepareSql)="insertSql($event)"
-                    (queryExecuted)="refreshQueryHistory()"
-                  />
-                }
-
-                @case ('storage') {
-                  <lh-storage-panel
-                    [tenant]="tenantSlug()"
-                    [catalog]="catalogName()"
-                    [placement]="selectedCatalog()"
-                    [inspect]="inspectedTable()"
-                  />
-                }
-
-                @case ('changes') {
-                  <lh-changes-panel
-                    [tenant]="tenantSlug()"
-                    [catalog]="catalogName()"
-                    [tables]="baseTableReferences()"
-                    [readOnly]="readOnlyAccess()"
-                  />
-                }
-
-                @case ('backups') {
-                  <lh-backups-panel
-                    [tenant]="tenantSlug()"
-                    [catalog]="catalogName()"
-                    [readOnly]="readOnlyAccess()"
-                  />
-                }
-
-                @case ('ejects') {
-                  <lh-eject-panel
-                    [tenant]="tenantSlug()"
-                    [catalog]="catalogName()"
-                    [readOnly]="readOnlyAccess()"
-                  />
-                }
-
-                @case ('schedule') {
-                  <lh-schedule-panel />
-                }
+              } @else {
+                <ng-container *ngTemplateOutlet="historyList"></ng-container>
               }
             </div>
           </section>
         </main>
+      } @else {
+        <main
+          class="main destination-main"
+          [attr.aria-hidden]="navigationOverlayOpen() ? 'true' : null"
+          [attr.inert]="navigationOverlayOpen() ? '' : null"
+        >
+          @if (navigationDestination() !== 'settings' && navigationDestination() !== 'users') {
+            <div class="destination-context">
+              <label class="field"
+                ><span>Workspace</span
+                ><select (change)="selectTenant($any($event.target).value)">
+                  @if (tenantSlug() === null) {
+                    <option value="" disabled selected>{{ workspacePlaceholder() }}</option>
+                  }
+                  @for (tenant of tenants(); track tenant.slug) {
+                    <option [value]="tenant.slug" [selected]="tenant.slug === tenantSlug()">
+                      {{ tenant.displayName }}
+                    </option>
+                  }
+                </select></label
+              ><label class="field"
+                ><span>Catalog</span
+                ><select (change)="selectCatalog($any($event.target).value)">
+                  @if (catalogName() === null) {
+                    <option value="" disabled selected>{{ catalogPlaceholder() }}</option>
+                  }
+                  @for (catalog of catalogs(); track catalog.name) {
+                    <option [value]="catalog.name" [selected]="catalog.name === catalogName()">
+                      {{ catalog.name }}
+                    </option>
+                  }
+                </select></label
+              >
+            </div>
+          }
+          @switch (navigationDestination()) {
+            @case ('add-data') {
+              <lh-add-data-hub
+                [tenant]="tenantSlug()"
+                [catalog]="catalogName()"
+                [schemas]="schemas()"
+                [readOnly]="readOnlyAccess()"
+                [canManageConnectors]="canManageConnectors()"
+                (imported)="onFileImported($event)"
+                (configureConnector)="configureConnector($event)"
+              />
+            }
+            @case ('catalog') {
+              <section class="destination-page catalog-destination">
+                <header>
+                  <p class="eyebrow">Data</p>
+                  <h1>Catalog</h1>
+                  <p>
+                    Browse the selected catalog, insert a starter query, or inspect a table’s
+                    storage.
+                  </p>
+                </header>
+                <div class="catalog-browser">
+                  <lh-catalog-explorer
+                    [schemas]="schemas()"
+                    [loading]="schemasLoading()"
+                    (insertSql)="insertSql($event); openNavigation('workbench')"
+                    (inspectTable)="inspectTable($event)"
+                  />
+                </div>
+              </section>
+            }
+            @case ('queries') {
+              <section class="destination-page">
+                <lh-saved-queries-panel
+                  layout="library"
+                  [tenant]="tenantSlug()"
+                  [catalog]="catalogName()"
+                  [sql]="sql()"
+                  [language]="language()"
+                  [availableLanguages]="availableSavedQueryLanguages()"
+                  [languageAvailable]="activeLanguageCanSave()"
+                  [readOnly]="readOnlyAccess()"
+                  (openSource)="openSearchSource($event)"
+                  (executeQuery)="runSavedQuery($event)"
+                  (schemaChanged)="refreshCatalog()"
+                />
+              </section>
+            }
+            @case ('history') {
+              <section class="destination-page">
+                <header>
+                  <p class="eyebrow">Workbench</p>
+                  <h1>Query history</h1>
+                  <p>Review recent statements for this catalog and reopen one in the editor.</p>
+                </header>
+                <ng-container *ngTemplateOutlet="historyList"></ng-container>
+              </section>
+            }
+            @case ('snapshots') {
+              <section class="destination-panel">
+                <lh-data-history-panel
+                  [tenant]="tenantSlug()"
+                  [catalog]="catalogName()"
+                  [tables]="baseTableReferences()"
+                  [readOnly]="readOnlyAccess()"
+                  (prepareSql)="insertSql($event); openNavigation('workbench')"
+                  (queryExecuted)="refreshQueryHistory()"
+                />
+              </section>
+            }
+            @case ('storage') {
+              <section class="destination-panel">
+                <lh-storage-panel
+                  [tenant]="tenantSlug()"
+                  [catalog]="catalogName()"
+                  [placement]="selectedCatalog()"
+                  [inspect]="inspectedTable()"
+                />
+              </section>
+            }
+            @case ('changes') {
+              <section class="destination-panel">
+                <lh-changes-panel
+                  [tenant]="tenantSlug()"
+                  [catalog]="catalogName()"
+                  [tables]="baseTableReferences()"
+                  [readOnly]="readOnlyAccess()"
+                />
+              </section>
+            }
+            @case ('backups') {
+              <section class="destination-panel">
+                <lh-backups-panel
+                  [tenant]="tenantSlug()"
+                  [catalog]="catalogName()"
+                  [readOnly]="readOnlyAccess()"
+                />
+              </section>
+            }
+            @case ('ejects') {
+              <section class="destination-panel">
+                <lh-eject-panel
+                  [tenant]="tenantSlug()"
+                  [catalog]="catalogName()"
+                  [readOnly]="readOnlyAccess()"
+                />
+              </section>
+            }
+            @case ('schedule') {
+              <section class="destination-panel"><lh-schedule-panel /></section>
+            }
+            @case ('connectors') {
+              @if (tenantSlug() && catalogName()) {
+                <lh-managed-connectors
+                  [tenant]="tenantSlug()!"
+                  [catalog]="catalogName()!"
+                  [initialKind]="connectorKind()"
+                />
+              } @else {
+                <p class="placeholder">
+                  Choose a workspace and catalog before administering connectors.
+                </p>
+              }
+            }
+            @case ('users') {
+              <lh-users />
+            }
+            @case ('settings') {
+              <lh-system-settings (resourcesChanged)="refreshWorkspaces()" />
+            }
+          }
+        </main>
       }
     </div>
   }
+
+  <ng-template #historyList>
+    @if (history().length === 0) {
+      <p class="placeholder">No queries yet.</p>
+    } @else {
+      <ul class="history history-library">
+        @for (run of history(); track run.id) {
+          <li>
+            <button type="button" class="history-row" (click)="replay(run)">
+              <span class="status" [class.failed]="!run.succeeded">{{
+                run.succeeded ? '●' : '▲'
+              }}</span
+              ><span class="history-sql">{{ run.sql }}</span
+              ><span class="history-meta"
+                >{{ run.language ?? 'sql' }} · {{ run.rowCount }} rows ·
+                {{ run.elapsedMilliseconds.toFixed(0) }} ms · {{ formatTime(run.startedUtc) }}
+                @if (run.actorName) {
+                  · <span class="history-token">{{ run.actorName }}</span>
+                }
+                · {{ run.origin }}</span
+              >
+            </button>
+          </li>
+        }
+      </ul>
+    }
+  </ng-template>
 </div>

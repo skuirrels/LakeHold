@@ -12,14 +12,22 @@ Like [`MCP.md`](MCP.md) and [`PUBLIC-API.md`](PUBLIC-API.md), this is a specific
 record, written to be worked one step at a time. Nothing here contradicts an invariant in `AGENT.md`;
 where a rule already exists this document says how the UI preserves it rather than restating why.
 
-**Status: Phases 1–7 have landed.** `StorageBrowser` reads the footprint, five dedicated routes serve
-the storage and inspection surfaces, and
-the workbench has eight panels: Results, Query history, Data history, Storage (with a unified
-per-table inspector), Changes, Backups, Eject, and Schedule. The left rail switches between the
-catalog explorer and the catalog-scoped saved-query library. A separate product-navigation rail
-groups those existing surfaces into Workbench, Data, and Operations; its hamburger collapses the
-rail without destroying editor or explorer state. On compact screens the same rail is a
-keyboard-dismissible drawer rather than permanently hiding navigation.
+**Status: Phases 1–7 and the focused Workbench information architecture have landed.**
+`StorageBrowser` reads the footprint and five dedicated routes serve the storage and inspection
+surfaces. The editor now owns only the catalog context, Results, and query-specific History. Data
+History, Storage (with a unified per-table inspector), Changes, Backups, Eject, and Schedule are
+focused product destinations rather than tabs competing for space below the editor. The maintenance
+operations are collected under one **Maintain** menu without changing their dry-run and capability
+rules.
+
+The product rail also exposes an **Add data** hub for the file importer and the five managed adapters
+LakeHold actually ships (REST, gRPC, PostgreSQL, HubSpot, and Kafka Avro), plus a standalone **Query
+library** with search, language/publication filters, sort controls, actor identifiers, timestamps,
+and publication health. It deliberately does not imply a general connector marketplace. A global
+<kbd>⌘K</kbd>/<kbd>Ctrl+K</kbd> palette searches accessible catalogs, tables and columns, saved
+queries, managed connectors, query history, and navigation commands. Query results provide local
+find, column visibility, cell/row copy, CSV export, datatype cues, and a sticky returned-row/runtime
+footer using the existing bounded response metadata.
 
 Administration is two destinations, split by the credential each answers to.
 
@@ -109,8 +117,8 @@ borrowed.
 
 This is the case for building, and it is stronger than feature parity.
 
-The toolbar in [`workbench.component.html`](../web/lakehold-ui/src/app/workbench.component.html) offers
-Flush, Compact, Backup, Expire, and Cleanup. A user presses **Compact** — "merge small Parquet files" —
+The **Maintain** menu in [`workbench.component.html`](../web/lakehold-ui/src/app/workbench.component.html)
+offers Flush, Compact, Backup, Expire, and Cleanup. A user presses **Compact** — "merge small Parquet files" —
 with no way to know whether the table is three files or three thousand. They press **Flush** without
 knowing whether anything is inlined. They press **Cleanup** and judge a destructive operation by a
 dry-run text blob.
@@ -200,7 +208,7 @@ Three traps, all verified:
 
 ## The surfaces
 
-### Storage tab
+### Storage destination
 
 A fourth tab beside Results, Query history, and Data history. It opens with the catalog's
 **placement** — data path, storage kind, profile name, and whether the attachment is read-only —
@@ -281,7 +289,7 @@ a read, in the same sense eject is a read (invariant 15), so nothing here needs 
 
 ### Table detail
 
-Selecting a table in the Storage tab opens a panel below it: the file list with sizes and delete-file
+Selecting a table in the Storage destination opens its inspector: the file list with sizes and delete-file
 pairing, and an **as of** snapshot selector. `ducklake_list_files` takes an optional snapshot
 parameter, so "what did this table's storage look like on Tuesday" is free — a differentiated answer
 next to the DuckDB-family tools, which have no snapshot to select. Verified live: a table at five files
@@ -378,18 +386,18 @@ Each leaves the product working and is independently testable.
 metadata catalog, plus the `/storage` route and `LakehouseOptions.CompactionAdvisoryBytes`. Seven
 engine tests, including the read-only share and the inlined-only table.
 
-**Phase 2 — the Storage tab. Landed.** The per-table rollup beside Results / Query history / Data
-history with both advisories. Verified live, and this is the phase that proves the document's central
+**Phase 2 — the Storage surface. Landed.** The per-table rollup, originally a Workbench tab and now a
+focused destination, carries both advisories. Verified live, and this is the phase that proves the document's central
 claim: pressing
 **Flush** moved `staging` from *0 files / Flush pending* to *1 file / 712 B / no advisory*, and pressing
 **Compact** merged `sessions` from *6 files, 8.8 kB average, Fragmented* into *1 file, 18 kB, no
-advisory*. The panel refreshes itself after either, because a maintenance readout that does not show
-the effect of the button beside it is not a readout.
+advisory*. Opening the focused destination after maintenance loads the committed state; no hidden
+panel instance is retained beside the editor.
 
 **Phase 3 — table detail. Landed.** `ducklake_list_files` behind `/storage/files`, the per-file panel,
 the as-of snapshot selector, truncation reporting. Five more engine tests.
 
-**Phase 4 — catch up with the API. Landed.** Four more tabs — **Changes**, **Backups**, **Eject**,
+**Phase 4 — catch up with the API. Landed.** Four more operational surfaces — **Changes**, **Backups**, **Eject**,
 **Schedule** — covering all five surfaces that had no client method: backup generations with restore,
 eject bundles with their attested table lists, the row-level change feed, webhook subscriptions, and
 the scheduled-run log. Sixteen client methods where there were seven.
@@ -412,7 +420,7 @@ attestation. Three things the panels forced into the open:
 **Landed after Phase 4, and it is what the budget warning was really telling us.** One component had
 grown to roughly 900 lines of TypeScript, 800 of template, and 840 of CSS, owning eight panels.
 
-The seam is one component per tab:
+The seam is one component per focused surface:
 
 | Component | Owns |
 |---|---|
@@ -428,9 +436,10 @@ The seam is one component per tab:
 | `panel-shared.css` | The table, control-strip, and button chrome they have in common |
 | `format.ts` | Display formatting plus SQL-standard identifier quoting for catalog-derived names |
 
-The workbench keeps the chrome — selectors, maintenance buttons, credential popover, editor, tab strip
-— plus the two panels tied to running a statement: results and query history. Data history owns its
-requests and panel-local failures like the other operational surfaces.
+The workbench keeps the chrome — selectors, Maintain menu, credential popover, editor, and the two
+tabs tied to running a statement: results and query history. Add data, the query library, Data
+history, and the other operational surfaces are focused destinations. Each owns its requests and
+panel-local failures.
 
 Saved queries deliberately span the two architectural planes without merging them. Name,
 description, language, authored source, revision, schema fingerprint, and publication metadata live
@@ -449,8 +458,9 @@ finalisation reconciles the live target before returning a conflict.
 
 Three things the split bought beyond size:
 
-- **Stale errors became structurally impossible.** Each panel owns its banner, destroyed with the
-  panel. The `error.set(null)` that had to be remembered on every tab change is gone.
+- **Stale operational errors became structurally impossible.** Each focused panel owns its banner,
+  destroyed with the panel. Editor errors are explicitly cleared when leaving the Workbench so they
+  cannot reappear over another destination on return.
 - **So did stale per-catalog state.** Panels take the catalog as an input, cancel their outstanding
   list and mutation subscriptions on change, and reload. That retired a `clearCatalogPanels` method
   that had to be kept in step with every signal ever added without allowing a late response from the
@@ -459,9 +469,9 @@ Three things the split bought beyond size:
   panel cannot inherit the workbench's styles, so without `panel-shared.css` each of the five would
   have carried its own copy of the table look.
 
-`viewChild` is how the workbench still reaches a panel after a maintenance operation commits. Only the
-visible panel exists — the strip is a `@switch` — so the reference is usually undefined, which is
-exactly right: a panel that is not on screen reloads when it is next shown.
+Operational components are created only for their focused destination and load current state when
+shown. The Maintain menu therefore keeps no `viewChild` refresh hooks to unmounted panels; those
+hooks became dead code once operations left the editor tab strip.
 
 **One bug, introduced and caught during the refactor.** Each panel reloads from an `effect` reading
 its `tenant` and `catalog` inputs. In `storage-panel` that effect also called `reload()`, which reads
@@ -607,12 +617,13 @@ from the test runner, so it type-checks under the app config too; it is excluded
 | `eject-panel.component.spec.ts` | No dry run, the history flag, bundle expand/collapse, incomplete marked untrusted |
 | `schedule-panel.component.spec.ts` | Instance-wide run-log loading, scoped row rendering, success/failure states, and error-vs-empty truthfulness |
 | `token-administration.component.spec.ts` | Least-privilege defaults, exact public API request, one-time secret display, failure, and empty-workspace states |
-| `workbench.component.spec.ts` | First-run sign-in and tenant/catalog/token provisioning, collapsible and compact navigation, views excluded from pickers, error cleared on tab change, dry-run then apply, panel refresh paths, and Data history integration |
+| `workbench.component.spec.ts` | First-run sign-in and tenant/catalog/token provisioning, focused navigation, catalog-scoped history, compact navigation, error isolation, dry-run then apply, and Data history integration |
+| `result-grid.component.spec.ts` | Local result filtering, duplicate-name column visibility, type alignment, bounded-result footer, and clipboard refusal |
+| `workbench-search.component.spec.ts` | Table-column discovery, reusable-query opening, repeated-history identity, and dismissed-search reset |
 
 **Four assertions were mutation-tested** — a green test that cannot fail is worse than no test, because
-it reads as coverage. Reverting `untracked()` fails two storage-panel tests; removing the
-`error.set(null)` in `showTab` fails the leak test; removing `storagePanel()?.reload()` fails the
-maintenance-refresh test.
+it reads as coverage. Reverting `untracked()` fails two storage-panel tests, and removing the
+destination error reset or catalog-history refresh fails the Workbench regression tests.
 
 That exercise **found a weak test of my own**. "Does not keep the secret" originally asserted the
 password field was gone after submitting — which passes whether or not the value was cleared, because
@@ -768,12 +779,11 @@ Answered, by measurement rather than by argument:
   a floor rendering as "17 MB" beside a target written `5MB` reads as a bug in the units.
 - ~~Does `ducklake_table_info` report inlined rows?~~ **No** — and it carries no row count at all. Both
   come from the metadata catalog, and the consequence is `InlinedRows`, the Flush advisory, and the
-  correction recorded under [Storage tab](#storage-tab). This was the single most design-changing
+  correction recorded under [Storage destination](#storage-destination). This was the single most design-changing
   finding.
-- ~~Tab or its own route?~~ **A tab.** It keeps the tenant and catalog selectors and the maintenance
-  buttons in the same frame, which matters more than linkability for a panel whose entire purpose is
-  informing the button next to it. Revisit if operators start wanting to share a link to one table's
-  storage.
+- ~~Tab or its own route?~~ **A focused destination.** It keeps tenant and catalog context while
+  giving the physical readout enough space to be scanned and shared conceptually with the other Data
+  destinations. Maintenance remains one click away through the Workbench's Maintain menu.
 - ~~Pagination shape for the file list.~~ It follows the `Truncated` shape the change feed already uses
   rather than proving `PUBLIC-API.md`'s cursor convention early. Converting one surface to a convention
   no other surface speaks would leave two conventions, not one; they convert together.
