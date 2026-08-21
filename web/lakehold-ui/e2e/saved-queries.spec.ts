@@ -227,7 +227,12 @@ test.describe('saved query lifecycle', () => {
     // editor currently holds, so the editor changes first and `Save revision` captures it. The badge
     // exists so that a reader querying the view is not silently served the superseded definition
     // with nothing anywhere saying so.
+    await page
+      .locator('#workbench-navigation')
+      .getByRole('button', { name: 'Workbench', exact: true })
+      .click();
     await writeSql(page, 'SELECT 2 AS version;');
+    await openSavedQueries(page);
     await entry.getByRole('button', { name: 'Edit' }).click();
     await panel.getByRole('button', { name: 'Save revision' }).click();
 
