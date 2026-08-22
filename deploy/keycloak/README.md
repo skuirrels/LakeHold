@@ -53,11 +53,12 @@ LakeHold refuses to start with an authority but no configured API audience. The 
 `lakehold-mcp` client requires PKCE and emits `http://localhost:5399/mcp` as its access-token audience,
 matching the protected resource reached through the development Workbench proxy. It repeats the
 membership claim mappers because an MCP token is resolved to the same durable member row as a browser
-session.
+session. Its redirect allow-list covers the loopback callbacks used by Codex and Claude Code plus
+Antigravity's fixed `https://antigravity.google/oauth-callback` URI.
 
 ## Testing an MCP login
 
-Start the stack with `make dev`, leave it running, then connect either client from a second terminal
+Start the stack with `make dev`, leave it running, then connect a client from a second terminal
 to the Workbench origin. On a reused development database, confirm MCP is enabled and **Public base
 URL** is `http://localhost:5399` without `/mcp` under System Settings:
 
@@ -71,6 +72,25 @@ claude mcp add --transport http --client-id lakehold-mcp \
   lakehold http://localhost:5399/mcp
 claude mcp login lakehold
 ```
+
+For Antigravity CLI, merge the following into `~/.gemini/config/mcp_config.json` or the workspace's
+`.agents/mcp_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "lakehold": {
+      "serverUrl": "http://localhost:5399/mcp",
+      "oauth": {
+        "clientId": "lakehold-mcp"
+      }
+    }
+  }
+}
+```
+
+Start `agy`, enter `/mcp`, select `lakehold`, and choose **Authenticate**. Complete the browser login,
+copy the authorization code, and paste it back into the prompt.
 
 The Codex client id is required so Codex uses the pre-registered public client instead of attempting
 dynamic registration, which this development realm does not allow. Do not also pass
