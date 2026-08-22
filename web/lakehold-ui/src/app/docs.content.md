@@ -120,12 +120,12 @@ configured, catalog-scoped demo reader without a presented credential; MCP is st
 accepts that identity. An application embedding the EF Core provider supplies its own database and
 storage connection configuration.
 
-| Tool                  | What it is                                                                                                                                                                                                                                                                                                                                                   | Best for                                                              |
-| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------- |
-| **The workbench**     | A browser query IDE with built-in SQL and an optional isolated C# LINQ planner, catalog-aware completion, generated SQL, diagnostics, history, snapshots, and maintenance. Ships seeded.                                                                                                                                                                     | Exploration, authoring, and operations.                               |
-| **A Postgres client** | LakeHold speaks the PostgreSQL wire protocol, so `psql`, DBeaver, or Npgsql connect to a catalog with no driver or plugin. The user is the tenant and the database is the catalog.                                                                                                                                                                           | Existing SQL clients and streamed results.                            |
-| **.NET & EF Core**    | Through `DuckDB.EFCoreProvider` your application model and your lake tables are one model.                                                                                                                                                                                                                                                                   | .NET applications on the same schema.                                 |
-| **The HTTP API**      | Minimal-API endpoints for queries, schemas, history, snapshots, maintenance, eject, backup/restore, and change-feed subscriptions.                                                                                                                                                                                                                           | Automation and integration.                                           |
+| Tool                  | What it is                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | Best for                                                              |
+| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| **The workbench**     | A browser query IDE with built-in SQL and an optional isolated C# LINQ planner, catalog-aware completion, generated SQL, diagnostics, history, snapshots, and maintenance. Ships seeded.                                                                                                                                                                                                                                                                                                                                                                    | Exploration, authoring, and operations.                               |
+| **A Postgres client** | LakeHold speaks the PostgreSQL wire protocol, so `psql`, DBeaver, or Npgsql connect to a catalog with no driver or plugin. The user is the tenant and the database is the catalog.                                                                                                                                                                                                                                                                                                                                                                          | Existing SQL clients and streamed results.                            |
+| **.NET & EF Core**    | Through `DuckDB.EFCoreProvider` your application model and your lake tables are one model.                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | .NET applications on the same schema.                                 |
+| **The HTTP API**      | Minimal-API endpoints for queries, schemas, history, snapshots, maintenance, eject, backup/restore, and change-feed subscriptions.                                                                                                                                                                                                                                                                                                                                                                                                                          | Automation and integration.                                           |
 | **MCP**               | An authenticated Model Context Protocol server with catalog, time-travel, CDC, physical-inspection, audit-history, saved-query, connector, query-language, snapshot-bound maintenance, and table-restore tools. Every tool reports an output schema and describes its arguments, and the handshake carries usage instructions. Writes and operator commands are separately gated, and the endpoint is rate-limited per credential. Development enables it by default; an instance operator changes the live controls under System Settings with no restart. | AI agents that need discoverable, capability-scoped lakehouse access. |
 
 ### Connect Codex or Claude Code as yourself
@@ -201,11 +201,16 @@ Read the [Enterprise Data Platform overview](https://lakehold.dev/enterprise-dat
 
 ## The workbench, feature by feature
 
-The browser workbench is the fastest way to explore a catalog and run maintenance. It is laid out top
-to bottom: a workspace and catalog picker, a schema explorer on the left, a language-aware editor,
-and a tabbed
-output pane below it with eight panels — **Results**, **Query history**, **Data history**, **Storage**,
-**Changes**, **Backups**, **Eject**, and **Schedule**.
+The browser workbench is the fastest way to explore a catalog and run statements. Its focused editor
+keeps the workspace and catalog picker, schema explorer, language-aware editor, and the two outputs
+that belong to an execution: **Results** and **Query history**. **Add data**, the full **Query
+library**, **Data history**, and operational tools such as **Storage**, **Changes**, **Backups**,
+**Eject**, and **Schedule** are dedicated destinations in the product navigation. The **Maintain**
+menu keeps catalog-wide operations close to the selected context without crowding the editor.
+
+Press `⌘K` (`Ctrl+K` on Windows and Linux) anywhere in the workspace to search commands, catalogs,
+schemas, tables, columns, saved queries, connectors, and recent executions. Results remain scoped to
+the catalog and permissions currently selected.
 
 ### Workspace and catalog pickers — _top bar_
 
@@ -224,7 +229,7 @@ that workspace and selects its storage placement.
 Browses the selected catalog's schemas, tables, and columns. Click an item to insert its name into
 the editor, so you can build a query without retyping identifiers.
 
-### Saved queries and published views — _left sidebar → Saved queries_
+### Saved queries and published views — _Query library_
 
 Save authored SQL or C# LINQ with its language, name, and description. SQL definitions accept one
 `SELECT`, query-producing `WITH`, or `VALUES` statement; DuckDB's parser rejects `WITH`-prefixed
@@ -275,7 +280,12 @@ saved LINQ source readable but disables execution and authoring until the langua
 never relabelled as SQL. Read the [complete C# LINQ guide](https://lakehold.dev/docs/linq-workbench)
 for examples, supported types, deployment, security, API contracts, and troubleshooting.
 
-### File import — _centre pane → Import data_
+### Add data and file import — _product navigation → Add data_
+
+The Add data hub starts with the source rather than an implementation detail. Upload CSV or XLSX,
+or choose a managed REST, gRPC, PostgreSQL, HubSpot, or Kafka Avro source. Managed sources hand off
+to the connector form with the adapter already selected, while search keeps a larger connector
+catalog navigable as it grows.
 
 Choose a browser-local CSV or XLSX file and create a new table without copying the file onto the API
 host yourself. For CSV, **Automatic** mode lets DuckDB detect the delimiter, quoting, header, line
@@ -313,23 +323,24 @@ and a 1 GiB free-space floor. Configure them with `Lakehold:CsvImport:MaxBytes`,
 also scavenges scratch files older than `StaleFileAge` during coordinator startup. Reverse proxies
 must allow the same per-request size.
 
-### Results grid — _Output → Results_
+### Results grid — _Workbench → Results_
 
-Streams the result of the last statement into a grid, with the row count and elapsed time shown in
-the toolbar. Integers and decimals beyond JavaScript's safe range are transported losslessly as
-strings so nothing is silently rounded.
+Streams the result of the last statement into a searchable grid with per-column type cues, column
+visibility controls, cell and row copy, CSV export, and a fixed row-count/runtime footer. Integers
+and decimals beyond JavaScript's safe range are transported losslessly as strings so nothing is
+silently rounded.
 
 > Results are capped by `LakehouseOptions.MaxRowsPerResult` so a large query cannot exhaust memory.
 > When the cap is hit you see a "Row limit reached" tag. The Postgres wire endpoint streams rows to
 > the socket and does not apply the cap.
 
-### Query history — _Output → Query history_
+### Query history — _Workbench → Query history_
 
 Every statement the workspace has run, successful or failed, with its row count, duration, and
 timestamp. Click a row to replay it into the editor. Postgres-wire traffic shows up here too, so
 client queries are visible for the first time.
 
-### Data history and time travel — _Output → Data history_
+### Data history and time travel — _product navigation → Data history_
 
 A table-oriented history browser over the catalog's DuckLake snapshots. The timeline shows commit
 time, commit message, schema version, and schema transitions. Choose a table, then:
@@ -348,7 +359,7 @@ further filtering. Read-only users can browse and compare but are not offered re
 Timeline limit when the desired snapshot is older than the newest 100. See
 [Time travel](#time-travel) below for the underlying SQL.
 
-### Storage — _Output → Storage_
+### Storage — _product navigation → Storage_
 
 What each table physically weighs: live rows, total size, Parquet file count, average file size,
 delete-file overhead — and, in the last column, whether the maintenance buttons above are worth
@@ -383,7 +394,7 @@ partition layout of their own.
 > unbounded `LIST` that times out at scale. A snapshot predating the table's creation is reported as
 > an error rather than an empty list — an empty list would be a different and false statement.
 
-### Changes — _Output → Changes_
+### Changes — _product navigation → Changes_
 
 The row-level change feed and the webhook subscriptions that push it, in one place: a subscription's
 last delivered snapshot only means something next to the snapshots the feed is showing.
@@ -394,7 +405,7 @@ effect or the diff. Below the feed, create a subscription with an endpoint URL a
 or delete one — deletion asks first. Consecutive failures and the last error are shown per
 subscription, because a subscription you cannot observe is one you cannot trust.
 
-### Backups — _Output → Backups_
+### Backups — _product navigation → Backups_
 
 Every backup generation, newest first, with its snapshot and table count. A complete generation offers
 **Restore…**; an incomplete one is marked and offers nothing, because a generation with no manifest
@@ -404,7 +415,7 @@ Restore always writes a **new** catalog file and never overwrites, so the catalo
 untouched whatever happens. A bare file name lands beside the server's other catalogs; an absolute
 path is used as given. The result reports the absolute path it actually wrote.
 
-### Eject — _Output → Eject_
+### Eject — _product navigation → Eject_
 
 The bundles written by the exit path, newest first. Expand one to see its per-table attestation: row
 counts and SHA-256 digests, and whether the bundle is signed. A bundle with no manifest is marked
@@ -414,12 +425,12 @@ Eject has no dry run — it only ever writes a new bundle and never touches the 
 **include history** option decides whether the metadata catalog travels with the data so time travel
 survives the export.
 
-### Schedule — _Output → Schedule_
+### Schedule — _product navigation → Schedule_
 
 The scheduled maintenance run log: which job ran against which workspace and catalog, when, how long
 it took, and whether it succeeded. Scoped to what your credential is allowed to see.
 
-### Maintenance operations — _top bar → Maintenance_
+### Maintenance operations — _top bar → Maintain_
 
 Five one-click operations:
 

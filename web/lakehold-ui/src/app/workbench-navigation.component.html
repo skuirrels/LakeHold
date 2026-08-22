@@ -1,6 +1,20 @@
 <div class="nav-primary">
   <button
     type="button"
+    class="nav-item nav-new"
+    aria-label="Add data"
+    [title]="open() ? null : 'Add data'"
+    [class.active]="destination() === 'add-data'"
+    [attr.aria-current]="destination() === 'add-data' ? 'page' : null"
+    (click)="navigate.emit('add-data')"
+  >
+    <svg viewBox="0 0 20 20" aria-hidden="true">
+      <path d="M10 3v14M3 10h14" />
+    </svg>
+    <span>Add data</span>
+  </button>
+  <button
+    type="button"
     class="nav-item"
     aria-label="Workbench"
     [title]="open() ? null : 'Workbench'"
@@ -33,8 +47,8 @@
   <button
     type="button"
     class="nav-item"
-    aria-label="Saved queries"
-    [title]="open() ? null : 'Saved queries'"
+    aria-label="Query library"
+    [title]="open() ? null : 'Query library'"
     [class.active]="destination() === 'queries'"
     [attr.aria-current]="destination() === 'queries' ? 'page' : null"
     (click)="navigate.emit('queries')"
@@ -42,7 +56,7 @@
     <svg viewBox="0 0 20 20" aria-hidden="true">
       <path d="M5 3.5h8l2 2v11H5zM13 3.5v3h3M8 10h4M8 13h4" />
     </svg>
-    <span>Saved queries</span>
+    <span>Query library</span>
   </button>
   <button
     type="button"
@@ -128,7 +142,12 @@
       [attr.aria-current]="destination() === 'connectors' ? 'page' : null"
       (click)="navigate.emit('connectors')"
     >
-      <svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="5" cy="10" r="2" /><circle cx="15" cy="5" r="2" /><circle cx="15" cy="15" r="2" /><path d="M7 10h3M11 10l2.5-4M11 10l2.5 4" /></svg>
+      <svg viewBox="0 0 20 20" aria-hidden="true">
+        <circle cx="5" cy="10" r="2" />
+        <circle cx="15" cy="5" r="2" />
+        <circle cx="15" cy="15" r="2" />
+        <path d="M7 10h3M11 10l2.5-4M11 10l2.5 4" />
+      </svg>
       <span>Connectors</span>
     </button>
     <button

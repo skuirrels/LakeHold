@@ -1,14 +1,67 @@
 <div class="query-head">
-  <span>Reusable queries</span>
+  @if (layout() === 'library') {
+    <div class="library-heading">
+      <p>Workbench</p>
+      <h1>Query library</h1>
+      <span>Find, run, publish, and maintain reusable catalog-scoped queries.</span>
+    </div>
+  } @else {
+    <span>Reusable queries</span>
+  }
   @if (!readOnly()) {
     <button
       class="small-btn accent"
       type="button"
-      [disabled]="!languageAvailable()"
+      [disabled]="!tenant() || !catalog() || !languageAvailable()"
       (click)="beginCreate()"
-    >Save current</button>
+    >
+      Save current
+    </button>
   }
 </div>
+
+@if (layout() === 'library') {
+  <div class="library-controls" role="search" aria-label="Query library filters">
+    <label class="library-search">
+      <span class="visually-hidden">Search queries</span>
+      <input
+        type="search"
+        placeholder="Search name, description, owner, language or view…"
+        [value]="search()"
+        (input)="search.set($any($event.target).value)"
+      />
+    </label>
+    <label>
+      <span>Language</span>
+      <select [value]="languageFilter()" (change)="languageFilter.set($any($event.target).value)">
+        <option value="all">All</option>
+        @for (option of filterLanguages(); track option) {
+          <option [value]="option">{{ option }}</option>
+        }
+      </select>
+    </label>
+    <label>
+      <span>Publication</span>
+      <select
+        [value]="publicationFilter()"
+        (change)="publicationFilter.set($any($event.target).value)"
+      >
+        <option value="all">All</option>
+        <option value="published">Published</option>
+        <option value="attention">Needs attention</option>
+        <option value="draft">Draft</option>
+      </select>
+    </label>
+    <label>
+      <span>Sort</span>
+      <select [value]="sortOrder()" (change)="sortOrder.set($any($event.target).value)">
+        <option value="modified-desc">Recently modified</option>
+        <option value="created-desc">Recently created</option>
+        <option value="name-asc">Name</option>
+      </select>
+    </label>
+  </div>
+}
 
 @if (error(); as message) {
   <div class="query-banner error">{{ message }}</div>
@@ -52,7 +105,9 @@
   </form>
 }
 
-@if (loading()) {
+@if (!tenant() || !catalog()) {
+  <p class="empty">Choose a workspace and catalog to browse reusable queries.</p>
+} @else if (loading()) {
   <p class="empty">Loading saved queries…</p>
 } @else if (queries().length === 0 && !formOpen()) {
   <p class="empty">
@@ -63,7 +118,7 @@
   </p>
 } @else {
   <ul class="query-list">
-    @for (query of queries(); track query.id) {
+    @for (query of visibleQueries(); track query.id) {
       <li>
         <div class="query-title">
           <button type="button" class="query-name" (click)="open(query)">{{ query.name }}</button>
@@ -75,31 +130,39 @@
           <p class="description">{{ query.description }}</p>
         }
 
-        @if (query.publishedViewName) {
-          <div
-            class="publication"
-            [class.stale]="!isPublishedCurrent(query)"
-            [title]="
-              isPublishedCurrent(query)
-                ? 'The view contains the current query revision'
-                : query.publishedSchemaDrifted
-                  ? 'The catalog schema changed after this LINQ view was compiled; review and republish it'
-                  : 'The saved source changed after publication; republish to update the view'
-            "
-          >
-            {{ query.publishedSchema }}.{{ query.publishedViewName }}
-            · {{ isPublishedCurrent(query) ? 'published' : query.publishedSchemaDrifted ? 'schema changed' : 'republish needed' }}
+        @if (layout() === 'library') {
+          <div class="query-metadata">
+            <span>Owner {{ ownerLabel(query) }}</span>
+            <span>Modified by {{ modifierLabel(query) }}</span>
+            <span>Modified {{ formatDate(query.updatedUtc) }}</span>
+            <span>Created {{ formatDate(query.createdUtc) }}</span>
           </div>
         }
+
+        <div
+          class="publication"
+          [class.draft]="!query.publishedViewName"
+          [class.stale]="query.publishedViewName && !isPublishedCurrent(query)"
+          [title]="publicationTitle(query)"
+        >
+          @if (query.publishedViewName) {
+            {{ query.publishedSchema }}.{{ query.publishedViewName }} ·
+          }
+          {{ publicationStatus(query) }}
+        </div>
 
         <div class="query-actions">
           <button
             class="small-btn accent"
             type="button"
             [disabled]="!isLanguageAvailable(query)"
-            [title]="isLanguageAvailable(query) ? 'Run saved query' : 'Its query planner is unavailable'"
+            [title]="
+              isLanguageAvailable(query) ? 'Run saved query' : 'Its query planner is unavailable'
+            "
             (click)="run(query)"
-          >Run</button>
+          >
+            Run
+          </button>
           <button class="small-btn" type="button" (click)="open(query)">Open</button>
           @if (!readOnly()) {
             <button
@@ -107,7 +170,9 @@
               type="button"
               [disabled]="!isLanguageAvailable(query)"
               (click)="beginEdit(query)"
-            >Edit</button>
+            >
+              Edit
+            </button>
             <button
               class="small-btn"
               type="button"
@@ -161,7 +226,9 @@
                 type="submit"
                 [disabled]="busy() || !schemaDraft().trim() || !viewDraft().trim()"
               >
-                {{ busy() ? 'Publishing…' : query.publishedViewName ? 'Republish' : 'Publish view' }}
+                {{
+                  busy() ? 'Publishing…' : query.publishedViewName ? 'Republish' : 'Publish view'
+                }}
               </button>
               <button class="small-btn" type="button" (click)="cancelPublish()">Cancel</button>
             </div>
@@ -171,7 +238,9 @@
         @if (unpublishPending() === query.id) {
           <div class="confirm">
             <span>Drop {{ query.publishedSchema }}.{{ query.publishedViewName }}?</span>
-            <button class="small-btn danger" type="button" (click)="unpublish(query)">Drop view</button>
+            <button class="small-btn danger" type="button" (click)="unpublish(query)">
+              Drop view
+            </button>
             <button class="small-btn" type="button" (click)="cancelUnpublish()">Cancel</button>
           </div>
         }
@@ -184,6 +253,8 @@
           </div>
         }
       </li>
+    } @empty {
+      <li class="empty filtered-empty">No saved queries match these filters.</li>
     }
   </ul>
 }

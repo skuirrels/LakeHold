@@ -8,14 +8,15 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
+import { NgTemplateOutlet } from '@angular/common';
 import { RouterLink } from '@angular/router';
-import { EMPTY, Observable, of, throwError } from 'rxjs';
+import { EMPTY, forkJoin, Observable, of, throwError } from 'rxjs';
 import { catchError, switchMap } from 'rxjs/operators';
 import { AuthService } from './auth.service';
 import { BackupsPanelComponent } from './backups-panel.component';
 import { BrandMarkComponent } from './brand-mark.component';
 import { CatalogExplorerComponent } from './catalog-explorer.component';
-import { TabularImportComponent } from './tabular-import.component';
+import { AddDataHubComponent } from './add-data-hub.component';
 import { ChangesPanelComponent } from './changes-panel.component';
 import { DataHistoryPanelComponent } from './data-history-panel.component';
 import { EjectPanelComponent } from './eject-panel.component';
@@ -30,11 +31,13 @@ import { ApiError, LakehouseService } from './lakehouse.service';
 import {
   AccessContext,
   BrowserSession,
+  DataConnector,
   MaintenanceOperation,
   QueryDiagnostic,
   QueryLanguage,
   QueryResponse,
   QueryRun,
+  SavedQuery,
   Schema,
   TableReference,
   TabularImportResult,
@@ -49,10 +52,12 @@ import { StoragePanelComponent } from './storage-panel.component';
 import { SystemSettingsComponent } from './system-settings.component';
 import { ManagedConnectorsComponent } from './managed-connectors.component';
 import { ThemeToggleComponent } from './theme-toggle.component';
+import { WorkbenchSearchComponent } from './workbench-search.component';
 import {
   WorkbenchDestination,
   WorkbenchNavigationComponent,
 } from './workbench-navigation.component';
+import { WorkbenchQuerySource } from './workbench-query-source';
 
 const STARTER_SQL = `-- Aggregate 250k rows in a few milliseconds.
 SELECT
@@ -67,21 +72,14 @@ ORDER BY revenue DESC;`;
 /** Kept in the display name itself so the selector, editor label, and saved queries all agree. */
 const UNAVAILABLE_SUFFIX = '(unavailable)';
 
-export interface WorkbenchQuerySource {
-  language: string;
-  source: string;
-}
-
-type BottomTab =
-  'results' | 'history' | 'snapshots' | 'storage' | 'backups' | 'ejects' | 'changes' | 'schedule';
+type BottomTab = 'results' | 'history';
 
 /**
  * The SQL IDE.
  *
- * This component owns the chrome — workspace and catalog selectors, the maintenance buttons, the
- * credential popover, the editor, and the tab strip — plus the two panels that belong to running a
- * statement: results and query history. Everything else below the editor is its own component, one
- * per tab, each owning its own state, its own requests, and its own error banner.
+ * This component owns the chrome — workspace and catalog selectors, the Maintain menu, credential
+ * popover, editor, and its Results / Query history tabs. Add data, the query library, and every
+ * operational surface are focused destinations whose components own their requests and errors.
  *
  * That split is what keeps a failure from leaking between panels: a panel's banner is destroyed with
  * the panel, so a restore refusal cannot hang over the eject list. See `docs/UI.md`.
@@ -90,11 +88,11 @@ type BottomTab =
   selector: 'lh-workbench',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    AddDataHubComponent,
     BackupsPanelComponent,
     BrandMarkComponent,
     CatalogExplorerComponent,
     ChangesPanelComponent,
-    TabularImportComponent,
     DataHistoryPanelComponent,
     EjectPanelComponent,
     FirstRunComponent,
@@ -107,8 +105,10 @@ type BottomTab =
     StoragePanelComponent,
     SystemSettingsComponent,
     ManagedConnectorsComponent,
+    NgTemplateOutlet,
     ThemeToggleComponent,
     WorkbenchNavigationComponent,
+    WorkbenchSearchComponent,
   ],
   templateUrl: './workbench.component.html',
   styleUrl: './workbench.component.css',
@@ -118,19 +118,11 @@ export class WorkbenchComponent {
   private readonly destroyRef = inject(DestroyRef);
   private tenantRequestGeneration = 0;
   private catalogRequestGeneration = 0;
+  private historyRequestGeneration = 0;
   private readonly sourceBuffers = new Map<string, string>([['sql', STARTER_SQL]]);
   protected readonly auth = inject(AuthService);
   protected readonly browserSession = signal<BrowserSession | null>(null);
 
-  /**
-   * The panels a committed maintenance operation invalidates.
-   *
-   * Only the visible one exists — the tab strip is a `@switch` — so these are undefined most of the
-   * time, which is exactly right: a panel that is not on screen reloads when it is next shown.
-   */
-  private readonly storagePanel = viewChild(StoragePanelComponent);
-  private readonly backupsPanel = viewChild(BackupsPanelComponent);
-  private readonly dataHistoryPanel = viewChild(DataHistoryPanelComponent);
   private readonly navigationToggle = viewChild<ElementRef<HTMLButtonElement>>('navigationToggle');
   private readonly productNavigation = viewChild(WorkbenchNavigationComponent);
   private readonly contextPanel = viewChild<ElementRef<HTMLElement>>('contextPanel');
@@ -167,7 +159,9 @@ export class WorkbenchComponent {
     },
   ]);
   protected readonly activeLanguage = computed(
-    () => this.queryLanguages().find((candidate) => candidate.id === this.language()) ?? this.queryLanguages()[0],
+    () =>
+      this.queryLanguages().find((candidate) => candidate.id === this.language()) ??
+      this.queryLanguages()[0],
   );
   protected readonly activeLanguageAvailable = computed(
     () => this.activeLanguage()?.available !== false,
@@ -179,9 +173,7 @@ export class WorkbenchComponent {
    */
   protected readonly activeLanguageUnavailableMessage = computed(() => {
     const reason = this.activeLanguage()?.unavailableReason;
-    return reason
-      ? `Planner unavailable — ${reason}`
-      : 'Planner unavailable — source is view-only';
+    return reason ? `Planner unavailable — ${reason}` : 'Planner unavailable — source is view-only';
   });
   protected readonly activeLanguageCanSave = computed(
     () => this.activeLanguageAvailable() && (this.activeLanguage()?.supportsSavedQueries ?? false),
@@ -203,8 +195,12 @@ export class WorkbenchComponent {
   /** A destructive operation whose dry run has completed and is awaiting confirmation. */
   protected readonly pendingApply = signal<MaintenanceOperation | null>(null);
   protected readonly tab = signal<BottomTab>('results');
-  protected readonly sidebarTab = signal<'catalog' | 'queries'>('catalog');
   protected readonly navigationDestination = signal<WorkbenchDestination>('workbench');
+  protected readonly maintenanceOpen = signal(false);
+  protected readonly searchOpen = signal(false);
+  protected readonly searchQueries = signal<SavedQuery[]>([]);
+  protected readonly searchConnectors = signal<DataConnector[]>([]);
+  protected readonly connectorKind = signal<string | null>(null);
   protected readonly navigationOpen = signal(true);
   protected readonly contextPanelOpen = signal(true);
   protected readonly compactViewport = signal(false);
@@ -308,6 +304,9 @@ export class WorkbenchComponent {
    * `role === 'owner'` offered it a page every request on which is refused.
    */
   protected readonly canAdminister = computed(() => this.access()?.tenantAdmin ?? false);
+  protected readonly canManageConnectors = computed(
+    () => this.canAdminister() && !this.readOnlyAccess(),
+  );
 
   /** Whether an identity provider is configured, so "Sign in" can mean an actual login. */
   protected readonly ssoAvailable = computed(() => this.browserSession()?.oidcEnabled ?? false);
@@ -380,7 +379,9 @@ export class WorkbenchComponent {
           // the selector. Dropping it is what left "where did C# LINQ go?" with no answer anywhere
           // the person asking could see.
           const available = languages.map((language) =>
-            language.available === false ? markUnavailable(language) : { ...language, available: true },
+            language.available === false
+              ? markUnavailable(language)
+              : { ...language, available: true },
           );
           const current = this.language();
           if (available.some((language) => language.id === current)) {
@@ -483,10 +484,7 @@ export class WorkbenchComponent {
           // not reach it: System Settings is instance-only, and Users needs a workspace owner. Send
           // such a principal back to a surface it owns rather than leaving it on a refusal.
           const destination = this.navigationDestination();
-          if (
-            destination === 'settings'
-            || (destination === 'users' && !this.canAdminister())
-          ) {
+          if (destination === 'settings' || (destination === 'users' && !this.canAdminister())) {
             this.navigationDestination.set('workbench');
           }
 
@@ -650,6 +648,7 @@ export class WorkbenchComponent {
     this.catalogName.set(name);
     this.inspectedTable.set(null);
     this.refreshCatalog();
+    this.refreshHistory();
   }
 
   protected run(): void {
@@ -715,8 +714,9 @@ export class WorkbenchComponent {
     }
 
     this.sourceBuffers.set(this.language(), this.sql());
-    const descriptor = this.queryLanguages().find((candidate) => candidate.id === language)
-      ?? unavailableLanguage(language);
+    const descriptor =
+      this.queryLanguages().find((candidate) => candidate.id === language) ??
+      unavailableLanguage(language);
     if (!this.queryLanguages().some((candidate) => candidate.id === language)) {
       this.queryLanguages.update((languages) => [...languages, descriptor]);
     }
@@ -743,9 +743,9 @@ export class WorkbenchComponent {
     this.api.getQueryStarter(tenant, catalog, language).subscribe({
       next: (starter) => {
         if (
-          this.language() === language
-          && this.sql() === fallback
-          && !this.sourceBuffers.has(language)
+          this.language() === language &&
+          this.sql() === fallback &&
+          !this.sourceBuffers.has(language)
         ) {
           this.sql.set(starter.source);
           this.sourceBuffers.set(language, starter.source);
@@ -765,6 +765,7 @@ export class WorkbenchComponent {
   }
 
   protected closeNavigationOverlays(): void {
+    this.maintenanceOpen.set(false);
     if (!this.navigationOverlayOpen()) {
       return;
     }
@@ -798,48 +799,93 @@ export class WorkbenchComponent {
     this.loadTenants();
   }
 
+  protected toggleSearch(): void {
+    const opening = !this.searchOpen();
+    this.searchOpen.set(opening);
+    if (!opening) {
+      return;
+    }
+
+    // Never show metadata from the catalog that was selected when the palette was last opened.
+    this.searchQueries.set([]);
+    this.searchConnectors.set([]);
+    const tenant = this.tenantSlug();
+    const catalog = this.catalogName();
+    if (!tenant || !catalog) {
+      return;
+    }
+
+    forkJoin({
+      queries: this.api.listSavedQueries(tenant, catalog).pipe(catchError(() => of([]))),
+      connectors: this.canManageConnectors()
+        ? this.api.listConnectors(tenant, catalog).pipe(catchError(() => of([])))
+        : of([] as DataConnector[]),
+    }).subscribe(({ queries, connectors }) => {
+      if (this.tenantSlug() === tenant && this.catalogName() === catalog) {
+        this.searchQueries.set(queries);
+        this.searchConnectors.set(connectors);
+      }
+    });
+  }
+
+  protected selectSearchContext(context: { tenant: string; catalog: string }): void {
+    this.tenantSlug.set(context.tenant);
+    this.catalogName.set(context.catalog);
+    this.inspectedTable.set(null);
+    this.refreshCatalog();
+    this.refreshHistory();
+    this.navigationDestination.set('workbench');
+  }
+
+  protected openSearchSource(query: WorkbenchQuerySource): void {
+    this.openSource(query);
+    this.tab.set('results');
+    this.navigationDestination.set('workbench');
+  }
+
+  protected configureConnector(kind: string): void {
+    this.connectorKind.set(kind);
+    this.openNavigation('connectors');
+  }
+
   protected openNavigation(destination: WorkbenchDestination): void {
     this.navigationDestination.set(destination);
+    this.maintenanceOpen.set(false);
+    if (destination !== 'connectors') {
+      // A source selected in Add data is a one-navigation handoff, not a sticky connector default.
+      this.connectorKind.set(null);
+    }
+    if (destination !== 'workbench') {
+      this.error.set(null);
+      this.catalogError.set(null);
+    }
 
     switch (destination) {
       case 'workbench':
         this.showTab('results', false);
+        this.contextPanelOpen.set(true);
         break;
       case 'catalog':
-        this.showSidebar('catalog');
-        break;
       case 'queries':
-        this.showSidebar('queries');
-        break;
+      case 'add-data':
       case 'users':
       case 'settings':
       case 'connectors':
-        // Full-width administration pages: the catalog panel has nothing to say beside them.
+      case 'history':
+      case 'snapshots':
+      case 'storage':
+      case 'changes':
+      case 'backups':
+      case 'ejects':
+      case 'schedule':
+        // Focused destinations own the canvas; only the editor keeps its catalog context panel.
         this.contextPanelOpen.set(false);
         break;
-      default:
-        this.showTab(destination, false);
-        if (this.compactViewport()) {
-          this.contextPanelOpen.set(false);
-        }
-        break;
     }
 
     if (this.compactViewport()) {
       this.navigationOpen.set(false);
-      if (destination !== 'catalog' && destination !== 'queries') {
-        this.focusNavigationToggle();
-      }
-    }
-  }
-
-  protected showSidebar(tab: 'catalog' | 'queries'): void {
-    this.sidebarTab.set(tab);
-    this.contextPanelOpen.set(true);
-    this.navigationDestination.set(tab);
-    if (this.compactViewport()) {
-      this.navigationOpen.set(false);
-      this.focusContextPanel();
+      this.focusNavigationToggle();
     }
   }
 
@@ -854,7 +900,7 @@ export class WorkbenchComponent {
   private focusContextPanel(): void {
     this.afterRender(() =>
       this.contextPanel()
-        ?.nativeElement.querySelector<HTMLButtonElement>('.sidebar-tab.active')
+        ?.nativeElement.querySelector<HTMLButtonElement>('.context-toggle')
         ?.focus(),
     );
   }
@@ -869,8 +915,8 @@ export class WorkbenchComponent {
 
   protected inspectTable(table: TableReference): void {
     this.inspectedTable.set(table);
-    this.tab.set('storage');
     this.navigationDestination.set('storage');
+    this.contextPanelOpen.set(false);
     this.error.set(null);
   }
 
@@ -889,6 +935,7 @@ export class WorkbenchComponent {
     }
 
     this.notice.set(null);
+    this.maintenanceOpen.set(false);
     this.error.set(null);
     this.pendingApply.set(null);
 
@@ -899,16 +946,8 @@ export class WorkbenchComponent {
         );
         this.pendingApply.set(res.dryRun ? operation : null);
 
-        // A dry run changed nothing and needs no refresh. A committed one did, and the panel showing
-        // its effect must say so: pressing Compact and watching the file count stay put is the whole
-        // reason the storage panel is worth having.
-        if (!res.dryRun) {
-          this.dataHistoryPanel()?.reload();
-          this.storagePanel()?.reload();
-          if (operation === 'backup') {
-            this.backupsPanel()?.reload();
-          }
-        }
+        // Operational destinations are created on navigation and load their own current state.
+        // They are never mounted beside this menu, so there is no hidden panel instance to refresh.
       },
       error: (err: Error) => this.fail('Maintenance failed', err.message),
     });
@@ -929,7 +968,7 @@ export class WorkbenchComponent {
   protected showTab(tab: BottomTab, updateNavigation = true): void {
     this.tab.set(tab);
     if (updateNavigation) {
-      this.navigationDestination.set(tab === 'results' ? 'workbench' : tab);
+      this.navigationDestination.set('workbench');
     }
 
     // A query failure belongs to the editor, not to whatever panel the operator opens next. The
@@ -1020,14 +1059,26 @@ export class WorkbenchComponent {
 
   protected refreshHistory(): void {
     const tenant = this.tenantSlug();
-    if (!tenant) {
+    const catalog = this.catalogName();
+    const requestGeneration = ++this.historyRequestGeneration;
+    if (!tenant || !catalog) {
+      this.history.set([]);
       return;
     }
 
     // History is advisory; a failure here must not replace the query error the user is reading.
-    this.api
-      .getHistory(tenant)
-      .subscribe({ next: (runs) => this.history.set(runs), error: () => undefined });
+    this.api.getHistory(tenant).subscribe({
+      next: (runs) => {
+        if (
+          requestGeneration === this.historyRequestGeneration &&
+          this.tenantSlug() === tenant &&
+          this.catalogName() === catalog
+        ) {
+          this.history.set(runs.filter((run) => run.catalogName === catalog));
+        }
+      },
+      error: () => undefined,
+    });
   }
 }
 

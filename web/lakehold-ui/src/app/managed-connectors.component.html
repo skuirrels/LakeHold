@@ -9,7 +9,7 @@
   </header>
 
   <div class="toolbar">
-    <button class="btn" type="button" (click)="reload()" [disabled]="loading()">Refresh</button>
+    <button class="btn" type="button" (click)="refresh()" [disabled]="loading()">Refresh</button>
     <button
       class="btn btn-primary"
       type="button"
@@ -171,7 +171,10 @@
           <h3>PostgreSQL source</h3>
           <div class="fields">
             <label class="field wide">
-              <span>PostgreSQL URL <small>host and database only — credentials are references below</small></span>
+              <span
+                >PostgreSQL URL
+                <small>host and database only — credentials are references below</small></span
+              >
               <input
                 placeholder="postgresql://erp-db.example.com/erp"
                 [value]="endpoint()"
@@ -206,13 +209,23 @@
         </div>
       } @else {
         <div class="section">
-          <h3>{{ supports('hubspot') ? 'HubSpot source' : supports('grpc') ? 'gRPC source' : 'REST source' }}</h3>
+          <h3>
+            {{
+              supports('hubspot')
+                ? 'HubSpot source'
+                : supports('grpc')
+                  ? 'gRPC source'
+                  : 'REST source'
+            }}
+          </h3>
           <div class="fields">
             @if (supports('hubspot')) {
               <!-- Fixed by the adapter, which builds its own paths under this base. Editable, it is
                    only a way to save a definition the server refuses. -->
               <label class="field wide">
-                <span>HubSpot API base <small>fixed — the adapter builds its own paths</small></span>
+                <span
+                  >HubSpot API base <small>fixed — the adapter builds its own paths</small></span
+                >
                 <input type="url" readonly [value]="endpoint()" />
               </label>
             } @else if (supports('grpc')) {
@@ -227,7 +240,9 @@
               </label>
             } @else {
               <label class="field wide">
-                <span>Endpoint URL <small>the complete resource URL — one GET, read whole</small></span>
+                <span
+                  >Endpoint URL <small>the complete resource URL — one GET, read whole</small></span
+                >
                 <input
                   type="url"
                   placeholder="https://source.example.com/v1/orders"
@@ -349,7 +364,8 @@
                     [class.state-ready]="health(connector) === 'ready'"
                     [class.state-paused]="health(connector) === 'paused'"
                     [class.state-attention]="health(connector) === 'attention'"
-                  >{{ healthLabel(connector) }}</span>
+                    >{{ healthLabel(connector) }}</span
+                  >
                   @if (healthDetail(connector); as detail) {
                     <span class="state-detail">{{ detail }}</span>
                   }
@@ -361,22 +377,52 @@
                       type="button"
                       [disabled]="busy() || !!connector.sourceAcknowledgementPendingUtc"
                       (click)="run(connector)"
-                    >Run</button>
-                    <button class="btn btn-sm" type="button" [disabled]="busy()" (click)="toggle(connector)">{{
-                      connector.pausedUtc ? 'Resume' : 'Pause'
-                    }}</button>
-                    <button class="btn btn-sm" type="button" [disabled]="busy()" (click)="edit(connector)">Edit</button>
-                    <button class="btn btn-sm" type="button" [disabled]="busy()" (click)="inspect(connector)">Details</button>
-                    <button class="btn btn-sm" type="button" [disabled]="busy()" (click)="retry(connector)">{{
-                      connector.sourceAcknowledgementPendingUtc ? 'Recover and retry' : 'Retry'
-                    }}</button>
+                    >
+                      Run
+                    </button>
+                    <button
+                      class="btn btn-sm"
+                      type="button"
+                      [disabled]="busy()"
+                      (click)="toggle(connector)"
+                    >
+                      {{ connector.pausedUtc ? 'Resume' : 'Pause' }}
+                    </button>
+                    <button
+                      class="btn btn-sm"
+                      type="button"
+                      [disabled]="busy()"
+                      (click)="edit(connector)"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      class="btn btn-sm"
+                      type="button"
+                      [disabled]="busy()"
+                      (click)="inspect(connector)"
+                    >
+                      Details
+                    </button>
+                    <button
+                      class="btn btn-sm"
+                      type="button"
+                      [disabled]="busy()"
+                      (click)="retry(connector)"
+                    >
+                      {{
+                        connector.sourceAcknowledgementPendingUtc ? 'Recover and retry' : 'Retry'
+                      }}
+                    </button>
                     <button
                       class="btn btn-sm btn-danger"
                       type="button"
                       [class.confirm]="pendingRetireId() === connector.id"
                       [disabled]="busy()"
                       (click)="remove(connector)"
-                    >{{ pendingRetireId() === connector.id ? 'Confirm retire' : 'Retire' }}</button>
+                    >
+                      {{ pendingRetireId() === connector.id ? 'Confirm retire' : 'Retire' }}
+                    </button>
                   </div>
                 </td>
               </tr>

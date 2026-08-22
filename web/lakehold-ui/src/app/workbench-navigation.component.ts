@@ -9,6 +9,7 @@ import {
 
 export type WorkbenchDestination =
   | 'workbench'
+  | 'add-data'
   | 'catalog'
   | 'queries'
   | 'history'

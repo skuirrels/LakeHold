@@ -9,12 +9,9 @@ import { issueOwnerToken, signIn, testTenant } from './credential';
  */
 const tablePrefix = 'imported_';
 
-const csv = [
-  'region,units,revenue',
-  'north,12,1500.50',
-  'south,7,880.25',
-  'east,19,2410.00',
-].join('\n');
+const csv = ['region,units,revenue', 'north,12,1500.50', 'south,7,880.25', 'east,19,2410.00'].join(
+  '\n',
+);
 
 function uniqueTable(): string {
   return `${tablePrefix}${Date.now().toString(36)}${Math.floor(Math.random() * 1e4).toString(36)}`;
@@ -49,6 +46,23 @@ async function openWorkbench(page: Page): Promise<void> {
   await expect(page.getByLabel('SQL editor')).toBeVisible();
 }
 
+async function openFileImport(page: Page): Promise<void> {
+  await page
+    .locator('#workbench-navigation')
+    .getByRole('button', { name: 'Add data', exact: true })
+    .click();
+  await expect(page.getByRole('heading', { name: 'Add data' })).toBeVisible();
+  await page.getByRole('button', { name: 'Import data' }).click();
+}
+
+async function returnToEditor(page: Page): Promise<void> {
+  await page
+    .locator('#workbench-navigation')
+    .getByRole('button', { name: 'Workbench', exact: true })
+    .click();
+  await expect(page.getByLabel('SQL editor')).toBeVisible();
+}
+
 test.describe('loading a file into the lakehouse', () => {
   // An upload crosses the browser, the API, and a DuckLake write, and the first one in a session
   // also warms DuckDB's CSV path. The default 30s is not enough headroom for that on a cold stack.
@@ -66,7 +80,7 @@ test.describe('loading a file into the lakehouse', () => {
   test('imports a CSV as a table and queries it back', async ({ page }) => {
     const table = uniqueTable();
 
-    await page.getByRole('button', { name: 'Import data' }).click();
+    await openFileImport(page);
     // The component element wraps the trigger button as well as the modal, so it is never hidden;
     // the modal itself is what opens and closes.
     const dialog = page.getByRole('dialog', { name: 'Import a file as a table' });
@@ -99,9 +113,10 @@ test.describe('loading a file into the lakehouse', () => {
 
     // Reading it back through ordinary SQL is the only proof that matters. A dialog that reports
     // success while the rows went nowhere looks identical from inside the dialog.
-    await page.getByLabel('SQL editor').fill(
-      `SELECT region, units, revenue FROM main.${table} ORDER BY units;`,
-    );
+    await returnToEditor(page);
+    await page
+      .getByLabel('SQL editor')
+      .fill(`SELECT region, units, revenue FROM main.${table} ORDER BY units;`);
     await page.getByRole('main').getByRole('button', { name: /^Run/ }).click();
 
     await expect(page.getByRole('columnheader', { name: /region/i })).toBeVisible();
@@ -121,7 +136,7 @@ test.describe('loading a file into the lakehouse', () => {
 
     await page.reload();
     await expect(page.getByLabel('SQL editor')).toBeVisible();
-    await page.getByRole('button', { name: 'Import data' }).click();
+    await openFileImport(page);
     const dialog = page.getByRole('dialog', { name: 'Import a file as a table' });
 
     await dialog.locator('input[type="file"]').setInputFiles({
@@ -138,6 +153,7 @@ test.describe('loading a file into the lakehouse', () => {
 
     // And the original table is untouched: its column is still there and the CSV's are not.
     await page.getByRole('button', { name: 'Close file import' }).click();
+    await returnToEditor(page);
     await page.getByLabel('SQL editor').fill(`SELECT * FROM main.${table};`);
     await page.getByRole('main').getByRole('button', { name: /^Run/ }).click();
     await expect(page.getByRole('columnheader', { name: /existing/i })).toBeVisible();

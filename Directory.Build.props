@@ -21,7 +21,7 @@
       Keep this in step with the release tag. A release build may override it with
       `-p:Version=<tag>` without editing the file.
     -->
-    <Version>2.4.0</Version>
+    <Version>2.5.0</Version>
     <Product>Lakehold</Product>
     <Company>Lakehold</Company>
     <Authors>Lakehold contributors</Authors>

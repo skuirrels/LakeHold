@@ -35,10 +35,9 @@ async function removeJourneyQueries(request: APIRequestContext): Promise<void> {
     // which is why the delete uses the revision that call returns rather than the listed one.
     let revision = query.revision;
     if (query.publishedViewName) {
-      const dropped = await request.post(
-        `${base}/${query.id}/unpublish?revision=${revision}`,
-        { headers },
-      );
+      const dropped = await request.post(`${base}/${query.id}/unpublish?revision=${revision}`, {
+        headers,
+      });
       if (dropped.ok()) {
         revision = ((await dropped.json()) as { revision: number }).revision;
       }
@@ -104,7 +103,10 @@ async function writeSql(page: Page, sql: string): Promise<void> {
 
 /** Opens the saved-query panel and returns its root, which every later locator is scoped to. */
 async function openSavedQueries(page: Page) {
-  await page.locator('.sidebar-tabs').getByRole('button', { name: 'Saved queries' }).click();
+  await page
+    .locator('#workbench-navigation')
+    .getByRole('button', { name: 'Query library', exact: true })
+    .click();
   const panel = page.locator('lh-saved-queries-panel');
   await expect(panel).toBeVisible();
   return panel;
@@ -126,7 +128,7 @@ test.describe('saved query lifecycle', () => {
 
     const panel = await openSavedQueries(page);
     await panel.getByRole('button', { name: 'Save current' }).click();
-    await panel.getByLabel('Name').fill(name);
+    await panel.locator('.query-form').getByLabel('Name', { exact: true }).fill(name);
     await panel.getByLabel('Description').fill('Created by the saved-query browser journey.');
     await panel.getByRole('button', { name: 'Save', exact: true }).click();
 
@@ -152,7 +154,7 @@ test.describe('saved query lifecycle', () => {
 
     const panel = await openSavedQueries(page);
     await panel.getByRole('button', { name: 'Save current' }).click();
-    await panel.getByLabel('Name').fill(name);
+    await panel.locator('.query-form').getByLabel('Name', { exact: true }).fill(name);
     await panel.getByRole('button', { name: 'Save', exact: true }).click();
 
     const entry = panel.locator('li', { hasText: name });
@@ -166,18 +168,25 @@ test.describe('saved query lifecycle', () => {
     // request had landed and the test raced on into a half-open publish form.
     await expect(entry).toContainText('Unpublish');
 
-    await page.locator('.sidebar-tabs').getByRole('button', { name: 'Catalog', exact: true }).click();
+    await page
+      .locator('#workbench-navigation')
+      .getByRole('button', { name: 'Catalog', exact: true })
+      .click();
     // Polled rather than filtered, because the explorer loads asynchronously when it is shown and
     // typing into the filter races that load. Note what this does and does not prove: it asserts the
     // published view is visible to a person who opens the catalog, not that any particular refresh
     // path fired — removing the panel's `schemaChanged` wiring leaves this test green, because
     // switching to the tab reloads the explorer anyway.
     await expect
-      .poll(async () => (await page.locator('.sidebar').innerText()).includes(name), {
+      .poll(async () => (await page.locator('main').innerText()).includes(name), {
         timeout: 15_000,
       })
       .toBe(true);
 
+    await page
+      .locator('#workbench-navigation')
+      .getByRole('button', { name: 'Workbench', exact: true })
+      .click();
     await writeSql(page, `SELECT state, magnitude FROM main.${name};`);
     await page.getByRole('main').getByRole('button', { name: /^Run/ }).click();
     await expect(page.getByRole('main')).toContainText('published');
@@ -191,6 +200,10 @@ test.describe('saved query lifecycle', () => {
     await republished.getByRole('button', { name: 'Drop view' }).click();
     await expect(republished).not.toContainText('Unpublish');
 
+    await page
+      .locator('#workbench-navigation')
+      .getByRole('button', { name: 'Workbench', exact: true })
+      .click();
     await writeSql(page, `SELECT * FROM main.${name};`);
     await page.getByRole('main').getByRole('button', { name: /^Run/ }).click();
     await expect(page.locator('.error-banner')).toContainText(new RegExp(name, 'i'));
@@ -202,7 +215,7 @@ test.describe('saved query lifecycle', () => {
 
     const panel = await openSavedQueries(page);
     await panel.getByRole('button', { name: 'Save current' }).click();
-    await panel.getByLabel('Name').fill(name);
+    await panel.locator('.query-form').getByLabel('Name', { exact: true }).fill(name);
     await panel.getByRole('button', { name: 'Save', exact: true }).click();
 
     const entry = panel.locator('li', { hasText: name });
@@ -214,11 +227,16 @@ test.describe('saved query lifecycle', () => {
     // editor currently holds, so the editor changes first and `Save revision` captures it. The badge
     // exists so that a reader querying the view is not silently served the superseded definition
     // with nothing anywhere saying so.
+    await page
+      .locator('#workbench-navigation')
+      .getByRole('button', { name: 'Workbench', exact: true })
+      .click();
     await writeSql(page, 'SELECT 2 AS version;');
+    await openSavedQueries(page);
     await entry.getByRole('button', { name: 'Edit' }).click();
     await panel.getByRole('button', { name: 'Save revision' }).click();
 
-    await expect(entry).toContainText('republish needed');
+    await expect(entry).toContainText('Needs attention · republish');
 
     // Republishing clears it, which is the other half of the claim — the badge tracks the source
     // rather than latching on once.
@@ -226,7 +244,7 @@ test.describe('saved query lifecycle', () => {
     // Scoped to the form: the row's trigger and the form's submit share the label, and picking the
     // wrong one silently re-opens the form instead of republishing.
     await panel.locator('.publish-form').getByRole('button', { name: 'Republish' }).click();
-    await expect(entry).not.toContainText('republish needed');
+    await expect(entry).not.toContainText('Needs attention · republish');
     await expect(entry).toContainText('Unpublish');
 
     await entry.getByRole('button', { name: 'Unpublish' }).click();

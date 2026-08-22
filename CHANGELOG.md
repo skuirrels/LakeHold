@@ -7,6 +7,41 @@ and LakeHold follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.5.0] - 2026-08-22
+
+Makes the browser Workbench a focused product workspace with dedicated discovery, ingestion, and
+operational destinations.
+
+### Added
+
+- **Add data is a dedicated source hub.** File imports and the built-in REST, gRPC, PostgreSQL,
+  HubSpot, and Kafka Avro adapters are searchable in one place, with a guided handoff into the
+  managed-connector form.
+- **Reusable queries have a full Query Library.** Search, language and publication filters, sorting,
+  actor metadata, timestamps, and publication health make catalog-scoped definitions discoverable
+  without occupying the editor sidebar.
+- **Query results are interactive.** Returned rows can be searched, copied, exported to CSV, and
+  viewed with positional column visibility and datatype cues while the bounded-row and runtime
+  summary stays visible.
+- **Global `⌘K` / `Ctrl+K` search** reaches commands, accessible catalogs, tables and columns,
+  saved queries, managed connectors, and catalog-scoped query history.
+
+### Changed
+
+- **The Workbench now concentrates on authoring and execution.** Results and Query History remain
+  below the editor; Add Data, Catalog, Query Library, Data History, Storage, Changes, Backups, Eject,
+  Schedule, and administration are focused product-navigation destinations. Catalog maintenance is
+  collected under one contextual **Maintain** menu.
+
+### Fixed
+
+- Catalog changes cannot be overwritten by late saved-query, query-history, connector-list, or
+  connector-diagnostic responses, and catalog-specific discovery filters reset with their context.
+- Result filtering and hidden-column choices reset between executions, duplicate result-column names
+  remain independently addressable, and clipboard refusal is reported without an unhandled promise.
+- The global search dialog explicitly manages focus, isolates the background while open, and returns
+  focus to its launcher when dismissed.
+
 ## [2.4.0] - 2026-08-20
 
 Completes the MCP server's agent-facing contract and fixes a data-correctness bug found while
@@ -560,7 +595,8 @@ works the way every instruction says it does.
 - Production API and web container images for Linux amd64 and arm64, Compose deployment, health
   checks, telemetry, and a reproducible end-to-end test suite.
 
-[Unreleased]: https://github.com/skuirrels/LakeHold/compare/v2.4.0...HEAD
+[Unreleased]: https://github.com/skuirrels/LakeHold/compare/v2.5.0...HEAD
+[2.5.0]: https://github.com/skuirrels/LakeHold/compare/v2.4.0...v2.5.0
 [2.4.0]: https://github.com/skuirrels/LakeHold/compare/v2.3.2...v2.4.0
 [2.3.2]: https://github.com/skuirrels/LakeHold/compare/v2.3.1...v2.3.2
 [2.3.1]: https://github.com/skuirrels/LakeHold/compare/v2.3.0...v2.3.1
