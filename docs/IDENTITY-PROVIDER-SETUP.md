@@ -20,7 +20,7 @@ Three kinds of caller, three mechanisms:
 |---|---|---|
 | **Users** | Browser sign-in at your identity provider | A membership row you manage under **Users** |
 | **Clients** — BI tools, scripts, SDKs, the PostgreSQL wire endpoint | An API token (`lkh_…`) | The role and catalog scope baked into that token |
-| **Agents** — MCP clients such as Claude or Codex | An API token, or OAuth authorization code with PKCE as a person | The token role or the person's membership, plus operator switches for writes and operator commands |
+| **Agents** — MCP clients such as Claude Code, Codex, or Antigravity CLI | An API token, or OAuth authorization code with PKCE as a person | The token role or the person's membership, plus operator switches for writes and operator commands |
 
 ## Part 1 — Running a production node for the first time
 
@@ -219,10 +219,12 @@ PKCE-only OIDC client and set:
 LAKEHOLD_OIDC_MCP_CLIENT_ID=lakehold-mcp
 ```
 
-The registration has no client secret. Allow the loopback callback URIs your MCP client documents,
-emit the same membership claims as the Workbench client, and configure the access-token audience as
-the public MCP endpoint. Behind a proxy, first save the externally reachable **Public base URL** in
-System Settings; it is required for the resource identifier and callback discovery to be truthful.
+The registration has no client secret. Allow the callback URIs your MCP clients document: Codex and
+Claude Code use loopback callbacks, while Antigravity uses
+`https://antigravity.google/oauth-callback`. Emit the same membership claims as the Workbench client,
+and configure the access-token audience as the public MCP endpoint. Behind a proxy, first save the
+externally reachable **Public base URL** in System Settings; it is required for the resource identifier
+and callback discovery to be truthful.
 LakeHold advertises `scopes_supported`, the resource URL, and an optional `client_id` extension from
 its RFC 9728 document. Configure clients that support a pre-registered OAuth id explicitly; for
 example, Codex accepts the client id and discovers the RFC 8707 resource from that document:
@@ -253,6 +255,27 @@ If `claude mcp login` is not available in the installed version, open Claude Cod
 `lakehold`, and authenticate there. Do not pass `--client-secret`: this registration is public and
 PKCE-only.
 
+Antigravity CLI takes the same public client id from `~/.gemini/config/mcp_config.json` (or a
+workspace-scoped `.agents/mcp_config.json`):
+
+```json
+{
+  "mcpServers": {
+    "lakehold": {
+      "serverUrl": "https://lakehold.example.com/mcp",
+      "oauth": {
+        "clientId": "lakehold-mcp"
+      }
+    }
+  }
+}
+```
+
+Start `agy`, enter `/mcp`, select `lakehold`, and choose **Authenticate**. Complete the browser login,
+copy the authorization code from Antigravity's callback page, and paste it back into the prompt.
+Antigravity discovers the authorization server from LakeHold's metadata; do not configure a client
+secret.
+
 For the bundled development stack, the exact commands are:
 
 ```bash
@@ -266,15 +289,19 @@ claude mcp add --transport http --client-id lakehold-mcp \
 claude mcp login lakehold
 ```
 
+For Antigravity CLI, use the same settings entry above with `serverUrl` set to
+`http://localhost:5399/mcp`, then authenticate from `/mcp`.
+
 Sign in as `analyst` with password `lakehold` to reach the seeded `demo` workspace. The complete
 smoke-test prompt, API-token alternative, and troubleshooting steps are in [`MCP.md`](MCP.md#connecting-a-client).
 
 Provider setup:
 
 - **Keycloak:** create an OpenID Connect client, enable Standard flow, select public client
-  authentication, require PKCE `S256`, add the client's loopback redirect patterns, and add an
-  audience mapper for the complete MCP endpoint URL. Copy the Workbench tenant, role, and groups
-  protocol mappers. The bundled development realm includes `lakehold-mcp` as a worked example.
+  authentication, require PKCE `S256`, add the clients' loopback redirects and Antigravity's fixed
+  `https://antigravity.google/oauth-callback` redirect, and add an audience mapper for the complete
+  MCP endpoint URL. Copy the Workbench tenant, role, and groups protocol mappers. The bundled
+  development realm includes `lakehold-mcp` as a worked example.
 - **Microsoft Entra:** create a separate app registration, add the MCP client's loopback URI under
   the mobile/desktop public-client platform, enable public-client flows, and expose or map the MCP
   resource audience plus the claims LakeHold uses. Use its Application (client) ID as

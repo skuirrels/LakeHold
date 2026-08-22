@@ -115,6 +115,7 @@ public sealed class RealmClaimContractTests
             .ToArray();
         Assert.Contains("http://127.0.0.1:*", redirects);
         Assert.Contains("http://localhost:*", redirects);
+        Assert.Contains("https://antigravity.google/oauth-callback", redirects);
 
         var audience = client.GetProperty("protocolMappers")
             .EnumerateArray()

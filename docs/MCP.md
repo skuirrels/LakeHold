@@ -1,8 +1,8 @@
 # The MCP server
 
 `Lakehold.Api` exposes a Model Context Protocol (MCP) server that lets AI agents — including Codex,
-Claude Code, and custom clients — explore a tenant's catalog and run SQL using the same credentials
-and capability rules as the rest of LakeHold.
+Claude Code, Antigravity CLI, and custom clients — explore a tenant's catalog and run SQL using the
+same credentials and capability rules as the rest of LakeHold.
 
 Like [`AUTHENTICATION.md`](AUTHENTICATION.md) and [`PUBLIC-API.md`](PUBLIC-API.md), this is a
 specification and a running record. It is written to be worked one step at a time: each step is
@@ -286,7 +286,7 @@ and metadata path. The bundled Keycloak realm has a public PKCE client named `la
 browser opens, sign in as `analyst` with password `lakehold`; that identity owns the seeded `demo`
 workspace. The `admin` user administers the instance but deliberately cannot query tenant data.
 
-After connecting either client below, use this smoke-test prompt:
+After connecting any client below, use this smoke-test prompt:
 
 > Using the LakeHold MCP server, list the workspaces and catalogs I can reach. Describe the schema of
 > tenant `demo`, catalog `analytics`, then run `SELECT 42 AS answer` there. Do not write anything.
@@ -371,6 +371,46 @@ metadata supplies the configured MCP scopes. See the
 [official Codex MCP documentation](https://learn.chatgpt.com/docs/extend/mcp) for the shared
 configuration and client commands.
 
+#### Antigravity CLI — OAuth as the signed-in person
+
+Antigravity CLI supports remote Streamable HTTP MCP servers and browser OAuth. Put the server and
+LakeHold's pre-registered public client in `~/.gemini/config/mcp_config.json`, or in
+`.agents/mcp_config.json` for a workspace-scoped connection. Merge the `mcpServers` entry with any
+servers already in the file:
+
+```json
+{
+  "mcpServers": {
+    "lakehold": {
+      "serverUrl": "http://localhost:5399/mcp",
+      "oauth": {
+        "clientId": "lakehold-mcp"
+      }
+    }
+  }
+}
+```
+
+Start Antigravity CLI:
+
+```bash
+agy
+```
+
+Enter `/mcp` to open the MCP manager, select `lakehold`, and choose **Authenticate**. Complete the
+browser login, copy the authorization code from Antigravity's callback page, and paste it back into
+the prompt. The identity provider must allow Antigravity's fixed callback URI:
+
+```text
+https://antigravity.google/oauth-callback
+```
+
+Antigravity discovers the authorization and token endpoints from LakeHold's OAuth metadata and uses
+PKCE. Do not add a client secret: `lakehold-mcp` is a public client. For production, replace the URL
+and client id with the values shown by **System Settings** and registered at the identity provider.
+See Google's [official Antigravity MCP guide](https://antigravity.google/docs/mcp/) for configuration
+scope, OAuth token management, and the interactive MCP manager.
+
 #### API-token alternative
 
 For unattended use, open **Users → API tokens**, choose the workspace, narrow the credential to the
@@ -385,8 +425,8 @@ curl -X POST https://lakehold.example.com/api/tenants/demo/tokens \
   -d '{"name":"claude-agent","role":"reader","catalogName":"analytics"}'
 ```
 
-Keep the token out of files that get committed. Every example below reads it from the environment.
-Launch the client from the shell where `LAKEHOLD_TOKEN` is set.
+Keep the token out of files that get committed. The Codex and Claude Code examples below read it
+from the environment; launch those clients from the shell where `LAKEHOLD_TOKEN` is set.
 
 For Codex:
 
@@ -435,6 +475,24 @@ tool_timeout_sec = 60.0
 `env_http_headers = { "Authorization" = "LAKEHOLD_AUTH_HEADER" }` is the alternative when a header
 has to be sent verbatim, and `enabled_tools = ["query"]` pins the surface even if a later LakeHold
 version adds tools.
+
+Antigravity CLI's current custom-header schema stores the header value literally. For unattended
+use, put the token only in the global `~/.gemini/config/mcp_config.json`, never in the workspace file
+or another committed file, and restrict access to that user configuration. Prefer the OAuth setup
+above for an interactive person:
+
+```json
+{
+  "mcpServers": {
+    "lakehold-token": {
+      "serverUrl": "http://localhost:5399/mcp",
+      "headers": {
+        "Authorization": "Bearer lkh_..."
+      }
+    }
+  }
+}
+```
 
 #### Anything else
 
@@ -901,7 +959,8 @@ Shipping this is not done until:
 - ~~`ARCHITECTURE.md`'s matrix moves the AI / MCP row to ✅ and the roadmap moves it out of Next.~~
   Done; it now names the read and operator-gated surfaces.
 - ~~`web/lakehold-ui/src/app/docs.content.md` gains a section.~~ Done; it includes local OAuth setup
-  for Codex and Claude Code and links back here for the complete tool and token reference.
+  for Codex, Claude Code, and Antigravity CLI and links back here for the complete tool and token
+  reference.
 - ~~`README.md` shows the connection snippet an agent client needs.~~ Done; the quick start carries
   the local commands and this document remains the full reference.
 

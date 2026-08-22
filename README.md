@@ -293,7 +293,8 @@ normal `~/.duckdb/extensions` directory.
 ### Connect an AI agent locally
 
 The development realm includes a public PKCE client for MCP. Leave `make dev` running, open a second
-terminal, and connect Codex or Claude Code to the Workbench origin. On a reused database, first check
+terminal, and connect Codex, Claude Code, or Antigravity CLI to the Workbench origin. On a reused
+database, first check
 **System Settings**: MCP is enabled and **Public base URL** is `http://localhost:5399` without `/mcp`.
 Complete the browser login as `analyst` / `lakehold`:
 
@@ -307,6 +308,25 @@ claude mcp add --transport http --client-id lakehold-mcp \
   lakehold http://localhost:5399/mcp
 claude mcp login lakehold
 ```
+
+Antigravity CLI reads custom MCP servers from `~/.gemini/config/mcp_config.json`, or from
+`.agents/mcp_config.json` for workspace scope. Merge this entry into that file:
+
+```json
+{
+  "mcpServers": {
+    "lakehold": {
+      "serverUrl": "http://localhost:5399/mcp",
+      "oauth": {
+        "clientId": "lakehold-mcp"
+      }
+    }
+  }
+}
+```
+
+Start `agy`, enter `/mcp`, select `lakehold`, and choose **Authenticate**. Complete the browser login,
+copy the authorization code from Antigravity's callback page, and paste it back into the prompt.
 
 Keep the Codex client id, which selects the pre-registered public client, but do not pass
 `--oauth-resource`: LakeHold's protected-resource metadata supplies that value. Configuring it again

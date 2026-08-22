@@ -94,8 +94,8 @@ integration.
   PostgreSQL and the existing public tenant-token endpoint mints scoped client credentials. Records
   why the dependency is the MCP C# SDK and *not* Microsoft Agent
   Framework (LakeHold is the server, not the agent), which tools are deliberately withheld from an
-  agent and why, and how to connect Claude Code and Codex. Read it before adding an agent-reachable
-  surface.
+  agent and why, and how to connect Claude Code, Codex, and Antigravity CLI. Read it before adding an
+  agent-reachable surface.
 - `docs/UI.md`: the phased spec and running record for the web surfaces beyond the SQL IDE. Its
   physical layer — table sizes, Parquet files, delete overhead, partitions, and maintenance advice —
   is read from DuckLake's catalog rather than by listing the data path. The unified table inspector

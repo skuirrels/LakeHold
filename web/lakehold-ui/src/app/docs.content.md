@@ -128,7 +128,7 @@ storage connection configuration.
 | **The HTTP API**      | Minimal-API endpoints for queries, schemas, history, snapshots, maintenance, eject, backup/restore, and change-feed subscriptions.                                                                                                                                                                                                                                                                                                                                                                                                                          | Automation and integration.                                           |
 | **MCP**               | An authenticated Model Context Protocol server with catalog, time-travel, CDC, physical-inspection, audit-history, saved-query, connector, query-language, snapshot-bound maintenance, and table-restore tools. Every tool reports an output schema and describes its arguments, and the handshake carries usage instructions. Writes and operator commands are separately gated, and the endpoint is rate-limited per credential. Development enables it by default; an instance operator changes the live controls under System Settings with no restart. | AI agents that need discoverable, capability-scoped lakehouse access. |
 
-### Connect Codex or Claude Code as yourself
+### Connect Codex, Claude Code, or Antigravity CLI as yourself
 
 An operator first enables MCP and sets the externally reachable **Public base URL** under System
 Settings. A fresh development stack already enables MCP and registers the public, PKCE-only
@@ -157,6 +157,25 @@ claude mcp add --transport http --client-id lakehold-mcp \
   lakehold http://localhost:5399/mcp
 claude mcp login lakehold
 ```
+
+Antigravity CLI reads custom MCP servers from `~/.gemini/config/mcp_config.json`, or from
+`.agents/mcp_config.json` for workspace scope. Merge this entry into that file:
+
+```json
+{
+  "mcpServers": {
+    "lakehold": {
+      "serverUrl": "http://localhost:5399/mcp",
+      "oauth": {
+        "clientId": "lakehold-mcp"
+      }
+    }
+  }
+}
+```
+
+Start `agy`, enter `/mcp`, select `lakehold`, and choose **Authenticate**. Complete the browser login,
+copy the authorization code from Antigravity's callback page, and paste it back into the prompt.
 
 When the bundled Keycloak login opens, use `analyst` / `lakehold` to reach the seeded `demo`
 workspace. The `admin` account administers the instance and deliberately cannot query tenant data.
