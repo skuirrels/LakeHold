@@ -87,6 +87,38 @@ describe('SavedQueriesPanelComponent', () => {
     ]);
   });
 
+  it('loads the persisted source while editing from the editor sidebar', async () => {
+    api.savedQueries = [savedQuery({ sql: 'SELECT persisted' })];
+    await mount(false, 'SELECT current');
+
+    let opened: { language: string; source: string } | undefined;
+    fixture.componentInstance.openSource.subscribe((source) => (opened = source));
+    buttons('Edit')[0].click();
+    await fixture.whenStable();
+
+    expect(opened).toEqual({ language: 'sql', source: 'SELECT persisted' });
+    expect(buttons('Save revision')).toHaveLength(1);
+  });
+
+  it('keeps the edit form open when revising from the full-page library', async () => {
+    api.savedQueries = [savedQuery({ sql: 'SELECT persisted' })];
+    fixture = TestBed.createComponent(SavedQueriesPanelComponent);
+    fixture.componentRef.setInput('tenant', 'demo');
+    fixture.componentRef.setInput('catalog', 'analytics');
+    fixture.componentRef.setInput('sql', 'SELECT revised');
+    fixture.componentRef.setInput('layout', 'library');
+    await fixture.whenStable();
+
+    let opened: { language: string; source: string } | undefined;
+    fixture.componentInstance.openSource.subscribe((source) => (opened = source));
+    buttons('Edit')[0].click();
+    await fixture.whenStable();
+
+    expect(opened).toBeUndefined();
+    expect(text()).toContain('Update saved query');
+    expect(buttons('Save revision')).toHaveLength(1);
+  });
+
   it('marks a published view stale when the definition revision moved on', async () => {
     api.savedQueries = [
       savedQuery({

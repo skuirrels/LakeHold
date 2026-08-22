@@ -179,7 +179,13 @@ export class SavedQueriesPanelComponent {
     this.formOpen.set(true);
     this.error.set(null);
     this.notice.set(null);
-    this.openSource.emit({ language: query.language ?? 'sql', source: query.sql });
+    // The sidebar shares a screen with the editor, so loading the persisted source there keeps the
+    // two controls in sync. The full-page library does not: emitting here would navigate back to the
+    // Workbench and destroy the edit form before a revision could be saved. In library mode the
+    // current Workbench source is intentionally retained as the next revision.
+    if (this.layout() === 'sidebar') {
+      this.openSource.emit({ language: query.language ?? 'sql', source: query.sql });
+    }
   }
 
   protected cancelForm(): void {
