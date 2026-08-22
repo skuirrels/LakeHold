@@ -189,6 +189,7 @@ test.describe('disposable operator simulation', () => {
 
       await page.locator('lh-first-run').getByLabel('API token').fill(ownerToken);
       await page.locator('lh-first-run').getByRole('button', { name: 'Sign in' }).click();
+      await navigateTo(page, 'Workbench');
       await expect(page.getByLabel('SQL editor')).toBeVisible();
     });
 
