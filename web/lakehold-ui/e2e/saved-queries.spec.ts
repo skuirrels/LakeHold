@@ -236,7 +236,7 @@ test.describe('saved query lifecycle', () => {
     await entry.getByRole('button', { name: 'Edit' }).click();
     await panel.getByRole('button', { name: 'Save revision' }).click();
 
-    await expect(entry).toContainText('republish needed');
+    await expect(entry).toContainText('Needs attention · republish');
 
     // Republishing clears it, which is the other half of the claim — the badge tracks the source
     // rather than latching on once.
@@ -244,7 +244,7 @@ test.describe('saved query lifecycle', () => {
     // Scoped to the form: the row's trigger and the form's submit share the label, and picking the
     // wrong one silently re-opens the form instead of republishing.
     await panel.locator('.publish-form').getByRole('button', { name: 'Republish' }).click();
-    await expect(entry).not.toContainText('republish needed');
+    await expect(entry).not.toContainText('Needs attention · republish');
     await expect(entry).toContainText('Unpublish');
 
     await entry.getByRole('button', { name: 'Unpublish' }).click();
