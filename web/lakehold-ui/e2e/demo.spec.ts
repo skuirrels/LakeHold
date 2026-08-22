@@ -17,7 +17,7 @@ test.describe('demo workbench', () => {
     await page.goto('/workbench');
 
     await expect(page.getByText('You’re exploring a live LakeHold demo')).toBeVisible();
-    await expect(page.getByLabel('Workspace')).toHaveValue('demo');
+    await expect(page.locator('.selectors').getByLabel('Workspace')).toHaveValue('demo');
     await expect(page.locator('.selectors').getByLabel('Catalog')).toHaveValue('analytics');
     await expect(page.getByLabel('SQL editor')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Operator token' })).toBeVisible();

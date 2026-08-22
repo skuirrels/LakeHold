@@ -74,7 +74,9 @@ test.describe('@website /compare capability contract', () => {
         claim: lakehold,
         tone,
       })),
-    ).toEqual(compareCapabilities.map(({ dimension, claim, tone }) => ({ dimension, claim, tone })));
+    ).toEqual(
+      compareCapabilities.map(({ dimension, claim, tone }) => ({ dimension, claim, tone })),
+    );
 
     for (const capability of compareCapabilities) {
       expect(
@@ -118,9 +120,12 @@ test.describe('@website /compare capability contract', () => {
     page,
     request,
   }) => {
-    // The handoff lands on the Workbench, which requires a credential like every other surface.
-    // Without one this asserts the sign-in panel rather than the editor it is here to check.
-    await signIn(page, request);
+    // The private Workbench requires a credential, while the public demo deliberately exposes the
+    // same handoff as an anonymous read-only visitor. Do not ask that demo to mint an owner token:
+    // proving it cannot do so is part of the demo's safety contract.
+    if (!process.env['LAKEHOLD_DEMO']) {
+      await signIn(page, request);
+    }
     await page.goto('/compare');
 
     for (const competitor of ['MotherDuck', 'ClickHouse', 'Snowflake / Databricks']) {
