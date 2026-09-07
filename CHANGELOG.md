@@ -7,6 +7,19 @@ and LakeHold follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.5.1] - 2026-09-07
+
+Updates the DuckDB EF Core provider to the latest stable release.
+
+### Changed
+
+- **`DuckDB.EFCoreProvider` is updated from 1.19.1 to 1.26.0.** The pinned `Skuirrels.DuckDB.NET`
+  1.5.5.4 packages and DuckDB engine 1.5.5 are unchanged, so no data-file or DuckLake format
+  migration accompanies the release. The provider line brings the corrected `FromSql` argument
+  binding, explicit native handling for DuckLake attachments under registered ADO.NET provider
+  factories, whole-`STRUCT` complex-property materialisation, and opt-in encrypted-database,
+  checkpoint-threshold, and logical-key `MERGE` upsert options that LakeHold does not yet use.
+
 ## [2.5.0] - 2026-08-22
 
 Makes the browser Workbench a focused product workspace with dedicated discovery, ingestion, and
