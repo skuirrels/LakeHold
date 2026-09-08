@@ -145,15 +145,17 @@ the diff, with no second bookkeeping.
 **Fork at head** is phase 1. **Fork at an older retained snapshot `S`** is phase 2 and is a
 truncation of the same copy: drop every row whose `begin_snapshot > S`, null every `end_snapshot >
 S`, and drop snapshot rows above `S`, across every table that carries those columns. Tables without
-them describe the head, not `S`, and must be rebuilt: `ducklake_table_stats` and
-`ducklake_table_column_stats` from the per-file statistics of the files live at `S` — a head-derived
-minimum or maximum can exclude a value present at `S` and prune a file wrongly — with `next_row_id`
-kept at the parent's head value, because a row id only has to be unique, and
-`ducklake_schema_versions` cut to versions at or below `S`. Whether DuckLake rebuilds absent table
-statistics itself is spike 8's question. The result is verified the way a restore and an eject are
-verified (invariants 12 and 16): every table's row count on the branch must equal the parent's `AT
-(VERSION => S)` count, and the branch is not marked `Active` until it does. A verification failure
-deletes the half-made branch rather than leaving a catalog that looks complete.
+them describe the head, not `S`, and are corrected rather than dropped. `ducklake_table_stats` rows
+must be **kept**: DuckLake treats a missing row as an empty table, so the first write on the branch
+restarts `next_row_id` at zero and hands new rows the ids of inherited ones — 3,000 duplicate row
+ids in the spike. `next_row_id` stays at the parent's head value, because a row id only has to be
+unique; `record_count` is recomputed from the data files, delete files, and inlined rows live at
+`S`; `ducklake_table_column_stats` is recomputed from `ducklake_file_column_stats` of the live
+files, since a head-derived minimum or maximum can exclude a value present at `S`; and
+`ducklake_schema_versions` is cut to versions at or below `S`. The result is verified the way a
+restore and an eject are verified (invariants 12 and 16): every table's row count on the branch must
+equal the parent's `AT (VERSION => S)` count, and the branch is not marked `Active` until it does. A
+verification failure deletes the half-made branch rather than leaving a catalog that looks complete.
 
 ### Storage layout
 
@@ -188,7 +190,7 @@ ways a deletion can cross the boundary, and each has a specific answer.
 |---|---|---|
 | Parent orphan sweep deletes branch-written files | `ducklake_delete_orphaned_files` on the parent removes everything under the parent's data path it does not reference. | Branch files never live there. `BranchRoot` is a sibling. |
 | Parent expiry deletes files the branch inherited | The parent compacts or deletes rows, closes the inherited files' `end_snapshot`, expires the snapshots that referenced them, then `cleanup` removes them. The branch now has absolute references to files that do not exist. | **A live branch pins its fork snapshot.** `LakehouseMaintenance.ExpireSnapshotsAsync` clamps `olderThan` to the commit time of the oldest fork snapshot of any live branch, so that snapshot is retained, and its dry-run output says so. DuckLake only schedules a file for deletion once no retained snapshot references it; a file live at `S` is referenced by `S`. Verified below, in both directions. |
-| Branch cleanup deletes parent files it superseded | The branch deletes rows or compacts, an inherited file gets `end_snapshot` set *in the branch's metadata*, branch expiry and cleanup then delete a file **under the parent's prefix** by absolute path. | **A branch refuses `expire` and `cleanup`** with a 409 that says why. Branch storage is reclaimed by deleting the branch, which drops the schema and deletes the branch prefix and nothing else. |
+| Branch cleanup deletes parent files it superseded | The branch deletes rows or compacts, an inherited file gets `end_snapshot` set *in the branch's metadata*, branch expiry and cleanup then delete a file **under the parent's prefix** by absolute path. | **A branch refuses `expire` and `cleanup`** with a 409 that says why. Branch storage is reclaimed by deleting the branch, which drops the schema and deletes the branch prefix and nothing else. Verified below: one compaction on a branch scheduled three parent files by absolute path. |
 
 The refusal in the third row is the honest version of reference counting for a first release: a
 branch is short-lived, and the space it can waste is bounded by its own writes. Phase 5 replaces the
@@ -349,8 +351,8 @@ and the result — with the DuckDB and DuckLake versions — goes into that sect
    rows, and `flush` on the branch writes them under the branch prefix.
 8. **Fork at snapshot.** The truncation rule applied at `S` yields a branch whose per-table counts
    equal `parent AT (VERSION => S)`, on a parent whose history includes a table created after `S`, a
-   table dropped before `S`, and a column added after `S`; and whether DuckLake rebuilds
-   `ducklake_table_stats` and `ducklake_table_column_stats` when they are absent, or the fork must.
+   table dropped before `S`, and a column added after `S`; and what DuckLake does when
+   `ducklake_table_stats` is absent.
 9. **PostgreSQL schema-to-schema copy** through the postgres extension under the privileged metadata
    handle, including the run-time-named inlined data tables, with the credential dropped before the
    gate is released.
@@ -363,8 +365,8 @@ and the result — with the DuckDB and DuckLake versions — goes into that sect
 Run on 8 September 2026 with DuckDB v1.5.5, the `ducklake` extension at `d8a1881e`,
 `postgres_scanner`, and `httpfs`; metadata in PostgreSQL 17 under one `METADATA_SCHEMA` per catalog,
 data on MinIO. The fork was a `CREATE TABLE … (LIKE …)` plus `INSERT … SELECT` per table in `psql`,
-followed by the rewrites above in SQL. Spikes 4, 7, 8, and the local-file half of 9 have not been
-run.
+followed by the rewrites above in SQL. The local-file half of 9 and the compaction case of 6 have
+not been run.
 
 | Spike | Result |
 |---|---|
@@ -372,7 +374,10 @@ run.
 | 2 — `data_path` honoured | **Pass.** Attached with `DATA_PATH` equal to the rewritten key; no `OVERRIDE_DATA_PATH`; no object appeared under the parent prefix. |
 | 3 — the pin, clamped | **Pass.** After `CREATE OR REPLACE TABLE` on the parent closed every inherited file, `ducklake_expire_snapshots(older_than => <fork time>)` retained the fork, scheduled nothing, and `cleanup_old_files` deleted nothing the branch referenced. |
 | 3 — the pin, unclamped | **Pass, in the sense that the failure is real.** Expiring the fork snapshot scheduled the three inherited files, cleanup removed them, and the listing-based check reported three missing. `count(*)` on the branch still returned 800000; `sum(id)` failed with HTTP 404. `ducklake_merge_adjacent_files` and `ducklake_rewrite_data_files` processed zero files on three 200k-row files with half their rows deleted, so supersession was forced with the replace; the pin's reasoning is the same either way. |
+| 4 — branch-side compaction | **Pass, in the sense that the hazard is real.** After three small inserts on a branch, `ducklake_merge_adjacent_files` merged the two inherited 200k-row files of one table, and the inherited file of another with the branch's own, and `ducklake_files_scheduled_for_deletion` then held the three parent files by absolute path beside four relative branch files. No cleanup was run and the parent's seven objects were intact. This is the row the branch-side refusal exists for. |
 | 5 — the diff is the change feed | **Pass.** `ducklake_table_changes(branch, 'main', 't', fork + 1, head)` returned exactly the branch's 200000 inserts as snapshot `fork + 1`; on a second table a branch delete of ten rows appeared as ten `delete` rows. |
+| 7 — inlined data forks | **Pass.** With `data_inlining_row_limit` at 10, a five-row insert on the parent stayed in its `ducklake_inlined_data_*` table; the fork copied it, the branch read the five rows, `ducklake_flush_inlined_data` on the branch wrote one five-row relative file under the branch prefix, and the parent's object count and inlined rows were unchanged. |
+| 8 — fork at snapshot | **Pass, with one rule learned.** From a parent with a table dropped before `S`, a table created after it, a column added after it, and post-`S` inserts and deletes, the truncation left exactly the two tables and two columns live at `S`, and every count and sum equalled `AT (VERSION => S)` on the parent, inlined rows included. With `ducklake_table_stats` deleted, reads still worked, but the first write recreated the row as an empty table: `next_row_id` restarted at 0 and 3,000 new rows took the row ids of inherited rows. With the rows kept, `next_row_id` at the parent's head value, and `record_count` recomputed, new rows continued from 100005 with no duplicates. The recomputed count must include inlined rows; the spike's omitted them and was five short. |
 | 6 — row-id stability | **Pass, before compaction.** Zero `(rowid, id)` mismatches between parent and branch before and after a 200k-row branch insert; the new rows took 600000–799999. `next_row_id` then diverged — 600000 on the parent, 800000 on the branch — so two sides that both insert allocate the same row ids to different rows. That is the concrete reason a non-fast-forward merge cannot address rows by id. The compaction case has not been run. |
 | 10 — history cut | **Pass.** A fork with one snapshot row, the fork's, and every dead row removed attached and read identical sums to the parent, accepted an insert and a delete under its own prefix, diffed from `fork + 1`, and refused `AT (VERSION => fork - 1)` with *no snapshot found*. |
 
@@ -410,8 +415,9 @@ Each phase is independently shippable and leaves the product working with the cl
 
 ### Phase 2 — fork at any snapshot, and the diff
 
-- [ ] Truncation at `S`, statistics and schema-version rebuild, and the count verification against
-      `AT (VERSION => S)`.
+- [ ] Truncation at `S`; statistics kept with `next_row_id` preserved and counts recomputed; schema
+      versions cut; the count verification against `AT (VERSION => S)`; a row-id uniqueness check
+      after the first branch write.
 - [ ] Table-level diff from the change feed and `changes_made`; row-level diff as a `ChangeFeedPage`
       with the existing cursor and ceiling.
 - [ ] Workbench diff view: table summary, expandable row pages, pre-image and post-image side by
@@ -501,9 +507,10 @@ catalog routes write.
 
 ## Open questions
 
-- **Whole-table or per-row-id merge.** Spike 6 decides. If row ids are stable, deletes are exact and
-  the merge commit is proportional to the change; if not, the merge rewrites each changed table and
-  the plan should say so in its size estimate.
+- **Whole-table or per-row-id merge.** Spike 6 decides; it passed before compaction and the
+  compaction case remains. If row ids are stable, deletes are exact and the merge commit is
+  proportional to the change; if not, the merge rewrites each changed table and the plan should say
+  so in its size estimate.
 - **Default expiry.** Fourteen days is a guess at the length of a review. An agent-minted branch
   arguably wants hours. Configurable per instance in phase 1; revisit with usage.
 - **Branch names in the Workbench URL.** A branch attaches under the parent's name for SQL, so the
