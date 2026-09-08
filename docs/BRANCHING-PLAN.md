@@ -150,12 +150,14 @@ must be **kept**: DuckLake treats a missing row as an empty table, so the first 
 restarts `next_row_id` at zero and hands new rows the ids of inherited ones — 3,000 duplicate row
 ids in the spike. `next_row_id` stays at the parent's head value, because a row id only has to be
 unique; `record_count` is recomputed from the data files, delete files, and inlined rows live at
-`S`; `ducklake_table_column_stats` is recomputed from `ducklake_file_column_stats` of the live
-files, since a head-derived minimum or maximum can exclude a value present at `S`; and
-`ducklake_schema_versions` is cut to versions at or below `S`. The result is verified the way a
-restore and an eject are verified (invariants 12 and 16): every table's row count on the branch must
-equal the parent's `AT (VERSION => S)` count, and the branch is not marked `Active` until it does. A
-verification failure deletes the half-made branch rather than leaving a catalog that looks complete.
+`S`; `ducklake_table_column_stats` is **kept and never narrowed**: DuckLake prunes on those rows, so
+a minimum or maximum tighter than the data returns wrong rows — a recompute from per-file statistics
+that overlooked inlined rows answered zero for five rows that exist. The parent's head statistics
+are a superset of the data at `S` and are safe as they stand; and `ducklake_schema_versions` is cut
+to versions at or below `S`. The result is verified the way a restore and an eject are verified
+(invariants 12 and 16): every table's row count on the branch must equal the parent's `AT (VERSION
+=> S)` count, and the branch is not marked `Active` until it does. A verification failure deletes
+the half-made branch rather than leaving a catalog that looks complete.
 
 ### Storage layout
 
@@ -255,11 +257,10 @@ Phase 3 ships one merge, chosen for being provably correct rather than general:
   apply.
 - **Staged, per table.** For each changed table, the branch's rows are staged, the parent's rows are
   replaced through the existing table definition, and the row count is re-read and compared with the
-  branch's before the transaction commits. Whether the replacement is per-row-id (the branch
-  inherits the parent's row ids, so deletes can be addressed exactly) or whole-table is decided by
-  the spikes in [*Verified engine behaviour*](#verified-engine-behaviour-required-first); the
-  contract is the same either way. A per-row-id apply is a smaller commit, but it depends on row-id
-  stability across the fork, which must be demonstrated rather than assumed.
+  branch's before the transaction commits. The replacement is per-row-id for inherited rows and a
+  plain insert for new ones: spike 6 showed row ids survive the fork, a parent compaction, and a
+  delete-driven rewrite. Whole-table replacement is the fallback when a table's change count
+  approaches its row count.
 - **Merge does not delete the branch.** A merged branch becomes `Merged`, keeps its diff readable
   for audit, and is deleted explicitly or by its expiry. It attaches read-only from then on: its
   `ConfigurationVersion` moves, so every warm session on it is evicted and reattaches read-only.
@@ -359,14 +360,15 @@ and the result — with the DuckDB and DuckLake versions — goes into that sect
 10. **History cut at the fork.** Dropping the pre-fork snapshot rows and every row dead at the fork
     yields a catalog DuckLake attaches, reads, writes to, and diffs, and a query below the fork
     fails with *no snapshot found*.
+11. **Statistics at the fork.** Kept head statistics against a recompute, checked with filters that
+    touch the widest values, inlined rows included.
 
 ### Verified so far
 
 Run on 8 September 2026 with DuckDB v1.5.5, the `ducklake` extension at `d8a1881e`,
 `postgres_scanner`, and `httpfs`; metadata in PostgreSQL 17 under one `METADATA_SCHEMA` per catalog,
 data on MinIO. The fork was a `CREATE TABLE … (LIKE …)` plus `INSERT … SELECT` per table in `psql`,
-followed by the rewrites above in SQL. The local-file half of 9 and the compaction case of 6 have
-not been run.
+followed by the rewrites above in SQL. The local-file half of 9 has not been run.
 
 | Spike | Result |
 |---|---|
@@ -378,7 +380,9 @@ not been run.
 | 5 — the diff is the change feed | **Pass.** `ducklake_table_changes(branch, 'main', 't', fork + 1, head)` returned exactly the branch's 200000 inserts as snapshot `fork + 1`; on a second table a branch delete of ten rows appeared as ten `delete` rows. |
 | 7 — inlined data forks | **Pass.** With `data_inlining_row_limit` at 10, a five-row insert on the parent stayed in its `ducklake_inlined_data_*` table; the fork copied it, the branch read the five rows, `ducklake_flush_inlined_data` on the branch wrote one five-row relative file under the branch prefix, and the parent's object count and inlined rows were unchanged. |
 | 8 — fork at snapshot | **Pass, with one rule learned.** From a parent with a table dropped before `S`, a table created after it, a column added after it, and post-`S` inserts and deletes, the truncation left exactly the two tables and two columns live at `S`, and every count and sum equalled `AT (VERSION => S)` on the parent, inlined rows included. With `ducklake_table_stats` deleted, reads still worked, but the first write recreated the row as an empty table: `next_row_id` restarted at 0 and 3,000 new rows took the row ids of inherited rows. With the rows kept, `next_row_id` at the parent's head value, and `record_count` recomputed, new rows continued from 100005 with no duplicates. The recomputed count must include inlined rows; the spike's omitted them and was five short. |
-| 6 — row-id stability | **Pass, before compaction.** Zero `(rowid, id)` mismatches between parent and branch before and after a 200k-row branch insert; the new rows took 600000–799999. `next_row_id` then diverged — 600000 on the parent, 800000 on the branch — so two sides that both insert allocate the same row ids to different rows. That is the concrete reason a non-fast-forward merge cannot address rows by id. The compaction case has not been run. |
+| 6 — row-id stability | **Pass, before compaction.** Zero `(rowid, id)` mismatches between parent and branch before and after a 200k-row branch insert; the new rows took 600000–799999. `next_row_id` then diverged — 600000 on the parent, 800000 on the branch — so two sides that both insert allocate the same row ids to different rows. That is the concrete reason a non-fast-forward merge cannot address rows by id. |
+| 6 — row-id stability under compaction | **Pass.** After `ducklake_merge_adjacent_files` merged four inherited 50k-row files on the parent, and again after a delete-driven `ducklake_rewrite_data_files`, every surviving row kept its row id: zero mismatches in both directions between parent and branch. |
+| 11 — statistics at the fork | **Pass, and it reversed a rule.** Two forks at one snapshot: one kept the parent's head `ducklake_table_column_stats`, the other recomputed them from per-file statistics. Both read identical counts and sums to `AT (VERSION => S)`, but the recompute overlooked the five inlined rows, its maximum was 199999, and `WHERE id > 199999` and `WHERE v = 'i4'` returned zero rows on that branch against five and one on the parent: DuckLake prunes on table-level column statistics. The kept head statistics, a superset, answered every filter correctly. `record_count` recomputed from live data files, delete files, and inlined rows matched exactly at 133338, and the first write continued `next_row_id` from the parent's head with no duplicates. |
 | 10 — history cut | **Pass.** A fork with one snapshot row, the fork's, and every dead row removed attached and read identical sums to the parent, accepted an insert and a delete under its own prefix, diffed from `fork + 1`, and refused `AT (VERSION => fork - 1)` with *no snapshot found*. |
 
 ## Delivery phases
@@ -415,9 +419,9 @@ Each phase is independently shippable and leaves the product working with the cl
 
 ### Phase 2 — fork at any snapshot, and the diff
 
-- [ ] Truncation at `S`; statistics kept with `next_row_id` preserved and counts recomputed; schema
-      versions cut; the count verification against `AT (VERSION => S)`; a row-id uniqueness check
-      after the first branch write.
+- [ ] Truncation at `S`; statistics kept and never narrowed, with `next_row_id` preserved and
+      `record_count` recomputed including inlined rows; schema versions cut; the count verification
+      against `AT (VERSION => S)`; a row-id uniqueness check after the first branch write.
 - [ ] Table-level diff from the change feed and `changes_made`; row-level diff as a `ChangeFeedPage`
       with the existing cursor and ceiling.
 - [ ] Workbench diff view: table summary, expandable row pages, pre-image and post-image side by
@@ -430,7 +434,8 @@ Each phase is independently shippable and leaves the product working with the cl
       integrity check, table-level diff, parent snapshot id. Apply: that id required, one labelled
       transaction, per-table verification before commit, `EvictReaders` on the parent, `Merged`
       state with the branch reattached read-only.
-- [ ] Row-id or whole-table apply, decided by spike 6 and recorded here.
+- [ ] Per-row-id apply for inherited rows with whole-table fallback above a change ratio; spike 6 is
+      the evidence.
 - [ ] Workbench merge: plan, confirmation, outcome. MCP `merge_branch` behind the operator tier.
 - [ ] `ARCHITECTURE.md` cell becomes `✅ branch, diff, fast-forward merge`; the README and `/compare`
       row is added with its evidence contract in the browser suite, and not before.
@@ -497,7 +502,7 @@ catalog routes write.
 | Pin | Spike 3 as a test, both directions. Expiry dry-run names the branch it is clamped for. |
 | Refusal | `expire` and `cleanup` on a branch return 409 over HTTP, MCP, and the Workbench; `flush` and `compact` succeed and write under the branch prefix. |
 | Disposal | Deleting a branch removes only objects under its prefix; a parent object listing taken before and after is identical. Deletion of a `Broken` branch works. |
-| Fork at snapshot | Spike 8 as a test, including the created-after, dropped-before, and column-added cases. |
+| Fork at snapshot | Spike 8 as a test, including the created-after, dropped-before, and column-added cases, plus a filter on the widest value of a fork that holds inlined rows. |
 | Diff | Inserts, deletes, and updates on the branch appear with the right `change_type`; the parent's post-fork commits do not; a `Broken` branch reports the break. |
 | Merge | Fast-forward succeeds and parent counts equal branch counts; a moved parent is refused with its head; a schema-changed branch is refused; a stale `expectedParentSnapshotId` is refused; a mid-merge failure rolls back and the parent is unchanged. |
 | Authorisation | Reader cannot create or merge; catalog-narrowed token reaches branches; branch-narrowed token cannot reach the parent and lists only the branch; unreachable parent is 404 on every branch route. |
@@ -507,10 +512,8 @@ catalog routes write.
 
 ## Open questions
 
-- **Whole-table or per-row-id merge.** Spike 6 decides; it passed before compaction and the
-  compaction case remains. If row ids are stable, deletes are exact and the merge commit is
-  proportional to the change; if not, the merge rewrites each changed table and the plan should say
-  so in its size estimate.
+If row ids are stable, deletes are exact and the merge commit is proportional to the change; if not,
+the merge rewrites each changed table and the plan should say so in its size estimate.
 - **Default expiry.** Fourteen days is a guess at the length of a review. An agent-minted branch
   arguably wants hours. Configurable per instance in phase 1; revisit with usage.
 - **Branch names in the Workbench URL.** A branch attaches under the parent's name for SQL, so the
