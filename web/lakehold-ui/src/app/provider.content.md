@@ -1,9 +1,10 @@
 # DuckDB.EFCoreProvider documentation
 
 A practical guide to native DuckDB persistence, DuckLake catalogs, high-throughput writes,
-open-format analytics, and managed hot-to-cold data lifecycles — for EF Core 10 on .NET 10.
+open-format analytics, and managed hot-to-cold data lifecycles — for EF Core 10 on .NET 10, with an
+EF Core 11 preview package family.
 
-This page documents provider **1.17.1**.
+This page documents provider **1.26.0**.
 
 This is the provider LakeHold's own data plane runs on. What LakeHold's engine exercises in
 production is documented here as the public contract.
@@ -12,19 +13,22 @@ production is documented here as the public contract.
 
 ## Overview
 
-DuckDB.EFCoreProvider is a complete EF Core 10 relational provider for applications that need
+DuckDB.EFCoreProvider is a complete EF Core 10 relational provider — with EF Core 11 preview support
+through the `DuckDB.EFCoreProvider.EF11` package family — for applications that need
 embedded analytics, local persistence, open-format data access, or a shared DuckLake catalog.
 
 | Capability | What it covers |
 | --- | --- |
 | Application persistence | LINQ, tracking, `SaveChanges`, transactions, migrations, scaffolding, generated keys, and optimistic concurrency. |
-| High-speed ingestion | Appender-backed `BulkInsert`, primary-key `Upsert`, plus opt-in batching for tracked writes. |
+| High-speed ingestion | Appender-backed `BulkInsert`, `Upsert` by primary key or by a selected alternate key or unique index, plus opt-in batching for tracked writes. |
 | Open-format analytics | Query Parquet, CSV, and JSON as mapped entities. Export translated, parameterised LINQ directly to Parquet. |
 | Ad-hoc analytics | Stream dynamic SQL results with runtime DuckDB/CLR column metadata and stable nested values. |
 | Query tooling | Capture non-executing LINQ command plans, replay exact named parameters, and inspect store-type support without private EF hooks. |
 | Lakehouse operations | Query DuckLake history, inspect snapshots, add commit metadata, run typed maintenance, attach local or named-secret reference catalogs, and scaffold local metadata. |
 | Managed data lifecycle | Archive relational aggregates to partitioned Parquet, reconcile changes, restore selections, and compact immutable generations. |
 | Observability | Use EF Core logging and diagnostics for bounded provider-owned bulk, export, tier, extension, and attachment operations. |
+| Encryption at rest | Store a native DuckDB file, its WAL, and spilled temporary files under AES-256-GCM with a key the application supplies at attach time. |
+| Experimental remote access | Opt-in Quack profile: LINQ, tracked writes, transactions, bulk insert and upsert, and server diagnostics against a remote DuckDB. |
 
 > **Know the engine boundary.** DuckDB is an embedded, single-writer analytical engine. Use it for
 > reporting, ETL, local stores, edge workloads, and Parquet-backed analytics — not as a
@@ -118,6 +122,8 @@ protected override void OnConfiguring(DbContextOptionsBuilder options)
 | `ConfigureConnection(…)` | Creating secrets or applying connection-owned setup. | None |
 | `EnableMigrationTableRebuilds()` | Opting into table rebuilds for unsupported in-place constraint changes. | Off |
 | `UseNetTopologySuite()` | Loading DuckDB spatial support and mapping NTS geometry operations. | Off |
+| `CheckpointThreshold("1GB")` | Raising the WAL size that triggers an automatic checkpoint during sustained ingest. | 16 MB |
+| `UseEncryptedDatabase(path, keyProvider)` | Storing the context's data in an AES-256-GCM encrypted DuckDB file attached as the default catalog. | Off |
 
 > **Extension provisioning is deliberate.** The provider supports install-and-load,
 > load-only/preinstalled, and caller-managed extension modes. Production images can avoid runtime
@@ -144,10 +150,14 @@ modelBuilder.Entity<Invoice>(entity =>
         .UseAutoIncrement();
     entity.Property(invoice => invoice.Reference)
         .IsConcurrencyToken();
-    entity.HasMany(invoice => invoice.Lines)
+        entity.HasMany(invoice => invoice.Lines)
         .WithOne(line => line.Invoice);
 });
 ```
+
+A mapped STRUCT leaf can serve as a foreign key with `HasStructForeignKey`; the relationship's
+requiredness follows the leaf's nullability. STRUCT foreign keys are query-only and need file-backed
+entities. Partial updates inside owned JSON documents are rejected — write the whole column.
 
 ### Analytical LINQ
 
@@ -216,7 +226,7 @@ Three write paths trade EF semantics against raw throughput. Choose semantics fi
 | --- | --- | --- | --- |
 | `SaveChanges` | Tracked | Change tracking, interceptors, store-generated values, relationship fix-up, and optimistic concurrency. | Application writes |
 | `BulkInsert` | Appender | ETL and large ingestion batches. Bypasses tracking and generated values. | New-row throughput |
-| `Upsert` | Set-based | Insert new rows and update existing rows by primary key, via a staged appender batch and a set-based merge. | Synchronisation |
+| `Upsert` | Set-based | Insert new rows and update existing rows by primary key, or by a selected alternate key or unique index, via a staged appender batch and a set-based `ON CONFLICT` or `MERGE`. | Synchronisation |
 
 ```csharp
 // Tracked domain write
@@ -228,7 +238,19 @@ await db.BulkInsertAsync(importedRows);
 
 // Primary-key insert or update
 await db.UpsertAsync(synchronisedRows);
+
+// Alternate-key insert or update; a sequence-generated Id takes its default for new rows
+await db.UpsertAsync(events, e => e.ExternalId);
+
+// Logical-key MERGE, with no ART index maintained on the match columns
+await db.UpsertAsync(events, e => e.ExternalId, DuckDBUpsertMatchMode.LogicalKeyMerge);
 ```
+
+The alternate-target overload leaves sequence-, default-, and auto-increment-generated columns out of
+staging so new rows take their defaults; generated values are not copied back into the entities.
+`LogicalKeyMerge` joins each staged batch against the target instead of relying on a unique index, so
+uniqueness becomes a per-batch logical check rather than an index the engine maintains under
+sustained ingest. When one input repeats a conflict-target value, the last occurrence wins.
 
 ---
 
@@ -679,6 +701,43 @@ the operation, non-secret target, duration, optional affected-row count, excepti
 | Shared lakehouse analytics | **Good** | DuckLake profile when the app owns logical integrity. |
 | High-concurrency OLTP | **No** | DuckDB is embedded and single-writer. |
 | Full DuckDB SQL surface via LINQ | **Mixed** | PIVOT, ASOF, QUALIFY, and other constructs need raw SQL. |
+
+The provider builds for EF Core 10.0.10 on `net10.0`. EF Core 11 preview support is opt-in through
+`DuckDB.EFCoreProvider.EF11` (and `DuckDB.EFCoreProvider.EF11.NTS` for spatial) on `net11.0`; the
+default package keeps EF10 on both .NET 10 and .NET 11.
+
+---
+
+## Encryption at rest
+
+`UseEncryptedDuckDB(...)` keeps a context's data in a DuckDB file encrypted with AES-256-GCM. DuckDB
+accepts a key only as an `ATTACH` parameter, so the provider hosts the file on an in-memory database,
+attaches it with the application-supplied key, and selects it as the default catalog. Entities,
+migrations, and the migrations history table all live inside the encrypted file.
+
+```csharp
+services.AddDbContext<AppContext>(options => options
+    .UseEncryptedDuckDB(
+        "/var/lib/app/secure.duckdb",
+        () => keyVault.GetSecret("app-db-key")));
+```
+
+The key provider runs once per attachment, so the key can come from a vault at connect time. The
+`ATTACH` runs outside EF Core's command pipeline and never reaches EF logs, diagnostics, or
+interceptors. Coverage is the database file, its WAL, and the temporary files spilled by queries. It
+does not cover Parquet exports, tiered-storage cold files, or DuckLake data paths, which need their
+own encryption.
+
+---
+
+## Experimental Quack profile
+
+`UseQuack(...)` is an explicitly opt-in profile for DuckDB's experimental Quack remote protocol:
+LINQ, tracked writes with generated values, explicit remote transactions, typed `BulkInsert`,
+server-side `Upsert`, and provider-managed server diagnostics, without changing the `UseDuckDB` or
+`UseDuckLake` paths. Remote `EnsureCreated` can provision an empty schema; `EnsureDeleted` and
+migrations stay server-owned. LakeHold does not use it; the provider documents its configuration,
+security, and limitations in its own Quack guide.
 
 ---
 
