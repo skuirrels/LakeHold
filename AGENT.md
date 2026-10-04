@@ -105,6 +105,14 @@ integration.
   and ranked demand from the upstream trackers. It is the evidence behind the positioning and feature
   matrix in `docs/ARCHITECTURE.md`; that document states the position, this one says when it was last
   checked. Re-gather rather than amend when it ages, and never cite a claim from it without its date.
+- `docs/BRANCHING-PLAN.md`: the phased plan for zero-copy catalog branching — a branch is a child
+  `LakeCatalog` whose metadata is a schema copy with inherited file paths made absolute, attached
+  under the parent's name from a sibling `BranchRoot`; a live branch pins its fork snapshot against
+  parent expiry, refuses `expire` and `cleanup` itself, and is diffed with the change feed and merged
+  fast-forward only, with the branch's history beginning at the fork. **Nothing in it is built.** It
+  owns the analytical half of phase 6 of `docs/LAKEBASE-PLAN.md` and lists
+  the engine spikes that must pass before phase 1 code. Read it before touching snapshot expiry,
+  orphan cleanup, or anything that shares a data path.
 
 ## Architectural invariants
 
