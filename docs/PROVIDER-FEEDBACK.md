@@ -6,7 +6,9 @@ reproduced against the shipped NuGet package rather than inferred; the few that 
 provider's own documentation say so and quote it, which is the distinction gap 8 below was retracted
 for missing.
 
-**Current: LakeHold runs 1.14.0.** Of the twelve numbered items: six closed, two withdrawn on the
+**Current: LakeHold runs 1.26.0; the status table was last re-verified against 1.14.0.** The provider's
+README at 1.26.0 still documents `RecordsAffected` as `-1` on the streaming path and adds no non-query to
+it, so gaps 11 and 12 stand as written. Of the twelve numbered items: six closed, two withdrawn on the
 evidence by this side, one declined — correctly, with the fix landing here instead — and three still
 open. Three further asks (`Threads`, `AlsoAttachNamedSecret`, `SetCommitMessageAsync`) were delivered
 in 1.14.0 and are all in use.
