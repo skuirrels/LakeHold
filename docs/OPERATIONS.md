@@ -185,7 +185,11 @@ telemetry and off-host backup inventory are the durable evidence that maintenanc
 For a LINQ-enabled deployment, `GET /api/query-languages` is the user-facing readiness check. SQL
 must always be present; `csharp-linq` is present only while the optional planner's descriptor check
 succeeds. If it disappears, check the planner container, the shared-secret match, `/ready`, compiler
-timeout/queue saturation, and the internal network. Do not expose the planner port publicly or move
+timeout/queue saturation, and the internal network. `/ready` answers from a cached verification —
+up to `Lakehold:LinqCompiler:ReadinessCacheDuration` (five minutes) old for a success and
+`ReadinessFailureCacheDuration` (fifteen seconds) for a failure — because verifying spawns a
+compiler worker and a per-probe compile would keep an idle planner busy. Treat a `ready` answer
+during an incident as "working as of that window", not as of this instant. Do not expose the planner port publicly or move
 catalog credentials into it. Planner failure is not a reason to restart or disable the SQL path.
 
 For catalogs with CDC consumers, also compare source snapshots, subscription cursors, and registered
