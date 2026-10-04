@@ -76,6 +76,13 @@ compilation runs in a disposable child process with a hard deadline. The HTTP su
 request body, concurrent compilations, queued work, source length, table/column count, and literal
 array size. In production it refuses to start without a shared secret, and compares that secret in
 constant time. `/health` is liveness-only while `/ready` proves a real provider translation can run.
+
+Because proving that means spawning a worker and compiling, `/ready` caches its outcome rather than
+repeating the work per probe — a container health check on a fixed interval would otherwise keep an
+idle compiler compiling the same probe query indefinitely. A cold probe does the real verification;
+probes inside the window are a timestamp comparison, and concurrent cold probes collapse to one
+worker. Set a health check's timeout above `Timeout`: the compile a cold probe triggers is allowed
+that long, so a probe killed sooner can never pass.
 Treat the process as an untrusted-code boundary even though the source policy accepts only a
 side-effect-free LINQ expression.
 
@@ -90,6 +97,8 @@ The compiler limits can be overridden under `Lakehold:LinqCompiler`:
 | `Timeout` | 10 seconds | Hard lifetime of the disposable compiler child process |
 | `MaxConcurrentCompilations` | 1 | Concurrent compiler workers per planner container |
 | `MaxQueuedCompilations` | 8 | Bounded oldest-first wait queue |
+| `ReadinessCacheDuration` | 5 minutes | How long a successful `/ready` verification stands |
+| `ReadinessFailureCacheDuration` | 15 seconds | How long a failed one stands, before recovery is rechecked |
 
 The API does not trust a planner merely because it is configured. Before execution it requires the
 current schema fingerprint, bounded SQL and parameter payloads, unique portable named parameters

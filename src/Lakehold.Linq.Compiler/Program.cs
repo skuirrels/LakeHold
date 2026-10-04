@@ -1,3 +1,4 @@
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 using Lakehold.Linq.Compiler;
 using Lakehold.Querying;
@@ -24,13 +25,19 @@ builder.Services.AddOptions<LinqCompilerOptions>()
             && options.MaxColumns > 0
             && options.MaxArrayElements > 0
             && options.Timeout > TimeSpan.Zero
+            && options.ReadinessCacheDuration > TimeSpan.Zero
+            && options.ReadinessFailureCacheDuration >= TimeSpan.Zero
             && options.MaxConcurrentCompilations > 0
             && options.MaxQueuedCompilations >= 0
             && options.MaxRequestBodyBytes > 0,
         "LINQ compiler resource limits must be positive.")
     .ValidateOnStart();
+builder.Services.TryAddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<LinqQueryCompiler>();
 builder.Services.AddSingleton<LinqCompilerProcess>();
+builder.Services.AddSingleton<ILinqCompilerProcess>(
+    services => services.GetRequiredService<LinqCompilerProcess>());
+builder.Services.AddSingleton<LinqCompilerReadiness>();
 builder.Services.AddRateLimiter(rateLimiter =>
 {
     rateLimiter.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
@@ -73,25 +80,12 @@ app.Use(async (context, next) =>
 });
 
 app.MapGet("/health", () => Results.Ok(new { status = "healthy" }));
-app.MapGet("/ready", async (LinqCompilerProcess compiler, CancellationToken cancellationToken) =>
-{
-    try
-    {
-        _ = await compiler.CompileAsync(new QueryPlanningRequest(
-            "Main.Readiness.Take(1)",
-            "readiness",
-            [new QueryTableSchema(
-                "main",
-                "readiness",
-                "TABLE",
-                [new QueryColumnSchema("value", "INTEGER", false)])]), cancellationToken).ConfigureAwait(false);
-        return Results.Ok(new { status = "ready" });
-    }
-    catch (Exception exception) when (exception is not OperationCanceledException)
-    {
-        return Results.Problem("LINQ compiler readiness failed.", statusCode: StatusCodes.Status503ServiceUnavailable);
-    }
-});
+// Readiness verification spawns a Roslyn worker process, so it is cached rather than repeated per
+// probe: a container health check calling this every few seconds would otherwise compile forever.
+app.MapGet("/ready", async (LinqCompilerReadiness readiness, CancellationToken cancellationToken) =>
+    await readiness.IsReadyAsync(cancellationToken).ConfigureAwait(false)
+        ? Results.Ok(new { status = "ready" })
+        : Results.Problem("LINQ compiler readiness failed.", statusCode: StatusCodes.Status503ServiceUnavailable));
 app.MapGet("/descriptor", () => Results.Ok(new QueryLanguageDescriptor(
     "csharp-linq",
     "C# LINQ",

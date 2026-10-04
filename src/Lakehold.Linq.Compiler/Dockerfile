@@ -26,6 +26,9 @@ ENV ASPNETCORE_URLS=http://0.0.0.0:5210 \
     ASPNETCORE_ENVIRONMENT=Production \
     DOTNET_gcServer=1
 EXPOSE 5210
-HEALTHCHECK --interval=15s --timeout=5s --start-period=10s --retries=3 \
+# The timeout must exceed Lakehold:LinqCompiler:Timeout (10s): a cold readiness verification
+# spawns a worker and compiles, and a probe killed below that budget can never pass. Readiness is
+# cached, so only the first probe of a cache window does real work.
+HEALTHCHECK --interval=30s --timeout=15s --start-period=30s --retries=3 \
     CMD curl -fsS http://localhost:5210/ready || exit 1
 ENTRYPOINT ["dotnet", "Lakehold.Linq.Compiler.dll"]

@@ -5,8 +5,15 @@ using Lakehold.Querying;
 
 namespace Lakehold.Linq.Compiler;
 
+/// <summary>Compiles authored query source into a plan.</summary>
+public interface ILinqCompilerProcess
+{
+    /// <summary>Compiles the request, throwing on diagnostics, timeout, or worker failure.</summary>
+    Task<QueryPlan> CompileAsync(QueryPlanningRequest request, CancellationToken cancellationToken);
+}
+
 /// <summary>Runs authored-code compilation in a disposable child process with a hard timeout.</summary>
-public sealed class LinqCompilerProcess(IOptions<LinqCompilerOptions> options)
+public sealed class LinqCompilerProcess(IOptions<LinqCompilerOptions> options) : ILinqCompilerProcess
 {
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
     private readonly LinqCompilerOptions _options = options.Value;

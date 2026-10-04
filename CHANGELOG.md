@@ -7,6 +7,27 @@ and LakeHold follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- **The LINQ compiler's readiness probe no longer compiles on every call.** `/ready` verified the
+  toolchain by planning a probe query, and planning spawns a child process that loads Roslyn and
+  compiles. The container health check calls `/ready` every few seconds forever, so an *idle*
+  compiler re-proved itself thousands of times a day: one deployment had burned 9.65 CPU-days over
+  52 days of uptime, 18.6% of a core, entirely on health checks.
+
+  Verification is still real — a cold probe compiles, so a broken toolchain or worker transport is
+  still caught — but the outcome is now cached for `Lakehold:LinqCompiler:ReadinessCacheDuration`
+  (five minutes) and a failure for `ReadinessFailureCacheDuration` (fifteen seconds), short so
+  recovery is still noticed promptly. Probes within a window are a timestamp comparison. A
+  single-flight gate means concurrent probes on a cold cache produce one worker rather than one
+  each, which also closes an unauthenticated amplification path: `/ready` sits ahead of the shared-secret
+  check and the compilation rate limiter, so anything that could reach the port could previously spawn
+  a Roslyn process per request.
+
+  The probe's own budget was unsatisfiable, too: the health check timed out at 5s while the
+  compile it triggers is allowed 10s, so a cold or loaded container could never pass and stuck at
+  `unhealthy` while still paying for every attempt. The healthcheck now allows 15s and runs every 30s.
+
 ## [2.5.1] - 2026-09-07
 
 Updates the DuckDB EF Core provider to the latest stable release.
