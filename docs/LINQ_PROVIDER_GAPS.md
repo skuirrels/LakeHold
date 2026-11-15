@@ -1,11 +1,14 @@
 # DuckDB.EFCoreProvider follow-ups for the Workbench LINQ planner
 
-**Status date:** 4 August 2026
+**Status date:** 15 November 2026
 
-**Verified against:** LakeHold's pinned `DuckDB.EFCoreProvider` 1.17.1 package and the public APIs
-consumed by `Lakehold.Linq.Compiler`.
+**Verified against:** LakeHold's pinned `DuckDB.EFCoreProvider` 1.31.0 package and the public APIs
+consumed by `Lakehold.Linq.Compiler`. The ledger was first established against 1.17.1; the
+`Lakehold.Linq.Compiler.Tests` suite passing on 1.31.0 is what carries it forward, and the
+provider's changelog from 1.18.0 to 1.31.0 names no change to the command-plan, named-command
+replay, or store-type inspection APIs.
 
-LakeHold targets `DuckDB.EFCoreProvider` 1.17.1. Releases 1.16.0 and 1.17.0 resolve the original
+LakeHold targets `DuckDB.EFCoreProvider` 1.31.0. Releases 1.16.0 and 1.17.0 resolved the original
 command-plan, named-execution, type-inspection, and terminal-aggregate extraction gaps. The LINQ
 compiler now consumes provider APIs directly instead of intercepting execution, reconstructing
 parameter placeholders, or maintaining a duplicate store-type table.

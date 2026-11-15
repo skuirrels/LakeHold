@@ -9,7 +9,7 @@
     <!-- Lakehouse engine + control plane persistence.
 
          The ADO.NET layer is the Skuirrels fork of DuckDB.NET, which is what DuckDB.EFCoreProvider
-         1.14.1 and later depend on. Package 1.5.5.4 carries DuckDB engine v1.5.5 — the two version
+         1.27.0 and later depend on. Package 1.5.6 carries DuckDB engine v1.5.6 — the two version
          lines are separate, so verify the engine version with `SELECT version()`, not by deriving
          it from the package version.
 
@@ -20,9 +20,9 @@
          id silently constrains nothing while still reading like a guarantee. -->
     <PackageVersion Include="Confluent.Kafka" Version="2.15.0" />
     <PackageVersion Include="Confluent.SchemaRegistry.Serdes.Avro" Version="2.15.0" />
-    <PackageVersion Include="Skuirrels.DuckDB.NET.Data.Full" Version="1.5.5.4" />
-    <PackageVersion Include="Skuirrels.DuckDB.NET.Bindings.Full" Version="1.5.5.4" />
-    <PackageVersion Include="DuckDB.EFCoreProvider" Version="1.26.0" />
+    <PackageVersion Include="Skuirrels.DuckDB.NET.Data.Full" Version="1.5.6" />
+    <PackageVersion Include="Skuirrels.DuckDB.NET.Bindings.Full" Version="1.5.6" />
+    <PackageVersion Include="DuckDB.EFCoreProvider" Version="1.31.0" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="10.0.10" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.10" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.10" />
@@ -31,9 +31,11 @@
 
   <ItemGroup>
     <!-- Aspire orchestration -->
-    <PackageVersion Include="Aspire.Hosting.AppHost" Version="13.4.6" />
+    <!-- 13.4.6 carries GHSA-f7vh-h5g3-7jrh (high) and its dashboard SDK GHSA-4g86-54fm-h9h8
+         (critical); NuGet audit fails the build on both. -->
+    <PackageVersion Include="Aspire.Hosting.AppHost" Version="13.6.5" />
     <!-- Node/npm hosting moved out of Aspire.Hosting.NodeJs (frozen at 9.5.2) in Aspire 13. -->
-    <PackageVersion Include="Aspire.Hosting.JavaScript" Version="13.4.6" />
+    <PackageVersion Include="Aspire.Hosting.JavaScript" Version="13.6.5" />
   </ItemGroup>
 
   <ItemGroup>
@@ -62,6 +64,13 @@
     <PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.10" />
     <PackageVersion Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" Version="10.0.10" />
     <PackageVersion Include="Microsoft.AspNetCore.DataProtection.EntityFrameworkCore" Version="10.0.10" />
+    <!-- Pinned above the 10.0.10 transitive default for the same reason as Microsoft.OpenApi. The
+         10.0.10 builds carry GHSA-846f-f764-76mx and GHSA-2fmv-rv2c-59x7 (Pkcs) and
+         GHSA-7hqp-7c5m-4vq6, GHSA-c399-9853-6jmj, and GHSA-r955-8q5j-3h83 (Xml), and NuGet audit
+         fails the build on them. Neither is referenced directly; both reach the graph transitively,
+         and 10.0.15 is the current servicing build of the same line. -->
+    <PackageVersion Include="System.Security.Cryptography.Pkcs" Version="10.0.15" />
+    <PackageVersion Include="System.Security.Cryptography.Xml" Version="10.0.15" />
     <!--
       SDK 2.x tracks MCP revision 2026-07-28; 1.4.x tracks the superseded one, so shipping against
       1.4.x would mean rewriting immediately. Held at 2.0.0-rc.1 for that reason until the stable
@@ -71,7 +80,7 @@
     <PackageVersion Include="ModelContextProtocol.AspNetCore" Version="2.2.0" />
     <!-- Managed connector gRPC contract and streaming client. Stable package lines verified from
          NuGet; Grpc.Tools is build-only and does not ship in the API image. -->
-    <PackageVersion Include="Google.Protobuf" Version="3.35.1" />
+    <PackageVersion Include="Google.Protobuf" Version="3.36.2" />
     <PackageVersion Include="Grpc.Core.Api" Version="2.83.0" />
     <PackageVersion Include="Grpc.AspNetCore" Version="2.83.0" />
     <PackageVersion Include="Grpc.Net.Client" Version="2.83.0" />
@@ -95,9 +104,9 @@
     <PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="5.6.0" />
     <PackageVersion Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="5.6.0" />
     <PackageVersion Include="Microsoft.CodeAnalysis.Workspaces.MSBuild" Version="5.6.0" />
-    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.10" />
-    <PackageVersion Include="Microsoft.Extensions.Options" Version="10.0.10" />
-    <PackageVersion Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.10" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.15" />
+    <PackageVersion Include="Microsoft.Extensions.Options" Version="10.0.15" />
+    <PackageVersion Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.15" />
   </ItemGroup>
 
   <ItemGroup>

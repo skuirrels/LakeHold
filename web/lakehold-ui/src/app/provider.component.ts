@@ -81,7 +81,7 @@ export class ProviderComponent {
   private readonly providerVersion = signal('Latest');
 
   protected readonly stats = computed(() => [
-    { value: 'EF Core 10', label: 'Native provider, .NET 10' },
+    { value: 'EF Core 10 · 11', label: 'Native provider, .NET 10 and 11' },
     { value: this.providerVersion(), label: 'Current release on NuGet' },
     { value: 'S3 · GCS · Azure', label: 'Verified archive paths' },
     { value: 'MIT', label: 'Licence, open source' },
@@ -119,7 +119,7 @@ export class ProviderComponent {
     {
       label: '02 — Fast path',
       title: 'Load at columnar speed',
-      body: 'Appender-backed BulkInsert reaches roughly one million rows per second, and primary-key Upsert stages an appender batch into a set-based merge.',
+      body: 'Appender-backed BulkInsert reaches roughly one million rows per second and fills generated keys on native DuckDB; Upsert by primary key, alternate key, or logical-key MERGE stages an appender batch into a set-based merge.',
     },
     {
       label: '03 — File native',
@@ -129,7 +129,7 @@ export class ProviderComponent {
     {
       label: '04 — Complete',
       title: 'Reads and writes, no asterisk',
-      body: 'SaveChanges, transactions, migrations, optimistic concurrency, scaffolding, and store-generated keys, on the native DuckDB profile.',
+      body: 'SaveChanges, transactions, migrations, optimistic concurrency, scaffolding, store-generated keys, opt-in write-write conflict retry, and encryption at rest, on the native DuckDB profile.',
     },
     {
       label: '05 — Toolable',

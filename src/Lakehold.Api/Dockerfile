@@ -9,7 +9,7 @@ FROM --platform=$BUILDPLATFORM debian:bookworm-slim AS duckdb-extensions
 ARG TARGETARCH
 # Keep this equal to SELECT version() from the native library shipped by
 # Skuirrels.DuckDB.NET.Bindings.Full. ExtensionPackagingTests fails on drift.
-ARG DUCKDB_EXTENSION_VERSION=1.5.5
+ARG DUCKDB_EXTENSION_VERSION=1.5.6
 # Keep this equal to the default LakehouseOptions extension set.
 ARG DUCKDB_PRELOADED_EXTENSIONS="ducklake httpfs json parquet excel avro"
 

@@ -7,6 +7,36 @@ and LakeHold follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+
+- **`DuckDB.EFCoreProvider` is updated from 1.26.0 to 1.31.0**, and the pinned `Skuirrels.DuckDB.NET`
+  packages move from 1.5.5.4 to 1.5.6, which the provider has required since 1.27.0. The bundled
+  DuckDB engine therefore moves from 1.5.5 to 1.5.6: `SELECT version()` through the new packages
+  reports `v1.5.6`, and the API image preloads its extensions from the matching `v1.5.6` artifacts,
+  all six of which are published for `linux_amd64` and `linux_arm64`. Two behaviour changes in the
+  line reach the paths LakeHold still runs on native
+  DuckDB, the legacy control-plane import and the isolated test adapters: tracked `SaveChanges`
+  updates are now plain `UPDATE` statements, so an overlapping update fails with a retryable
+  conflict instead of silently losing a write, and a relationship on a non-nullable foreign key is
+  now required and queries through `INNER JOIN`. The DuckLake data plane is unaffected: the dynamic
+  SQL path, the maintenance facade, and the command-plan APIs are unchanged. New in the line and not
+  yet used here: opt-in `EnableRetryOnFailure()` for write-write conflicts, `GROUP BY ROLLUP`, `CUBE`,
+  and `GROUPING SETS` in LINQ, generated-key fill on `BulkInsert`, store-generated read-back on the
+  alternate-target `UpsertAsync`, `BLOB` literal and `BLOB[]` read fixes, compiled-model support for
+  every timestamp and time type, and stable EF Core 11 packages. The provider documentation page,
+  `docs/PROVIDER-FEEDBACK.md`, and the LINQ planner documents are brought up to the pinned release.
+- **Aspire moves from 13.4.6 to 13.6.5**, which in turn requires the `Microsoft.Extensions`
+  abstractions at 10.0.15 and `Google.Protobuf` at 3.36.2.
+
+### Security
+
+- **NuGet audit failures no longer block the build.** Advisories published against
+  `System.Security.Cryptography.Pkcs` and `System.Security.Cryptography.Xml` 10.0.10 (both transitive)
+  and against Aspire 13.4.6 and its dashboard SDK turned every restore into a warnings-as-errors
+  failure. The two cryptography packages are now pinned at 10.0.15 through transitive pinning, the
+  same mechanism that already holds `Microsoft.OpenApi` above its advisory, and Aspire is raised as
+  above.
+
 ### Fixed
 
 - **The LINQ compiler's readiness probe no longer compiles on every call.** `/ready` verified the
