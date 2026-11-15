@@ -6,7 +6,7 @@
 #   Workbench       http://localhost:5399     <- the website
 #   API             http://localhost:5200
 #   Traces          http://localhost:16686
-#   MinIO console   http://localhost:59001
+#   S3 console      http://localhost:59001/rustfs/console/
 #
 # The api development image adds LakeHold's signed DuckDB extensions to the stock SDK while the
 # source remains bind-mounted, so `dotnet watch` and `ng serve` still hot-reload on save. Slower to
@@ -15,13 +15,13 @@
 #
 # To run those two on the host instead — a faster inner loop — start only the backing services:
 #
-#   docker compose up -d postgres minio minio-bucket jaeger
+#   docker compose up -d postgres s3 s3-bucket jaeger
 #   dotnet run --project src/Lakehold.Api
 #   npm start --prefix web/lakehold-ui
 #
-# PostgreSQL and MinIO are also what the gated integration suites need; `dotnet test` skips them when
-# they are not up. Ports are deliberately non-default (55439, 59000) so nothing collides with a
-# PostgreSQL or MinIO you already run locally.
+# PostgreSQL and the S3-compatible store are also what the gated integration suites need; `dotnet
+# test` skips them when they are not up. Ports are deliberately non-default (55439, 59000) so nothing
+# collides with a PostgreSQL or object store you already run locally.
 #
 # Ports, users, and database names are written here with inline defaults rather than pulled from
 # .env: they are configuration, not secrets, and belong in source control where everyone gets the
@@ -230,21 +230,27 @@ services:
   # Bring-your-own-bucket is the product's headline claim, so the backup and eject paths are tested
   # against a real S3 API rather than a local directory. Object stores differ in ways the type system
   # hides: no directories to enumerate, no delete, and paths that are not Path-shaped.
-  minio:
-    image: minio/minio:latest
-    container_name: lakehold-minio
+  #
+  # The service is named for the protocol, not the product behind it. This was MinIO until its
+  # images could no longer be pulled from Docker Hub or quay.io (October 2026); RustFS replaced it as a drop-in with the
+  # same ports, environment-supplied root credentials, and path-style addressing that DuckDB's httpfs
+  # and the tests use. Pinned by tag and index digest so a re-push cannot change what a fresh machine
+  # pulls.
+  s3:
+    image: rustfs/rustfs:1.0.5@sha256:b81d16a90ee25bd9511280127ca1471788c6e874cf0f0da759645f46b2dc1d74
+    container_name: lakehold-s3
     restart: unless-stopped
-    command: server /data --console-address ":9001"
     environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-lakehold}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-lakehold123}
+      RUSTFS_ACCESS_KEY: ${S3_ROOT_USER:-lakehold}
+      RUSTFS_SECRET_KEY: ${S3_ROOT_PASSWORD:-lakehold123}
+      RUSTFS_CONSOLE_ENABLE: "true"
     ports:
-      - "${MINIO_PORT:-59000}:9000"       # S3 API
-      - "${MINIO_CONSOLE_PORT:-59001}:9001" # web console
+      - "${S3_PORT:-59000}:9000"           # S3 API
+      - "${S3_CONSOLE_PORT:-59001}:9001"   # web console, at /rustfs/console/
     volumes:
-      - minio-data:/data
+      - s3-data:/data
     healthcheck:
-      test: ["CMD", "mc", "ready", "local"]
+      test: ["CMD", "curl", "-fsS", "http://localhost:9000/health"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -252,17 +258,23 @@ services:
 
   # Creates the test bucket. This is not optional convenience: ObjectStoreBackupTests writes to
   # s3://<bucket>/… and never creates the bucket itself, so without this the S3 tests fail against a
-  # running MinIO rather than skipping cleanly — the most confusing of the three possible outcomes.
-  minio-bucket:
-    image: minio/mc:latest
-    container_name: lakehold-minio-bucket
+  # running store rather than skipping cleanly — the most confusing of the three possible outcomes.
+  # The AWS CLI rather than a vendor client, so the bucket step survives the next store swap too.
+  s3-bucket:
+    image: amazon/aws-cli:2.40.3@sha256:33a16c53ea442e918b58df67301ad76a8fb57082c39f7e78753b898c3f3e87c2
+    container_name: lakehold-s3-bucket
     depends_on:
-      minio:
+      s3:
         condition: service_healthy
+    environment:
+      AWS_ACCESS_KEY_ID: ${S3_ROOT_USER:-lakehold}
+      AWS_SECRET_ACCESS_KEY: ${S3_ROOT_PASSWORD:-lakehold123}
+      AWS_DEFAULT_REGION: us-east-1
+      AWS_ENDPOINT_URL: http://s3:9000
     entrypoint: >
       /bin/sh -c "
-      mc alias set local http://minio:9000 '${MINIO_ROOT_USER:-lakehold}' '${MINIO_ROOT_PASSWORD:-lakehold123}' &&
-      mc mb --ignore-existing local/'${LAKEHOLD_TEST_S3_BUCKET:-lakehold-test}' &&
+      aws s3api head-bucket --bucket '${LAKEHOLD_TEST_S3_BUCKET:-lakehold-test}' 2>/dev/null ||
+      aws s3api create-bucket --bucket '${LAKEHOLD_TEST_S3_BUCKET:-lakehold-test}' &&
       echo 'bucket ${LAKEHOLD_TEST_S3_BUCKET:-lakehold-test} ready'
       "
     restart: "no"
@@ -292,7 +304,7 @@ services:
 
 volumes:
   postgres-data:
-  minio-data:
+  s3-data:
   nuget-cache:
   api-state:
   ui-node-modules:

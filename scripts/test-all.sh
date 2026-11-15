@@ -5,7 +5,7 @@ repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ui_root="$repo_root/web/lakehold-ui"
 compose_project="${LAKEHOLD_TEST_PROJECT:-lakehold-test}"
 postgres_port="${LAKEHOLD_TEST_POSTGRES_PORT:-56439}"
-minio_port="${LAKEHOLD_TEST_MINIO_PORT:-60000}"
+s3_port="${LAKEHOLD_TEST_S3_PORT:-60000}"
 ui_port="${LAKEHOLD_TEST_UI_PORT:-6499}"
 npm_cache="${LAKEHOLD_TEST_NPM_CACHE:-$repo_root/.npm-cache}"
 lock_dir="$repo_root/.lakehold-test.lock"
@@ -35,9 +35,9 @@ trap cleanup_on_exit EXIT
 
 export LAKEHOLD_PORT="$ui_port"
 export LAKEHOLD_TEST_POSTGRES_PORT="$postgres_port"
-export LAKEHOLD_TEST_MINIO_PORT="$minio_port"
+export LAKEHOLD_TEST_S3_PORT="$s3_port"
 export LAKEHOLD_TEST_POSTGRES="Host=127.0.0.1;Port=$postgres_port;Database=lakeholdmeta;Username=lakehold;Password=lakehold"
-export LAKEHOLD_TEST_S3_ENDPOINT="http://127.0.0.1:$minio_port"
+export LAKEHOLD_TEST_S3_ENDPOINT="http://127.0.0.1:$s3_port"
 export LAKEHOLD_TEST_S3_KEY="lakehold"
 export LAKEHOLD_TEST_S3_SECRET="lakehold123"
 export LAKEHOLD_TEST_S3_BUCKET="lakehold-test"
@@ -63,9 +63,9 @@ CI=1 npm --prefix "$ui_root" run build
 echo "==> starting disposable PostgreSQL and S3 integrations"
 cleanup_stack
 docker compose -p "$compose_project" "${compose_files[@]}" \
-  up --detach --wait postgres minio
+  up --detach --wait postgres s3
 docker compose -p "$compose_project" "${compose_files[@]}" \
-  run --rm minio-bucket
+  run --rm s3-bucket
 
 echo "==> running every backend test with integrations required"
 dotnet test "$repo_root/Lakehold.slnx" \

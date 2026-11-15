@@ -313,7 +313,7 @@ first three phases.
 |---|---|
 | Filesystem | Default and explicit paths; tenant/catalog qualification; multi-node warning |
 | S3 | Default and exact path; region; session token; profile mismatch; missing bucket failure |
-| S3-compatible | Endpoint, TLS, path/vhost style; MinIO integration |
+| S3-compatible | Endpoint, TLS, path/vhost style; S3-compatible integration |
 | GCS | `gs://` and `gcs://`; HMAC profile; mismatch and missing credentials |
 | Azure | `az://`, `azure://`, and `abfss://`; connection-string and identity modes |
 | Authorization | Instance administrator allowed; tenant owner/editor/reader refused |
@@ -329,7 +329,7 @@ first three phases.
 - Persisting raw cloud credentials in the LakeHold control plane.
 - Moving an existing catalog by editing its data path.
 - Treating shared object storage as distributed execution of a single DuckDB query.
-- Promising that MinIO integration proves AWS IAM, Google HMAC, or Azure identity behaviour.
+- Promising that the S3-compatible integration proves AWS IAM, Google HMAC, or Azure identity behaviour.
 
 ## Implementation pointers
 

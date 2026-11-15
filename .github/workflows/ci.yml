@@ -4,9 +4,10 @@
 # compile and pass its tests. Publishing an artifact nobody had built in a clean checkout is worse
 # than publishing none: it moves the failure from a contributor's machine to an operator's node.
 #
-# The fast backend job needs no services. A separate integration job opts into PostgreSQL and MinIO
-# explicitly, so a green pull request means both the isolated suite and the real storage contracts
-# ran. Browser tests use the complete Compose stack and exercise the product through Chromium.
+# The fast backend job needs no services. A separate integration job opts into PostgreSQL and an
+# S3-compatible store explicitly, so a green pull request means both the isolated suite and the real
+# storage contracts ran. Browser tests use the complete Compose stack and exercise the product
+# through Chromium.
 #
 # The public API is checked by two jobs, kept apart on purpose. public-api-sdks needs no services
 # and proves the committed clients are reproducible from the committed contract. public-api-contract
@@ -179,7 +180,7 @@ jobs:
       - name: Start PostgreSQL
         # The control plane is modelled EF Core state on Npgsql, so the API cannot start without it.
         # Nothing else is needed: a host run configures no OIDC authority and writes lakehouse state
-        # to a local .lakehold directory, so neither Keycloak nor MinIO is involved.
+        # to a local .lakehold directory, so neither Keycloak nor the S3 store is involved.
         run: docker compose up -d postgres
 
       - name: Build the API
@@ -234,10 +235,10 @@ jobs:
       - name: Configure local test services
         run: cp .env.example .env
 
-      - name: Start PostgreSQL and MinIO
+      - name: Start PostgreSQL and the S3-compatible store
         run: |
-          docker compose up -d postgres minio
-          docker compose up minio-bucket
+          docker compose up -d postgres s3
+          docker compose run --rm s3-bucket
 
       - name: Run engine tests with every integration enabled
         run: |
@@ -251,7 +252,7 @@ jobs:
 
       - name: Show service logs after a failure
         if: failure()
-        run: docker compose logs --no-color postgres minio minio-bucket
+        run: docker compose logs --no-color postgres s3 s3-bucket
 
       - name: Stop test services
         if: always()
