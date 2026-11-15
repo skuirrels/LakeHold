@@ -6,7 +6,8 @@
 #
 # The fast backend job needs no services. A separate integration job opts into PostgreSQL and an
 # S3-compatible store explicitly, so a green pull request means both the isolated suite and the real
-# storage contracts ran. Browser tests use the complete Compose stack and exercise the product through Chromium.
+# storage contracts ran. Browser tests use the complete Compose stack and exercise the product
+# through Chromium.
 #
 # The public API is checked by two jobs, kept apart on purpose. public-api-sdks needs no services
 # and proves the committed clients are reproducible from the committed contract. public-api-contract
