@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Globalization;
 using Lakehold.Engine.Catalog;
 using Lakehold.Engine.Configuration;
@@ -13,18 +12,25 @@ namespace Lakehold.Engine.Tests;
 ///     Cover for the idle sweep reclaiming a session a caller has already been handed.
 /// </summary>
 /// <remarks>
-///     A scheduled backup and flush starting on the same second shared one warm session. The flush's
-///     sweep judged it idle while the backup had just taken it, disposed it, and the backup failed
-///     with <see cref="ObjectDisposedException"/>. Checking a session out now counts as use, and the
-///     sweep re-checks that under the same lock the checkout takes.
+///     <para>
+///         A scheduled backup and flush starting on the same second shared one warm session. The
+///         flush's sweep judged it idle while the backup had just taken it, disposed it, and the
+///         backup failed with <see cref="ObjectDisposedException"/>. Checking a session out now
+///         counts as use, and the sweep re-checks that under the same lock the checkout takes.
+///     </para>
+///     <para>
+///         The pool reads a fake clock that the test moves by hours, against a one-hour timeout. A
+///         statement still stamps the session from the real clock, but a test run is seconds long,
+///         so that stamp is effectively the clock's start. An earlier wall-clock version needed its
+///         steps to land within a fraction of a three-second timeout and failed on a loaded runner.
+///     </para>
 /// </remarks>
 public sealed class DucklingPoolCheckoutTests : IAsyncLifetime
 {
-    // Large enough that the margins below survive a loaded CI runner, small enough to keep each test
-    // to a few seconds. Below its five-second floor the sweep interval equals the idle timeout.
-    private static readonly TimeSpan IdleTimeout = TimeSpan.FromSeconds(3);
+    private static readonly TimeSpan IdleTimeout = TimeSpan.FromHours(1);
 
     private readonly string _root = Path.Combine(Path.GetTempPath(), "lakehold-tests", Guid.NewGuid().ToString("N"));
+    private readonly ManualClock _clock = new(DateTimeOffset.UtcNow);
     private DucklingPool _pool = null!;
 
     public Task InitializeAsync()
@@ -36,7 +42,9 @@ public sealed class DucklingPoolCheckoutTests : IAsyncLifetime
                 DataRoot = Path.Combine(_root, "data"),
                 IdleTimeout = IdleTimeout,
             }),
-            NullLoggerFactory.Instance);
+            NullLoggerFactory.Instance,
+            configurators: null,
+            timeProvider: _clock);
 
         return Task.CompletedTask;
     }
@@ -60,25 +68,18 @@ public sealed class DucklingPoolCheckoutTests : IAsyncLifetime
         var held = Catalog("held", 1);
         var other = Catalog("other", 2);
 
-        // Offsets are measured from this checkout, whose sweep opens the throttle window. `ready` is
-        // when the session ran its last statement, after paying its own start-up.
-        var clock = Stopwatch.StartNew();
         var first = await _pool.GetOrStartAsync(held, configure: null, CancellationToken.None);
         await first.ExecuteQueryAsync("SELECT 1", CancellationToken.None);
-        var ready = clock.Elapsed;
-        Assert.True(
-            ready < IdleTimeout * 0.5,
-            $"start-up took {ready}; the timeline below needs it under {IdleTimeout * 0.5}");
 
-        // Inside the throttle window, so this checkout runs no sweep. The caller holds the session
-        // and has executed nothing on it yet: where the backup was when it failed.
-        await DelayUntilAsync(clock, IdleTimeout * 0.8);
+        // Not yet idle, so this checkout's own sweep keeps the session. The caller holds it and has
+        // executed nothing on it yet: where the backup was when it failed.
+        _clock.Advance(IdleTimeout * 0.8);
         var checkedOut = await _pool.GetOrStartAsync(held, configure: null, CancellationToken.None);
         Assert.Same(first, checkedOut);
 
-        // Past the window, so another catalog's request sweeps. From its last statement the held
-        // session is idle beyond the timeout; from its checkout it is not.
-        await DelayUntilAsync(clock, ready + (IdleTimeout * 1.2));
+        // Another catalog's request sweeps. From its last statement the held session is idle beyond
+        // the timeout; from its checkout it is not.
+        _clock.Advance(IdleTimeout * 0.5);
         await _pool.GetOrStartAsync(other, configure: null, CancellationToken.None);
 
         var result = await checkedOut.ExecuteQueryAsync("SELECT 42", CancellationToken.None);
@@ -92,24 +93,13 @@ public sealed class DucklingPoolCheckoutTests : IAsyncLifetime
         var idle = Catalog("idle", 1);
         var other = Catalog("other", 2);
 
-        var clock = Stopwatch.StartNew();
         var session = await _pool.GetOrStartAsync(idle, configure: null, CancellationToken.None);
         await session.ExecuteQueryAsync("SELECT 1", CancellationToken.None);
-        var ready = clock.Elapsed;
 
-        await DelayUntilAsync(clock, ready + (IdleTimeout * 1.3));
+        _clock.Advance(IdleTimeout * 1.3);
         await _pool.GetOrStartAsync(other, configure: null, CancellationToken.None);
 
         Assert.DoesNotContain("idle", _pool.WarmCatalogs);
-    }
-
-    private static async Task DelayUntilAsync(Stopwatch clock, TimeSpan offset)
-    {
-        var remaining = offset - clock.Elapsed;
-        if (remaining > TimeSpan.Zero)
-        {
-            await Task.Delay(remaining);
-        }
     }
 
     private CatalogDescriptor Catalog(string name, int id)
@@ -123,5 +113,15 @@ public sealed class DucklingPoolCheckoutTests : IAsyncLifetime
             CatalogId: id);
         Directory.CreateDirectory(descriptor.DataPath);
         return descriptor;
+    }
+
+    /// <summary>A clock that moves only when told to.</summary>
+    private sealed class ManualClock(DateTimeOffset start) : TimeProvider
+    {
+        private DateTimeOffset _now = start;
+
+        public override DateTimeOffset GetUtcNow() => _now;
+
+        public void Advance(TimeSpan by) => _now = _now.Add(by);
     }
 }

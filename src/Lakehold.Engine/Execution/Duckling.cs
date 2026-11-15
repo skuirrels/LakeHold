@@ -63,7 +63,8 @@ public sealed class Duckling : IAsyncDisposable
     public DateTimeOffset LastUsedUtc { get; private set; }
 
     /// <summary>Marks the session as in use without running anything, so the idle sweep spares it.</summary>
-    internal void MarkUsed() => LastUsedUtc = DateTimeOffset.UtcNow;
+    /// <param name="at">The pool's current time, so the stamp and the sweep read the same clock.</param>
+    internal void MarkUsed(DateTimeOffset at) => LastUsedUtc = at;
 
     /// <summary>
     ///     Access to the provider's DuckLake maintenance surface for this session's catalog.

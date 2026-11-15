@@ -31,6 +31,7 @@ public sealed class DucklingPool : IAsyncDisposable
     private readonly ILoggerFactory _loggerFactory;
     private readonly IDucklingSessionConfigurator[] _configurators;
     private readonly TimeSpan _sweepInterval;
+    private readonly TimeProvider _time;
 
     // Serialises handing a session out against deciding it is idle. Without it the sweep could judge
     // a session idle from a stale timestamp, a concurrent caller could take that same session from
@@ -44,7 +45,8 @@ public sealed class DucklingPool : IAsyncDisposable
     public DucklingPool(
         IOptions<LakehouseOptions> options,
         ILoggerFactory loggerFactory,
-        IEnumerable<IDucklingSessionConfigurator>? configurators = null)
+        IEnumerable<IDucklingSessionConfigurator>? configurators = null,
+        TimeProvider? timeProvider = null)
     {
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(loggerFactory);
@@ -53,6 +55,7 @@ public sealed class DucklingPool : IAsyncDisposable
         _loggerFactory = loggerFactory;
         _logger = loggerFactory.CreateLogger<DucklingPool>();
         _configurators = configurators?.ToArray() ?? [];
+        _time = timeProvider ?? TimeProvider.System;
         _sweepInterval = _options.IdleTimeout < SweepFloor ? _options.IdleTimeout : SweepFloor;
     }
 
@@ -108,7 +111,7 @@ public sealed class DucklingPool : IAsyncDisposable
             // still looks as idle as it did before the checkout, and the sweep would reclaim it.
             if (entry.IsValueCreated && entry.Value.IsCompletedSuccessfully)
             {
-                entry.Value.Result.MarkUsed();
+                entry.Value.Result.MarkUsed(_time.GetUtcNow());
             }
         }
 
@@ -260,7 +263,7 @@ public sealed class DucklingPool : IAsyncDisposable
 
     private async Task EvictIdleAsync()
     {
-        var now = DateTimeOffset.UtcNow;
+        var now = _time.GetUtcNow();
 
         // Skip the scan while a recent sweep still covers us: it allocates a candidate list and walks
         // every warm session, which is wasted work on the query hot path when nothing has aged out.
