@@ -7,6 +7,13 @@ and LakeHold follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.6.2] - 2026-11-15
+
+Fixes two runtime faults found reviewing the public demo, and brings the website back in line with
+the product. A scheduled backup could fail when it started alongside a flush, and re-running the demo
+seed against a surviving catalog duplicated its rows. No configuration, data-format, or API change
+accompanies the release. A demo catalog that is already doubled is not repaired by upgrading.
+
 ### Fixed
 
 - **Re-running the demo seed no longer duplicates its rows.** The seed created each table with
@@ -735,7 +742,8 @@ works the way every instruction says it does.
 - Production API and web container images for Linux amd64 and arm64, Compose deployment, health
   checks, telemetry, and a reproducible end-to-end test suite.
 
-[Unreleased]: https://github.com/skuirrels/LakeHold/compare/v2.6.1...HEAD
+[Unreleased]: https://github.com/skuirrels/LakeHold/compare/v2.6.2...HEAD
+[2.6.2]: https://github.com/skuirrels/LakeHold/compare/v2.6.1...v2.6.2
 [2.6.1]: https://github.com/skuirrels/LakeHold/compare/v2.6.0...v2.6.1
 [2.6.0]: https://github.com/skuirrels/LakeHold/compare/v2.5.1...v2.6.0
 [2.5.1]: https://github.com/skuirrels/LakeHold/compare/v2.5.0...v2.5.1
