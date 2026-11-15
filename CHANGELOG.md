@@ -7,6 +7,13 @@ and LakeHold follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.6.0] - 2026-11-15
+
+Moves the backend to .NET 11, updates the DuckDB EF Core provider to 1.31.0 and the DuckDB engine to
+1.5.6, and stops the LINQ compiler's health check from compiling on every probe. The published
+images now build on the .NET 11 Ubuntu 26.04 base rather than Debian. The DuckDB engine moves within
+its 1.5 line, so no DuckLake catalog or data-file migration accompanies the release.
+
 ### Changed
 
 - **The backend now targets .NET 11.** Every server, test, and tool project builds for `net11.0`, the
@@ -47,16 +54,17 @@ and LakeHold follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   every timestamp and time type, and stable EF Core 11 packages. The provider documentation page,
   `docs/PROVIDER-FEEDBACK.md`, and the LINQ planner documents are brought up to the pinned release.
 - **Aspire moves from 13.4.6 to 13.6.5**, which in turn requires the `Microsoft.Extensions`
-  abstractions at 10.0.15 and `Google.Protobuf` at 3.36.2.
+  abstractions at 10.0.15 or later (11.0.0 with the .NET 11 move above) and `Google.Protobuf` at
+  3.36.2.
 
 ### Security
 
 - **NuGet audit failures no longer block the build.** Advisories published against
   `System.Security.Cryptography.Pkcs` and `System.Security.Cryptography.Xml` 10.0.10 (both transitive)
   and against Aspire 13.4.6 and its dashboard SDK turned every restore into a warnings-as-errors
-  failure. The two cryptography packages are now pinned at 10.0.15 through transitive pinning, the
-  same mechanism that already holds `Microsoft.OpenApi` above its advisory, and Aspire is raised as
-  above.
+  failure. The two cryptography packages are now pinned through transitive pinning, at 11.0.0 with
+  the .NET 11 move, the same mechanism that already holds `Microsoft.OpenApi` above its advisory, and
+  Aspire is raised as above.
 
 ### Fixed
 
@@ -680,7 +688,9 @@ works the way every instruction says it does.
 - Production API and web container images for Linux amd64 and arm64, Compose deployment, health
   checks, telemetry, and a reproducible end-to-end test suite.
 
-[Unreleased]: https://github.com/skuirrels/LakeHold/compare/v2.5.0...HEAD
+[Unreleased]: https://github.com/skuirrels/LakeHold/compare/v2.6.0...HEAD
+[2.6.0]: https://github.com/skuirrels/LakeHold/compare/v2.5.1...v2.6.0
+[2.5.1]: https://github.com/skuirrels/LakeHold/compare/v2.5.0...v2.5.1
 [2.5.0]: https://github.com/skuirrels/LakeHold/compare/v2.4.0...v2.5.0
 [2.4.0]: https://github.com/skuirrels/LakeHold/compare/v2.3.2...v2.4.0
 [2.3.2]: https://github.com/skuirrels/LakeHold/compare/v2.3.1...v2.3.2
