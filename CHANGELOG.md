@@ -7,6 +7,12 @@ and LakeHold follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.6.1] - 2026-11-15
+
+Restores the development stack and the CI integration and browser suites, which could no longer pull
+their S3-compatible store. The application code and the runtime behaviour of the published images are
+unchanged from 2.6.0; only the version they report moves.
+
 ### Fixed
 
 - **The development and test S3 store is pullable again.** `minio/minio` and `minio/mc` can no
@@ -706,7 +712,8 @@ works the way every instruction says it does.
 - Production API and web container images for Linux amd64 and arm64, Compose deployment, health
   checks, telemetry, and a reproducible end-to-end test suite.
 
-[Unreleased]: https://github.com/skuirrels/LakeHold/compare/v2.6.0...HEAD
+[Unreleased]: https://github.com/skuirrels/LakeHold/compare/v2.6.1...HEAD
+[2.6.1]: https://github.com/skuirrels/LakeHold/compare/v2.6.0...v2.6.1
 [2.6.0]: https://github.com/skuirrels/LakeHold/compare/v2.5.1...v2.6.0
 [2.5.1]: https://github.com/skuirrels/LakeHold/compare/v2.5.0...v2.5.1
 [2.5.0]: https://github.com/skuirrels/LakeHold/compare/v2.4.0...v2.5.0
