@@ -7,6 +7,72 @@ and LakeHold follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.6.0] - 2026-11-15
+
+Moves the backend to .NET 11, updates the DuckDB EF Core provider to 1.31.0 and the DuckDB engine to
+1.5.6, and stops the LINQ compiler's health check from compiling on every probe. The published
+images now build on the .NET 11 Ubuntu 26.04 base rather than Debian. The DuckDB engine moves within
+its 1.5 line, so no DuckLake catalog or data-file migration accompanies the release.
+
+### Changed
+
+- **The backend now targets .NET 11.** Every server, test, and tool project builds for `net11.0`, the
+  API and LINQ compiler images build on `sdk:11.0` and run on `aspnet:11.0`, and the backend CI jobs
+  install the 11.0 SDK. The .NET 11 default images are Ubuntu 26.04 LTS rather than Debian; they are
+  still glibc, still have `apt-get`, and still run as the `app` user, so the Dockerfiles change only
+  their tags. The client SDKs keep their `net8.0` floor. **EF Core stays on 10.0.x (10.0.15)**: the
+  newest stable `Npgsql.EntityFrameworkCore.PostgreSQL` is 10.0.3, which requires EF Core below 11,
+  and its only EF Core 11 build is a release candidate. `DuckDB.EFCoreProvider` documents its EF
+  Core 10 line as supported on .NET 11, and the DataProtection EF Core key store holds at 10.0.15
+  for the same reason. ASP.NET Core, authentication, OpenAPI, test hosting, and the
+  `Microsoft.Extensions` packages move to 11.0.0. `Microsoft.AspNetCore.OpenApi` 11 brings
+  OpenAPI.NET 3.11, whose response content is typed as `IOpenApiMediaType`; the public contract's
+  problem-response normaliser is updated for it. ASP.NET Core 11 also changes the document it
+  generates, and three changes are undone so the frozen v1 contract keeps its meaning: the document
+  is pinned to OpenAPI 3.1 instead of the new 3.2 default; a cursor-paginated list is documented as
+  its cursor envelope again rather than an `anyOf` of envelope and bare array, which `/api/v1` never
+  serves; and `ExecuteRequest.effectiveLanguage` stays nullable, as every published client has it.
+  What remains is cosmetic: the document reports `3.1.2`, and tags and responses are listed in a
+  different order. The SDKs are regenerated from it, and their models and method signatures are
+  unchanged.
+  Also updated: OpenTelemetry 1.21.0, the MCP C# SDK 2.4.0, gRPC 2.85.0, Roslyn 5.12.0, Confluent
+  2.16.0, and the test SDK 18.12.0. Quartz 4, xunit.runner.visualstudio 4, and the DuckDB 2 engine
+  line are major versions left for their own change. Two .NET 11 analyzers, CA2026 and CA2027, are
+  fixed in the tests: `JsonElement.Parse` replaces a parsed document's undisposed root, and a
+  "still pending" assertion uses `WaitAsync` with a timeout instead of racing `Task.Delay`.
+- **The Angular unit tests pass on Node 25 and later.** Node now defines its own `localStorage` and
+  `sessionStorage`, and Vitest does not replace a global Node already has, so the jsdom storages
+  never reached the tests: `localStorage` was `undefined` and 17 theme and sign-in tests failed. A
+  test setup file binds both to the jsdom window.
+- **`DuckDB.EFCoreProvider` is updated from 1.26.0 to 1.31.0**, and the pinned `Skuirrels.DuckDB.NET`
+  packages move from 1.5.5.4 to 1.5.6, which the provider has required since 1.27.0. The bundled
+  DuckDB engine therefore moves from 1.5.5 to 1.5.6: `SELECT version()` through the new packages
+  reports `v1.5.6`, and the API image preloads its extensions from the matching `v1.5.6` artifacts,
+  all six of which are published for `linux_amd64` and `linux_arm64`. Two behaviour changes in the
+  line reach the paths LakeHold still runs on native
+  DuckDB, the legacy control-plane import and the isolated test adapters: tracked `SaveChanges`
+  updates are now plain `UPDATE` statements, so an overlapping update fails with a retryable
+  conflict instead of silently losing a write, and a relationship on a non-nullable foreign key is
+  now required and queries through `INNER JOIN`. The DuckLake data plane is unaffected: the dynamic
+  SQL path, the maintenance facade, and the command-plan APIs are unchanged. New in the line and not
+  yet used here: opt-in `EnableRetryOnFailure()` for write-write conflicts, `GROUP BY ROLLUP`, `CUBE`,
+  and `GROUPING SETS` in LINQ, generated-key fill on `BulkInsert`, store-generated read-back on the
+  alternate-target `UpsertAsync`, `BLOB` literal and `BLOB[]` read fixes, compiled-model support for
+  every timestamp and time type, and stable EF Core 11 packages. The provider documentation page,
+  `docs/PROVIDER-FEEDBACK.md`, and the LINQ planner documents are brought up to the pinned release.
+- **Aspire moves from 13.4.6 to 13.6.5**, which in turn requires the `Microsoft.Extensions`
+  abstractions at 10.0.15 or later (11.0.0 with the .NET 11 move above) and `Google.Protobuf` at
+  3.36.2.
+
+### Security
+
+- **NuGet audit failures no longer block the build.** Advisories published against
+  `System.Security.Cryptography.Pkcs` and `System.Security.Cryptography.Xml` 10.0.10 (both transitive)
+  and against Aspire 13.4.6 and its dashboard SDK turned every restore into a warnings-as-errors
+  failure. The two cryptography packages are now pinned through transitive pinning, at 11.0.0 with
+  the .NET 11 move, the same mechanism that already holds `Microsoft.OpenApi` above its advisory, and
+  Aspire is raised as above.
+
 ### Fixed
 
 - **The LINQ compiler's readiness probe no longer compiles on every call.** `/ready` verified the
@@ -629,7 +695,9 @@ works the way every instruction says it does.
 - Production API and web container images for Linux amd64 and arm64, Compose deployment, health
   checks, telemetry, and a reproducible end-to-end test suite.
 
-[Unreleased]: https://github.com/skuirrels/LakeHold/compare/v2.5.0...HEAD
+[Unreleased]: https://github.com/skuirrels/LakeHold/compare/v2.6.0...HEAD
+[2.6.0]: https://github.com/skuirrels/LakeHold/compare/v2.5.1...v2.6.0
+[2.5.1]: https://github.com/skuirrels/LakeHold/compare/v2.5.0...v2.5.1
 [2.5.0]: https://github.com/skuirrels/LakeHold/compare/v2.4.0...v2.5.0
 [2.4.0]: https://github.com/skuirrels/LakeHold/compare/v2.3.2...v2.4.0
 [2.3.2]: https://github.com/skuirrels/LakeHold/compare/v2.3.1...v2.3.2

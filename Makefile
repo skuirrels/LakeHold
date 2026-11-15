@@ -182,7 +182,7 @@ pull-main:
 	git switch main
 	git pull --ff-only origin main
 
-# --pull refreshes the base images too. Both Dockerfiles track floating tags (aspnet:10.0,
+# --pull refreshes the base images too. Both Dockerfiles track floating tags (aspnet:11.0,
 # nginx:alpine), so without this a long-lived host keeps rebuilding onto whatever base it cached
 # months ago and never picks up their security updates.
 build:

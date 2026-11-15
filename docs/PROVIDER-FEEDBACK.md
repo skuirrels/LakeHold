@@ -6,10 +6,19 @@ reproduced against the shipped NuGet package rather than inferred; the few that 
 provider's own documentation say so and quote it, which is the distinction gap 8 below was retracted
 for missing.
 
-**Current: LakeHold runs 1.14.0.** Of the twelve numbered items: six closed, two withdrawn on the
+**Current: LakeHold runs 1.31.0.** Of the twelve numbered items: six closed, two withdrawn on the
 evidence by this side, one declined — correctly, with the fix landing here instead — and three still
 open. Three further asks (`Threads`, `AlsoAttachNamedSecret`, `SetCommitMessageAsync`) were delivered
 in 1.14.0 and are all in use.
+
+The three open items were re-checked against the shipped 1.31.0 package on 15 November 2026, by
+reading its XML documentation rather than its changelog: `DuckDBDynamicColumn` still exposes only
+`Ordinal`, `Name`, `DuckDBTypeName`, and `ClrType` (gap 9); the dynamic path still has no prepare
+step (gap 10) and no non-query (gap 12), and the provider's own documentation still routes a DML
+count through `ExecuteSqlRawAsync`. One thing that arrived in between bears on gap 12's first half:
+1.17.0's `SqlQueryDynamicCommandAsync` passes command text through unchanged, braces included, and
+LakeHold's parameterised statements go through it — but it is a reader path, so a write through it
+still reports no count, and the verb classification stays.
 
 The data plane has moved off raw `DuckDB.NET` and onto the provider entirely, and nothing outstanding
 blocks a workload. The two capabilities that would have justified keeping a second stack — a truthful
@@ -31,10 +40,10 @@ sense in the order it happened. The table below is the shortcut.
 | 6 | Nested/wide type contract undocumented | ✅ Closed | 1.13.0 — nested values preserved; mapping contracts documented |
 | 7 | `UseAutoIncrement` namespace | 🚫 **Withdrawn** | Breaking change, and the friction is load-bearing — [why](#gap-7--useautoincrement-namespace-do-not-move-it) |
 | 8 | No read-scaling guidance | 🚫 **Retracted** | The guidance was already in the provider's docs — [why](#1-read-scaling--the-gap-was-ours) |
-| 9 | No precision, scale, or nullability on columns | ⬜ **Open** | Wire protocol sends `-1` type modifiers — [detail](#gap-9--column-metadata-carries-no-precision-scale-or-nullability) |
-| 10 | Cannot learn a result's shape without executing | ⬜ **Open** | Worked around by deferring `Describe` — [detail](#gap-10--no-way-to-learn-a-results-shape-without-executing-it) |
+| 9 | No precision, scale, or nullability on columns | ⬜ **Open** | Still absent in 1.31.0; wire protocol sends `-1` type modifiers — [detail](#gap-9--column-metadata-carries-no-precision-scale-or-nullability) |
+| 10 | Cannot learn a result's shape without executing | ⬜ **Open** | Still absent in 1.31.0; worked around by deferring `Describe` — [detail](#gap-10--no-way-to-learn-a-results-shape-without-executing-it) |
 | 11 | No affected-row count on the dynamic path | ⛔ **Declined** | Correctly: the count is DuckDB.NET's to expose — [detail](#4-affected-row-counts--declined-correctly-and-the-workaround-has-a-trap) |
-| 12 | Raw SQL is parsed as a format string | ⬜ **Open** | Found while resolving 11 — [detail](#gap-12--raw-sql-is-parsed-as-a-format-string) |
+| 12 | Raw SQL is parsed as a format string | ⬜ **Open** | Still absent in 1.31.0; found while resolving 11 — [detail](#gap-12--raw-sql-is-parsed-as-a-format-string) |
 
 [Round four](#round-four--provider-response-and-what-changed-here) covers the provider's reply to all
 of it, including what each 1.14.0 API was measured to do before LakeHold adopted it.
@@ -224,7 +233,7 @@ LakeHold now serves the PostgreSQL frontend/backend protocol (`docs/POSTGRES-WIR
 different kind of load on the dynamic path than the HTTP API does: it needs a result's *shape* before
 its rows, a type description precise enough for a client to parse values, and statements arriving
 from a driver rather than from a person. All of the following was reproduced against 1.13.0 as
-shipped and still holds on 1.14.0.
+shipped and still holds on 1.14.0; the API surface it rests on is unchanged in 1.31.0.
 
 ### Correction — parameterised dynamic queries already exist
 
@@ -268,7 +277,7 @@ right now the only way to answer it is to build the experiment.
 
 ### Gap 9 — column metadata carries no precision, scale, or nullability
 
-**Status: open.** Unchanged in 1.14.0; the wire endpoint still sends `-1` type modifiers.
+**Status: open.** Unchanged through 1.31.0; the wire endpoint still sends `-1` type modifiers.
 
 `DuckDBDynamicColumn` exposes `Ordinal`, `Name`, `DuckDBTypeName`, and `ClrType`. For a wire protocol
 that is not quite enough: `RowDescription` declares a *type modifier* per column, which for
@@ -539,7 +548,8 @@ DuckLake secret is worth keeping in the doc, since the example is the thing an a
 
 ### Gap 12 — raw SQL is parsed as a format string
 
-**Status: open.** 1.14.0 adds no non-query on the dynamic path, which is the shape a fix would take.
+**Status: open.** Nothing through 1.31.0 adds a non-query on the dynamic path, which is the shape a
+fix would take.
 
 Not a DuckLake or DuckDB issue and not, strictly, the provider's own behaviour — it is EF's raw-SQL
 path — but it lands on any provider consumer that forwards user-authored SQL, and it is invisible

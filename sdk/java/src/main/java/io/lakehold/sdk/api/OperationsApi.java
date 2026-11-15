@@ -100,8 +100,8 @@ public class OperationsApi {
         Map<String, Object> localVarFormParams = new HashMap<String, Object>();
 
         final String[] localVarAccepts = {
-            "application/problem+json",
-            "application/json"
+            "application/json",
+            "application/problem+json"
         };
         final String localVarAccept = localVarApiClient.selectHeaderAccept(localVarAccepts);
         if (localVarAccept != null) {
@@ -162,6 +162,7 @@ public class OperationsApi {
          <table border="1">
        <caption>Response Details</caption>
             <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+            <tr><td> 200 </td><td> OK </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
             <tr><td> 400 </td><td> Bad Request </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
             <tr><td> 401 </td><td> Unauthorized </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
             <tr><td> 403 </td><td> Forbidden </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
@@ -176,7 +177,6 @@ public class OperationsApi {
             <tr><td> 502 </td><td> Bad Gateway </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
             <tr><td> 503 </td><td> Service Unavailable </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
             <tr><td> 504 </td><td> Gateway Timeout </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
-            <tr><td> 200 </td><td> OK </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
          </table>
          */
         public okhttp3.Call buildCall(final ApiCallback _callback) throws ApiException {
@@ -191,6 +191,7 @@ public class OperationsApi {
          <table border="1">
        <caption>Response Details</caption>
             <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+            <tr><td> 200 </td><td> OK </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
             <tr><td> 400 </td><td> Bad Request </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
             <tr><td> 401 </td><td> Unauthorized </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
             <tr><td> 403 </td><td> Forbidden </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
@@ -205,7 +206,6 @@ public class OperationsApi {
             <tr><td> 502 </td><td> Bad Gateway </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
             <tr><td> 503 </td><td> Service Unavailable </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
             <tr><td> 504 </td><td> Gateway Timeout </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
-            <tr><td> 200 </td><td> OK </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
          </table>
          */
         public PublicApiOperationDto execute() throws ApiException {
@@ -221,6 +221,7 @@ public class OperationsApi {
          <table border="1">
        <caption>Response Details</caption>
             <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+            <tr><td> 200 </td><td> OK </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
             <tr><td> 400 </td><td> Bad Request </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
             <tr><td> 401 </td><td> Unauthorized </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
             <tr><td> 403 </td><td> Forbidden </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
@@ -235,7 +236,6 @@ public class OperationsApi {
             <tr><td> 502 </td><td> Bad Gateway </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
             <tr><td> 503 </td><td> Service Unavailable </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
             <tr><td> 504 </td><td> Gateway Timeout </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
-            <tr><td> 200 </td><td> OK </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
          </table>
          */
         public ApiResponse<PublicApiOperationDto> executeWithHttpInfo() throws ApiException {
@@ -251,6 +251,7 @@ public class OperationsApi {
          <table border="1">
        <caption>Response Details</caption>
             <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+            <tr><td> 200 </td><td> OK </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
             <tr><td> 400 </td><td> Bad Request </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
             <tr><td> 401 </td><td> Unauthorized </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
             <tr><td> 403 </td><td> Forbidden </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
@@ -265,7 +266,6 @@ public class OperationsApi {
             <tr><td> 502 </td><td> Bad Gateway </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
             <tr><td> 503 </td><td> Service Unavailable </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
             <tr><td> 504 </td><td> Gateway Timeout </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
-            <tr><td> 200 </td><td> OK </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
          </table>
          */
         public okhttp3.Call executeAsync(final ApiCallback<PublicApiOperationDto> _callback) throws ApiException {
@@ -282,6 +282,7 @@ public class OperationsApi {
      <table border="1">
        <caption>Response Details</caption>
         <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+        <tr><td> 200 </td><td> OK </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
         <tr><td> 400 </td><td> Bad Request </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
         <tr><td> 401 </td><td> Unauthorized </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
         <tr><td> 403 </td><td> Forbidden </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
@@ -296,7 +297,6 @@ public class OperationsApi {
         <tr><td> 502 </td><td> Bad Gateway </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
         <tr><td> 503 </td><td> Service Unavailable </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
         <tr><td> 504 </td><td> Gateway Timeout </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
-        <tr><td> 200 </td><td> OK </td><td>  * X-Request-Id - Server correlation identifier for support and diagnostics. <br>  </td></tr>
      </table>
      */
     public APIgetOperationRequest getOperation(@jakarta.annotation.Nonnull String id) {

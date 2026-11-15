@@ -247,7 +247,7 @@ public sealed class SystemStorageEndpointTests : IAsyncLifetime
 
         // The sentinels have to be reachable for the scan above to mean anything: a profile inventory
         // that came back empty would pass it while proving nothing.
-        Assert.Equal(7, JsonDocument.Parse(body).RootElement.GetProperty("profiles").GetArrayLength());
+        Assert.Equal(7, JsonElement.Parse(body).GetProperty("profiles").GetArrayLength());
     }
 
     [Fact]

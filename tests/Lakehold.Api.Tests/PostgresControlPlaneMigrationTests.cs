@@ -263,8 +263,10 @@ public sealed class PostgresControlPlaneMigrationTests
                 now.AddMinutes(4),
                 TimeSpan.FromMinutes(1),
                 default);
-            var early = await Task.WhenAny(reclaim, Task.Delay(TimeSpan.FromMilliseconds(250)));
-            Assert.NotSame(reclaim, early);
+            // WaitAsync throws TimeoutException only while the claim is still pending, and stops its
+            // own timer if the claim finishes first; a claim that returned or faulted early fails here.
+            await Assert.ThrowsAsync<TimeoutException>(
+                () => reclaim.WaitAsync(TimeSpan.FromMilliseconds(250)));
 
             await publication!.CompleteAsync(now.AddMinutes(4), 2, 2, "v2", default);
             var next = await reclaim.WaitAsync(TimeSpan.FromSeconds(5));

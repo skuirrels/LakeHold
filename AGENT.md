@@ -9,7 +9,9 @@ LakeHold is a self-hostable, multi-tenant lakehouse built on DuckDB and DuckLake
 trades managed elasticity for infrastructure control, open Parquet storage, and first-class .NET
 integration.
 
-- Backend: .NET 10, ASP.NET Core minimal APIs, EF Core 10, DuckDB.EFCoreProvider.
+- Backend: .NET 11, ASP.NET Core minimal APIs, EF Core 10, DuckDB.EFCoreProvider. EF Core stays on
+  10.0.x on `net11.0` until Npgsql publishes a stable EF Core 11 provider; the reason is recorded
+  in `Directory.Packages.props`.
 - Frontend: Angular 22 with TypeScript 6 and npm.
 - Local orchestration: Docker Compose for backing services; the API and dev server run on the host.
 - Local durable state: `.lakehold/` below the API project unless configuration overrides it.
@@ -342,7 +344,7 @@ unless the user explicitly authorises that operation and the impact is understoo
 
 ## Build, run, and verification
 
-Requirements are Docker, the .NET 10 SDK, and Node.js 20 or newer.
+Requirements are Docker, the .NET 11 SDK, and Node.js 20 or newer.
 
 ```bash
 # Restore and build all backend projects

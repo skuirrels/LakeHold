@@ -1,9 +1,11 @@
 # DuckDB.EFCoreProvider documentation
 
 A practical guide to native DuckDB persistence, DuckLake catalogs, high-throughput writes,
-open-format analytics, and managed hot-to-cold data lifecycles — for EF Core 10 on .NET 10.
+open-format analytics, and managed hot-to-cold data lifecycles — for EF Core 10 on .NET 10, with a
+separate EF Core 11 package family for .NET 11.
 
-This page documents provider **1.17.1**.
+This page documents provider **1.31.0**, the release LakeHold pins. It resolves
+`Skuirrels.DuckDB.NET` 1.5.6, which bundles the DuckDB 1.5.6 engine.
 
 This is the provider LakeHold's own data plane runs on. What LakeHold's engine exercises in
 production is documented here as the public contract.
@@ -12,19 +14,23 @@ production is documented here as the public contract.
 
 ## Overview
 
-DuckDB.EFCoreProvider is a complete EF Core 10 relational provider for applications that need
-embedded analytics, local persistence, open-format data access, or a shared DuckLake catalog.
+DuckDB.EFCoreProvider is a complete EF Core relational provider for applications that need
+embedded analytics, local persistence, open-format data access, or a shared DuckLake catalog. The
+`DuckDB.EFCoreProvider` package targets EF Core 10 and also runs on .NET 11; the
+`DuckDB.EFCoreProvider.EF11` package targets EF Core 11 and shares the same version number.
 
 | Capability | What it covers |
 | --- | --- |
-| Application persistence | LINQ, tracking, `SaveChanges`, transactions, migrations, scaffolding, generated keys, and optimistic concurrency. |
-| High-speed ingestion | Appender-backed `BulkInsert`, primary-key `Upsert`, plus opt-in batching for tracked writes. |
+| Application persistence | LINQ, tracking, `SaveChanges`, transactions, migrations, scaffolding, generated keys, optimistic concurrency, and opt-in retry of write-write conflicts. |
+| High-speed ingestion | Appender-backed `BulkInsert` that fills generated keys on native DuckDB, `Upsert` by primary key, alternate key, or logical-key `MERGE`, plus opt-in batching for tracked writes. |
+| Encryption at rest | AES-256-GCM encryption of a native DuckDB file, its WAL, and spilled temporary files, with keys supplied by the application at attach time. |
 | Open-format analytics | Query Parquet, CSV, and JSON as mapped entities. Export translated, parameterised LINQ directly to Parquet. |
 | Ad-hoc analytics | Stream dynamic SQL results with runtime DuckDB/CLR column metadata and stable nested values. |
 | Query tooling | Capture non-executing LINQ command plans, replay exact named parameters, and inspect store-type support without private EF hooks. |
 | Lakehouse operations | Query DuckLake history, inspect snapshots, add commit metadata, run typed maintenance, attach local or named-secret reference catalogs, and scaffold local metadata. |
 | Managed data lifecycle | Archive relational aggregates to partitioned Parquet, reconcile changes, restore selections, and compact immutable generations. |
-| Observability | Use EF Core logging and diagnostics for bounded provider-owned bulk, export, tier, extension, and attachment operations. |
+| Observability | Use EF Core logging and diagnostics for bounded provider-owned bulk, export, tier, extension, encryption, and attachment operations. |
+| Remote access (experimental) | An explicitly opt-in Quack profile for LINQ, tracked writes, transactions, bulk insert and upsert against a remote DuckDB server. |
 
 > **Know the engine boundary.** DuckDB is an embedded, single-writer analytical engine. Use it for
 > reporting, ETL, local stores, edge workloads, and Parquet-backed analytics — not as a
@@ -40,6 +46,13 @@ The same package contains native DuckDB and the DuckLake backend profile.
 
 ```bash
 dotnet add package DuckDB.EFCoreProvider
+```
+
+On EF Core 11 (`net11.0`), add the EF11 package instead; `DuckDB.EFCoreProvider` keeps EF Core 10
+even when the application runs on .NET 11.
+
+```bash
+dotnet add package DuckDB.EFCoreProvider.EF11
 ```
 
 ### 2. Register a context
@@ -81,12 +94,14 @@ coordination.
 | Use when | Your application owns the database. | Your application joins a shared data layer. |
 | Configure with | `options.UseDuckDB("Data Source=app.duckdb")` | `options.UseDuckLake("catalog/app.ducklake")` |
 | LINQ, CRUD, transactions | Yes | Yes |
-| Bulk insert and upsert | Yes | Yes (MERGE-based) |
+| Bulk insert and upsert | Yes; `BulkInsert` fills generated keys | Yes (MERGE-based); every key is supplied |
+| Write-write conflict retry | Yes, opt-in | Yes, opt-in — catalog commit conflicts |
 | Migrations | Yes | No |
 | Database-first scaffolding | Yes | Local metadata catalogs only |
 | Generated values and constraints | Yes | No — application owns logical integrity |
 | Tracked-write batching | Yes | No |
 | Tiered Parquet archives | Yes | No |
+| Provider encryption at rest | Yes | No — the metadata and data backends encrypt their own storage |
 
 ---
 
@@ -112,6 +127,9 @@ protected override void OnConfiguring(DbContextOptionsBuilder options)
 | `EnableBulkDeleteBatching()` | Set-based deletion for eligible tracked entities. | Off |
 | `MemoryLimit("4GB")` | Capping DuckDB buffer-manager memory. | DuckDB: 80% RAM |
 | `Threads(4)` | Bounding DuckDB parallel-query worker threads. | DuckDB default |
+| `CheckpointThreshold("1GB")` | Raising the WAL size that triggers automatic checkpoints during sustained indexed ingest. | 16 MB |
+| `EnableRetryOnFailure()` | Replaying a unit of work when DuckDB or a DuckLake catalog rejects it with a write-write conflict. | Off |
+| `UseEncryptedDatabase(path, keyProvider)` | Storing the context's data in an AES-256-GCM encrypted file attached as the default catalog. | Off |
 | `FileSearchPath("/data")` | Resolving relative Parquet, CSV, and JSON paths. | DuckDB default |
 | `MigrationLockTimeout(…)` | Bounding the wait for the provider migrations lock. | 5 minutes |
 | `LoadExtension("httpfs")` | Provisioning remote-file and object-store support. | None |
@@ -134,7 +152,9 @@ per-query isolation controls.
 ### Relational model
 
 Keys, relationships, concurrency tokens, JSON, arrays, lists, temporal values, GUIDs, binary values,
-and optional spatial mappings are supported.
+`STRUCT`-mapped complex properties, and optional spatial mappings are supported. A relationship whose
+foreign key is a non-nullable property is required by inference and queries through `INNER JOIN`;
+call `IsRequired(false)` to keep it optional.
 
 ```csharp
 modelBuilder.Entity<Invoice>(entity =>
@@ -169,11 +189,32 @@ var revenue = await db.InvoiceLines
     .ToListAsync();
 ```
 
+### Subtotals
+
+`GroupByRollup`, `GroupByCube`, and `GroupByGroupingSets` work like `GroupBy` but also return
+subtotal groups, translating to DuckDB's `GROUP BY ROLLUP`, `CUBE`, and `GROUPING SETS`.
+`EF.Functions.Grouping(…)` tells a subtotal row from a genuine `NULL` key. Rolled-up value-type key
+members must be nullable, and only the key and aggregates can be projected. The same SQL runs on
+native DuckDB and DuckLake.
+
+```csharp
+var report = await db.Sales
+    .GroupByRollup(sale => new { sale.Store.Region, sale.Product.Category })
+    .Select(group => new
+    {
+        group.Key.Region,
+        group.Key.Category,
+        Revenue = group.Sum(sale => sale.Amount),
+        Level = EF.Functions.Grouping(group.Key.Region, group.Key.Category),
+    })
+    .ToListAsync();
+```
+
 ---
 
 ## Query command plans
 
-Provider 1.17.0 exposes an application-independent compiler/tooling boundary. It translates a
+Since 1.17.0 the provider exposes an application-independent compiler/tooling boundary. It translates a
 single-command `IQueryable<T>` or supported terminal operator without opening the connection, and
 returns the exact DuckDB command text plus immutable parameter metadata and values.
 
@@ -215,8 +256,8 @@ Three write paths trade EF semantics against raw throughput. Choose semantics fi
 | Path | Kind | Use it for | Best at |
 | --- | --- | --- | --- |
 | `SaveChanges` | Tracked | Change tracking, interceptors, store-generated values, relationship fix-up, and optimistic concurrency. | Application writes |
-| `BulkInsert` | Appender | ETL and large ingestion batches. Bypasses tracking and generated values. | New-row throughput |
-| `Upsert` | Set-based | Insert new rows and update existing rows by primary key, via a staged appender batch and a set-based merge. | Synchronisation |
+| `BulkInsert` | Appender | ETL and large ingestion batches. Bypasses tracking and interceptors; on native DuckDB a generated key still at its default is reserved from the column default and written back to the entity. | New-row throughput |
+| `Upsert` | Set-based | Insert new rows and update existing rows by primary key, or by an alternate key or unique index through the conflict-target overload, via a staged appender batch and a set-based merge. | Synchronisation |
 
 ```csharp
 // Tracked domain write
@@ -228,7 +269,49 @@ await db.BulkInsertAsync(importedRows);
 
 // Primary-key insert or update
 await db.UpsertAsync(synchronisedRows);
+
+// Natural-key insert or update; generated columns are read back into the entities
+await db.UpsertAsync(customers, customer => customer.Code);
 ```
+
+The conflict target of the alternate-key overload must be backed by a primary key, alternate key, or
+unique index. `DuckDBUpsertMatchMode.LogicalKeyMerge` opts into a set-based `MERGE INTO` on the
+selected properties without a physical unique constraint, which avoids maintaining an ART index
+under sustained ingest; a staged batch fails before mutation when one key matches several existing
+rows. Duplicate keys within one input resolve to the last occurrence, and
+`DuckDBUpsertInputMode.DistinctConflictTargets` skips that staging step when the caller guarantees
+distinct keys. On native DuckDB the alternate-target overload reads store-generated values, such as
+a sequence-backed surrogate key, back into the supplied entities after each batch.
+
+### Write-write conflicts
+
+DuckDB uses optimistic concurrency: when two transactions change the same row, the later one fails
+with a conflict rather than waiting. `EnableRetryOnFailure()` opts into `DuckDBRetryingExecutionStrategy`,
+which replays the unit of work for DuckDB and DuckLake write-write conflicts only; constraint
+violations and every other error fail immediately. An explicit transaction must run inside the
+strategy, and `BulkInsert` and `Upsert` are not retried automatically.
+
+```csharp
+options.UseDuckDB(
+    "Data Source=app.duckdb",
+    duckdb => duckdb.EnableRetryOnFailure(
+        maxRetryCount: 3,
+        maxRetryDelay: TimeSpan.FromSeconds(2)));
+
+var strategy = db.Database.CreateExecutionStrategy();
+await strategy.ExecuteAsync(async () =>
+{
+    db.ChangeTracker.Clear();
+    await using var transaction = await db.Database.BeginTransactionAsync();
+    // Read, change, and SaveChangesAsync here.
+    await transaction.CommitAsync();
+});
+```
+
+DuckDB 1.5.6 does not report a conflict for `UPDATE … RETURNING` on a table with a primary key, so
+tracked `SaveChanges` updates on native DuckDB are plain `UPDATE` statements: an overlapping update
+fails with a retryable `DbUpdateException` instead of silently losing a write, and store-generated
+values are read back in the same transaction.
 
 ---
 
@@ -294,6 +377,7 @@ await foreach (var row in result.ReadRowsAsync(cancellationToken))
 | --- | --- |
 | `SqlQueryDynamicRawAsync(sql)` | Trusted SQL text. A second overload accepts `{0}` placeholders and a parameter list for values. |
 | `SqlQueryDynamicAsync($"…{value}…")` | Interpolated SQL whose values become parameters. |
+| `SqlQueryDynamicCommandAsync(sql, parameters)` | SQL that already carries named provider parameters. The text passes through unchanged, `STRUCT` and `MAP` braces included. |
 | `ReadRowsAsync()` | Forward-only asynchronous streaming; each returned row owns its backing array. |
 
 The dynamic API is a row-result stream. DuckDB.NET currently reports `RecordsAffected == -1` on its
@@ -316,8 +400,8 @@ them through an entity mapping.
 
 | Area | Representative mappings |
 | --- | --- |
-| EF scalar | `Guid → UUID`, `DateOnly → DATE`, `DateTime → TIMESTAMP`, `DateTimeOffset → TIMESTAMPTZ`. |
-| EF structured | `JsonDocument`/`JsonElement → JSON`; one-dimensional arrays and lists map to DuckDB lists. |
+| EF scalar | `Guid → UUID`, `DateOnly → DATE`, `DateTime → TIMESTAMP`, `DateTimeOffset → TIMESTAMPTZ`, `byte[] → BLOB` (constants render as `'\x..'::BLOB`). |
+| EF structured | `JsonDocument`/`JsonElement → JSON`; one-dimensional arrays and lists map to DuckDB lists, including `List<byte[]> → BLOB[]`; complex properties opt into `STRUCT` columns with `UseStructMapping()`. |
 | Raw reader | `HUGEINT → BigInteger`, `STRUCT → Dictionary<string, object>`, `MAP → Dictionary<K,V>`. |
 | Spatial add-on | NetTopologySuite geometries map to DuckDB `GEOMETRY` with translated spatial members, methods, and aggregates. |
 
@@ -335,6 +419,9 @@ options.UseDuckDB(
 
 The add-on loads DuckDB's spatial extension. Geometry is stored in the native `GEOMETRY` type; WKT
 is only the current driver wire representation for reading and writing values.
+
+Compiled models (including NativeAOT) work with every timestamp and time column type, including
+`TIMESTAMPTZ`, `TIMETZ`, and `TimeSpan`, and no longer emit design-time-only annotations.
 
 See also: [complete type mappings and precision notes](https://github.com/skuirrels/DuckDB.EFCoreProvider/blob/main/docs/TYPE-MAPPINGS.md).
 
@@ -379,7 +466,7 @@ CREATE SECRET application_lake (
 | --- | --- |
 | LINQ and relational raw SQL | No physical PK/FK/unique enforcement |
 | Tracked insert, update, and delete | No store-generated values or sequences |
-| Transactions and concurrency checks | No EF migrations or `EnsureDeleted` |
+| Transactions and concurrency checks, with opt-in retry of catalog commit conflicts | No EF migrations or `EnsureDeleted` |
 | Initial `EnsureCreated` | No tracked-write batching |
 | `BulkInsert` and MERGE `Upsert` | No provider tiered storage |
 | Historical LINQ and typed maintenance | Application owns lifecycle policy and authorization |
@@ -578,6 +665,36 @@ and the [compatibility and release-acceptance matrix](https://github.com/skuirre
 
 ---
 
+## Encryption at rest
+
+`UseEncryptedDuckDB(path, keyProvider)` stores a native DuckDB context's data in a file encrypted
+with AES-256-GCM. DuckDB accepts an encryption key only as an `ATTACH` parameter, so the provider
+hosts the encrypted file on a shared in-memory database, attaches it with the application-supplied
+key, and selects it as the default catalog. Entities, migrations, and the migrations history table
+all live inside the encrypted file.
+
+```csharp
+services.AddDbContext<AppContext>(options => options
+    .UseEncryptedDuckDB(
+        "/var/lib/app/secure.duckdb",
+        () => keyVault.GetSecret("app-db-key"),
+        encrypted => encrypted.CatalogName("vault")));
+```
+
+The key provider runs once per attachment, so keys can come from a vault at connect time rather than
+from configuration. The `ATTACH` statement runs outside EF Core's command pipeline, so the key never
+reaches EF logs, diagnostics, or interceptors. Encryption covers the database file, its WAL, and the
+temporary files spilling queries write to disk, because the provider enables DuckDB's
+`temp_file_encryption`. It does not cover Parquet exports, tiered-storage cold files, or DuckLake
+data paths, which need their own encryption. Attachment is idempotent across concurrently opening
+contexts; a joining context's key is verified against a fingerprint of the attaching key.
+`DuckDBEventId` exposes attachment starting, completed, and failed events.
+
+See also: [the encryption at rest guide](https://github.com/skuirrels/DuckDB.EFCoreProvider/blob/main/docs/ENCRYPTION.md)
+for key rotation, encrypting an existing database, and backups.
+
+---
+
 ## Performance
 
 The figures below are developer-laptop measurements from the repository guide, over 100,000 rows.
@@ -657,7 +774,7 @@ options.UseDuckDB("Data Source=analytics.duckdb")
 | Bulk insert and upsert | The complete raw operation, including duration and affected rows on successful completion. |
 | Parquet export | Start, completion, and failure around the translated export command. |
 | Tiered storage | Archive, bootstrap, reconciliation, restore, retention, recovery, contract rewrite, compaction, and purge lifecycles. |
-| Infrastructure | Configured extension loading and DuckLake catalog attachment. |
+| Infrastructure | Configured extension loading, DuckLake catalog attachment, and encrypted-database attachment. |
 
 For structured consumption, use the `LogTo` overload that receives EF `EventData` or subscribe to
 `DiagnosticListener`, then cast provider events to `DuckDBOperationEventData`. The payload exposes
@@ -678,7 +795,13 @@ the operation, non-secret target, duration, optional affected-row count, excepti
 | ETL and Parquet analytics | **Strong** | Appender ingestion and direct file queries. |
 | Shared lakehouse analytics | **Good** | DuckLake profile when the app owns logical integrity. |
 | High-concurrency OLTP | **No** | DuckDB is embedded and single-writer. |
-| Full DuckDB SQL surface via LINQ | **Mixed** | PIVOT, ASOF, QUALIFY, and other constructs need raw SQL. |
+| Full DuckDB SQL surface via LINQ | **Mixed** | `ROLLUP`, `CUBE`, and `GROUPING SETS` translate; PIVOT, ASOF, QUALIFY, and other constructs need raw SQL. |
+
+The shared source builds for EF Core 10.0.x on `net10.0` and EF Core 11.0.x on `net11.0`. Both
+package families are stable releases with the same version number; `DuckDB.EFCoreProvider` and
+`DuckDB.EFCoreProvider.NTS` keep EF Core 10 on both .NET 10 and .NET 11, and
+`DuckDB.EFCoreProvider.EF11` and `DuckDB.EFCoreProvider.EF11.NTS` target EF Core 11. Version 2 of the
+provider is reserved for DuckDB 2.
 
 ---
 
@@ -690,7 +813,12 @@ the operation, non-secret target, duration, optional affected-row count, excepti
 - [Tiered storage](https://github.com/skuirrels/DuckDB.EFCoreProvider/blob/main/docs/TIERED-STORAGE.md) — archive invariants, partitioning, reconciliation, restore, and operations.
 - [Type mappings](https://github.com/skuirrels/DuckDB.EFCoreProvider/blob/main/docs/TYPE-MAPPINGS.md) — EF entity mappings, raw DuckDB.NET result values, JSON, nesting, and precision.
 - [Migrations](https://github.com/skuirrels/DuckDB.EFCoreProvider/blob/main/docs/MIGRATIONS.md) — native DuckDB schema lifecycle, limitations, locking, and opt-in table rebuilds.
+- [Encryption at rest](https://github.com/skuirrels/DuckDB.EFCoreProvider/blob/main/docs/ENCRYPTION.md) — key providers, rotation, encrypting an existing database, and coverage boundaries.
+- [Native DuckDB concurrency](https://github.com/skuirrels/DuckDB.EFCoreProvider/blob/main/docs/NATIVE-DUCKDB-CONCURRENCY.md) — concurrent contexts, a continuous writer, write-write conflicts, and the shared thread budget.
+- [EF Core 10 and 11](https://github.com/skuirrels/DuckDB.EFCoreProvider/blob/main/docs/EF10-EF11-SUPPORT.md) — package selection, build commands, and known EF11 limitations.
+- [Quack profile](https://github.com/skuirrels/DuckDB.EFCoreProvider/blob/main/docs/QUACK.md) — the experimental remote profile's configuration, security, architecture, and limitations.
 - [Performance](https://github.com/skuirrels/DuckDB.EFCoreProvider/blob/main/docs/PERFORMANCE.md) — benchmark commands, indicative results, caveats, and write-path guidance.
+- [Changelog](https://github.com/skuirrels/DuckDB.EFCoreProvider/blob/main/CHANGELOG.md) — release history; the same notes ship as the NuGet package's release notes.
 - [Runnable sample](https://github.com/skuirrels/DuckDB.EFCoreProvider/blob/main/samples/Quickstart/README.md) — create a database, write tracked data, bulk insert, upsert, and query.
 - [DuckLake sample](https://github.com/skuirrels/DuckDB.EFCoreProvider/blob/main/samples/DuckLake/README.md) and [tiered-storage sample](https://github.com/skuirrels/DuckDB.EFCoreProvider/tree/main/samples/TieredStorage) — runnable storage-profile examples.
 

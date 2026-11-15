@@ -122,8 +122,10 @@ These must remain separate in product and implementation language:
    They require a Kafka consumer, schema-registry client and compatible Avro deserializer. They are
    not ordinary Avro object-container files and cannot be ingested merely by calling `read_avro`.
 
-DuckDB 1.5.5, which LakeHold currently pins, has signed Avro extension artifacts for the relevant
-platforms. A disposable smoke test read the official 1,000-row Avro sample successfully. The current
+DuckDB 1.5.6, which LakeHold currently pins, publishes Avro extension artifacts for the relevant
+platforms in the official extension repository (checked for `osx_arm64` and `linux_amd64` on
+15 November 2026). A disposable smoke test on 1.5.5 read the official 1,000-row Avro sample
+successfully. The current
 DuckDB reader nevertheless has important limitations for an analytical file plane: no parallel
 scan, projection pushdown, filter pushdown, recursive Avro types or `union_by_name`. It is therefore
 best suited to bounded import rather than replacing Parquet scans.

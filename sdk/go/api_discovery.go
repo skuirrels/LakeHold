@@ -75,7 +75,7 @@ func (a *DiscoveryAPIService) GetApiCapabilitiesExecute(r ApiGetApiCapabilitiesR
 	}
 
 	// to determine the Accept header
-	localVarHTTPHeaderAccepts := []string{"application/problem+json", "application/json"}
+	localVarHTTPHeaderAccepts := []string{"application/json", "application/problem+json"}
 
 	// set Accept header
 	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
@@ -256,7 +256,6 @@ func (a *DiscoveryAPIService) GetApiCapabilitiesExecute(r ApiGetApiCapabilitiesR
 			}
 					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
 					newErr.model = v
-			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		return localVarReturnValue, localVarHTTPResponse, newErr
 	}

@@ -9,7 +9,7 @@ FROM --platform=$BUILDPLATFORM debian:bookworm-slim AS duckdb-extensions
 ARG TARGETARCH
 # Keep this equal to SELECT version() from the native library shipped by
 # Skuirrels.DuckDB.NET.Bindings.Full. ExtensionPackagingTests fails on drift.
-ARG DUCKDB_EXTENSION_VERSION=1.5.5
+ARG DUCKDB_EXTENSION_VERSION=1.5.6
 # Keep this equal to the default LakehouseOptions extension set.
 ARG DUCKDB_PRELOADED_EXTENSIONS="ducklake httpfs json parquet excel avro"
 
@@ -40,12 +40,12 @@ RUN set -eux; \
 # Development Compose keeps the SDK and source watcher, but starts from an image whose DuckDB cache
 # is already populated. That makes a fresh `docker compose up` independent of extension downloads at
 # application runtime while preserving bind-mounted source and `dotnet watch`.
-FROM mcr.microsoft.com/dotnet/sdk:10.0 AS development
+FROM mcr.microsoft.com/dotnet/sdk:11.0 AS development
 WORKDIR /src
 COPY --from=duckdb-extensions \
     /duckdb-extensions/ /root/.duckdb/extensions/
 
-FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:11.0 AS build
 ARG TARGETARCH
 WORKDIR /src
 
@@ -75,10 +75,11 @@ RUN dotnet publish src/Lakehold.Api/Lakehold.Api.csproj \
     --self-contained false \
     --no-restore
 
-# Debian rather than Alpine on purpose: DuckDB.NET ships glibc-linked native libraries, and on musl
-# the process starts and then fails at the first query with a loader error — the worst place to find
-# out. The image is larger; the alternative does not work.
-FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
+# A glibc image rather than Alpine on purpose: DuckDB.NET ships glibc-linked native libraries, and on
+# musl the process starts and then fails at the first query with a loader error — the worst place to
+# find out. The image is larger; the alternative does not work. From .NET 11 the default tag is
+# Ubuntu 26.04 LTS rather than Debian; it is still glibc and still has apt-get and the `app` user.
+FROM mcr.microsoft.com/dotnet/aspnet:11.0 AS runtime
 
 # curl is the health check. Without it the check reports unhealthy on a working container, which
 # takes dependent services down with it.

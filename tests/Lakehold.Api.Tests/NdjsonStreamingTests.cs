@@ -195,7 +195,7 @@ public sealed class NdjsonStreamingTests : IAsyncLifetime
     private static List<JsonElement> Lines(MemoryStream stream)
         => Encoding.UTF8.GetString(stream.ToArray())
             .Split('\n', StringSplitOptions.RemoveEmptyEntries)
-            .Select(line => JsonDocument.Parse(line).RootElement.Clone())
+            .Select(line => JsonElement.Parse(line))
             .ToList();
 
     private sealed class CancelAfterFirstLineStream(CancellationTokenSource cancellation) : MemoryStream

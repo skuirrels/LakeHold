@@ -75,7 +75,7 @@ Full analysis, including where MotherDuck is the better choice, in
 
 ## Quick start
 
-Requirements: Docker. (The .NET 10 SDK and Node 20+ only if you want to run the app on the host.)
+Requirements: Docker. (The .NET 11 SDK and Node 20+ only if you want to run the app on the host.)
 
 ```bash
 cp .env.example .env

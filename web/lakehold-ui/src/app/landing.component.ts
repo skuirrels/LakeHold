@@ -261,7 +261,7 @@ import { ThemeToggleComponent } from './theme-toggle.component';
           Built on
           <a href="https://www.postgresql.org" target="_blank" rel="noopener">PostgreSQL</a>,
           <a href="https://duckdb.org" target="_blank" rel="noopener">DuckDB</a>,
-          <a href="https://ducklake.select" target="_blank" rel="noopener">DuckLake</a>, .NET 10,
+          <a href="https://ducklake.select" target="_blank" rel="noopener">DuckLake</a>, .NET 11,
           and Angular. Apache-2.0.
         </p>
       </footer>

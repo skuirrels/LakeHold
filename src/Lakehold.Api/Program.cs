@@ -51,6 +51,10 @@ builder.Services.AddHealthChecks()
 
 builder.Services.AddOpenApi(options =>
 {
+    // ASP.NET Core 11 emits OpenAPI 3.2 by default. The published contract is 3.1, and the client
+    // SDK generators read 3.1; moving the version is a contract change of its own, not a side effect
+    // of a framework upgrade.
+    options.OpenApiVersion = Microsoft.OpenApi.OpenApiSpecVersion.OpenApi3_1;
     options.AddOperationTransformer((operation, context, _) =>
     {
         var metadata = context.Description.ActionDescriptor.EndpointMetadata;
@@ -180,6 +184,7 @@ builder.Services.AddOpenApi(options =>
             ];
         }
         PublicApiOpenApi.NormalizeProblemResponses(document);
+        PublicApiOpenApi.NormalizeCursorPageResponses(document);
         foreach (var response in document.Paths.Values
                      .SelectMany(path => path.Operations is null
                          ? Enumerable.Empty<OpenApiOperation>()
@@ -206,6 +211,7 @@ builder.Services.AddOpenApi(options =>
         PublicApiOpenApi.PreserveAdditiveConnectorCompatibility(document);
         PublicApiOpenApi.PreserveAdditiveSystemSettingsCompatibility(document);
         PublicApiOpenApi.PreserveAdditiveQueryAuditCompatibility(document);
+        PublicApiOpenApi.PreserveExecuteRequestCompatibility(document);
 
         return Task.CompletedTask;
     });

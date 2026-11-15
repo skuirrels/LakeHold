@@ -127,8 +127,14 @@ namespace Lakehold.Sdk.Api
     /// <summary>
     /// The <see cref="IGetApiV1SystemSettingsApiResponse"/>
     /// </summary>
-    public interface IGetApiV1SystemSettingsApiResponse : Lakehold.Sdk.Client.IApiResponse, IBadRequest<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IUnauthorized<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IForbidden<Lakehold.Sdk.Model.PublicApiProblemDetails?>, INotFound<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IRequestTimeout<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IConflict<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IPreconditionFailed<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IContentTooLarge<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IUnprocessableContent<Lakehold.Sdk.Model.PublicApiProblemDetails?>, ITooManyRequests<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IInternalServerError<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IBadGateway<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IServiceUnavailable<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IGatewayTimeout<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IOk<Lakehold.Sdk.Model.SystemSettingsDto?>
+    public interface IGetApiV1SystemSettingsApiResponse : Lakehold.Sdk.Client.IApiResponse, IOk<Lakehold.Sdk.Model.SystemSettingsDto?>, IBadRequest<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IUnauthorized<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IForbidden<Lakehold.Sdk.Model.PublicApiProblemDetails?>, INotFound<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IRequestTimeout<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IConflict<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IPreconditionFailed<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IContentTooLarge<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IUnprocessableContent<Lakehold.Sdk.Model.PublicApiProblemDetails?>, ITooManyRequests<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IInternalServerError<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IBadGateway<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IServiceUnavailable<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IGatewayTimeout<Lakehold.Sdk.Model.PublicApiProblemDetails?>
     {
+        /// <summary>
+        /// Returns true if the response is 200 Ok
+        /// </summary>
+        /// <returns></returns>
+        bool IsOk { get; }
+
         /// <summary>
         /// Returns true if the response is 400 BadRequest
         /// </summary>
@@ -212,19 +218,19 @@ namespace Lakehold.Sdk.Api
         /// </summary>
         /// <returns></returns>
         bool IsGatewayTimeout { get; }
-
-        /// <summary>
-        /// Returns true if the response is 200 Ok
-        /// </summary>
-        /// <returns></returns>
-        bool IsOk { get; }
     }
 
     /// <summary>
     /// The <see cref="IGetApiV1SystemSettingsStorageApiResponse"/>
     /// </summary>
-    public interface IGetApiV1SystemSettingsStorageApiResponse : Lakehold.Sdk.Client.IApiResponse, IBadRequest<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IUnauthorized<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IForbidden<Lakehold.Sdk.Model.PublicApiProblemDetails?>, INotFound<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IRequestTimeout<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IConflict<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IPreconditionFailed<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IContentTooLarge<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IUnprocessableContent<Lakehold.Sdk.Model.PublicApiProblemDetails?>, ITooManyRequests<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IInternalServerError<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IBadGateway<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IServiceUnavailable<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IGatewayTimeout<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IOk<Lakehold.Sdk.Model.SystemStorageDto?>
+    public interface IGetApiV1SystemSettingsStorageApiResponse : Lakehold.Sdk.Client.IApiResponse, IOk<Lakehold.Sdk.Model.SystemStorageDto?>, IBadRequest<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IUnauthorized<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IForbidden<Lakehold.Sdk.Model.PublicApiProblemDetails?>, INotFound<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IRequestTimeout<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IConflict<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IPreconditionFailed<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IContentTooLarge<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IUnprocessableContent<Lakehold.Sdk.Model.PublicApiProblemDetails?>, ITooManyRequests<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IInternalServerError<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IBadGateway<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IServiceUnavailable<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IGatewayTimeout<Lakehold.Sdk.Model.PublicApiProblemDetails?>
     {
+        /// <summary>
+        /// Returns true if the response is 200 Ok
+        /// </summary>
+        /// <returns></returns>
+        bool IsOk { get; }
+
         /// <summary>
         /// Returns true if the response is 400 BadRequest
         /// </summary>
@@ -308,19 +314,19 @@ namespace Lakehold.Sdk.Api
         /// </summary>
         /// <returns></returns>
         bool IsGatewayTimeout { get; }
-
-        /// <summary>
-        /// Returns true if the response is 200 Ok
-        /// </summary>
-        /// <returns></returns>
-        bool IsOk { get; }
     }
 
     /// <summary>
     /// The <see cref="IPostApiV1SystemSettingsStorageResolveApiResponse"/>
     /// </summary>
-    public interface IPostApiV1SystemSettingsStorageResolveApiResponse : Lakehold.Sdk.Client.IApiResponse, IBadRequest<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IUnauthorized<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IForbidden<Lakehold.Sdk.Model.PublicApiProblemDetails?>, INotFound<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IRequestTimeout<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IConflict<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IPreconditionFailed<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IContentTooLarge<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IUnprocessableContent<Lakehold.Sdk.Model.PublicApiProblemDetails?>, ITooManyRequests<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IInternalServerError<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IBadGateway<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IServiceUnavailable<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IGatewayTimeout<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IOk<Lakehold.Sdk.Model.ResolvedStoragePathDto?>
+    public interface IPostApiV1SystemSettingsStorageResolveApiResponse : Lakehold.Sdk.Client.IApiResponse, IOk<Lakehold.Sdk.Model.ResolvedStoragePathDto?>, IBadRequest<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IUnauthorized<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IForbidden<Lakehold.Sdk.Model.PublicApiProblemDetails?>, INotFound<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IRequestTimeout<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IConflict<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IPreconditionFailed<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IContentTooLarge<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IUnprocessableContent<Lakehold.Sdk.Model.PublicApiProblemDetails?>, ITooManyRequests<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IInternalServerError<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IBadGateway<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IServiceUnavailable<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IGatewayTimeout<Lakehold.Sdk.Model.PublicApiProblemDetails?>
     {
+        /// <summary>
+        /// Returns true if the response is 200 Ok
+        /// </summary>
+        /// <returns></returns>
+        bool IsOk { get; }
+
         /// <summary>
         /// Returns true if the response is 400 BadRequest
         /// </summary>
@@ -404,19 +410,19 @@ namespace Lakehold.Sdk.Api
         /// </summary>
         /// <returns></returns>
         bool IsGatewayTimeout { get; }
-
-        /// <summary>
-        /// Returns true if the response is 200 Ok
-        /// </summary>
-        /// <returns></returns>
-        bool IsOk { get; }
     }
 
     /// <summary>
     /// The <see cref="IPutApiV1SystemSettingsApiResponse"/>
     /// </summary>
-    public interface IPutApiV1SystemSettingsApiResponse : Lakehold.Sdk.Client.IApiResponse, IBadRequest<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IUnauthorized<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IForbidden<Lakehold.Sdk.Model.PublicApiProblemDetails?>, INotFound<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IRequestTimeout<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IConflict<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IPreconditionFailed<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IContentTooLarge<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IUnprocessableContent<Lakehold.Sdk.Model.PublicApiProblemDetails?>, ITooManyRequests<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IInternalServerError<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IBadGateway<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IServiceUnavailable<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IGatewayTimeout<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IOk<Lakehold.Sdk.Model.SystemSettingsDto?>
+    public interface IPutApiV1SystemSettingsApiResponse : Lakehold.Sdk.Client.IApiResponse, IOk<Lakehold.Sdk.Model.SystemSettingsDto?>, IBadRequest<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IUnauthorized<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IForbidden<Lakehold.Sdk.Model.PublicApiProblemDetails?>, INotFound<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IRequestTimeout<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IConflict<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IPreconditionFailed<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IContentTooLarge<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IUnprocessableContent<Lakehold.Sdk.Model.PublicApiProblemDetails?>, ITooManyRequests<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IInternalServerError<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IBadGateway<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IServiceUnavailable<Lakehold.Sdk.Model.PublicApiProblemDetails?>, IGatewayTimeout<Lakehold.Sdk.Model.PublicApiProblemDetails?>
     {
+        /// <summary>
+        /// Returns true if the response is 200 Ok
+        /// </summary>
+        /// <returns></returns>
+        bool IsOk { get; }
+
         /// <summary>
         /// Returns true if the response is 400 BadRequest
         /// </summary>
@@ -500,12 +506,6 @@ namespace Lakehold.Sdk.Api
         /// </summary>
         /// <returns></returns>
         bool IsGatewayTimeout { get; }
-
-        /// <summary>
-        /// Returns true if the response is 200 Ok
-        /// </summary>
-        /// <returns></returns>
-        bool IsOk { get; }
     }
 
     /// <summary>
@@ -735,8 +735,8 @@ namespace Lakehold.Sdk.Api
                     bearerTokenLocalVar1.UseInHeader(httpRequestMessageLocalVar, "");
 
                     string[] acceptLocalVars = new string[] {
-                        "application/problem+json",
-                        "application/json"
+                        "application/json",
+                        "application/problem+json"
                     };
 
                     string? acceptLocalVar = ClientUtils.SelectHeaderAccept(acceptLocalVars);
@@ -803,6 +803,44 @@ namespace Lakehold.Sdk.Api
             }
 
             partial void OnCreated(global::System.Net.Http.HttpRequestMessage httpRequestMessage, System.Net.Http.HttpResponseMessage httpResponseMessage);
+
+            /// <summary>
+            /// Returns true if the response is 200 Ok
+            /// </summary>
+            /// <returns></returns>
+            public bool IsOk => 200 == (int)StatusCode;
+
+            /// <summary>
+            /// Deserializes the response if the response is 200 Ok
+            /// </summary>
+            /// <returns></returns>
+            public Lakehold.Sdk.Model.SystemSettingsDto? Ok()
+            {
+                // This logic may be modified with the AsModel.mustache template
+                return IsOk
+                    ? System.Text.Json.JsonSerializer.Deserialize<Lakehold.Sdk.Model.SystemSettingsDto>(RawContent, _jsonSerializerOptions)
+                    : null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 200 Ok and the deserialized response is not null
+            /// </summary>
+            /// <param name="result"></param>
+            /// <returns></returns>
+            public bool TryOk([NotNullWhen(true)]out Lakehold.Sdk.Model.SystemSettingsDto? result)
+            {
+                result = null;
+
+                try
+                {
+                    result = Ok();
+                } catch (Exception e)
+                {
+                    OnDeserializationErrorDefaultImplementation(e, (HttpStatusCode)200);
+                }
+
+                return result != null;
+            }
 
             /// <summary>
             /// Returns true if the response is 400 BadRequest
@@ -1331,44 +1369,6 @@ namespace Lakehold.Sdk.Api
                 } catch (Exception e)
                 {
                     OnDeserializationErrorDefaultImplementation(e, (HttpStatusCode)504);
-                }
-
-                return result != null;
-            }
-
-            /// <summary>
-            /// Returns true if the response is 200 Ok
-            /// </summary>
-            /// <returns></returns>
-            public bool IsOk => 200 == (int)StatusCode;
-
-            /// <summary>
-            /// Deserializes the response if the response is 200 Ok
-            /// </summary>
-            /// <returns></returns>
-            public Lakehold.Sdk.Model.SystemSettingsDto? Ok()
-            {
-                // This logic may be modified with the AsModel.mustache template
-                return IsOk
-                    ? System.Text.Json.JsonSerializer.Deserialize<Lakehold.Sdk.Model.SystemSettingsDto>(RawContent, _jsonSerializerOptions)
-                    : null;
-            }
-
-            /// <summary>
-            /// Returns true if the response is 200 Ok and the deserialized response is not null
-            /// </summary>
-            /// <param name="result"></param>
-            /// <returns></returns>
-            public bool TryOk([NotNullWhen(true)]out Lakehold.Sdk.Model.SystemSettingsDto? result)
-            {
-                result = null;
-
-                try
-                {
-                    result = Ok();
-                } catch (Exception e)
-                {
-                    OnDeserializationErrorDefaultImplementation(e, (HttpStatusCode)200);
                 }
 
                 return result != null;
@@ -1479,8 +1479,8 @@ namespace Lakehold.Sdk.Api
                     bearerTokenLocalVar1.UseInHeader(httpRequestMessageLocalVar, "");
 
                     string[] acceptLocalVars = new string[] {
-                        "application/problem+json",
-                        "application/json"
+                        "application/json",
+                        "application/problem+json"
                     };
 
                     string? acceptLocalVar = ClientUtils.SelectHeaderAccept(acceptLocalVars);
@@ -1547,6 +1547,44 @@ namespace Lakehold.Sdk.Api
             }
 
             partial void OnCreated(global::System.Net.Http.HttpRequestMessage httpRequestMessage, System.Net.Http.HttpResponseMessage httpResponseMessage);
+
+            /// <summary>
+            /// Returns true if the response is 200 Ok
+            /// </summary>
+            /// <returns></returns>
+            public bool IsOk => 200 == (int)StatusCode;
+
+            /// <summary>
+            /// Deserializes the response if the response is 200 Ok
+            /// </summary>
+            /// <returns></returns>
+            public Lakehold.Sdk.Model.SystemStorageDto? Ok()
+            {
+                // This logic may be modified with the AsModel.mustache template
+                return IsOk
+                    ? System.Text.Json.JsonSerializer.Deserialize<Lakehold.Sdk.Model.SystemStorageDto>(RawContent, _jsonSerializerOptions)
+                    : null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 200 Ok and the deserialized response is not null
+            /// </summary>
+            /// <param name="result"></param>
+            /// <returns></returns>
+            public bool TryOk([NotNullWhen(true)]out Lakehold.Sdk.Model.SystemStorageDto? result)
+            {
+                result = null;
+
+                try
+                {
+                    result = Ok();
+                } catch (Exception e)
+                {
+                    OnDeserializationErrorDefaultImplementation(e, (HttpStatusCode)200);
+                }
+
+                return result != null;
+            }
 
             /// <summary>
             /// Returns true if the response is 400 BadRequest
@@ -2075,44 +2113,6 @@ namespace Lakehold.Sdk.Api
                 } catch (Exception e)
                 {
                     OnDeserializationErrorDefaultImplementation(e, (HttpStatusCode)504);
-                }
-
-                return result != null;
-            }
-
-            /// <summary>
-            /// Returns true if the response is 200 Ok
-            /// </summary>
-            /// <returns></returns>
-            public bool IsOk => 200 == (int)StatusCode;
-
-            /// <summary>
-            /// Deserializes the response if the response is 200 Ok
-            /// </summary>
-            /// <returns></returns>
-            public Lakehold.Sdk.Model.SystemStorageDto? Ok()
-            {
-                // This logic may be modified with the AsModel.mustache template
-                return IsOk
-                    ? System.Text.Json.JsonSerializer.Deserialize<Lakehold.Sdk.Model.SystemStorageDto>(RawContent, _jsonSerializerOptions)
-                    : null;
-            }
-
-            /// <summary>
-            /// Returns true if the response is 200 Ok and the deserialized response is not null
-            /// </summary>
-            /// <param name="result"></param>
-            /// <returns></returns>
-            public bool TryOk([NotNullWhen(true)]out Lakehold.Sdk.Model.SystemStorageDto? result)
-            {
-                result = null;
-
-                try
-                {
-                    result = Ok();
-                } catch (Exception e)
-                {
-                    OnDeserializationErrorDefaultImplementation(e, (HttpStatusCode)200);
                 }
 
                 return result != null;
@@ -2259,8 +2259,8 @@ namespace Lakehold.Sdk.Api
                         httpRequestMessageLocalVar.Content.Headers.ContentType = new MediaTypeHeaderValue(contentTypeLocalVar);
 
                     string[] acceptLocalVars = new string[] {
-                        "application/problem+json",
-                        "application/json"
+                        "application/json",
+                        "application/problem+json"
                     };
 
                     string? acceptLocalVar = ClientUtils.SelectHeaderAccept(acceptLocalVars);
@@ -2327,6 +2327,44 @@ namespace Lakehold.Sdk.Api
             }
 
             partial void OnCreated(global::System.Net.Http.HttpRequestMessage httpRequestMessage, System.Net.Http.HttpResponseMessage httpResponseMessage);
+
+            /// <summary>
+            /// Returns true if the response is 200 Ok
+            /// </summary>
+            /// <returns></returns>
+            public bool IsOk => 200 == (int)StatusCode;
+
+            /// <summary>
+            /// Deserializes the response if the response is 200 Ok
+            /// </summary>
+            /// <returns></returns>
+            public Lakehold.Sdk.Model.ResolvedStoragePathDto? Ok()
+            {
+                // This logic may be modified with the AsModel.mustache template
+                return IsOk
+                    ? System.Text.Json.JsonSerializer.Deserialize<Lakehold.Sdk.Model.ResolvedStoragePathDto>(RawContent, _jsonSerializerOptions)
+                    : null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 200 Ok and the deserialized response is not null
+            /// </summary>
+            /// <param name="result"></param>
+            /// <returns></returns>
+            public bool TryOk([NotNullWhen(true)]out Lakehold.Sdk.Model.ResolvedStoragePathDto? result)
+            {
+                result = null;
+
+                try
+                {
+                    result = Ok();
+                } catch (Exception e)
+                {
+                    OnDeserializationErrorDefaultImplementation(e, (HttpStatusCode)200);
+                }
+
+                return result != null;
+            }
 
             /// <summary>
             /// Returns true if the response is 400 BadRequest
@@ -2855,44 +2893,6 @@ namespace Lakehold.Sdk.Api
                 } catch (Exception e)
                 {
                     OnDeserializationErrorDefaultImplementation(e, (HttpStatusCode)504);
-                }
-
-                return result != null;
-            }
-
-            /// <summary>
-            /// Returns true if the response is 200 Ok
-            /// </summary>
-            /// <returns></returns>
-            public bool IsOk => 200 == (int)StatusCode;
-
-            /// <summary>
-            /// Deserializes the response if the response is 200 Ok
-            /// </summary>
-            /// <returns></returns>
-            public Lakehold.Sdk.Model.ResolvedStoragePathDto? Ok()
-            {
-                // This logic may be modified with the AsModel.mustache template
-                return IsOk
-                    ? System.Text.Json.JsonSerializer.Deserialize<Lakehold.Sdk.Model.ResolvedStoragePathDto>(RawContent, _jsonSerializerOptions)
-                    : null;
-            }
-
-            /// <summary>
-            /// Returns true if the response is 200 Ok and the deserialized response is not null
-            /// </summary>
-            /// <param name="result"></param>
-            /// <returns></returns>
-            public bool TryOk([NotNullWhen(true)]out Lakehold.Sdk.Model.ResolvedStoragePathDto? result)
-            {
-                result = null;
-
-                try
-                {
-                    result = Ok();
-                } catch (Exception e)
-                {
-                    OnDeserializationErrorDefaultImplementation(e, (HttpStatusCode)200);
                 }
 
                 return result != null;
@@ -3039,8 +3039,8 @@ namespace Lakehold.Sdk.Api
                         httpRequestMessageLocalVar.Content.Headers.ContentType = new MediaTypeHeaderValue(contentTypeLocalVar);
 
                     string[] acceptLocalVars = new string[] {
-                        "application/problem+json",
-                        "application/json"
+                        "application/json",
+                        "application/problem+json"
                     };
 
                     string? acceptLocalVar = ClientUtils.SelectHeaderAccept(acceptLocalVars);
@@ -3107,6 +3107,44 @@ namespace Lakehold.Sdk.Api
             }
 
             partial void OnCreated(global::System.Net.Http.HttpRequestMessage httpRequestMessage, System.Net.Http.HttpResponseMessage httpResponseMessage);
+
+            /// <summary>
+            /// Returns true if the response is 200 Ok
+            /// </summary>
+            /// <returns></returns>
+            public bool IsOk => 200 == (int)StatusCode;
+
+            /// <summary>
+            /// Deserializes the response if the response is 200 Ok
+            /// </summary>
+            /// <returns></returns>
+            public Lakehold.Sdk.Model.SystemSettingsDto? Ok()
+            {
+                // This logic may be modified with the AsModel.mustache template
+                return IsOk
+                    ? System.Text.Json.JsonSerializer.Deserialize<Lakehold.Sdk.Model.SystemSettingsDto>(RawContent, _jsonSerializerOptions)
+                    : null;
+            }
+
+            /// <summary>
+            /// Returns true if the response is 200 Ok and the deserialized response is not null
+            /// </summary>
+            /// <param name="result"></param>
+            /// <returns></returns>
+            public bool TryOk([NotNullWhen(true)]out Lakehold.Sdk.Model.SystemSettingsDto? result)
+            {
+                result = null;
+
+                try
+                {
+                    result = Ok();
+                } catch (Exception e)
+                {
+                    OnDeserializationErrorDefaultImplementation(e, (HttpStatusCode)200);
+                }
+
+                return result != null;
+            }
 
             /// <summary>
             /// Returns true if the response is 400 BadRequest
@@ -3635,44 +3673,6 @@ namespace Lakehold.Sdk.Api
                 } catch (Exception e)
                 {
                     OnDeserializationErrorDefaultImplementation(e, (HttpStatusCode)504);
-                }
-
-                return result != null;
-            }
-
-            /// <summary>
-            /// Returns true if the response is 200 Ok
-            /// </summary>
-            /// <returns></returns>
-            public bool IsOk => 200 == (int)StatusCode;
-
-            /// <summary>
-            /// Deserializes the response if the response is 200 Ok
-            /// </summary>
-            /// <returns></returns>
-            public Lakehold.Sdk.Model.SystemSettingsDto? Ok()
-            {
-                // This logic may be modified with the AsModel.mustache template
-                return IsOk
-                    ? System.Text.Json.JsonSerializer.Deserialize<Lakehold.Sdk.Model.SystemSettingsDto>(RawContent, _jsonSerializerOptions)
-                    : null;
-            }
-
-            /// <summary>
-            /// Returns true if the response is 200 Ok and the deserialized response is not null
-            /// </summary>
-            /// <param name="result"></param>
-            /// <returns></returns>
-            public bool TryOk([NotNullWhen(true)]out Lakehold.Sdk.Model.SystemSettingsDto? result)
-            {
-                result = null;
-
-                try
-                {
-                    result = Ok();
-                } catch (Exception e)
-                {
-                    OnDeserializationErrorDefaultImplementation(e, (HttpStatusCode)200);
                 }
 
                 return result != null;

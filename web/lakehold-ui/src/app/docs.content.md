@@ -18,7 +18,7 @@ This one file is the single source for both the in-app `/docs` page and the copy
 
 ## Quick start
 
-You need **Docker**. The **.NET 10 SDK** and **Node.js 20 or newer** are needed only if you run the
+You need **Docker**. The **.NET 11 SDK** and **Node.js 20 or newer** are needed only if you run the
 API and the Angular dev server on the host — the all-in-Docker path below compiles both inside the
 stack. Either way the backing services (PostgreSQL, MinIO, and a trace viewer) run in Docker.
 

@@ -55,7 +55,9 @@ jobs:
     strategy:
       matrix:
         version: ['3.9', '3.13']
-    runs-on: ubuntu-latest
+    # Pinned, not ubuntu-latest: setup-python publishes no 3.9 build for Ubuntu 26.04, and 3.9 is the
+    # floor sdk/COMPATIBILITY.md promises, so dropping it here would stop testing that promise.
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7

@@ -1,5 +1,5 @@
 # Optional, credential-free LINQ planner. It receives only source and a catalog schema snapshot.
-FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:11.0 AS build
 ARG TARGETARCH
 WORKDIR /src
 
@@ -15,7 +15,7 @@ COPY src/Lakehold.Querying/ src/Lakehold.Querying/
 RUN dotnet publish src/Lakehold.Linq.Compiler/Lakehold.Linq.Compiler.csproj \
     -c Release -o /app -r "$(cat /rid)" --self-contained false --no-restore
 
-FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
+FROM mcr.microsoft.com/dotnet/aspnet:11.0 AS runtime
 RUN apt-get update \
     && apt-get install -y --no-install-recommends curl \
     && rm -rf /var/lib/apt/lists/*
