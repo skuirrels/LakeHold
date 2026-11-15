@@ -324,8 +324,8 @@ production file is self-contained so that installing is a download rather than a
 Dockerfiles are published for amd64 and arm64 by `.github/workflows/release.yml` on a `v*` tag. Keep
 the image names in the compose file and the workflow in step. `compose.yaml` runs the whole *development*
 stack: the API and Angular dev server from stock SDK images with the
-source bind-mounted, plus PostgreSQL, MinIO (and the bucket creation the S3 tests depend on), and a
-trace viewer. `docker compose up` then serves the website at <http://localhost:5399>; the API is on
+source bind-mounted, plus PostgreSQL, an S3-compatible store (RustFS, as the `s3` service, and the
+`s3-bucket` step that creates the bucket the S3 tests depend on), and a trace viewer. `docker compose up` then serves the website at <http://localhost:5399>; the API is on
 `:5200`. Running the two app services on the host works identically — start the backing services
 only and use `dotnet run` / `npm start`.
 
@@ -356,7 +356,7 @@ npm ci --prefix web/lakehold-ui
 # Production frontend compilation
 npm run build --prefix web/lakehold-ui
 
-# Backing services: PostgreSQL, MinIO, and a trace viewer
+# Backing services: PostgreSQL, an S3-compatible store, and a trace viewer
 cp .env.example .env
 docker compose up -d
 

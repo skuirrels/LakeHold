@@ -7,6 +7,17 @@ and LakeHold follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- **The development and test S3 store is pullable again.** `minio/minio` and `minio/mc` can no
+  longer be pulled, which broke `docker compose up` on a fresh machine and both CI jobs that start
+  it. The store is now RustFS (`rustfs/rustfs:1.0.5`) and the bucket step uses the AWS CLI
+  (`amazon/aws-cli:2.40.3`), both pinned by digest. The services are renamed `s3` and `s3-bucket`,
+  the `.env` secret is `S3_ROOT_PASSWORD`, and `LAKEHOLD_TEST_MINIO_PORT` is `LAKEHOLD_TEST_S3_PORT`.
+  Ports, credentials, the bucket, and every `LAKEHOLD_TEST_S3_*` variable are unchanged. An existing
+  checkout can remove the orphaned `lakehold-minio` container and `minio-data` volume, which held
+  test data only.
+
 ## [2.6.0] - 2026-11-15
 
 Moves the backend to .NET 11, updates the DuckDB EF Core provider to 1.31.0 and the DuckDB engine to

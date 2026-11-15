@@ -100,7 +100,7 @@ request as `invalid_request: duplicated parameter`.
 
 If a checkout upgraded from a version without `lakehold-mcp` shows **Client not found**, recreate
 only the development Keycloak container so the current realm is imported; LakeHold's PostgreSQL,
-catalog, and MinIO data are not removed:
+catalog, and S3 store data are not removed:
 
 ```bash
 docker compose up -d --force-recreate --wait keycloak

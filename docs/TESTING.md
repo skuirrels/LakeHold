@@ -6,7 +6,7 @@ layer is green: each catches a different class of failure.
 | Layer              | What it proves                                                                            | Command                                                                                                 |
 | ------------------ | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
 | Unit and component | Pure rules, API request construction, credential handling, and Angular state/rendering    | `dotnet test Lakehold.slnx` and `npm run test:unit --prefix web/lakehold-ui`                            |
-| Integration        | Real PostgreSQL control-plane migrations, PostgreSQL DuckLake metadata, and S3-compatible storage | Start PostgreSQL and MinIO, then `dotnet test Lakehold.slnx` |
+| Integration        | Real PostgreSQL control-plane migrations, PostgreSQL DuckLake metadata, and S3-compatible storage | Start PostgreSQL and the S3 store, then `dotnet test Lakehold.slnx` |
 | End to end         | Routes, proxying, live API calls, workbench interaction, and rendered results in Chromium | Start the complete Compose stack, then `npm run test:e2e --prefix web/lakehold-ui`                      |
 
 ## Complete local run
@@ -39,8 +39,8 @@ npm run build --prefix web/lakehold-ui
 Run every live-service integration:
 
 ```bash
-docker compose up -d postgres minio
-docker compose up minio-bucket
+docker compose up -d postgres s3
+docker compose run --rm s3-bucket
 dotnet test tests/Lakehold.Engine.Tests/Lakehold.Engine.Tests.csproj
 ```
 

@@ -91,7 +91,7 @@ That is the website. Everything else is optional detail.
 | **Workbench — the website** | **<http://localhost:5399>** |
 | API | <http://localhost:5200> |
 | Traces | <http://localhost:16686> |
-| MinIO console | <http://localhost:59001> |
+| S3 console (RustFS) | <http://localhost:59001/rustfs/console/> |
 
 The first run takes a few minutes — it restores NuGet packages and runs `npm ci` inside the
 containers — and seeds a `demo` workspace with an `analytics` catalog of 250,000 events and 5,000
@@ -279,7 +279,7 @@ A faster inner loop, if you have the SDK and Node installed. Start only the back
 the two halves:
 
 ```bash
-docker compose up -d postgres minio minio-bucket jaeger
+docker compose up -d postgres s3 s3-bucket jaeger
 
 dotnet run --project src/Lakehold.Api      # API on :5200
 npm start --prefix web/lakehold-ui         # website on :5399
@@ -795,14 +795,16 @@ catalog — are invisible to the type system. Bring them up with compose:
 
 ```bash
 cp .env.example .env      # first time only
-docker compose up -d      # PostgreSQL + MinIO, and creates the test bucket
+docker compose up -d      # PostgreSQL + the S3 store, and creates the test bucket
 dotnet test Lakehold.slnx # 0 skipped
 
 docker compose down -v    # stop and discard the data
 ```
 
 `compose.yaml` also creates the `lakehold-test` bucket, which the S3 tests need and do not create
-themselves; without it they fail against a running MinIO rather than skipping cleanly.
+themselves; without it they fail against a running store rather than skipping cleanly. The store is
+[RustFS](https://github.com/rustfs/rustfs), an S3-compatible server, pinned by tag and digest; it
+replaced MinIO, whose images can no longer be pulled.
 
 ### Configuration
 

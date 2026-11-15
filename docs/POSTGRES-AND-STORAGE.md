@@ -132,9 +132,9 @@ Lakehouse__StorageProfiles__primary__UrlStyle=path
 ```
 
 `UrlStyle=path` is common for compatible endpoints. Production should use TLS unless the endpoint is
-on an explicitly trusted private network. The development Compose stack creates only its
-`lakehold-test` integration-test bucket; that is test fixture setup, not application catalog
-provisioning.
+on an explicitly trusted private network. The development Compose stack runs RustFS as its
+S3-compatible `s3` service and creates only its `lakehold-test` integration-test bucket; that is
+test fixture setup, not application catalog provisioning.
 
 ## Google Cloud Storage
 

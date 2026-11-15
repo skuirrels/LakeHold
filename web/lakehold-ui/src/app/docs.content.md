@@ -20,7 +20,7 @@ This one file is the single source for both the in-app `/docs` page and the copy
 
 You need **Docker**. The **.NET 11 SDK** and **Node.js 20 or newer** are needed only if you run the
 API and the Angular dev server on the host — the all-in-Docker path below compiles both inside the
-stack. Either way the backing services (PostgreSQL, MinIO, and a trace viewer) run in Docker.
+stack. Either way the backing services (PostgreSQL, an S3-compatible store, and a trace viewer) run in Docker.
 
 ### 1. Clone and configure secrets
 
@@ -57,7 +57,7 @@ generates its internal credential automatically. See the
 yourself. This is the faster inner loop for development.
 
 ```bash
-docker compose up -d postgres minio minio-bucket jaeger   # backing services
+docker compose up -d postgres s3 s3-bucket jaeger         # backing services
 dotnet run --project src/Lakehold.Api                      # API on :5200
 npm start --prefix web/lakehold-ui                         # UI on :5399
 ```

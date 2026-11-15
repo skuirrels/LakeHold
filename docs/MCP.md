@@ -340,7 +340,7 @@ docker compose up -d --force-recreate --wait keycloak
 ```
 
 This resets development-only Keycloak state; it does not remove LakeHold's PostgreSQL, catalog, or
-MinIO data.
+S3 store data.
 
 ### Where a client looks for the authorization server
 
