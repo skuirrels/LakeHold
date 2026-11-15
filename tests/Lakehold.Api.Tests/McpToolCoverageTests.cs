@@ -127,12 +127,14 @@ public sealed class McpToolCoverageTests : IAsyncLifetime
         Assert.Contains("list_tenants", client.ServerInstructions, StringComparison.Ordinal);
         Assert.Contains("INCLUSIVE at both ends", client.ServerInstructions, StringComparison.Ordinal);
 
-        Assert.Equal("lakehold", client.ServerInfo.Name);
-        Assert.False(string.IsNullOrWhiteSpace(client.ServerInfo.Version));
+        // ServerInfo is nullable from MCP SDK 2.4: a server may omit it. This one must not.
+        var serverInfo = Assert.IsType<ModelContextProtocol.Protocol.Implementation>(client.ServerInfo);
+        Assert.Equal("lakehold", serverInfo.Name);
+        Assert.False(string.IsNullOrWhiteSpace(serverInfo.Version));
 
         // 1.0.0 is what an assembly reports when nobody set a version, and it was what this server
         // advertised on a 2.3.x release.
-        Assert.NotEqual("1.0.0", client.ServerInfo.Version);
+        Assert.NotEqual("1.0.0", serverInfo.Version);
     }
 
     [Fact]
@@ -613,8 +615,8 @@ public sealed class McpToolCoverageTests : IAsyncLifetime
             .EnumerateArray().First().GetProperty("snapshotId").GetInt64();
 
         var read = await client.ReadResourceAsync($"lakehold://demo/analytics/snapshots/{newest}");
-        var body = JsonDocument.Parse(
-            Assert.IsType<TextResourceContents>(Assert.Single(read.Contents)).Text).RootElement;
+        var body = JsonElement.Parse(
+            Assert.IsType<TextResourceContents>(Assert.Single(read.Contents)).Text);
         Assert.Equal(newest, body.GetProperty("snapshotId").GetInt64());
 
         await Assert.ThrowsAnyAsync<Exception>(

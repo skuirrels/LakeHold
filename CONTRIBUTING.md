@@ -44,7 +44,7 @@ Corporate CLA before submitting.
 
 ## Building and testing
 
-Requirements: the .NET 10 SDK and Node.js 20 or newer.
+Requirements: the .NET 11 SDK and Node.js 20 or newer.
 
 ```bash
 # Backend build

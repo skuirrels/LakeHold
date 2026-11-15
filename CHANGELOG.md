@@ -9,6 +9,27 @@ and LakeHold follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- **The backend now targets .NET 11.** Every server, test, and tool project builds for `net11.0`, the
+  API and LINQ compiler images build on `sdk:11.0` and run on `aspnet:11.0`, and the backend CI jobs
+  install the 11.0 SDK. The .NET 11 default images are Ubuntu 26.04 LTS rather than Debian; they are
+  still glibc, still have `apt-get`, and still run as the `app` user, so the Dockerfiles change only
+  their tags. The client SDKs keep their `net8.0` floor. **EF Core stays on 10.0.x (10.0.15)**: the
+  newest stable `Npgsql.EntityFrameworkCore.PostgreSQL` is 10.0.3, which requires EF Core below 11,
+  and its only EF Core 11 build is a release candidate. `DuckDB.EFCoreProvider` documents its EF
+  Core 10 line as supported on .NET 11, and the DataProtection EF Core key store holds at 10.0.15
+  for the same reason. ASP.NET Core, authentication, OpenAPI, test hosting, and the
+  `Microsoft.Extensions` packages move to 11.0.0. `Microsoft.AspNetCore.OpenApi` 11 brings
+  OpenAPI.NET 3.11, whose response content is typed as `IOpenApiMediaType`; the public contract's
+  problem-response normaliser is updated for it, and the generated document is otherwise unchanged.
+  Also updated: OpenTelemetry 1.21.0, the MCP C# SDK 2.4.0, gRPC 2.85.0, Roslyn 5.12.0, Confluent
+  2.16.0, and the test SDK 18.12.0. Quartz 4, xunit.runner.visualstudio 4, and the DuckDB 2 engine
+  line are major versions left for their own change. Two .NET 11 analyzers, CA2026 and CA2027, are
+  fixed in the tests: `JsonElement.Parse` replaces a parsed document's undisposed root, and a
+  "still pending" assertion uses `WaitAsync` with a timeout instead of racing `Task.Delay`.
+- **The Angular unit tests pass on Node 25 and later.** Node now defines its own `localStorage` and
+  `sessionStorage`, and Vitest does not replace a global Node already has, so the jsdom storages
+  never reached the tests: `localStorage` was `undefined` and 17 theme and sign-in tests failed. A
+  test setup file binds both to the jsdom window.
 - **`DuckDB.EFCoreProvider` is updated from 1.26.0 to 1.31.0**, and the pinned `Skuirrels.DuckDB.NET`
   packages move from 1.5.5.4 to 1.5.6, which the provider has required since 1.27.0. The bundled
   DuckDB engine therefore moves from 1.5.5 to 1.5.6: `SELECT version()` through the new packages

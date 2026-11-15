@@ -672,7 +672,7 @@ public sealed class McpServerTests : IAsyncLifetime
 
     private static System.Text.Json.JsonElement Payload(ModelContextProtocol.Protocol.CallToolResult result) =>
         result.StructuredContent
-        ?? System.Text.Json.JsonDocument.Parse(Text(result)).RootElement;
+        ?? System.Text.Json.JsonElement.Parse(Text(result));
 
     private static string Text(ModelContextProtocol.Protocol.CallToolResult result) =>
         string.Join(" ", result.Content.OfType<ModelContextProtocol.Protocol.TextContentBlock>().Select(c => c.Text));

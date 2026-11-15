@@ -112,7 +112,7 @@ public sealed class LakeholdReplicatorTests
             if (path.EndsWith("/query", StringComparison.Ordinal))
             {
                 var requestBody = await request.Content!.ReadAsStringAsync(cancellationToken);
-                var sql = JsonDocument.Parse(requestBody).RootElement.GetProperty("sql").GetString()!;
+                var sql = JsonElement.Parse(requestBody).GetProperty("sql").GetString()!;
                 return sql.StartsWith("SELECT count(*)", StringComparison.Ordinal)
                     ? QueryPage(
                         """[{"name":"row_count","dataType":"BIGINT","clrType":"System.Int64"}]""",
@@ -166,8 +166,7 @@ public sealed class LakeholdReplicatorTests
             if (path.EndsWith("/cdc/consumers/7/checkpoint", StringComparison.Ordinal))
             {
                 var requestBody = await request.Content!.ReadAsStringAsync(cancellationToken);
-                var checkpoint = JsonDocument.Parse(requestBody)
-                    .RootElement
+                var checkpoint = JsonElement.Parse(requestBody)
                     .GetProperty("lastAppliedSnapshot")
                     .GetInt64();
                 AcknowledgedSnapshots.Add(checkpoint);

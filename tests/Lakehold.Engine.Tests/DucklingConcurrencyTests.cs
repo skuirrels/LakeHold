@@ -116,8 +116,10 @@ public sealed class DucklingConcurrencyTests : IAsyncLifetime
 
         // The session is busy, so disposal must still be pending. A generous wait, because proving a
         // negative quickly is how this assertion would pass on a machine that was merely slow.
-        var finishedEarly = await Task.WhenAny(disposal, Task.Delay(TimeSpan.FromMilliseconds(500)));
-        Assert.NotSame(disposal, finishedEarly);
+        // WaitAsync throws TimeoutException only while disposal is still pending, and stops its own
+        // timer if disposal finishes first; a disposal that completed or faulted early fails here.
+        await Assert.ThrowsAsync<TimeoutException>(
+            () => disposal.WaitAsync(TimeSpan.FromMilliseconds(500)));
 
         release.SetResult();
 

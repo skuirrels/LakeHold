@@ -22,7 +22,7 @@ public sealed partial class ExtensionPackagingTests
             extensionsMatch.Success,
             "The API Dockerfile must declare DUCKDB_PRELOADED_EXTENSIONS.");
         Assert.Contains(
-            "FROM mcr.microsoft.com/dotnet/sdk:10.0 AS development",
+            "FROM mcr.microsoft.com/dotnet/sdk:11.0 AS development",
             dockerfile,
             StringComparison.Ordinal);
         Assert.Contains(

@@ -524,7 +524,7 @@ public sealed class McpWriteToolTests : IAsyncLifetime
     }
 
     private static JsonElement Payload(CallToolResult result) =>
-        result.StructuredContent ?? JsonDocument.Parse(Text(result)).RootElement;
+        result.StructuredContent ?? JsonElement.Parse(Text(result));
 
     private static string Text(CallToolResult result) =>
         string.Join(" ", result.Content.OfType<TextContentBlock>().Select(c => c.Text));

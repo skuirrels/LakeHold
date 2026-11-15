@@ -106,9 +106,9 @@ public static class PublicApiOpenApi
                      .Select(pair => pair.Value)
                      .OfType<OpenApiResponse>())
         {
-            response.Content = new Dictionary<string, OpenApiMediaType>(StringComparer.Ordinal)
+            response.Content = new Dictionary<string, IOpenApiMediaType>(StringComparer.Ordinal)
             {
-                ["application/problem+json"] = new()
+                ["application/problem+json"] = new OpenApiMediaType
                 {
                     Schema = new OpenApiSchemaReference("PublicApiProblemDetails", document),
                 },

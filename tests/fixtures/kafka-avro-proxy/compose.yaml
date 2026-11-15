@@ -111,7 +111,7 @@ services:
       kafka-avro-net:
         ipv4_address: 172.31.240.15
   lakehold-connector-test:
-    image: mcr.microsoft.com/dotnet/sdk:10.0
+    image: mcr.microsoft.com/dotnet/sdk:11.0
     depends_on:
       avro-producer:
         condition: service_completed_successfully
