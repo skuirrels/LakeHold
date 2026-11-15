@@ -111,71 +111,7 @@ internal static class DemoData
                 .GetOrStartAsync(catalog.ToDescriptor(), configure: null, CancellationToken.None)
                 .ConfigureAwait(false);
 
-            // Row counts are large enough that DuckLake writes real Parquet rather than inlining
-            // the commit into the metadata catalog — which is what makes the "open format" claim
-            // demonstrable rather than aspirational on a first run.
-            string[] statements =
-            [
-                """
-                CREATE TABLE IF NOT EXISTS events (
-                    event_id    BIGINT,
-                    occurred_at TIMESTAMP,
-                    customer_id BIGINT,
-                    event_type  VARCHAR,
-                    revenue     DECIMAL(18,2),
-                    country     VARCHAR
-                )
-                """,
-                """
-                INSERT INTO events
-                SELECT
-                    i                                                              AS event_id,
-                    TIMESTAMP '2026-01-01 00:00:00' + INTERVAL (i % 20000) MINUTE  AS occurred_at,
-                    (i % 5000) + 1                                                 AS customer_id,
-                    -- Independent hashes per dimension. Plain modular arithmetic on a shared
-                    -- counter correlates the dimensions whenever the moduli share a factor:
-                    -- i % 4 and i % 6 both contain 2, which confines each country to two of the
-                    -- four event types and makes every cross-tab in the demo look wrong.
-                    ['view', 'signup', 'purchase', 'refund'][(CAST(hash(i * 2654435761) % 4 AS BIGINT)) + 1]  AS event_type,
-                    ROUND((CAST(hash(i * 40503) % 50000 AS BIGINT)) / 100.0, 2)                               AS revenue,
-                    ['GB', 'US', 'DE', 'FR', 'AU', 'JP'][(CAST(hash(i * 2246822519) % 6 AS BIGINT)) + 1]      AS country
-                FROM range(250000) t(i)
-                """,
-                """
-                CREATE TABLE IF NOT EXISTS customers (
-                    customer_id BIGINT,
-                    signed_up   DATE,
-                    segment     VARCHAR,
-                    country     VARCHAR
-                )
-                """,
-                """
-                INSERT INTO customers
-                SELECT
-                    i + 1                                            AS customer_id,
-                    DATE '2024-01-01' + INTERVAL (i % 900) DAY       AS signed_up,
-                    ['free', 'pro', 'enterprise'][(CAST(hash(i * 2654435761) % 3 AS BIGINT)) + 1]        AS segment,
-                    ['GB', 'US', 'DE', 'FR', 'AU', 'JP'][(CAST(hash(i * 2246822519) % 6 AS BIGINT)) + 1] AS country
-                FROM range(5000) t(i)
-                """,
-                """
-                CREATE VIEW IF NOT EXISTS revenue_by_country AS
-                SELECT
-                    country,
-                    count(*)                                    AS event_count,
-                    ROUND(sum(revenue), 2)                      AS total_revenue,
-                    ROUND(avg(revenue), 2)                      AS avg_revenue
-                FROM events
-                WHERE event_type = 'purchase'
-                GROUP BY country
-                ORDER BY total_revenue DESC
-                """,
-            ];
-
-            foreach (var statement in statements)
-            {
-                await duckling.ExecuteQueryAsync(statement, CancellationToken.None).ConfigureAwait(false);
-            }
+            await SeedTablesAsync(duckling, CancellationToken.None).ConfigureAwait(false);
 
             logger.LogInformation("Seeded demo catalog '{Catalog}' with 250k events and 5k customers", catalog.Name);
         }
@@ -186,5 +122,89 @@ internal static class DemoData
             logger.LogWarning(ex, "Could not seed the demo catalog. The API will start without sample data.");
         }
     }
+
+    /// <summary>
+    ///     Creates and fills the demo tables, leaving any table that already holds rows untouched.
+    /// </summary>
+    /// <remarks>
+    ///     The tenant check in <see cref="EnsureSeededAsync"/> is not enough on its own. The catalog
+    ///     outlives its control-plane row — a reset or re-imported control plane finds no demo
+    ///     tenant while the metadata and Parquet are still on disk — and an unconditional
+    ///     <c>INSERT</c> after <c>CREATE TABLE IF NOT EXISTS</c> then appended a second copy of
+    ///     every row. That is what doubled the public demo. Each insert is therefore guarded on its
+    ///     own table being empty, so a repeated seed is a no-op rather than a duplicate.
+    /// </remarks>
+    internal static async Task SeedTablesAsync(Duckling duckling, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(duckling);
+
+        foreach (var statement in SeedStatements)
+        {
+            await duckling.ExecuteQueryAsync(statement, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    // Row counts are large enough that DuckLake writes real Parquet rather than inlining the commit
+    // into the metadata catalog — which is what makes the "open format" claim demonstrable rather
+    // than aspirational on a first run.
+    private static readonly string[] SeedStatements =
+        [
+            """
+            CREATE TABLE IF NOT EXISTS events (
+                event_id    BIGINT,
+                occurred_at TIMESTAMP,
+                customer_id BIGINT,
+                event_type  VARCHAR,
+                revenue     DECIMAL(18,2),
+                country     VARCHAR
+            )
+            """,
+            """
+            INSERT INTO events
+            SELECT
+                i                                                              AS event_id,
+                TIMESTAMP '2026-01-01 00:00:00' + INTERVAL (i % 20000) MINUTE  AS occurred_at,
+                (i % 5000) + 1                                                 AS customer_id,
+                -- Independent hashes per dimension. Plain modular arithmetic on a shared
+                -- counter correlates the dimensions whenever the moduli share a factor:
+                -- i % 4 and i % 6 both contain 2, which confines each country to two of the
+                -- four event types and makes every cross-tab in the demo look wrong.
+                ['view', 'signup', 'purchase', 'refund'][(CAST(hash(i * 2654435761) % 4 AS BIGINT)) + 1]  AS event_type,
+                ROUND((CAST(hash(i * 40503) % 50000 AS BIGINT)) / 100.0, 2)                               AS revenue,
+                ['GB', 'US', 'DE', 'FR', 'AU', 'JP'][(CAST(hash(i * 2246822519) % 6 AS BIGINT)) + 1]      AS country
+            FROM range(250000) t(i)
+            WHERE NOT EXISTS (SELECT 1 FROM events)
+            """,
+            """
+            CREATE TABLE IF NOT EXISTS customers (
+                customer_id BIGINT,
+                signed_up   DATE,
+                segment     VARCHAR,
+                country     VARCHAR
+            )
+            """,
+            """
+            INSERT INTO customers
+            SELECT
+                i + 1                                            AS customer_id,
+                DATE '2024-01-01' + INTERVAL (i % 900) DAY       AS signed_up,
+                ['free', 'pro', 'enterprise'][(CAST(hash(i * 2654435761) % 3 AS BIGINT)) + 1]        AS segment,
+                ['GB', 'US', 'DE', 'FR', 'AU', 'JP'][(CAST(hash(i * 2246822519) % 6 AS BIGINT)) + 1] AS country
+            FROM range(5000) t(i)
+            WHERE NOT EXISTS (SELECT 1 FROM customers)
+            """,
+            """
+            CREATE VIEW IF NOT EXISTS revenue_by_country AS
+            SELECT
+                country,
+                count(*)                                    AS event_count,
+                ROUND(sum(revenue), 2)                      AS total_revenue,
+                ROUND(avg(revenue), 2)                      AS avg_revenue
+            FROM events
+            WHERE event_type = 'purchase'
+            GROUP BY country
+            ORDER BY total_revenue DESC
+            """,
+        ];
 }
 #pragma warning restore CA1848, CA1873

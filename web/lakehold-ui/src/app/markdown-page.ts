@@ -56,8 +56,13 @@ function resolveRepositoryPath(directory: string, target: string): string {
 }
 
 /**
- * Maps a repository Markdown link to either its native documentation route or its GitHub source.
- * External URLs, fragments, and non-Markdown assets pass through unchanged.
+ * Maps a repository-relative link to either its native documentation route or its GitHub source.
+ * External URLs, fragments, and site-absolute paths pass through unchanged.
+ *
+ * Every other relative link is a path in the repository, Markdown or not. Left as it was, a link
+ * such as `../src/.../data_connector.proto` resolves against the site on lakehold.dev and lands on
+ * the catch-all redirect to the home page, while working on GitHub — so nobody reading the source
+ * ever sees it break.
  */
 export function resolveMarkdownHref(href: string, repositoryDirectory?: string): string {
   const canonicalDocumentationOrigin = 'https://lakehold.dev';
@@ -68,8 +73,8 @@ export function resolveMarkdownHref(href: string, repositoryDirectory?: string):
   if (
     !repositoryDirectory ||
     href.startsWith('#') ||
-    /^[a-z][a-z0-9+.-]*:/i.test(href) ||
-    href.startsWith('//')
+    href.startsWith('/') ||
+    /^[a-z][a-z0-9+.-]*:/i.test(href)
   ) {
     return href;
   }
@@ -77,12 +82,11 @@ export function resolveMarkdownHref(href: string, repositoryDirectory?: string):
   const hashAt = href.indexOf('#');
   const target = hashAt === -1 ? href : href.slice(0, hashAt);
   const fragment = hashAt === -1 ? '' : href.slice(hashAt);
-  if (!target.toLowerCase().endsWith('.md')) {
-    return href;
-  }
 
   const fileName = target.split('/').at(-1) ?? target;
-  const nativeRoute = nativeDocumentRoutes.get(fileName);
+  const nativeRoute = target.toLowerCase().endsWith('.md')
+    ? nativeDocumentRoutes.get(fileName)
+    : undefined;
   if (nativeRoute) {
     return `${nativeRoute}${fragment}`;
   }

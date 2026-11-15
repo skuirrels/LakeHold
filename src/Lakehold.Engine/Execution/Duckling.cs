@@ -59,8 +59,11 @@ public sealed class Duckling : IAsyncDisposable
     /// <summary>The catalog attached to this session.</summary>
     public CatalogDescriptor Catalog { get; }
 
-    /// <summary>When this session last executed a statement. Drives idle eviction.</summary>
+    /// <summary>When this session last executed a statement or was checked out. Drives idle eviction.</summary>
     public DateTimeOffset LastUsedUtc { get; private set; }
+
+    /// <summary>Marks the session as in use without running anything, so the idle sweep spares it.</summary>
+    internal void MarkUsed() => LastUsedUtc = DateTimeOffset.UtcNow;
 
     /// <summary>
     ///     Access to the provider's DuckLake maintenance surface for this session's catalog.

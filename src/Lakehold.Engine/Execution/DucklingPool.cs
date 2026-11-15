@@ -31,6 +31,13 @@ public sealed class DucklingPool : IAsyncDisposable
     private readonly ILoggerFactory _loggerFactory;
     private readonly IDucklingSessionConfigurator[] _configurators;
     private readonly TimeSpan _sweepInterval;
+
+    // Serialises handing a session out against deciding it is idle. Without it the sweep could judge
+    // a session idle from a stale timestamp, a concurrent caller could take that same session from
+    // the dictionary, and the sweep would then dispose it under the caller — a scheduled backup and
+    // flush starting on the same second failed exactly that way. Both critical sections are a
+    // dictionary operation and a timestamp; nothing awaits inside the lock.
+    private readonly Lock _checkoutLock = new();
     private long _lastSweepTicks;
     private bool _disposed;
 
@@ -81,17 +88,29 @@ public sealed class DucklingPool : IAsyncDisposable
                 LakeholdTelemetry.ResultKey,
                 hit ? LakeholdTelemetry.ResultHit : LakeholdTelemetry.ResultMiss));
 
-        var entry = _sessions.GetOrAdd(
-            key,
-            _ => new Lazy<Task<Duckling>>(
-                () => Duckling.StartAsync(
-                    catalog,
-                    _options,
-                    BuildConfiguration(catalog, configure),
-                    _loggerFactory.CreateLogger<Duckling>(),
-                    CancellationToken.None,
-                    _configurators),
-                LazyThreadSafetyMode.ExecutionAndPublication));
+        Lazy<Task<Duckling>> entry;
+        lock (_checkoutLock)
+        {
+            entry = _sessions.GetOrAdd(
+                key,
+                _ => new Lazy<Task<Duckling>>(
+                    () => Duckling.StartAsync(
+                        catalog,
+                        _options,
+                        BuildConfiguration(catalog, configure),
+                        _loggerFactory.CreateLogger<Duckling>(),
+                        CancellationToken.None,
+                        _configurators),
+                    LazyThreadSafetyMode.ExecutionAndPublication));
+
+            // Checking a session out counts as using it. The idle clock otherwise moves only when a
+            // statement runs, so a session taken by a caller that has not yet executed anything
+            // still looks as idle as it did before the checkout, and the sweep would reclaim it.
+            if (entry.IsValueCreated && entry.Value.IsCompletedSuccessfully)
+            {
+                entry.Value.Result.MarkUsed();
+            }
+        }
 
         try
         {
@@ -280,14 +299,16 @@ public sealed class DucklingPool : IAsyncDisposable
 
         foreach (var (key, entry, lastUsed) in candidates)
         {
-            if (now - lastUsed > _options.IdleTimeout && _sessions.TryRemove(key, out var removed))
+            if (now - lastUsed <= _options.IdleTimeout || !TryRemoveUnused(key, entry, lastUsed))
             {
-                var name = CatalogNameOf(key);
-                LakeholdTelemetry.SessionEvictions.Add(
-                    1, new KeyValuePair<string, object?>(LakeholdTelemetry.ReasonKey, "idle"));
-                EngineLog.DucklingEvictedIdle(_logger, name);
-                await DisposeEntryAsync(removed).ConfigureAwait(false);
+                continue;
             }
+
+            var name = CatalogNameOf(key);
+            LakeholdTelemetry.SessionEvictions.Add(
+                1, new KeyValuePair<string, object?>(LakeholdTelemetry.ReasonKey, "idle"));
+            EngineLog.DucklingEvictedIdle(_logger, name);
+            await DisposeEntryAsync(entry).ConfigureAwait(false);
         }
 
         // Over the warm-session ceiling, evict least-recently-used until back within budget.
@@ -297,16 +318,39 @@ public sealed class DucklingPool : IAsyncDisposable
             return;
         }
 
-        foreach (var (key, _, _) in candidates.OrderBy(c => c.LastUsed).Take(overflow))
+        foreach (var (key, entry, lastUsed) in candidates.OrderBy(c => c.LastUsed).Take(overflow))
         {
-            if (_sessions.TryRemove(key, out var removed))
+            if (!TryRemoveUnused(key, entry, lastUsed))
             {
-                var name = CatalogNameOf(key);
-                LakeholdTelemetry.SessionEvictions.Add(
-                    1, new KeyValuePair<string, object?>(LakeholdTelemetry.ReasonKey, "overflow"));
-                EngineLog.DucklingEvictedOverflow(_logger, name);
-                await DisposeEntryAsync(removed).ConfigureAwait(false);
+                continue;
             }
+
+            var name = CatalogNameOf(key);
+            LakeholdTelemetry.SessionEvictions.Add(
+                1, new KeyValuePair<string, object?>(LakeholdTelemetry.ReasonKey, "overflow"));
+            EngineLog.DucklingEvictedOverflow(_logger, name);
+            await DisposeEntryAsync(entry).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>
+    ///     Removes <paramref name="entry"/> only if it is still the pooled session for
+    ///     <paramref name="key"/> and nobody has used or checked it out since the sweep read
+    ///     <paramref name="observedLastUsed"/>.
+    /// </summary>
+    /// <remarks>
+    ///     The sweep chooses from a snapshot. Between that snapshot and removal a caller may have
+    ///     checked the session out, which stamps it, or the entry may have been replaced. Re-reading
+    ///     the stamp under <see cref="_checkoutLock"/> makes eviction and checkout ordered: either
+    ///     the session leaves the pool first and the caller starts a fresh one, or the caller gets it
+    ///     first and the sweep leaves it alone.
+    /// </remarks>
+    private bool TryRemoveUnused(string key, Lazy<Task<Duckling>> entry, DateTimeOffset observedLastUsed)
+    {
+        lock (_checkoutLock)
+        {
+            return entry.Value.Result.LastUsedUtc == observedLastUsed
+                && _sessions.TryRemove(new KeyValuePair<string, Lazy<Task<Duckling>>>(key, entry));
         }
     }
 
