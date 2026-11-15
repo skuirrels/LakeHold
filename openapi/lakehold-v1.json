@@ -1,5 +1,5 @@
 {
-  "openapi": "3.1.1",
+  "openapi": "3.1.2",
   "info": {
     "title": "LakeHold Public API",
     "description": "Stable, versioned control-plane and lakehouse API for LakeHold. Send machine credentials as a Bearer token and an Idempotency-Key on retryable mutations.",
@@ -19,6 +19,24 @@
         "summary": "Returns the public API version and optional capabilities supported by this server.",
         "operationId": "GetApiCapabilities",
         "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server correlation identifier for support and diagnostics.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicApiCapabilities"
+                }
+              }
+            }
+          },
           "400": {
             "description": "Bad Request",
             "headers": {
@@ -267,24 +285,6 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/PublicApiProblemDetails"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "headers": {
-              "X-Request-Id": {
-                "description": "Server correlation identifier for support and diagnostics.",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PublicApiCapabilities"
                 }
               }
             }
@@ -310,6 +310,24 @@
           }
         ],
         "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server correlation identifier for support and diagnostics.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicApiOperationDto"
+                }
+              }
+            }
+          },
           "400": {
             "description": "Bad Request",
             "headers": {
@@ -558,24 +576,6 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/PublicApiProblemDetails"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "headers": {
-              "X-Request-Id": {
-                "description": "Server correlation identifier for support and diagnostics.",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PublicApiOperationDto"
                 }
               }
             }
@@ -596,6 +596,24 @@
         "summary": "Describes the caller's effective workbench access.",
         "operationId": "get_api_v1_access",
         "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server correlation identifier for support and diagnostics.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccessDto"
+                }
+              }
+            }
+          },
           "400": {
             "description": "Bad Request",
             "headers": {
@@ -844,24 +862,6 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/PublicApiProblemDetails"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "headers": {
-              "X-Request-Id": {
-                "description": "Server correlation identifier for support and diagnostics.",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AccessDto"
                 }
               }
             }
@@ -882,6 +882,27 @@
         "summary": "Lists healthy query languages installed for the Workbench.",
         "operationId": "get_api_v1_query_languages",
         "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server correlation identifier for support and diagnostics.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/QueryLanguageDescriptor"
+                  }
+                }
+              }
+            }
+          },
           "400": {
             "description": "Bad Request",
             "headers": {
@@ -1130,27 +1151,6 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/PublicApiProblemDetails"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "headers": {
-              "X-Request-Id": {
-                "description": "Server correlation identifier for support and diagnostics.",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/QueryLanguageDescriptor"
-                  }
                 }
               }
             }
@@ -1193,6 +1193,24 @@
           }
         ],
         "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server correlation identifier for support and diagnostics.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CursorPageOfScheduledRunDto"
+                }
+              }
+            }
+          },
           "400": {
             "description": "Bad Request",
             "headers": {
@@ -1441,24 +1459,6 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/PublicApiProblemDetails"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "headers": {
-              "X-Request-Id": {
-                "description": "Server correlation identifier for support and diagnostics.",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CursorPageOfScheduledRunDto"
                 }
               }
             }
@@ -1501,6 +1501,24 @@
           }
         ],
         "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server correlation identifier for support and diagnostics.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CursorPageOfTenantDto"
+                }
+              }
+            }
+          },
           "400": {
             "description": "Bad Request",
             "headers": {
@@ -1749,24 +1767,6 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/PublicApiProblemDetails"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "headers": {
-              "X-Request-Id": {
-                "description": "Server correlation identifier for support and diagnostics.",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CursorPageOfTenantDto"
                 }
               }
             }
@@ -1808,6 +1808,24 @@
           "required": true
         },
         "responses": {
+          "201": {
+            "description": "Created",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server correlation identifier for support and diagnostics.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TenantDto"
+                }
+              }
+            }
+          },
           "400": {
             "description": "Bad Request",
             "headers": {
@@ -2056,24 +2074,6 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/PublicApiProblemDetails"
-                }
-              }
-            }
-          },
-          "201": {
-            "description": "Created",
-            "headers": {
-              "X-Request-Id": {
-                "description": "Server correlation identifier for support and diagnostics.",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TenantDto"
                 }
               }
             }
@@ -2104,6 +2104,17 @@
           }
         ],
         "responses": {
+          "204": {
+            "description": "No Content",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server correlation identifier for support and diagnostics.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
           "400": {
             "description": "Bad Request",
             "headers": {
@@ -2352,17 +2363,6 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/PublicApiProblemDetails"
-                }
-              }
-            }
-          },
-          "204": {
-            "description": "No Content",
-            "headers": {
-              "X-Request-Id": {
-                "description": "Server correlation identifier for support and diagnostics.",
-                "schema": {
-                  "type": "string"
                 }
               }
             }
@@ -2414,6 +2414,24 @@
           "required": true
         },
         "responses": {
+          "201": {
+            "description": "Created",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server correlation identifier for support and diagnostics.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CatalogDto"
+                }
+              }
+            }
+          },
           "400": {
             "description": "Bad Request",
             "headers": {
@@ -2662,24 +2680,6 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/PublicApiProblemDetails"
-                }
-              }
-            }
-          },
-          "201": {
-            "description": "Created",
-            "headers": {
-              "X-Request-Id": {
-                "description": "Server correlation identifier for support and diagnostics.",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CatalogDto"
                 }
               }
             }
@@ -2718,6 +2718,17 @@
           }
         ],
         "responses": {
+          "204": {
+            "description": "No Content",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server correlation identifier for support and diagnostics.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
           "400": {
             "description": "Bad Request",
             "headers": {
@@ -2966,17 +2977,6 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/PublicApiProblemDetails"
-                }
-              }
-            }
-          },
-          "204": {
-            "description": "No Content",
-            "headers": {
-              "X-Request-Id": {
-                "description": "Server correlation identifier for support and diagnostics.",
-                "schema": {
-                  "type": "string"
                 }
               }
             }
@@ -3017,6 +3017,24 @@
           "required": true
         },
         "responses": {
+          "201": {
+            "description": "Created",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server correlation identifier for support and diagnostics.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreatedTokenDto"
+                }
+              }
+            }
+          },
           "400": {
             "description": "Bad Request",
             "headers": {
@@ -3265,24 +3283,6 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/PublicApiProblemDetails"
-                }
-              }
-            }
-          },
-          "201": {
-            "description": "Created",
-            "headers": {
-              "X-Request-Id": {
-                "description": "Server correlation identifier for support and diagnostics.",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CreatedTokenDto"
                 }
               }
             }
@@ -3331,6 +3331,24 @@
           }
         ],
         "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server correlation identifier for support and diagnostics.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CursorPageOfApiTokenDto"
+                }
+              }
+            }
+          },
           "400": {
             "description": "Bad Request",
             "headers": {
@@ -3579,24 +3597,6 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/PublicApiProblemDetails"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "headers": {
-              "X-Request-Id": {
-                "description": "Server correlation identifier for support and diagnostics.",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CursorPageOfApiTokenDto"
                 }
               }
             }
@@ -3636,6 +3636,17 @@
           }
         ],
         "responses": {
+          "204": {
+            "description": "No Content",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server correlation identifier for support and diagnostics.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
           "400": {
             "description": "Bad Request",
             "headers": {
@@ -3884,17 +3895,6 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/PublicApiProblemDetails"
-                }
-              }
-            }
-          },
-          "204": {
-            "description": "No Content",
-            "headers": {
-              "X-Request-Id": {
-                "description": "Server correlation identifier for support and diagnostics.",
-                "schema": {
-                  "type": "string"
                 }
               }
             }
@@ -3925,6 +3925,27 @@
           }
         ],
         "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server correlation identifier for support and diagnostics.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TenantMemberDto"
+                  }
+                }
+              }
+            }
+          },
           "400": {
             "description": "Bad Request",
             "headers": {
@@ -4173,27 +4194,6 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/PublicApiProblemDetails"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "headers": {
-              "X-Request-Id": {
-                "description": "Server correlation identifier for support and diagnostics.",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/TenantMemberDto"
-                  }
                 }
               }
             }
@@ -4232,6 +4232,24 @@
           "required": true
         },
         "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server correlation identifier for support and diagnostics.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreatedTenantMemberDto"
+                }
+              }
+            }
+          },
           "400": {
             "description": "Bad Request",
             "headers": {
@@ -4480,24 +4498,6 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/PublicApiProblemDetails"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "headers": {
-              "X-Request-Id": {
-                "description": "Server correlation identifier for support and diagnostics.",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CreatedTenantMemberDto"
                 }
               }
             }
@@ -4547,6 +4547,24 @@
           "required": true
         },
         "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server correlation identifier for support and diagnostics.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TenantMemberDto"
+                }
+              }
+            }
+          },
           "400": {
             "description": "Bad Request",
             "headers": {
@@ -4795,24 +4813,6 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/PublicApiProblemDetails"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "headers": {
-              "X-Request-Id": {
-                "description": "Server correlation identifier for support and diagnostics.",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TenantMemberDto"
                 }
               }
             }
@@ -4850,6 +4850,17 @@
           }
         ],
         "responses": {
+          "204": {
+            "description": "No Content",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server correlation identifier for support and diagnostics.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
           "400": {
             "description": "Bad Request",
             "headers": {
@@ -5098,17 +5109,6 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/PublicApiProblemDetails"
-                }
-              }
-            }
-          },
-          "204": {
-            "description": "No Content",
-            "headers": {
-              "X-Request-Id": {
-                "description": "Server correlation identifier for support and diagnostics.",
-                "schema": {
-                  "type": "string"
                 }
               }
             }
@@ -5157,6 +5157,24 @@
           "required": true
         },
         "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server correlation identifier for support and diagnostics.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QueryResponse"
+                }
+              }
+            }
+          },
           "400": {
             "description": "Bad Request",
             "headers": {
@@ -5405,24 +5423,6 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/PublicApiProblemDetails"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "headers": {
-              "X-Request-Id": {
-                "description": "Server correlation identifier for support and diagnostics.",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/QueryResponse"
                 }
               }
             }
@@ -5471,6 +5471,17 @@
           "required": true
         },
         "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server correlation identifier for support and diagnostics.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
           "400": {
             "description": "Bad Request",
             "headers": {
@@ -5719,17 +5730,6 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/PublicApiProblemDetails"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "headers": {
-              "X-Request-Id": {
-                "description": "Server correlation identifier for support and diagnostics.",
-                "schema": {
-                  "type": "string"
                 }
               }
             }
@@ -5776,6 +5776,24 @@
           }
         ],
         "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server correlation identifier for support and diagnostics.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QueryLanguageStarter"
+                }
+              }
+            }
+          },
           "400": {
             "description": "Bad Request",
             "headers": {
@@ -6024,24 +6042,6 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/PublicApiProblemDetails"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "headers": {
-              "X-Request-Id": {
-                "description": "Server correlation identifier for support and diagnostics.",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/QueryLanguageStarter"
                 }
               }
             }
@@ -6080,6 +6080,24 @@
           }
         ],
         "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server correlation identifier for support and diagnostics.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TabularImportDto"
+                }
+              }
+            }
+          },
           "400": {
             "description": "Bad Request",
             "headers": {
@@ -6328,24 +6346,6 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/PublicApiProblemDetails"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "headers": {
-              "X-Request-Id": {
-                "description": "Server correlation identifier for support and diagnostics.",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TabularImportDto"
                 }
               }
             }
@@ -6384,6 +6384,24 @@
           }
         ],
         "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server correlation identifier for support and diagnostics.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TabularImportDto"
+                }
+              }
+            }
+          },
           "400": {
             "description": "Bad Request",
             "headers": {
@@ -6632,24 +6650,6 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/PublicApiProblemDetails"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "headers": {
-              "X-Request-Id": {
-                "description": "Server correlation identifier for support and diagnostics.",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TabularImportDto"
                 }
               }
             }
@@ -6708,6 +6708,24 @@
           }
         ],
         "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server correlation identifier for support and diagnostics.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CursorPageOfSavedQueryDto"
+                }
+              }
+            }
+          },
           "400": {
             "description": "Bad Request",
             "headers": {
@@ -6956,24 +6974,6 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/PublicApiProblemDetails"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "headers": {
-              "X-Request-Id": {
-                "description": "Server correlation identifier for support and diagnostics.",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CursorPageOfSavedQueryDto"
                 }
               }
             }
@@ -7031,6 +7031,24 @@
           "required": true
         },
         "responses": {
+          "201": {
+            "description": "Created",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server correlation identifier for support and diagnostics.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SavedQueryDto"
+                }
+              }
+            }
+          },
           "400": {
             "description": "Bad Request",
             "headers": {
@@ -7279,24 +7297,6 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/PublicApiProblemDetails"
-                }
-              }
-            }
-          },
-          "201": {
-            "description": "Created",
-            "headers": {
-              "X-Request-Id": {
-                "description": "Server correlation identifier for support and diagnostics.",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SavedQueryDto"
                 }
               }
             }
@@ -7344,6 +7344,24 @@
           }
         ],
         "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server correlation identifier for support and diagnostics.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SavedQueryDto"
+                }
+              }
+            }
+          },
           "400": {
             "description": "Bad Request",
             "headers": {
@@ -7592,24 +7610,6 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/PublicApiProblemDetails"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "headers": {
-              "X-Request-Id": {
-                "description": "Server correlation identifier for support and diagnostics.",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SavedQueryDto"
                 }
               }
             }
@@ -7665,6 +7665,24 @@
           "required": true
         },
         "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server correlation identifier for support and diagnostics.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SavedQueryDto"
+                }
+              }
+            }
+          },
           "400": {
             "description": "Bad Request",
             "headers": {
@@ -7913,24 +7931,6 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/PublicApiProblemDetails"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "headers": {
-              "X-Request-Id": {
-                "description": "Server correlation identifier for support and diagnostics.",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SavedQueryDto"
                 }
               }
             }
@@ -7985,6 +7985,17 @@
           }
         ],
         "responses": {
+          "204": {
+            "description": "No Content",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server correlation identifier for support and diagnostics.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
           "400": {
             "description": "Bad Request",
             "headers": {
@@ -8233,17 +8244,6 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/PublicApiProblemDetails"
-                }
-              }
-            }
-          },
-          "204": {
-            "description": "No Content",
-            "headers": {
-              "X-Request-Id": {
-                "description": "Server correlation identifier for support and diagnostics.",
-                "schema": {
-                  "type": "string"
                 }
               }
             }
@@ -8291,6 +8291,24 @@
           }
         ],
         "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server correlation identifier for support and diagnostics.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QueryResponse"
+                }
+              }
+            }
+          },
           "400": {
             "description": "Bad Request",
             "headers": {
@@ -8539,24 +8557,6 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/PublicApiProblemDetails"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "headers": {
-              "X-Request-Id": {
-                "description": "Server correlation identifier for support and diagnostics.",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/QueryResponse"
                 }
               }
             }
@@ -8625,6 +8625,24 @@
           "required": true
         },
         "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server correlation identifier for support and diagnostics.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SavedQueryDto"
+                }
+              }
+            }
+          },
           "400": {
             "description": "Bad Request",
             "headers": {
@@ -8873,24 +8891,6 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/PublicApiProblemDetails"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "headers": {
-              "X-Request-Id": {
-                "description": "Server correlation identifier for support and diagnostics.",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SavedQueryDto"
                 }
               }
             }
@@ -8958,6 +8958,24 @@
           }
         ],
         "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server correlation identifier for support and diagnostics.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SavedQueryDto"
+                }
+              }
+            }
+          },
           "400": {
             "description": "Bad Request",
             "headers": {
@@ -9206,24 +9224,6 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/PublicApiProblemDetails"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "headers": {
-              "X-Request-Id": {
-                "description": "Server correlation identifier for support and diagnostics.",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SavedQueryDto"
                 }
               }
             }
@@ -9281,6 +9281,24 @@
           }
         ],
         "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server correlation identifier for support and diagnostics.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CursorPageOfDataConnectorDto"
+                }
+              }
+            }
+          },
           "400": {
             "description": "Bad Request",
             "headers": {
@@ -9529,24 +9547,6 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/PublicApiProblemDetails"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "headers": {
-              "X-Request-Id": {
-                "description": "Server correlation identifier for support and diagnostics.",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CursorPageOfDataConnectorDto"
                 }
               }
             }
@@ -9603,6 +9603,24 @@
           "required": true
         },
         "responses": {
+          "201": {
+            "description": "Created",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server correlation identifier for support and diagnostics.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataConnectorDto"
+                }
+              }
+            }
+          },
           "400": {
             "description": "Bad Request",
             "headers": {
@@ -9851,24 +9869,6 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/PublicApiProblemDetails"
-                }
-              }
-            }
-          },
-          "201": {
-            "description": "Created",
-            "headers": {
-              "X-Request-Id": {
-                "description": "Server correlation identifier for support and diagnostics.",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/DataConnectorDto"
                 }
               }
             }
@@ -9915,6 +9915,24 @@
           }
         ],
         "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server correlation identifier for support and diagnostics.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataConnectorDto"
+                }
+              }
+            }
+          },
           "400": {
             "description": "Bad Request",
             "headers": {
@@ -10163,24 +10181,6 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/PublicApiProblemDetails"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "headers": {
-              "X-Request-Id": {
-                "description": "Server correlation identifier for support and diagnostics.",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/DataConnectorDto"
                 }
               }
             }
@@ -10235,6 +10235,24 @@
           "required": true
         },
         "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server correlation identifier for support and diagnostics.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataConnectorDto"
+                }
+              }
+            }
+          },
           "400": {
             "description": "Bad Request",
             "headers": {
@@ -10483,24 +10501,6 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/PublicApiProblemDetails"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "headers": {
-              "X-Request-Id": {
-                "description": "Server correlation identifier for support and diagnostics.",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/DataConnectorDto"
                 }
               }
             }
@@ -10553,6 +10553,17 @@
           }
         ],
         "responses": {
+          "204": {
+            "description": "No Content",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server correlation identifier for support and diagnostics.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
           "400": {
             "description": "Bad Request",
             "headers": {
@@ -10801,17 +10812,6 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/PublicApiProblemDetails"
-                }
-              }
-            }
-          },
-          "204": {
-            "description": "No Content",
-            "headers": {
-              "X-Request-Id": {
-                "description": "Server correlation identifier for support and diagnostics.",
-                "schema": {
-                  "type": "string"
                 }
               }
             }
@@ -10869,6 +10869,24 @@
           }
         ],
         "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server correlation identifier for support and diagnostics.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataConnectorExecutionDto"
+                }
+              }
+            }
+          },
           "400": {
             "description": "Bad Request",
             "headers": {
@@ -11117,24 +11135,6 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/PublicApiProblemDetails"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "headers": {
-              "X-Request-Id": {
-                "description": "Server correlation identifier for support and diagnostics.",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/DataConnectorExecutionDto"
                 }
               }
             }
@@ -11201,6 +11201,24 @@
           }
         ],
         "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server correlation identifier for support and diagnostics.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CursorPageOfDataConnectorRunDto"
+                }
+              }
+            }
+          },
           "400": {
             "description": "Bad Request",
             "headers": {
@@ -11449,24 +11467,6 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/PublicApiProblemDetails"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "headers": {
-              "X-Request-Id": {
-                "description": "Server correlation identifier for support and diagnostics.",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CursorPageOfDataConnectorRunDto"
                 }
               }
             }
@@ -11533,6 +11533,24 @@
           }
         ],
         "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server correlation identifier for support and diagnostics.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CursorPageOfDataConnectorRunDto"
+                }
+              }
+            }
+          },
           "400": {
             "description": "Bad Request",
             "headers": {
@@ -11781,24 +11799,6 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/PublicApiProblemDetails"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "headers": {
-              "X-Request-Id": {
-                "description": "Server correlation identifier for support and diagnostics.",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CursorPageOfDataConnectorRunDto"
                 }
               }
             }
@@ -11866,6 +11866,24 @@
           "required": true
         },
         "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server correlation identifier for support and diagnostics.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataConnectorDto"
+                }
+              }
+            }
+          },
           "400": {
             "description": "Bad Request",
             "headers": {
@@ -12114,24 +12132,6 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/PublicApiProblemDetails"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "headers": {
-              "X-Request-Id": {
-                "description": "Server correlation identifier for support and diagnostics.",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/DataConnectorDto"
                 }
               }
             }
@@ -12199,6 +12199,24 @@
           "required": true
         },
         "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server correlation identifier for support and diagnostics.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataConnectorDto"
+                }
+              }
+            }
+          },
           "400": {
             "description": "Bad Request",
             "headers": {
@@ -12447,24 +12465,6 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/PublicApiProblemDetails"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "headers": {
-              "X-Request-Id": {
-                "description": "Server correlation identifier for support and diagnostics.",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/DataConnectorDto"
                 }
               }
             }
@@ -12532,6 +12532,24 @@
           "required": true
         },
         "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server correlation identifier for support and diagnostics.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataConnectorExecutionDto"
+                }
+              }
+            }
+          },
           "400": {
             "description": "Bad Request",
             "headers": {
@@ -12780,24 +12798,6 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/PublicApiProblemDetails"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "headers": {
-              "X-Request-Id": {
-                "description": "Server correlation identifier for support and diagnostics.",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/DataConnectorExecutionDto"
                 }
               }
             }
@@ -12836,6 +12836,27 @@
           }
         ],
         "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server correlation identifier for support and diagnostics.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SchemaDto"
+                  }
+                }
+              }
+            }
+          },
           "400": {
             "description": "Bad Request",
             "headers": {
@@ -13084,27 +13105,6 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/PublicApiProblemDetails"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "headers": {
-              "X-Request-Id": {
-                "description": "Server correlation identifier for support and diagnostics.",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/SchemaDto"
-                  }
                 }
               }
             }
@@ -13178,6 +13178,24 @@
           }
         ],
         "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server correlation identifier for support and diagnostics.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CursorPageOfSnapshotDto"
+                }
+              }
+            }
+          },
           "400": {
             "description": "Bad Request",
             "headers": {
@@ -13426,24 +13444,6 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/PublicApiProblemDetails"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "headers": {
-              "X-Request-Id": {
-                "description": "Server correlation identifier for support and diagnostics.",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CursorPageOfSnapshotDto"
                 }
               }
             }
@@ -13491,6 +13491,24 @@
           }
         ],
         "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server correlation identifier for support and diagnostics.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SnapshotDto"
+                }
+              }
+            }
+          },
           "400": {
             "description": "Bad Request",
             "headers": {
@@ -13739,24 +13757,6 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/PublicApiProblemDetails"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "headers": {
-              "X-Request-Id": {
-                "description": "Server correlation identifier for support and diagnostics.",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SnapshotDto"
                 }
               }
             }
@@ -13829,6 +13829,24 @@
           }
         ],
         "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server correlation identifier for support and diagnostics.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QueryResponse"
+                }
+              }
+            }
+          },
           "400": {
             "description": "Bad Request",
             "headers": {
@@ -14077,24 +14095,6 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/PublicApiProblemDetails"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "headers": {
-              "X-Request-Id": {
-                "description": "Server correlation identifier for support and diagnostics.",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/QueryResponse"
                 }
               }
             }
@@ -14163,6 +14163,24 @@
           "required": true
         },
         "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server correlation identifier for support and diagnostics.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TableRestoreDto"
+                }
+              }
+            }
+          },
           "400": {
             "description": "Bad Request",
             "headers": {
@@ -14411,24 +14429,6 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/PublicApiProblemDetails"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "headers": {
-              "X-Request-Id": {
-                "description": "Server correlation identifier for support and diagnostics.",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TableRestoreDto"
                 }
               }
             }
@@ -14467,6 +14467,24 @@
           }
         ],
         "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server correlation identifier for support and diagnostics.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CatalogStorageDto"
+                }
+              }
+            }
+          },
           "400": {
             "description": "Bad Request",
             "headers": {
@@ -14715,24 +14733,6 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/PublicApiProblemDetails"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "headers": {
-              "X-Request-Id": {
-                "description": "Server correlation identifier for support and diagnostics.",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CatalogStorageDto"
                 }
               }
             }
@@ -14804,6 +14804,24 @@
           }
         ],
         "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server correlation identifier for support and diagnostics.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TableFilesDto"
+                }
+              }
+            }
+          },
           "400": {
             "description": "Bad Request",
             "headers": {
@@ -15052,24 +15070,6 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/PublicApiProblemDetails"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "headers": {
-              "X-Request-Id": {
-                "description": "Server correlation identifier for support and diagnostics.",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TableFilesDto"
                 }
               }
             }
@@ -15124,6 +15124,24 @@
           }
         ],
         "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server correlation identifier for support and diagnostics.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TableDetailDto"
+                }
+              }
+            }
+          },
           "400": {
             "description": "Bad Request",
             "headers": {
@@ -15372,24 +15390,6 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/PublicApiProblemDetails"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "headers": {
-              "X-Request-Id": {
-                "description": "Server correlation identifier for support and diagnostics.",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TableDetailDto"
                 }
               }
             }
@@ -15452,6 +15452,24 @@
           }
         ],
         "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server correlation identifier for support and diagnostics.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TableProfileDto"
+                }
+              }
+            }
+          },
           "400": {
             "description": "Bad Request",
             "headers": {
@@ -15700,24 +15718,6 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/PublicApiProblemDetails"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "headers": {
-              "X-Request-Id": {
-                "description": "Server correlation identifier for support and diagnostics.",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TableProfileDto"
                 }
               }
             }
@@ -15797,6 +15797,24 @@
           }
         ],
         "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server correlation identifier for support and diagnostics.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ColumnDistributionDto"
+                }
+              }
+            }
+          },
           "400": {
             "description": "Bad Request",
             "headers": {
@@ -16045,24 +16063,6 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/PublicApiProblemDetails"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "headers": {
-              "X-Request-Id": {
-                "description": "Server correlation identifier for support and diagnostics.",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ColumnDistributionDto"
                 }
               }
             }
@@ -16128,6 +16128,42 @@
           }
         ],
         "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server correlation identifier for support and diagnostics.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MaintenanceDto"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Accepted",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server correlation identifier for support and diagnostics.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicApiOperationDto"
+                }
+              }
+            }
+          },
           "400": {
             "description": "Bad Request",
             "headers": {
@@ -16376,42 +16412,6 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/PublicApiProblemDetails"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "headers": {
-              "X-Request-Id": {
-                "description": "Server correlation identifier for support and diagnostics.",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/MaintenanceDto"
-                }
-              }
-            }
-          },
-          "202": {
-            "description": "Accepted",
-            "headers": {
-              "X-Request-Id": {
-                "description": "Server correlation identifier for support and diagnostics.",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PublicApiOperationDto"
                 }
               }
             }
@@ -16462,6 +16462,24 @@
           }
         ],
         "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server correlation identifier for support and diagnostics.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CursorPageOfQueryRunDto"
+                }
+              }
+            }
+          },
           "400": {
             "description": "Bad Request",
             "headers": {
@@ -16710,24 +16728,6 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/PublicApiProblemDetails"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "headers": {
-              "X-Request-Id": {
-                "description": "Server correlation identifier for support and diagnostics.",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CursorPageOfQueryRunDto"
                 }
               }
             }
@@ -16786,6 +16786,24 @@
           }
         ],
         "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server correlation identifier for support and diagnostics.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CursorPageOfBackupGenerationDto"
+                }
+              }
+            }
+          },
           "400": {
             "description": "Bad Request",
             "headers": {
@@ -17034,24 +17052,6 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/PublicApiProblemDetails"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "headers": {
-              "X-Request-Id": {
-                "description": "Server correlation identifier for support and diagnostics.",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CursorPageOfBackupGenerationDto"
                 }
               }
             }
@@ -17111,6 +17111,24 @@
           "required": true
         },
         "responses": {
+          "202": {
+            "description": "Accepted",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server correlation identifier for support and diagnostics.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicApiOperationDto"
+                }
+              }
+            }
+          },
           "400": {
             "description": "Bad Request",
             "headers": {
@@ -17359,24 +17377,6 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/PublicApiProblemDetails"
-                }
-              }
-            }
-          },
-          "202": {
-            "description": "Accepted",
-            "headers": {
-              "X-Request-Id": {
-                "description": "Server correlation identifier for support and diagnostics.",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PublicApiOperationDto"
                 }
               }
             }
@@ -17442,6 +17442,24 @@
           }
         },
         "responses": {
+          "202": {
+            "description": "Accepted",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server correlation identifier for support and diagnostics.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicApiOperationDto"
+                }
+              }
+            }
+          },
           "400": {
             "description": "Bad Request",
             "headers": {
@@ -17690,24 +17708,6 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/PublicApiProblemDetails"
-                }
-              }
-            }
-          },
-          "202": {
-            "description": "Accepted",
-            "headers": {
-              "X-Request-Id": {
-                "description": "Server correlation identifier for support and diagnostics.",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PublicApiOperationDto"
                 }
               }
             }
@@ -17766,6 +17766,24 @@
           }
         ],
         "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server correlation identifier for support and diagnostics.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CursorPageOfEjectBundleDto"
+                }
+              }
+            }
+          },
           "400": {
             "description": "Bad Request",
             "headers": {
@@ -18014,24 +18032,6 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/PublicApiProblemDetails"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "headers": {
-              "X-Request-Id": {
-                "description": "Server correlation identifier for support and diagnostics.",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CursorPageOfEjectBundleDto"
                 }
               }
             }
@@ -18119,6 +18119,24 @@
           }
         ],
         "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server correlation identifier for support and diagnostics.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChangePageDto"
+                }
+              }
+            }
+          },
           "400": {
             "description": "Bad Request",
             "headers": {
@@ -18367,24 +18385,6 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/PublicApiProblemDetails"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "headers": {
-              "X-Request-Id": {
-                "description": "Server correlation identifier for support and diagnostics.",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ChangePageDto"
                 }
               }
             }
@@ -18472,6 +18472,17 @@
           }
         ],
         "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server correlation identifier for support and diagnostics.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
           "400": {
             "description": "Bad Request",
             "headers": {
@@ -18720,17 +18731,6 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/PublicApiProblemDetails"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "headers": {
-              "X-Request-Id": {
-                "description": "Server correlation identifier for support and diagnostics.",
-                "schema": {
-                  "type": "string"
                 }
               }
             }
@@ -18810,6 +18810,24 @@
           }
         ],
         "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server correlation identifier for support and diagnostics.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChangePageDto"
+                }
+              }
+            }
+          },
           "400": {
             "description": "Bad Request",
             "headers": {
@@ -19058,24 +19076,6 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/PublicApiProblemDetails"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "headers": {
-              "X-Request-Id": {
-                "description": "Server correlation identifier for support and diagnostics.",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ChangePageDto"
                 }
               }
             }
@@ -19134,6 +19134,24 @@
           }
         ],
         "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server correlation identifier for support and diagnostics.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CursorPageOfSubscriptionDto"
+                }
+              }
+            }
+          },
           "400": {
             "description": "Bad Request",
             "headers": {
@@ -19382,24 +19400,6 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/PublicApiProblemDetails"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "headers": {
-              "X-Request-Id": {
-                "description": "Server correlation identifier for support and diagnostics.",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CursorPageOfSubscriptionDto"
                 }
               }
             }
@@ -19457,6 +19457,24 @@
           "required": true
         },
         "responses": {
+          "201": {
+            "description": "Created",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server correlation identifier for support and diagnostics.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionDto"
+                }
+              }
+            }
+          },
           "400": {
             "description": "Bad Request",
             "headers": {
@@ -19705,24 +19723,6 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/PublicApiProblemDetails"
-                }
-              }
-            }
-          },
-          "201": {
-            "description": "Created",
-            "headers": {
-              "X-Request-Id": {
-                "description": "Server correlation identifier for support and diagnostics.",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SubscriptionDto"
                 }
               }
             }
@@ -19770,6 +19770,17 @@
           }
         ],
         "responses": {
+          "204": {
+            "description": "No Content",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server correlation identifier for support and diagnostics.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
           "400": {
             "description": "Bad Request",
             "headers": {
@@ -20018,17 +20029,6 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/PublicApiProblemDetails"
-                }
-              }
-            }
-          },
-          "204": {
-            "description": "No Content",
-            "headers": {
-              "X-Request-Id": {
-                "description": "Server correlation identifier for support and diagnostics.",
-                "schema": {
-                  "type": "string"
                 }
               }
             }
@@ -20084,6 +20084,24 @@
           "required": true
         },
         "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server correlation identifier for support and diagnostics.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubscriptionDto"
+                }
+              }
+            }
+          },
           "400": {
             "description": "Bad Request",
             "headers": {
@@ -20332,24 +20350,6 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/PublicApiProblemDetails"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "headers": {
-              "X-Request-Id": {
-                "description": "Server correlation identifier for support and diagnostics.",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SubscriptionDto"
                 }
               }
             }
@@ -20408,6 +20408,24 @@
           }
         ],
         "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server correlation identifier for support and diagnostics.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CursorPageOfCdcConsumerDto"
+                }
+              }
+            }
+          },
           "400": {
             "description": "Bad Request",
             "headers": {
@@ -20656,24 +20674,6 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/PublicApiProblemDetails"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "headers": {
-              "X-Request-Id": {
-                "description": "Server correlation identifier for support and diagnostics.",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CursorPageOfCdcConsumerDto"
                 }
               }
             }
@@ -20731,6 +20731,42 @@
           "required": true
         },
         "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server correlation identifier for support and diagnostics.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CdcConsumerDto"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Created",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server correlation identifier for support and diagnostics.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CdcConsumerDto"
+                }
+              }
+            }
+          },
           "400": {
             "description": "Bad Request",
             "headers": {
@@ -20979,42 +21015,6 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/PublicApiProblemDetails"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "headers": {
-              "X-Request-Id": {
-                "description": "Server correlation identifier for support and diagnostics.",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CdcConsumerDto"
-                }
-              }
-            }
-          },
-          "201": {
-            "description": "Created",
-            "headers": {
-              "X-Request-Id": {
-                "description": "Server correlation identifier for support and diagnostics.",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CdcConsumerDto"
                 }
               }
             }
@@ -21072,6 +21072,24 @@
           "required": true
         },
         "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server correlation identifier for support and diagnostics.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CdcConsumerDto"
+                }
+              }
+            }
+          },
           "400": {
             "description": "Bad Request",
             "headers": {
@@ -21320,24 +21338,6 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/PublicApiProblemDetails"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "headers": {
-              "X-Request-Id": {
-                "description": "Server correlation identifier for support and diagnostics.",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CdcConsumerDto"
                 }
               }
             }
@@ -21385,6 +21385,17 @@
           }
         ],
         "responses": {
+          "204": {
+            "description": "No Content",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server correlation identifier for support and diagnostics.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
           "400": {
             "description": "Bad Request",
             "headers": {
@@ -21633,17 +21644,6 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/PublicApiProblemDetails"
-                }
-              }
-            }
-          },
-          "204": {
-            "description": "No Content",
-            "headers": {
-              "X-Request-Id": {
-                "description": "Server correlation identifier for support and diagnostics.",
-                "schema": {
-                  "type": "string"
                 }
               }
             }
@@ -21664,6 +21664,24 @@
         "summary": "Returns the instance-wide runtime settings.",
         "operationId": "get_api_v1_system_settings",
         "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server correlation identifier for support and diagnostics.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SystemSettingsDto"
+                }
+              }
+            }
+          },
           "400": {
             "description": "Bad Request",
             "headers": {
@@ -21912,24 +21930,6 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/PublicApiProblemDetails"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "headers": {
-              "X-Request-Id": {
-                "description": "Server correlation identifier for support and diagnostics.",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SystemSettingsDto"
                 }
               }
             }
@@ -21958,6 +21958,24 @@
           "required": true
         },
         "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server correlation identifier for support and diagnostics.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SystemSettingsDto"
+                }
+              }
+            }
+          },
           "400": {
             "description": "Bad Request",
             "headers": {
@@ -22206,24 +22224,6 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/PublicApiProblemDetails"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "headers": {
-              "X-Request-Id": {
-                "description": "Server correlation identifier for support and diagnostics.",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SystemSettingsDto"
                 }
               }
             }
@@ -22244,6 +22244,24 @@
         "summary": "Returns this node's Parquet storage placement and redacted profile inventory.",
         "operationId": "get_api_v1_system_settings_storage",
         "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server correlation identifier for support and diagnostics.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SystemStorageDto"
+                }
+              }
+            }
+          },
           "400": {
             "description": "Bad Request",
             "headers": {
@@ -22492,24 +22510,6 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/PublicApiProblemDetails"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "headers": {
-              "X-Request-Id": {
-                "description": "Server correlation identifier for support and diagnostics.",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SystemStorageDto"
                 }
               }
             }
@@ -22540,6 +22540,24 @@
           "required": true
         },
         "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {
+              "X-Request-Id": {
+                "description": "Server correlation identifier for support and diagnostics.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResolvedStoragePathDto"
+                }
+              }
+            }
+          },
           "400": {
             "description": "Bad Request",
             "headers": {
@@ -22788,24 +22806,6 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/PublicApiProblemDetails"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "headers": {
-              "X-Request-Id": {
-                "description": "Server correlation identifier for support and diagnostics.",
-                "schema": {
-                  "type": "string"
-                }
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ResolvedStoragePathDto"
                 }
               }
             }
@@ -26382,19 +26382,19 @@
   },
   "tags": [
     {
-      "name": "Discovery"
+      "name": "Authentication"
     },
     {
-      "name": "Operations"
+      "name": "Discovery"
     },
     {
       "name": "Lakehouse"
     },
     {
-      "name": "System settings"
+      "name": "Operations"
     },
     {
-      "name": "Authentication"
+      "name": "System settings"
     }
   ]
 }

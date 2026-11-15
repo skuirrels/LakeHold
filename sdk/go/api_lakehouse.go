@@ -260,7 +260,6 @@ func (a *LakehouseAPIService) DeleteApiV1TenantsTenantSlugExecute(r ApiDeleteApi
 			}
 					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
 					newErr.model = v
-			return localVarHTTPResponse, newErr
 		}
 		return localVarHTTPResponse, newErr
 	}
@@ -508,7 +507,6 @@ func (a *LakehouseAPIService) DeleteApiV1TenantsTenantSlugCatalogsCatalogNameExe
 			}
 					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
 					newErr.model = v
-			return localVarHTTPResponse, newErr
 		}
 		return localVarHTTPResponse, newErr
 	}
@@ -760,7 +758,6 @@ func (a *LakehouseAPIService) DeleteApiV1TenantsTenantSlugCatalogsCatalogNameCdc
 			}
 					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
 					newErr.model = v
-			return localVarHTTPResponse, newErr
 		}
 		return localVarHTTPResponse, newErr
 	}
@@ -1021,7 +1018,6 @@ func (a *LakehouseAPIService) DeleteApiV1TenantsTenantSlugCatalogsCatalogNameCon
 			}
 					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
 					newErr.model = v
-			return localVarHTTPResponse, newErr
 		}
 		return localVarHTTPResponse, newErr
 	}
@@ -1283,7 +1279,6 @@ func (a *LakehouseAPIService) DeleteApiV1TenantsTenantSlugCatalogsCatalogNameSav
 			}
 					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
 					newErr.model = v
-			return localVarHTTPResponse, newErr
 		}
 		return localVarHTTPResponse, newErr
 	}
@@ -1535,7 +1530,6 @@ func (a *LakehouseAPIService) DeleteApiV1TenantsTenantSlugCatalogsCatalogNameSub
 			}
 					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
 					newErr.model = v
-			return localVarHTTPResponse, newErr
 		}
 		return localVarHTTPResponse, newErr
 	}
@@ -1783,7 +1777,6 @@ func (a *LakehouseAPIService) DeleteApiV1TenantsTenantSlugMembersIdIntExecute(r 
 			}
 					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
 					newErr.model = v
-			return localVarHTTPResponse, newErr
 		}
 		return localVarHTTPResponse, newErr
 	}
@@ -2031,7 +2024,6 @@ func (a *LakehouseAPIService) DeleteApiV1TenantsTenantSlugTokensIdIntExecute(r A
 			}
 					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
 					newErr.model = v
-			return localVarHTTPResponse, newErr
 		}
 		return localVarHTTPResponse, newErr
 	}
@@ -2092,7 +2084,7 @@ func (a *LakehouseAPIService) GetApiV1AccessExecute(r ApiGetApiV1AccessRequest) 
 	}
 
 	// to determine the Accept header
-	localVarHTTPHeaderAccepts := []string{"application/problem+json", "application/json"}
+	localVarHTTPHeaderAccepts := []string{"application/json", "application/problem+json"}
 
 	// set Accept header
 	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
@@ -2273,7 +2265,6 @@ func (a *LakehouseAPIService) GetApiV1AccessExecute(r ApiGetApiV1AccessRequest) 
 			}
 					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
 					newErr.model = v
-			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		return localVarReturnValue, localVarHTTPResponse, newErr
 	}
@@ -2366,7 +2357,7 @@ func (a *LakehouseAPIService) GetApiV1MaintenanceScheduleExecute(r ApiGetApiV1Ma
 	}
 
 	// to determine the Accept header
-	localVarHTTPHeaderAccepts := []string{"application/problem+json", "application/json"}
+	localVarHTTPHeaderAccepts := []string{"application/json", "application/problem+json"}
 
 	// set Accept header
 	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
@@ -2547,7 +2538,6 @@ func (a *LakehouseAPIService) GetApiV1MaintenanceScheduleExecute(r ApiGetApiV1Ma
 			}
 					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
 					newErr.model = v
-			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		return localVarReturnValue, localVarHTTPResponse, newErr
 	}
@@ -2617,7 +2607,7 @@ func (a *LakehouseAPIService) GetApiV1QueryLanguagesExecute(r ApiGetApiV1QueryLa
 	}
 
 	// to determine the Accept header
-	localVarHTTPHeaderAccepts := []string{"application/problem+json", "application/json"}
+	localVarHTTPHeaderAccepts := []string{"application/json", "application/problem+json"}
 
 	// set Accept header
 	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
@@ -2798,7 +2788,6 @@ func (a *LakehouseAPIService) GetApiV1QueryLanguagesExecute(r ApiGetApiV1QueryLa
 			}
 					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
 					newErr.model = v
-			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		return localVarReturnValue, localVarHTTPResponse, newErr
 	}
@@ -2891,7 +2880,7 @@ func (a *LakehouseAPIService) GetApiV1TenantsExecute(r ApiGetApiV1TenantsRequest
 	}
 
 	// to determine the Accept header
-	localVarHTTPHeaderAccepts := []string{"application/problem+json", "application/json"}
+	localVarHTTPHeaderAccepts := []string{"application/json", "application/problem+json"}
 
 	// set Accept header
 	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
@@ -3072,7 +3061,6 @@ func (a *LakehouseAPIService) GetApiV1TenantsExecute(r ApiGetApiV1TenantsRequest
 			}
 					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
 					newErr.model = v
-			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		return localVarReturnValue, localVarHTTPResponse, newErr
 	}
@@ -3173,7 +3161,7 @@ func (a *LakehouseAPIService) GetApiV1TenantsTenantSlugCatalogsCatalogNameBackup
 	}
 
 	// to determine the Accept header
-	localVarHTTPHeaderAccepts := []string{"application/problem+json", "application/json"}
+	localVarHTTPHeaderAccepts := []string{"application/json", "application/problem+json"}
 
 	// set Accept header
 	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
@@ -3354,7 +3342,6 @@ func (a *LakehouseAPIService) GetApiV1TenantsTenantSlugCatalogsCatalogNameBackup
 			}
 					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
 					newErr.model = v
-			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		return localVarReturnValue, localVarHTTPResponse, newErr
 	}
@@ -3455,7 +3442,7 @@ func (a *LakehouseAPIService) GetApiV1TenantsTenantSlugCatalogsCatalogNameCdcCon
 	}
 
 	// to determine the Accept header
-	localVarHTTPHeaderAccepts := []string{"application/problem+json", "application/json"}
+	localVarHTTPHeaderAccepts := []string{"application/json", "application/problem+json"}
 
 	// set Accept header
 	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
@@ -3636,7 +3623,6 @@ func (a *LakehouseAPIService) GetApiV1TenantsTenantSlugCatalogsCatalogNameCdcCon
 			}
 					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
 					newErr.model = v
-			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		return localVarReturnValue, localVarHTTPResponse, newErr
 	}
@@ -3761,7 +3747,7 @@ func (a *LakehouseAPIService) GetApiV1TenantsTenantSlugCatalogsCatalogNameCdcSna
 	}
 
 	// to determine the Accept header
-	localVarHTTPHeaderAccepts := []string{"application/problem+json", "application/json"}
+	localVarHTTPHeaderAccepts := []string{"application/json", "application/problem+json"}
 
 	// set Accept header
 	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
@@ -3942,7 +3928,6 @@ func (a *LakehouseAPIService) GetApiV1TenantsTenantSlugCatalogsCatalogNameCdcSna
 			}
 					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
 					newErr.model = v
-			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		return localVarReturnValue, localVarHTTPResponse, newErr
 	}
@@ -4082,7 +4067,7 @@ func (a *LakehouseAPIService) GetApiV1TenantsTenantSlugCatalogsCatalogNameChange
 	}
 
 	// to determine the Accept header
-	localVarHTTPHeaderAccepts := []string{"application/problem+json", "application/json"}
+	localVarHTTPHeaderAccepts := []string{"application/json", "application/problem+json"}
 
 	// set Accept header
 	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
@@ -4263,7 +4248,6 @@ func (a *LakehouseAPIService) GetApiV1TenantsTenantSlugCatalogsCatalogNameChange
 			}
 					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
 					newErr.model = v
-			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		return localVarReturnValue, localVarHTTPResponse, newErr
 	}
@@ -4394,7 +4378,7 @@ func (a *LakehouseAPIService) GetApiV1TenantsTenantSlugCatalogsCatalogNameColumn
 	}
 
 	// to determine the Accept header
-	localVarHTTPHeaderAccepts := []string{"application/problem+json", "application/json"}
+	localVarHTTPHeaderAccepts := []string{"application/json", "application/problem+json"}
 
 	// set Accept header
 	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
@@ -4575,7 +4559,6 @@ func (a *LakehouseAPIService) GetApiV1TenantsTenantSlugCatalogsCatalogNameColumn
 			}
 					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
 					newErr.model = v
-			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		return localVarReturnValue, localVarHTTPResponse, newErr
 	}
@@ -4676,7 +4659,7 @@ func (a *LakehouseAPIService) GetApiV1TenantsTenantSlugCatalogsCatalogNameConnec
 	}
 
 	// to determine the Accept header
-	localVarHTTPHeaderAccepts := []string{"application/problem+json", "application/json"}
+	localVarHTTPHeaderAccepts := []string{"application/json", "application/problem+json"}
 
 	// set Accept header
 	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
@@ -4857,7 +4840,6 @@ func (a *LakehouseAPIService) GetApiV1TenantsTenantSlugCatalogsCatalogNameConnec
 			}
 					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
 					newErr.model = v
-			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		return localVarReturnValue, localVarHTTPResponse, newErr
 	}
@@ -4939,7 +4921,7 @@ func (a *LakehouseAPIService) GetApiV1TenantsTenantSlugCatalogsCatalogNameConnec
 	}
 
 	// to determine the Accept header
-	localVarHTTPHeaderAccepts := []string{"application/problem+json", "application/json"}
+	localVarHTTPHeaderAccepts := []string{"application/json", "application/problem+json"}
 
 	// set Accept header
 	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
@@ -5120,7 +5102,6 @@ func (a *LakehouseAPIService) GetApiV1TenantsTenantSlugCatalogsCatalogNameConnec
 			}
 					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
 					newErr.model = v
-			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		return localVarReturnValue, localVarHTTPResponse, newErr
 	}
@@ -5225,7 +5206,7 @@ func (a *LakehouseAPIService) GetApiV1TenantsTenantSlugCatalogsCatalogNameConnec
 	}
 
 	// to determine the Accept header
-	localVarHTTPHeaderAccepts := []string{"application/problem+json", "application/json"}
+	localVarHTTPHeaderAccepts := []string{"application/json", "application/problem+json"}
 
 	// set Accept header
 	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
@@ -5406,7 +5387,6 @@ func (a *LakehouseAPIService) GetApiV1TenantsTenantSlugCatalogsCatalogNameConnec
 			}
 					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
 					newErr.model = v
-			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		return localVarReturnValue, localVarHTTPResponse, newErr
 	}
@@ -5511,7 +5491,7 @@ func (a *LakehouseAPIService) GetApiV1TenantsTenantSlugCatalogsCatalogNameConnec
 	}
 
 	// to determine the Accept header
-	localVarHTTPHeaderAccepts := []string{"application/problem+json", "application/json"}
+	localVarHTTPHeaderAccepts := []string{"application/json", "application/problem+json"}
 
 	// set Accept header
 	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
@@ -5692,7 +5672,6 @@ func (a *LakehouseAPIService) GetApiV1TenantsTenantSlugCatalogsCatalogNameConnec
 			}
 					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
 					newErr.model = v
-			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		return localVarReturnValue, localVarHTTPResponse, newErr
 	}
@@ -5793,7 +5772,7 @@ func (a *LakehouseAPIService) GetApiV1TenantsTenantSlugCatalogsCatalogNameEjects
 	}
 
 	// to determine the Accept header
-	localVarHTTPHeaderAccepts := []string{"application/problem+json", "application/json"}
+	localVarHTTPHeaderAccepts := []string{"application/json", "application/problem+json"}
 
 	// set Accept header
 	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
@@ -5974,7 +5953,6 @@ func (a *LakehouseAPIService) GetApiV1TenantsTenantSlugCatalogsCatalogNameEjects
 			}
 					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
 					newErr.model = v
-			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		return localVarReturnValue, localVarHTTPResponse, newErr
 	}
@@ -6056,7 +6034,7 @@ func (a *LakehouseAPIService) GetApiV1TenantsTenantSlugCatalogsCatalogNameQueryL
 	}
 
 	// to determine the Accept header
-	localVarHTTPHeaderAccepts := []string{"application/problem+json", "application/json"}
+	localVarHTTPHeaderAccepts := []string{"application/json", "application/problem+json"}
 
 	// set Accept header
 	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
@@ -6237,7 +6215,6 @@ func (a *LakehouseAPIService) GetApiV1TenantsTenantSlugCatalogsCatalogNameQueryL
 			}
 					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
 					newErr.model = v
-			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		return localVarReturnValue, localVarHTTPResponse, newErr
 	}
@@ -6338,7 +6315,7 @@ func (a *LakehouseAPIService) GetApiV1TenantsTenantSlugCatalogsCatalogNameSavedQ
 	}
 
 	// to determine the Accept header
-	localVarHTTPHeaderAccepts := []string{"application/problem+json", "application/json"}
+	localVarHTTPHeaderAccepts := []string{"application/json", "application/problem+json"}
 
 	// set Accept header
 	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
@@ -6519,7 +6496,6 @@ func (a *LakehouseAPIService) GetApiV1TenantsTenantSlugCatalogsCatalogNameSavedQ
 			}
 					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
 					newErr.model = v
-			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		return localVarReturnValue, localVarHTTPResponse, newErr
 	}
@@ -6601,7 +6577,7 @@ func (a *LakehouseAPIService) GetApiV1TenantsTenantSlugCatalogsCatalogNameSavedQ
 	}
 
 	// to determine the Accept header
-	localVarHTTPHeaderAccepts := []string{"application/problem+json", "application/json"}
+	localVarHTTPHeaderAccepts := []string{"application/json", "application/problem+json"}
 
 	// set Accept header
 	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
@@ -6782,7 +6758,6 @@ func (a *LakehouseAPIService) GetApiV1TenantsTenantSlugCatalogsCatalogNameSavedQ
 			}
 					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
 					newErr.model = v
-			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		return localVarReturnValue, localVarHTTPResponse, newErr
 	}
@@ -6860,7 +6835,7 @@ func (a *LakehouseAPIService) GetApiV1TenantsTenantSlugCatalogsCatalogNameSchema
 	}
 
 	// to determine the Accept header
-	localVarHTTPHeaderAccepts := []string{"application/problem+json", "application/json"}
+	localVarHTTPHeaderAccepts := []string{"application/json", "application/problem+json"}
 
 	// set Accept header
 	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
@@ -7041,7 +7016,6 @@ func (a *LakehouseAPIService) GetApiV1TenantsTenantSlugCatalogsCatalogNameSchema
 			}
 					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
 					newErr.model = v
-			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		return localVarReturnValue, localVarHTTPResponse, newErr
 	}
@@ -7159,7 +7133,7 @@ func (a *LakehouseAPIService) GetApiV1TenantsTenantSlugCatalogsCatalogNameSnapsh
 	}
 
 	// to determine the Accept header
-	localVarHTTPHeaderAccepts := []string{"application/problem+json", "application/json"}
+	localVarHTTPHeaderAccepts := []string{"application/json", "application/problem+json"}
 
 	// set Accept header
 	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
@@ -7340,7 +7314,6 @@ func (a *LakehouseAPIService) GetApiV1TenantsTenantSlugCatalogsCatalogNameSnapsh
 			}
 					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
 					newErr.model = v
-			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		return localVarReturnValue, localVarHTTPResponse, newErr
 	}
@@ -7418,7 +7391,7 @@ func (a *LakehouseAPIService) GetApiV1TenantsTenantSlugCatalogsCatalogNameStorag
 	}
 
 	// to determine the Accept header
-	localVarHTTPHeaderAccepts := []string{"application/problem+json", "application/json"}
+	localVarHTTPHeaderAccepts := []string{"application/json", "application/problem+json"}
 
 	// set Accept header
 	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
@@ -7599,7 +7572,6 @@ func (a *LakehouseAPIService) GetApiV1TenantsTenantSlugCatalogsCatalogNameStorag
 			}
 					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
 					newErr.model = v
-			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		return localVarReturnValue, localVarHTTPResponse, newErr
 	}
@@ -7720,7 +7692,7 @@ func (a *LakehouseAPIService) GetApiV1TenantsTenantSlugCatalogsCatalogNameStorag
 	}
 
 	// to determine the Accept header
-	localVarHTTPHeaderAccepts := []string{"application/problem+json", "application/json"}
+	localVarHTTPHeaderAccepts := []string{"application/json", "application/problem+json"}
 
 	// set Accept header
 	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
@@ -7901,7 +7873,6 @@ func (a *LakehouseAPIService) GetApiV1TenantsTenantSlugCatalogsCatalogNameStorag
 			}
 					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
 					newErr.model = v
-			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		return localVarReturnValue, localVarHTTPResponse, newErr
 	}
@@ -8002,7 +7973,7 @@ func (a *LakehouseAPIService) GetApiV1TenantsTenantSlugCatalogsCatalogNameSubscr
 	}
 
 	// to determine the Accept header
-	localVarHTTPHeaderAccepts := []string{"application/problem+json", "application/json"}
+	localVarHTTPHeaderAccepts := []string{"application/json", "application/problem+json"}
 
 	// set Accept header
 	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
@@ -8183,7 +8154,6 @@ func (a *LakehouseAPIService) GetApiV1TenantsTenantSlugCatalogsCatalogNameSubscr
 			}
 					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
 					newErr.model = v
-			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		return localVarReturnValue, localVarHTTPResponse, newErr
 	}
@@ -8283,7 +8253,7 @@ func (a *LakehouseAPIService) GetApiV1TenantsTenantSlugCatalogsCatalogNameTableD
 	}
 
 	// to determine the Accept header
-	localVarHTTPHeaderAccepts := []string{"application/problem+json", "application/json"}
+	localVarHTTPHeaderAccepts := []string{"application/json", "application/problem+json"}
 
 	// set Accept header
 	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
@@ -8464,7 +8434,6 @@ func (a *LakehouseAPIService) GetApiV1TenantsTenantSlugCatalogsCatalogNameTableD
 			}
 					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
 					newErr.model = v
-			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		return localVarReturnValue, localVarHTTPResponse, newErr
 	}
@@ -8573,7 +8542,7 @@ func (a *LakehouseAPIService) GetApiV1TenantsTenantSlugCatalogsCatalogNameTableP
 	}
 
 	// to determine the Accept header
-	localVarHTTPHeaderAccepts := []string{"application/problem+json", "application/json"}
+	localVarHTTPHeaderAccepts := []string{"application/json", "application/problem+json"}
 
 	// set Accept header
 	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
@@ -8754,7 +8723,6 @@ func (a *LakehouseAPIService) GetApiV1TenantsTenantSlugCatalogsCatalogNameTableP
 			}
 					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
 					newErr.model = v
-			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		return localVarReturnValue, localVarHTTPResponse, newErr
 	}
@@ -8851,7 +8819,7 @@ func (a *LakehouseAPIService) GetApiV1TenantsTenantSlugHistoryExecute(r ApiGetAp
 	}
 
 	// to determine the Accept header
-	localVarHTTPHeaderAccepts := []string{"application/problem+json", "application/json"}
+	localVarHTTPHeaderAccepts := []string{"application/json", "application/problem+json"}
 
 	// set Accept header
 	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
@@ -9032,7 +9000,6 @@ func (a *LakehouseAPIService) GetApiV1TenantsTenantSlugHistoryExecute(r ApiGetAp
 			}
 					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
 					newErr.model = v
-			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		return localVarReturnValue, localVarHTTPResponse, newErr
 	}
@@ -9106,7 +9073,7 @@ func (a *LakehouseAPIService) GetApiV1TenantsTenantSlugMembersExecute(r ApiGetAp
 	}
 
 	// to determine the Accept header
-	localVarHTTPHeaderAccepts := []string{"application/problem+json", "application/json"}
+	localVarHTTPHeaderAccepts := []string{"application/json", "application/problem+json"}
 
 	// set Accept header
 	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
@@ -9287,7 +9254,6 @@ func (a *LakehouseAPIService) GetApiV1TenantsTenantSlugMembersExecute(r ApiGetAp
 			}
 					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
 					newErr.model = v
-			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		return localVarReturnValue, localVarHTTPResponse, newErr
 	}
@@ -9384,7 +9350,7 @@ func (a *LakehouseAPIService) GetApiV1TenantsTenantSlugTokensExecute(r ApiGetApi
 	}
 
 	// to determine the Accept header
-	localVarHTTPHeaderAccepts := []string{"application/problem+json", "application/json"}
+	localVarHTTPHeaderAccepts := []string{"application/json", "application/problem+json"}
 
 	// set Accept header
 	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
@@ -9565,7 +9531,6 @@ func (a *LakehouseAPIService) GetApiV1TenantsTenantSlugTokensExecute(r ApiGetApi
 			}
 					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
 					newErr.model = v
-			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		return localVarReturnValue, localVarHTTPResponse, newErr
 	}
@@ -9647,7 +9612,7 @@ func (a *LakehouseAPIService) GetSnapshotExecute(r ApiGetSnapshotRequest) (*Snap
 	}
 
 	// to determine the Accept header
-	localVarHTTPHeaderAccepts := []string{"application/problem+json", "application/json"}
+	localVarHTTPHeaderAccepts := []string{"application/json", "application/problem+json"}
 
 	// set Accept header
 	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
@@ -9828,7 +9793,6 @@ func (a *LakehouseAPIService) GetSnapshotExecute(r ApiGetSnapshotRequest) (*Snap
 			}
 					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
 					newErr.model = v
-			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		return localVarReturnValue, localVarHTTPResponse, newErr
 	}
@@ -9944,7 +9908,7 @@ func (a *LakehouseAPIService) GetSnapshotTableExecute(r ApiGetSnapshotTableReque
 	}
 
 	// to determine the Accept header
-	localVarHTTPHeaderAccepts := []string{"application/problem+json", "application/json"}
+	localVarHTTPHeaderAccepts := []string{"application/json", "application/problem+json"}
 
 	// set Accept header
 	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
@@ -10125,7 +10089,6 @@ func (a *LakehouseAPIService) GetSnapshotTableExecute(r ApiGetSnapshotTableReque
 			}
 					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
 					newErr.model = v
-			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		return localVarReturnValue, localVarHTTPResponse, newErr
 	}
@@ -10212,7 +10175,7 @@ func (a *LakehouseAPIService) PatchApiV1TenantsTenantSlugMembersIdIntExecute(r A
 	}
 
 	// to determine the Accept header
-	localVarHTTPHeaderAccepts := []string{"application/problem+json", "application/json"}
+	localVarHTTPHeaderAccepts := []string{"application/json", "application/problem+json"}
 
 	// set Accept header
 	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
@@ -10395,7 +10358,6 @@ func (a *LakehouseAPIService) PatchApiV1TenantsTenantSlugMembersIdIntExecute(r A
 			}
 					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
 					newErr.model = v
-			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		return localVarReturnValue, localVarHTTPResponse, newErr
 	}
@@ -10481,7 +10443,7 @@ func (a *LakehouseAPIService) PostApiV1TenantsExecute(r ApiPostApiV1TenantsReque
 	}
 
 	// to determine the Accept header
-	localVarHTTPHeaderAccepts := []string{"application/problem+json", "application/json"}
+	localVarHTTPHeaderAccepts := []string{"application/json", "application/problem+json"}
 
 	// set Accept header
 	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
@@ -10667,7 +10629,6 @@ func (a *LakehouseAPIService) PostApiV1TenantsExecute(r ApiPostApiV1TenantsReque
 			}
 					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
 					newErr.model = v
-			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		return localVarReturnValue, localVarHTTPResponse, newErr
 	}
@@ -10757,7 +10718,7 @@ func (a *LakehouseAPIService) PostApiV1TenantsTenantSlugCatalogsExecute(r ApiPos
 	}
 
 	// to determine the Accept header
-	localVarHTTPHeaderAccepts := []string{"application/problem+json", "application/json"}
+	localVarHTTPHeaderAccepts := []string{"application/json", "application/problem+json"}
 
 	// set Accept header
 	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
@@ -10943,7 +10904,6 @@ func (a *LakehouseAPIService) PostApiV1TenantsTenantSlugCatalogsExecute(r ApiPos
 			}
 					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
 					newErr.model = v
-			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		return localVarReturnValue, localVarHTTPResponse, newErr
 	}
@@ -11037,7 +10997,7 @@ func (a *LakehouseAPIService) PostApiV1TenantsTenantSlugCatalogsCatalogNameBacku
 	}
 
 	// to determine the Accept header
-	localVarHTTPHeaderAccepts := []string{"application/problem+json", "application/json"}
+	localVarHTTPHeaderAccepts := []string{"application/json", "application/problem+json"}
 
 	// set Accept header
 	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
@@ -11223,7 +11183,6 @@ func (a *LakehouseAPIService) PostApiV1TenantsTenantSlugCatalogsCatalogNameBacku
 			}
 					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
 					newErr.model = v
-			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		return localVarReturnValue, localVarHTTPResponse, newErr
 	}
@@ -11317,7 +11276,7 @@ func (a *LakehouseAPIService) PostApiV1TenantsTenantSlugCatalogsCatalogNameCdcCo
 	}
 
 	// to determine the Accept header
-	localVarHTTPHeaderAccepts := []string{"application/problem+json", "application/json"}
+	localVarHTTPHeaderAccepts := []string{"application/json", "application/problem+json"}
 
 	// set Accept header
 	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
@@ -11503,7 +11462,6 @@ func (a *LakehouseAPIService) PostApiV1TenantsTenantSlugCatalogsCatalogNameCdcCo
 			}
 					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
 					newErr.model = v
-			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		return localVarReturnValue, localVarHTTPResponse, newErr
 	}
@@ -11597,7 +11555,7 @@ func (a *LakehouseAPIService) PostApiV1TenantsTenantSlugCatalogsCatalogNameConne
 	}
 
 	// to determine the Accept header
-	localVarHTTPHeaderAccepts := []string{"application/problem+json", "application/json"}
+	localVarHTTPHeaderAccepts := []string{"application/json", "application/problem+json"}
 
 	// set Accept header
 	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
@@ -11783,7 +11741,6 @@ func (a *LakehouseAPIService) PostApiV1TenantsTenantSlugCatalogsCatalogNameConne
 			}
 					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
 					newErr.model = v
-			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		return localVarReturnValue, localVarHTTPResponse, newErr
 	}
@@ -11881,7 +11838,7 @@ func (a *LakehouseAPIService) PostApiV1TenantsTenantSlugCatalogsCatalogNameConne
 	}
 
 	// to determine the Accept header
-	localVarHTTPHeaderAccepts := []string{"application/problem+json", "application/json"}
+	localVarHTTPHeaderAccepts := []string{"application/json", "application/problem+json"}
 
 	// set Accept header
 	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
@@ -12067,7 +12024,6 @@ func (a *LakehouseAPIService) PostApiV1TenantsTenantSlugCatalogsCatalogNameConne
 			}
 					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
 					newErr.model = v
-			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		return localVarReturnValue, localVarHTTPResponse, newErr
 	}
@@ -12165,7 +12121,7 @@ func (a *LakehouseAPIService) PostApiV1TenantsTenantSlugCatalogsCatalogNameConne
 	}
 
 	// to determine the Accept header
-	localVarHTTPHeaderAccepts := []string{"application/problem+json", "application/json"}
+	localVarHTTPHeaderAccepts := []string{"application/json", "application/problem+json"}
 
 	// set Accept header
 	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
@@ -12351,7 +12307,6 @@ func (a *LakehouseAPIService) PostApiV1TenantsTenantSlugCatalogsCatalogNameConne
 			}
 					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
 					newErr.model = v
-			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		return localVarReturnValue, localVarHTTPResponse, newErr
 	}
@@ -12449,7 +12404,7 @@ func (a *LakehouseAPIService) PostApiV1TenantsTenantSlugCatalogsCatalogNameConne
 	}
 
 	// to determine the Accept header
-	localVarHTTPHeaderAccepts := []string{"application/problem+json", "application/json"}
+	localVarHTTPHeaderAccepts := []string{"application/json", "application/problem+json"}
 
 	// set Accept header
 	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
@@ -12635,7 +12590,6 @@ func (a *LakehouseAPIService) PostApiV1TenantsTenantSlugCatalogsCatalogNameConne
 			}
 					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
 					newErr.model = v
-			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		return localVarReturnValue, localVarHTTPResponse, newErr
 	}
@@ -12724,7 +12678,7 @@ func (a *LakehouseAPIService) PostApiV1TenantsTenantSlugCatalogsCatalogNameConne
 	}
 
 	// to determine the Accept header
-	localVarHTTPHeaderAccepts := []string{"application/problem+json", "application/json"}
+	localVarHTTPHeaderAccepts := []string{"application/json", "application/problem+json"}
 
 	// set Accept header
 	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
@@ -12908,7 +12862,6 @@ func (a *LakehouseAPIService) PostApiV1TenantsTenantSlugCatalogsCatalogNameConne
 			}
 					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
 					newErr.model = v
-			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		return localVarReturnValue, localVarHTTPResponse, newErr
 	}
@@ -12999,7 +12952,7 @@ func (a *LakehouseAPIService) PostApiV1TenantsTenantSlugCatalogsCatalogNameEject
 	}
 
 	// to determine the Accept header
-	localVarHTTPHeaderAccepts := []string{"application/problem+json", "application/json"}
+	localVarHTTPHeaderAccepts := []string{"application/json", "application/problem+json"}
 
 	// set Accept header
 	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
@@ -13185,7 +13138,6 @@ func (a *LakehouseAPIService) PostApiV1TenantsTenantSlugCatalogsCatalogNameEject
 			}
 					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
 					newErr.model = v
-			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		return localVarReturnValue, localVarHTTPResponse, newErr
 	}
@@ -13263,7 +13215,7 @@ func (a *LakehouseAPIService) PostApiV1TenantsTenantSlugCatalogsCatalogNameImpor
 	}
 
 	// to determine the Accept header
-	localVarHTTPHeaderAccepts := []string{"application/problem+json", "application/json"}
+	localVarHTTPHeaderAccepts := []string{"application/json", "application/problem+json"}
 
 	// set Accept header
 	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
@@ -13444,7 +13396,6 @@ func (a *LakehouseAPIService) PostApiV1TenantsTenantSlugCatalogsCatalogNameImpor
 			}
 					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
 					newErr.model = v
-			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		return localVarReturnValue, localVarHTTPResponse, newErr
 	}
@@ -13522,7 +13473,7 @@ func (a *LakehouseAPIService) PostApiV1TenantsTenantSlugCatalogsCatalogNameImpor
 	}
 
 	// to determine the Accept header
-	localVarHTTPHeaderAccepts := []string{"application/problem+json", "application/json"}
+	localVarHTTPHeaderAccepts := []string{"application/json", "application/problem+json"}
 
 	// set Accept header
 	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
@@ -13703,7 +13654,6 @@ func (a *LakehouseAPIService) PostApiV1TenantsTenantSlugCatalogsCatalogNameImpor
 			}
 					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
 					newErr.model = v
-			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		return localVarReturnValue, localVarHTTPResponse, newErr
 	}
@@ -13804,7 +13754,7 @@ func (a *LakehouseAPIService) PostApiV1TenantsTenantSlugCatalogsCatalogNameMaint
 	}
 
 	// to determine the Accept header
-	localVarHTTPHeaderAccepts := []string{"application/problem+json", "application/json"}
+	localVarHTTPHeaderAccepts := []string{"application/json", "application/problem+json"}
 
 	// set Accept header
 	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
@@ -13988,7 +13938,6 @@ func (a *LakehouseAPIService) PostApiV1TenantsTenantSlugCatalogsCatalogNameMaint
 			}
 					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
 					newErr.model = v
-			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		return localVarReturnValue, localVarHTTPResponse, newErr
 	}
@@ -14075,7 +14024,7 @@ func (a *LakehouseAPIService) PostApiV1TenantsTenantSlugCatalogsCatalogNameQuery
 	}
 
 	// to determine the Accept header
-	localVarHTTPHeaderAccepts := []string{"application/problem+json", "application/json"}
+	localVarHTTPHeaderAccepts := []string{"application/json", "application/problem+json"}
 
 	// set Accept header
 	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
@@ -14258,7 +14207,6 @@ func (a *LakehouseAPIService) PostApiV1TenantsTenantSlugCatalogsCatalogNameQuery
 			}
 					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
 					newErr.model = v
-			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		return localVarReturnValue, localVarHTTPResponse, newErr
 	}
@@ -14352,7 +14300,7 @@ func (a *LakehouseAPIService) PostApiV1TenantsTenantSlugCatalogsCatalogNameSaved
 	}
 
 	// to determine the Accept header
-	localVarHTTPHeaderAccepts := []string{"application/problem+json", "application/json"}
+	localVarHTTPHeaderAccepts := []string{"application/json", "application/problem+json"}
 
 	// set Accept header
 	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
@@ -14538,7 +14486,6 @@ func (a *LakehouseAPIService) PostApiV1TenantsTenantSlugCatalogsCatalogNameSaved
 			}
 					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
 					newErr.model = v
-			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		return localVarReturnValue, localVarHTTPResponse, newErr
 	}
@@ -14620,7 +14567,7 @@ func (a *LakehouseAPIService) PostApiV1TenantsTenantSlugCatalogsCatalogNameSaved
 	}
 
 	// to determine the Accept header
-	localVarHTTPHeaderAccepts := []string{"application/problem+json", "application/json"}
+	localVarHTTPHeaderAccepts := []string{"application/json", "application/problem+json"}
 
 	// set Accept header
 	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
@@ -14801,7 +14748,6 @@ func (a *LakehouseAPIService) PostApiV1TenantsTenantSlugCatalogsCatalogNameSaved
 			}
 					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
 					newErr.model = v
-			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		return localVarReturnValue, localVarHTTPResponse, newErr
 	}
@@ -14899,7 +14845,7 @@ func (a *LakehouseAPIService) PostApiV1TenantsTenantSlugCatalogsCatalogNameSaved
 	}
 
 	// to determine the Accept header
-	localVarHTTPHeaderAccepts := []string{"application/problem+json", "application/json"}
+	localVarHTTPHeaderAccepts := []string{"application/json", "application/problem+json"}
 
 	// set Accept header
 	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
@@ -15085,7 +15031,6 @@ func (a *LakehouseAPIService) PostApiV1TenantsTenantSlugCatalogsCatalogNameSaved
 			}
 					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
 					newErr.model = v
-			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		return localVarReturnValue, localVarHTTPResponse, newErr
 	}
@@ -15184,7 +15129,7 @@ func (a *LakehouseAPIService) PostApiV1TenantsTenantSlugCatalogsCatalogNameSaved
 	}
 
 	// to determine the Accept header
-	localVarHTTPHeaderAccepts := []string{"application/problem+json", "application/json"}
+	localVarHTTPHeaderAccepts := []string{"application/json", "application/problem+json"}
 
 	// set Accept header
 	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
@@ -15368,7 +15313,6 @@ func (a *LakehouseAPIService) PostApiV1TenantsTenantSlugCatalogsCatalogNameSaved
 			}
 					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
 					newErr.model = v
-			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		return localVarReturnValue, localVarHTTPResponse, newErr
 	}
@@ -15466,7 +15410,7 @@ func (a *LakehouseAPIService) PostApiV1TenantsTenantSlugCatalogsCatalogNameSnaps
 	}
 
 	// to determine the Accept header
-	localVarHTTPHeaderAccepts := []string{"application/problem+json", "application/json"}
+	localVarHTTPHeaderAccepts := []string{"application/json", "application/problem+json"}
 
 	// set Accept header
 	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
@@ -15652,7 +15596,6 @@ func (a *LakehouseAPIService) PostApiV1TenantsTenantSlugCatalogsCatalogNameSnaps
 			}
 					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
 					newErr.model = v
-			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		return localVarReturnValue, localVarHTTPResponse, newErr
 	}
@@ -15746,7 +15689,7 @@ func (a *LakehouseAPIService) PostApiV1TenantsTenantSlugCatalogsCatalogNameSubsc
 	}
 
 	// to determine the Accept header
-	localVarHTTPHeaderAccepts := []string{"application/problem+json", "application/json"}
+	localVarHTTPHeaderAccepts := []string{"application/json", "application/problem+json"}
 
 	// set Accept header
 	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
@@ -15932,7 +15875,6 @@ func (a *LakehouseAPIService) PostApiV1TenantsTenantSlugCatalogsCatalogNameSubsc
 			}
 					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
 					newErr.model = v
-			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		return localVarReturnValue, localVarHTTPResponse, newErr
 	}
@@ -16015,7 +15957,7 @@ func (a *LakehouseAPIService) PostApiV1TenantsTenantSlugMembersExecute(r ApiPost
 	}
 
 	// to determine the Accept header
-	localVarHTTPHeaderAccepts := []string{"application/problem+json", "application/json"}
+	localVarHTTPHeaderAccepts := []string{"application/json", "application/problem+json"}
 
 	// set Accept header
 	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
@@ -16198,7 +16140,6 @@ func (a *LakehouseAPIService) PostApiV1TenantsTenantSlugMembersExecute(r ApiPost
 			}
 					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
 					newErr.model = v
-			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		return localVarReturnValue, localVarHTTPResponse, newErr
 	}
@@ -16281,7 +16222,7 @@ func (a *LakehouseAPIService) PostApiV1TenantsTenantSlugTokensExecute(r ApiPostA
 	}
 
 	// to determine the Accept header
-	localVarHTTPHeaderAccepts := []string{"application/problem+json", "application/json"}
+	localVarHTTPHeaderAccepts := []string{"application/json", "application/problem+json"}
 
 	// set Accept header
 	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
@@ -16464,7 +16405,6 @@ func (a *LakehouseAPIService) PostApiV1TenantsTenantSlugTokensExecute(r ApiPostA
 			}
 					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
 					newErr.model = v
-			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		return localVarReturnValue, localVarHTTPResponse, newErr
 	}
@@ -16555,7 +16495,7 @@ func (a *LakehouseAPIService) PutApiV1TenantsTenantSlugCatalogsCatalogNameCdcCon
 	}
 
 	// to determine the Accept header
-	localVarHTTPHeaderAccepts := []string{"application/problem+json", "application/json"}
+	localVarHTTPHeaderAccepts := []string{"application/json", "application/problem+json"}
 
 	// set Accept header
 	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
@@ -16738,7 +16678,6 @@ func (a *LakehouseAPIService) PutApiV1TenantsTenantSlugCatalogsCatalogNameCdcCon
 			}
 					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
 					newErr.model = v
-			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		return localVarReturnValue, localVarHTTPResponse, newErr
 	}
@@ -16829,7 +16768,7 @@ func (a *LakehouseAPIService) PutApiV1TenantsTenantSlugCatalogsCatalogNameConnec
 	}
 
 	// to determine the Accept header
-	localVarHTTPHeaderAccepts := []string{"application/problem+json", "application/json"}
+	localVarHTTPHeaderAccepts := []string{"application/json", "application/problem+json"}
 
 	// set Accept header
 	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
@@ -17012,7 +16951,6 @@ func (a *LakehouseAPIService) PutApiV1TenantsTenantSlugCatalogsCatalogNameConnec
 			}
 					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
 					newErr.model = v
-			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		return localVarReturnValue, localVarHTTPResponse, newErr
 	}
@@ -17103,7 +17041,7 @@ func (a *LakehouseAPIService) PutApiV1TenantsTenantSlugCatalogsCatalogNameSavedQ
 	}
 
 	// to determine the Accept header
-	localVarHTTPHeaderAccepts := []string{"application/problem+json", "application/json"}
+	localVarHTTPHeaderAccepts := []string{"application/json", "application/problem+json"}
 
 	// set Accept header
 	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
@@ -17286,7 +17224,6 @@ func (a *LakehouseAPIService) PutApiV1TenantsTenantSlugCatalogsCatalogNameSavedQ
 			}
 					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
 					newErr.model = v
-			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		return localVarReturnValue, localVarHTTPResponse, newErr
 	}
@@ -17377,7 +17314,7 @@ func (a *LakehouseAPIService) PutApiV1TenantsTenantSlugCatalogsCatalogNameSubscr
 	}
 
 	// to determine the Accept header
-	localVarHTTPHeaderAccepts := []string{"application/problem+json", "application/json"}
+	localVarHTTPHeaderAccepts := []string{"application/json", "application/problem+json"}
 
 	// set Accept header
 	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
@@ -17560,7 +17497,6 @@ func (a *LakehouseAPIService) PutApiV1TenantsTenantSlugCatalogsCatalogNameSubscr
 			}
 					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
 					newErr.model = v
-			return localVarReturnValue, localVarHTTPResponse, newErr
 		}
 		return localVarReturnValue, localVarHTTPResponse, newErr
 	}
@@ -17881,7 +17817,6 @@ func (a *LakehouseAPIService) StreamChangesExecute(r ApiStreamChangesRequest) (*
 			}
 					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
 					newErr.model = v
-			return localVarHTTPResponse, newErr
 		}
 		return localVarHTTPResponse, newErr
 	}
@@ -18140,7 +18075,6 @@ func (a *LakehouseAPIService) StreamQueryExecute(r ApiStreamQueryRequest) (*http
 			}
 					newErr.error = formatErrorMessage(localVarHTTPResponse.Status, &v)
 					newErr.model = v
-			return localVarHTTPResponse, newErr
 		}
 		return localVarHTTPResponse, newErr
 	}

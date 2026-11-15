@@ -89,6 +89,7 @@ class SystemSettingsApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "SystemSettingsDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -103,7 +104,6 @@ class SystemSettingsApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "SystemSettingsDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -165,6 +165,7 @@ class SystemSettingsApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "SystemSettingsDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -179,7 +180,6 @@ class SystemSettingsApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "SystemSettingsDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -241,6 +241,7 @@ class SystemSettingsApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "SystemSettingsDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -255,7 +256,6 @@ class SystemSettingsApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "SystemSettingsDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -297,8 +297,8 @@ class SystemSettingsApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json', 
-                    'application/json'
+                    'application/json', 
+                    'application/problem+json'
                 ]
             )
 
@@ -375,6 +375,7 @@ class SystemSettingsApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "SystemStorageDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -389,7 +390,6 @@ class SystemSettingsApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "SystemStorageDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -451,6 +451,7 @@ class SystemSettingsApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "SystemStorageDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -465,7 +466,6 @@ class SystemSettingsApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "SystemStorageDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -527,6 +527,7 @@ class SystemSettingsApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "SystemStorageDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -541,7 +542,6 @@ class SystemSettingsApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "SystemStorageDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -583,8 +583,8 @@ class SystemSettingsApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json', 
-                    'application/json'
+                    'application/json', 
+                    'application/problem+json'
                 ]
             )
 
@@ -665,6 +665,7 @@ class SystemSettingsApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "ResolvedStoragePathDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -679,7 +680,6 @@ class SystemSettingsApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "ResolvedStoragePathDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -745,6 +745,7 @@ class SystemSettingsApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "ResolvedStoragePathDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -759,7 +760,6 @@ class SystemSettingsApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "ResolvedStoragePathDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -825,6 +825,7 @@ class SystemSettingsApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "ResolvedStoragePathDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -839,7 +840,6 @@ class SystemSettingsApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "ResolvedStoragePathDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -884,8 +884,8 @@ class SystemSettingsApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json', 
-                    'application/json'
+                    'application/json', 
+                    'application/problem+json'
                 ]
             )
 
@@ -979,6 +979,7 @@ class SystemSettingsApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "SystemSettingsDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -993,7 +994,6 @@ class SystemSettingsApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "SystemSettingsDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -1059,6 +1059,7 @@ class SystemSettingsApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "SystemSettingsDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -1073,7 +1074,6 @@ class SystemSettingsApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "SystemSettingsDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -1139,6 +1139,7 @@ class SystemSettingsApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "SystemSettingsDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -1153,7 +1154,6 @@ class SystemSettingsApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "SystemSettingsDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -1198,8 +1198,8 @@ class SystemSettingsApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json', 
-                    'application/json'
+                    'application/json', 
+                    'application/problem+json'
                 ]
             )
 

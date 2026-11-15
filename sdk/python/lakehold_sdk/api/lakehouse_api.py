@@ -149,6 +149,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '204': None,
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -163,7 +164,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '204': None,
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -229,6 +229,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '204': None,
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -243,7 +244,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '204': None,
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -309,6 +309,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '204': None,
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -323,7 +324,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '204': None,
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -453,6 +453,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '204': None,
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -467,7 +468,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '204': None,
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -537,6 +537,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '204': None,
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -551,7 +552,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '204': None,
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -621,6 +621,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '204': None,
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -635,7 +636,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '204': None,
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -772,6 +772,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '204': None,
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -786,7 +787,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '204': None,
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -860,6 +860,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '204': None,
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -874,7 +875,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '204': None,
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -948,6 +948,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '204': None,
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -962,7 +963,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '204': None,
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -1106,6 +1106,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '204': None,
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -1120,7 +1121,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '204': None,
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -1198,6 +1198,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '204': None,
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -1212,7 +1213,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '204': None,
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -1290,6 +1290,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '204': None,
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -1304,7 +1305,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '204': None,
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -1453,6 +1453,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '204': None,
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -1467,7 +1468,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '204': None,
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -1545,6 +1545,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '204': None,
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -1559,7 +1560,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '204': None,
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -1637,6 +1637,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '204': None,
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -1651,7 +1652,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '204': None,
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -1796,6 +1796,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '204': None,
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -1810,7 +1811,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '204': None,
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -1884,6 +1884,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '204': None,
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -1898,7 +1899,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '204': None,
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -1972,6 +1972,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '204': None,
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -1986,7 +1987,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '204': None,
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -2122,6 +2122,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '204': None,
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -2136,7 +2137,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '204': None,
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -2206,6 +2206,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '204': None,
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -2220,7 +2221,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '204': None,
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -2290,6 +2290,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '204': None,
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -2304,7 +2305,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '204': None,
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -2437,6 +2437,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '204': None,
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -2451,7 +2452,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '204': None,
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -2521,6 +2521,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '204': None,
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -2535,7 +2536,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '204': None,
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -2605,6 +2605,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '204': None,
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -2619,7 +2620,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '204': None,
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -2744,6 +2744,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "AccessDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -2758,7 +2759,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "AccessDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -2820,6 +2820,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "AccessDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -2834,7 +2835,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "AccessDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -2896,6 +2896,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "AccessDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -2910,7 +2911,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "AccessDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -2952,8 +2952,8 @@ class LakehouseApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json',
-                    'application/json'
+                    'application/json',
+                    'application/problem+json'
                 ]
             )
 
@@ -3038,6 +3038,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "CursorPageOfScheduledRunDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -3052,7 +3053,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "CursorPageOfScheduledRunDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -3122,6 +3122,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "CursorPageOfScheduledRunDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -3136,7 +3137,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "CursorPageOfScheduledRunDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -3206,6 +3206,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "CursorPageOfScheduledRunDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -3220,7 +3221,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "CursorPageOfScheduledRunDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -3272,8 +3272,8 @@ class LakehouseApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json',
-                    'application/json'
+                    'application/json',
+                    'application/problem+json'
                 ]
             )
 
@@ -3350,6 +3350,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "List[QueryLanguageDescriptor]",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -3364,7 +3365,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "List[QueryLanguageDescriptor]",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -3426,6 +3426,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "List[QueryLanguageDescriptor]",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -3440,7 +3441,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "List[QueryLanguageDescriptor]",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -3502,6 +3502,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "List[QueryLanguageDescriptor]",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -3516,7 +3517,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "List[QueryLanguageDescriptor]",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -3558,8 +3558,8 @@ class LakehouseApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json',
-                    'application/json'
+                    'application/json',
+                    'application/problem+json'
                 ]
             )
 
@@ -3644,6 +3644,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "CursorPageOfTenantDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -3658,7 +3659,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "CursorPageOfTenantDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -3728,6 +3728,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "CursorPageOfTenantDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -3742,7 +3743,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "CursorPageOfTenantDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -3812,6 +3812,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "CursorPageOfTenantDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -3826,7 +3827,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "CursorPageOfTenantDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -3878,8 +3878,8 @@ class LakehouseApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json',
-                    'application/json'
+                    'application/json',
+                    'application/problem+json'
                 ]
             )
 
@@ -3972,6 +3972,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "CursorPageOfBackupGenerationDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -3986,7 +3987,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "CursorPageOfBackupGenerationDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -4064,6 +4064,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "CursorPageOfBackupGenerationDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -4078,7 +4079,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "CursorPageOfBackupGenerationDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -4156,6 +4156,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "CursorPageOfBackupGenerationDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -4170,7 +4171,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "CursorPageOfBackupGenerationDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -4228,8 +4228,8 @@ class LakehouseApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json',
-                    'application/json'
+                    'application/json',
+                    'application/problem+json'
                 ]
             )
 
@@ -4322,6 +4322,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "CursorPageOfCdcConsumerDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -4336,7 +4337,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "CursorPageOfCdcConsumerDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -4414,6 +4414,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "CursorPageOfCdcConsumerDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -4428,7 +4429,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "CursorPageOfCdcConsumerDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -4506,6 +4506,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "CursorPageOfCdcConsumerDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -4520,7 +4521,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "CursorPageOfCdcConsumerDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -4578,8 +4578,8 @@ class LakehouseApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json',
-                    'application/json'
+                    'application/json',
+                    'application/problem+json'
                 ]
             )
 
@@ -4684,6 +4684,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "ChangePageDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -4698,7 +4699,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "ChangePageDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -4788,6 +4788,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "ChangePageDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -4802,7 +4803,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "ChangePageDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -4892,6 +4892,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "ChangePageDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -4906,7 +4907,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "ChangePageDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -4977,8 +4977,8 @@ class LakehouseApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json',
-                    'application/json'
+                    'application/json',
+                    'application/problem+json'
                 ]
             )
 
@@ -5087,6 +5087,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "ChangePageDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -5101,7 +5102,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "ChangePageDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -5195,6 +5195,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "ChangePageDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -5209,7 +5210,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "ChangePageDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -5303,6 +5303,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "ChangePageDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -5317,7 +5318,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "ChangePageDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -5395,8 +5395,8 @@ class LakehouseApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json',
-                    'application/json'
+                    'application/json',
+                    'application/problem+json'
                 ]
             )
 
@@ -5501,6 +5501,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "ColumnDistributionDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -5515,7 +5516,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "ColumnDistributionDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -5605,6 +5605,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "ColumnDistributionDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -5619,7 +5620,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "ColumnDistributionDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -5709,6 +5709,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "ColumnDistributionDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -5723,7 +5724,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "ColumnDistributionDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -5796,8 +5796,8 @@ class LakehouseApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json',
-                    'application/json'
+                    'application/json',
+                    'application/problem+json'
                 ]
             )
 
@@ -5890,6 +5890,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "CursorPageOfDataConnectorDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -5904,7 +5905,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "CursorPageOfDataConnectorDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -5982,6 +5982,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "CursorPageOfDataConnectorDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -5996,7 +5997,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "CursorPageOfDataConnectorDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -6074,6 +6074,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "CursorPageOfDataConnectorDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -6088,7 +6089,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "CursorPageOfDataConnectorDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -6146,8 +6146,8 @@ class LakehouseApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json',
-                    'application/json'
+                    'application/json',
+                    'application/problem+json'
                 ]
             )
 
@@ -6236,6 +6236,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "DataConnectorDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -6250,7 +6251,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "DataConnectorDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -6324,6 +6324,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "DataConnectorDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -6338,7 +6339,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "DataConnectorDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -6412,6 +6412,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "DataConnectorDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -6426,7 +6427,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "DataConnectorDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -6477,8 +6477,8 @@ class LakehouseApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json',
-                    'application/json'
+                    'application/json',
+                    'application/problem+json'
                 ]
             )
 
@@ -6575,6 +6575,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "CursorPageOfDataConnectorRunDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -6589,7 +6590,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "CursorPageOfDataConnectorRunDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -6671,6 +6671,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "CursorPageOfDataConnectorRunDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -6685,7 +6686,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "CursorPageOfDataConnectorRunDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -6767,6 +6767,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "CursorPageOfDataConnectorRunDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -6781,7 +6782,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "CursorPageOfDataConnectorRunDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -6842,8 +6842,8 @@ class LakehouseApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json',
-                    'application/json'
+                    'application/json',
+                    'application/problem+json'
                 ]
             )
 
@@ -6940,6 +6940,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "CursorPageOfDataConnectorRunDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -6954,7 +6955,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "CursorPageOfDataConnectorRunDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -7036,6 +7036,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "CursorPageOfDataConnectorRunDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -7050,7 +7051,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "CursorPageOfDataConnectorRunDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -7132,6 +7132,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "CursorPageOfDataConnectorRunDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -7146,7 +7147,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "CursorPageOfDataConnectorRunDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -7207,8 +7207,8 @@ class LakehouseApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json',
-                    'application/json'
+                    'application/json',
+                    'application/problem+json'
                 ]
             )
 
@@ -7301,6 +7301,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "CursorPageOfEjectBundleDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -7315,7 +7316,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "CursorPageOfEjectBundleDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -7393,6 +7393,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "CursorPageOfEjectBundleDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -7407,7 +7408,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "CursorPageOfEjectBundleDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -7485,6 +7485,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "CursorPageOfEjectBundleDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -7499,7 +7500,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "CursorPageOfEjectBundleDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -7557,8 +7557,8 @@ class LakehouseApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json',
-                    'application/json'
+                    'application/json',
+                    'application/problem+json'
                 ]
             )
 
@@ -7647,6 +7647,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "QueryLanguageStarter",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -7661,7 +7662,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "QueryLanguageStarter",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -7735,6 +7735,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "QueryLanguageStarter",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -7749,7 +7750,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "QueryLanguageStarter",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -7823,6 +7823,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "QueryLanguageStarter",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -7837,7 +7838,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "QueryLanguageStarter",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -7888,8 +7888,8 @@ class LakehouseApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json',
-                    'application/json'
+                    'application/json',
+                    'application/problem+json'
                 ]
             )
 
@@ -7982,6 +7982,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "CursorPageOfSavedQueryDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -7996,7 +7997,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "CursorPageOfSavedQueryDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -8074,6 +8074,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "CursorPageOfSavedQueryDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -8088,7 +8089,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "CursorPageOfSavedQueryDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -8166,6 +8166,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "CursorPageOfSavedQueryDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -8180,7 +8181,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "CursorPageOfSavedQueryDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -8238,8 +8238,8 @@ class LakehouseApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json',
-                    'application/json'
+                    'application/json',
+                    'application/problem+json'
                 ]
             )
 
@@ -8328,6 +8328,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "SavedQueryDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -8342,7 +8343,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "SavedQueryDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -8416,6 +8416,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "SavedQueryDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -8430,7 +8431,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "SavedQueryDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -8504,6 +8504,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "SavedQueryDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -8518,7 +8519,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "SavedQueryDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -8569,8 +8569,8 @@ class LakehouseApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json',
-                    'application/json'
+                    'application/json',
+                    'application/problem+json'
                 ]
             )
 
@@ -8655,6 +8655,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "List[SchemaDto]",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -8669,7 +8670,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "List[SchemaDto]",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -8739,6 +8739,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "List[SchemaDto]",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -8753,7 +8754,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "List[SchemaDto]",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -8823,6 +8823,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "List[SchemaDto]",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -8837,7 +8838,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "List[SchemaDto]",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -8885,8 +8885,8 @@ class LakehouseApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json',
-                    'application/json'
+                    'application/json',
+                    'application/problem+json'
                 ]
             )
 
@@ -8987,6 +8987,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "CursorPageOfSnapshotDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -9001,7 +9002,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "CursorPageOfSnapshotDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -9087,6 +9087,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "CursorPageOfSnapshotDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -9101,7 +9102,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "CursorPageOfSnapshotDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -9187,6 +9187,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "CursorPageOfSnapshotDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -9201,7 +9202,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "CursorPageOfSnapshotDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -9287,8 +9287,8 @@ class LakehouseApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json',
-                    'application/json'
+                    'application/json',
+                    'application/problem+json'
                 ]
             )
 
@@ -9373,6 +9373,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "CatalogStorageDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -9387,7 +9388,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "CatalogStorageDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -9457,6 +9457,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "CatalogStorageDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -9471,7 +9472,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "CatalogStorageDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -9541,6 +9541,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "CatalogStorageDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -9555,7 +9556,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "CatalogStorageDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -9603,8 +9603,8 @@ class LakehouseApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json',
-                    'application/json'
+                    'application/json',
+                    'application/problem+json'
                 ]
             )
 
@@ -9705,6 +9705,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "TableFilesDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -9719,7 +9720,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "TableFilesDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -9805,6 +9805,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "TableFilesDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -9819,7 +9820,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "TableFilesDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -9905,6 +9905,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "TableFilesDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -9919,7 +9920,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "TableFilesDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -9987,8 +9987,8 @@ class LakehouseApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json',
-                    'application/json'
+                    'application/json',
+                    'application/problem+json'
                 ]
             )
 
@@ -10081,6 +10081,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "CursorPageOfSubscriptionDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -10095,7 +10096,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "CursorPageOfSubscriptionDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -10173,6 +10173,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "CursorPageOfSubscriptionDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -10187,7 +10188,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "CursorPageOfSubscriptionDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -10265,6 +10265,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "CursorPageOfSubscriptionDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -10279,7 +10280,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "CursorPageOfSubscriptionDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -10337,8 +10337,8 @@ class LakehouseApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json',
-                    'application/json'
+                    'application/json',
+                    'application/problem+json'
                 ]
             )
 
@@ -10431,6 +10431,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "TableDetailDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -10445,7 +10446,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "TableDetailDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -10523,6 +10523,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "TableDetailDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -10537,7 +10538,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "TableDetailDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -10615,6 +10615,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "TableDetailDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -10629,7 +10630,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "TableDetailDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -10687,8 +10687,8 @@ class LakehouseApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json',
-                    'application/json'
+                    'application/json',
+                    'application/problem+json'
                 ]
             )
 
@@ -10785,6 +10785,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "TableProfileDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -10799,7 +10800,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "TableProfileDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -10881,6 +10881,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "TableProfileDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -10895,7 +10896,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "TableProfileDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -10977,6 +10977,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "TableProfileDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -10991,7 +10992,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "TableProfileDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -11054,8 +11054,8 @@ class LakehouseApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json',
-                    'application/json'
+                    'application/json',
+                    'application/problem+json'
                 ]
             )
 
@@ -11144,6 +11144,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "CursorPageOfQueryRunDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -11158,7 +11159,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "CursorPageOfQueryRunDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -11232,6 +11232,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "CursorPageOfQueryRunDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -11246,7 +11247,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "CursorPageOfQueryRunDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -11320,6 +11320,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "CursorPageOfQueryRunDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -11334,7 +11335,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "CursorPageOfQueryRunDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -11389,8 +11389,8 @@ class LakehouseApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json',
-                    'application/json'
+                    'application/json',
+                    'application/problem+json'
                 ]
             )
 
@@ -11471,6 +11471,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "List[TenantMemberDto]",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -11485,7 +11486,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "List[TenantMemberDto]",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -11551,6 +11551,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "List[TenantMemberDto]",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -11565,7 +11566,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "List[TenantMemberDto]",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -11631,6 +11631,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "List[TenantMemberDto]",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -11645,7 +11646,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "List[TenantMemberDto]",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -11690,8 +11690,8 @@ class LakehouseApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json',
-                    'application/json'
+                    'application/json',
+                    'application/problem+json'
                 ]
             )
 
@@ -11780,6 +11780,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "CursorPageOfApiTokenDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -11794,7 +11795,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "CursorPageOfApiTokenDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -11868,6 +11868,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "CursorPageOfApiTokenDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -11882,7 +11883,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "CursorPageOfApiTokenDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -11956,6 +11956,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "CursorPageOfApiTokenDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -11970,7 +11971,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "CursorPageOfApiTokenDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -12025,8 +12025,8 @@ class LakehouseApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json',
-                    'application/json'
+                    'application/json',
+                    'application/problem+json'
                 ]
             )
 
@@ -12115,6 +12115,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "SnapshotDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -12129,7 +12130,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "SnapshotDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -12203,6 +12203,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "SnapshotDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -12217,7 +12218,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "SnapshotDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -12291,6 +12291,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "SnapshotDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -12305,7 +12306,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "SnapshotDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -12356,8 +12356,8 @@ class LakehouseApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json',
-                    'application/json'
+                    'application/json',
+                    'application/problem+json'
                 ]
             )
 
@@ -12458,6 +12458,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "QueryResponse",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -12472,7 +12473,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "QueryResponse",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -12558,6 +12558,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "QueryResponse",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -12572,7 +12573,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "QueryResponse",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -12658,6 +12658,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "QueryResponse",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -12672,7 +12673,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "QueryResponse",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -12738,8 +12738,8 @@ class LakehouseApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json',
-                    'application/json'
+                    'application/json',
+                    'application/problem+json'
                 ]
             )
 
@@ -12828,6 +12828,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "TenantMemberDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -12842,7 +12843,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "TenantMemberDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -12916,6 +12916,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "TenantMemberDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -12930,7 +12931,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "TenantMemberDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -13004,6 +13004,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "TenantMemberDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -13018,7 +13019,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "TenantMemberDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -13069,8 +13069,8 @@ class LakehouseApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json',
-                    'application/json'
+                    'application/json',
+                    'application/problem+json'
                 ]
             )
 
@@ -13168,6 +13168,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '201': "TenantDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -13182,7 +13183,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '201': "TenantDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -13252,6 +13252,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '201': "TenantDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -13266,7 +13267,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '201': "TenantDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -13336,6 +13336,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '201': "TenantDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -13350,7 +13351,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '201': "TenantDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -13398,8 +13398,8 @@ class LakehouseApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json',
-                    'application/json'
+                    'application/json',
+                    'application/problem+json'
                 ]
             )
 
@@ -13501,6 +13501,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '201': "CatalogDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -13515,7 +13516,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '201': "CatalogDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -13589,6 +13589,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '201': "CatalogDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -13603,7 +13604,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '201': "CatalogDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -13677,6 +13677,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '201': "CatalogDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -13691,7 +13692,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '201': "CatalogDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -13742,8 +13742,8 @@ class LakehouseApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json',
-                    'application/json'
+                    'application/json',
+                    'application/problem+json'
                 ]
             )
 
@@ -13849,6 +13849,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '202': "PublicApiOperationDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -13863,7 +13864,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '202': "PublicApiOperationDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -13941,6 +13941,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '202': "PublicApiOperationDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -13955,7 +13956,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '202': "PublicApiOperationDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -14033,6 +14033,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '202': "PublicApiOperationDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -14047,7 +14048,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '202': "PublicApiOperationDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -14101,8 +14101,8 @@ class LakehouseApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json',
-                    'application/json'
+                    'application/json',
+                    'application/problem+json'
                 ]
             )
 
@@ -14208,6 +14208,8 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "CdcConsumerDto",
+            '201': "CdcConsumerDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -14222,8 +14224,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "CdcConsumerDto",
-            '201': "CdcConsumerDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -14301,6 +14301,8 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "CdcConsumerDto",
+            '201': "CdcConsumerDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -14315,8 +14317,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "CdcConsumerDto",
-            '201': "CdcConsumerDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -14394,6 +14394,8 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "CdcConsumerDto",
+            '201': "CdcConsumerDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -14408,8 +14410,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "CdcConsumerDto",
-            '201': "CdcConsumerDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -14463,8 +14463,8 @@ class LakehouseApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json',
-                    'application/json'
+                    'application/json',
+                    'application/problem+json'
                 ]
             )
 
@@ -14570,6 +14570,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '201': "DataConnectorDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -14584,7 +14585,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '201': "DataConnectorDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -14662,6 +14662,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '201': "DataConnectorDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -14676,7 +14677,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '201': "DataConnectorDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -14754,6 +14754,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '201': "DataConnectorDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -14768,7 +14769,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '201': "DataConnectorDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -14822,8 +14822,8 @@ class LakehouseApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json',
-                    'application/json'
+                    'application/json',
+                    'application/problem+json'
                 ]
             )
 
@@ -14933,6 +14933,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "DataConnectorDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -14947,7 +14948,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "DataConnectorDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -15029,6 +15029,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "DataConnectorDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -15043,7 +15044,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "DataConnectorDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -15125,6 +15125,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "DataConnectorDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -15139,7 +15140,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "DataConnectorDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -15196,8 +15196,8 @@ class LakehouseApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json',
-                    'application/json'
+                    'application/json',
+                    'application/problem+json'
                 ]
             )
 
@@ -15307,6 +15307,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "DataConnectorDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -15321,7 +15322,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "DataConnectorDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -15403,6 +15403,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "DataConnectorDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -15417,7 +15418,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "DataConnectorDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -15499,6 +15499,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "DataConnectorDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -15513,7 +15514,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "DataConnectorDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -15570,8 +15570,8 @@ class LakehouseApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json',
-                    'application/json'
+                    'application/json',
+                    'application/problem+json'
                 ]
             )
 
@@ -15681,6 +15681,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "DataConnectorExecutionDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -15695,7 +15696,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "DataConnectorExecutionDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -15777,6 +15777,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "DataConnectorExecutionDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -15791,7 +15792,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "DataConnectorExecutionDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -15873,6 +15873,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "DataConnectorExecutionDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -15887,7 +15888,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "DataConnectorExecutionDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -15944,8 +15944,8 @@ class LakehouseApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json',
-                    'application/json'
+                    'application/json',
+                    'application/problem+json'
                 ]
             )
 
@@ -16051,6 +16051,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "DataConnectorExecutionDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -16065,7 +16066,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "DataConnectorExecutionDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -16143,6 +16143,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "DataConnectorExecutionDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -16157,7 +16158,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "DataConnectorExecutionDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -16235,6 +16235,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "DataConnectorExecutionDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -16249,7 +16250,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "DataConnectorExecutionDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -16303,8 +16303,8 @@ class LakehouseApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json',
-                    'application/json'
+                    'application/json',
+                    'application/problem+json'
                 ]
             )
 
@@ -16397,6 +16397,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '202': "PublicApiOperationDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -16411,7 +16412,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '202': "PublicApiOperationDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -16489,6 +16489,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '202': "PublicApiOperationDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -16503,7 +16504,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '202': "PublicApiOperationDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -16581,6 +16581,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '202': "PublicApiOperationDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -16595,7 +16596,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '202': "PublicApiOperationDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -16649,8 +16649,8 @@ class LakehouseApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json',
-                    'application/json'
+                    'application/json',
+                    'application/problem+json'
                 ]
             )
 
@@ -16748,6 +16748,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "TabularImportDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -16762,7 +16763,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "TabularImportDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -16832,6 +16832,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "TabularImportDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -16846,7 +16847,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "TabularImportDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -16916,6 +16916,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "TabularImportDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -16930,7 +16931,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "TabularImportDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -16978,8 +16978,8 @@ class LakehouseApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json',
-                    'application/json'
+                    'application/json',
+                    'application/problem+json'
                 ]
             )
 
@@ -17064,6 +17064,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "TabularImportDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -17078,7 +17079,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "TabularImportDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -17148,6 +17148,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "TabularImportDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -17162,7 +17163,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "TabularImportDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -17232,6 +17232,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "TabularImportDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -17246,7 +17247,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "TabularImportDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -17294,8 +17294,8 @@ class LakehouseApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json',
-                    'application/json'
+                    'application/json',
+                    'application/problem+json'
                 ]
             )
 
@@ -17392,6 +17392,8 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "MaintenanceDto",
+            '202': "PublicApiOperationDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -17406,8 +17408,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "MaintenanceDto",
-            '202': "PublicApiOperationDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -17489,6 +17489,8 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "MaintenanceDto",
+            '202': "PublicApiOperationDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -17503,8 +17505,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "MaintenanceDto",
-            '202': "PublicApiOperationDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -17586,6 +17586,8 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "MaintenanceDto",
+            '202': "PublicApiOperationDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -17600,8 +17602,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "MaintenanceDto",
-            '202': "PublicApiOperationDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -17660,8 +17660,8 @@ class LakehouseApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json',
-                    'application/json'
+                    'application/json',
+                    'application/problem+json'
                 ]
             )
 
@@ -17750,6 +17750,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "QueryResponse",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -17764,7 +17765,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "QueryResponse",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -17838,6 +17838,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "QueryResponse",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -17852,7 +17853,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "QueryResponse",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -17926,6 +17926,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "QueryResponse",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -17940,7 +17941,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "QueryResponse",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -17991,8 +17991,8 @@ class LakehouseApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json',
-                    'application/json'
+                    'application/json',
+                    'application/problem+json'
                 ]
             )
 
@@ -18098,6 +18098,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '201': "SavedQueryDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -18112,7 +18113,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '201': "SavedQueryDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -18190,6 +18190,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '201': "SavedQueryDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -18204,7 +18205,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '201': "SavedQueryDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -18282,6 +18282,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '201': "SavedQueryDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -18296,7 +18297,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '201': "SavedQueryDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -18350,8 +18350,8 @@ class LakehouseApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json',
-                    'application/json'
+                    'application/json',
+                    'application/problem+json'
                 ]
             )
 
@@ -18453,6 +18453,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "QueryResponse",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -18467,7 +18468,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "QueryResponse",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -18541,6 +18541,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "QueryResponse",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -18555,7 +18556,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "QueryResponse",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -18629,6 +18629,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "QueryResponse",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -18643,7 +18644,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "QueryResponse",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -18694,8 +18694,8 @@ class LakehouseApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json',
-                    'application/json'
+                    'application/json',
+                    'application/problem+json'
                 ]
             )
 
@@ -18792,6 +18792,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "SavedQueryDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -18806,7 +18807,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "SavedQueryDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -18888,6 +18888,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "SavedQueryDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -18902,7 +18903,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "SavedQueryDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -18984,6 +18984,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "SavedQueryDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -18998,7 +18999,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "SavedQueryDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -19055,8 +19055,8 @@ class LakehouseApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json',
-                    'application/json'
+                    'application/json',
+                    'application/problem+json'
                 ]
             )
 
@@ -19166,6 +19166,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "SavedQueryDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -19180,7 +19181,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "SavedQueryDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -19262,6 +19262,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "SavedQueryDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -19276,7 +19277,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "SavedQueryDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -19358,6 +19358,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "SavedQueryDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -19372,7 +19373,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "SavedQueryDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -19431,8 +19431,8 @@ class LakehouseApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json',
-                    'application/json'
+                    'application/json',
+                    'application/problem+json'
                 ]
             )
 
@@ -19529,6 +19529,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "TableRestoreDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -19543,7 +19544,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "TableRestoreDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -19625,6 +19625,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "TableRestoreDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -19639,7 +19640,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "TableRestoreDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -19721,6 +19721,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "TableRestoreDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -19735,7 +19736,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "TableRestoreDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -19792,8 +19792,8 @@ class LakehouseApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json',
-                    'application/json'
+                    'application/json',
+                    'application/problem+json'
                 ]
             )
 
@@ -19899,6 +19899,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '201': "SubscriptionDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -19913,7 +19914,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '201': "SubscriptionDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -19991,6 +19991,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '201': "SubscriptionDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -20005,7 +20006,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '201': "SubscriptionDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -20083,6 +20083,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '201': "SubscriptionDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -20097,7 +20098,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '201': "SubscriptionDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -20151,8 +20151,8 @@ class LakehouseApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json',
-                    'application/json'
+                    'application/json',
+                    'application/problem+json'
                 ]
             )
 
@@ -20250,6 +20250,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "CreatedTenantMemberDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -20264,7 +20265,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "CreatedTenantMemberDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -20334,6 +20334,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "CreatedTenantMemberDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -20348,7 +20349,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "CreatedTenantMemberDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -20418,6 +20418,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "CreatedTenantMemberDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -20432,7 +20433,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "CreatedTenantMemberDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -20480,8 +20480,8 @@ class LakehouseApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json',
-                    'application/json'
+                    'application/json',
+                    'application/problem+json'
                 ]
             )
 
@@ -20579,6 +20579,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '201': "CreatedTokenDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -20593,7 +20594,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '201': "CreatedTokenDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -20663,6 +20663,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '201': "CreatedTokenDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -20677,7 +20678,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '201': "CreatedTokenDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -20747,6 +20747,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '201': "CreatedTokenDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -20761,7 +20762,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '201': "CreatedTokenDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -20809,8 +20809,8 @@ class LakehouseApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json',
-                    'application/json'
+                    'application/json',
+                    'application/problem+json'
                 ]
             )
 
@@ -20916,6 +20916,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "CdcConsumerDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -20930,7 +20931,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "CdcConsumerDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -21008,6 +21008,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "CdcConsumerDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -21022,7 +21023,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "CdcConsumerDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -21100,6 +21100,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "CdcConsumerDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -21114,7 +21115,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "CdcConsumerDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -21168,8 +21168,8 @@ class LakehouseApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json',
-                    'application/json'
+                    'application/json',
+                    'application/problem+json'
                 ]
             )
 
@@ -21275,6 +21275,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "DataConnectorDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -21289,7 +21290,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "DataConnectorDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -21367,6 +21367,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "DataConnectorDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -21381,7 +21382,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "DataConnectorDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -21459,6 +21459,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "DataConnectorDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -21473,7 +21474,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "DataConnectorDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -21527,8 +21527,8 @@ class LakehouseApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json',
-                    'application/json'
+                    'application/json',
+                    'application/problem+json'
                 ]
             )
 
@@ -21634,6 +21634,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "SavedQueryDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -21648,7 +21649,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "SavedQueryDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -21726,6 +21726,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "SavedQueryDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -21740,7 +21741,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "SavedQueryDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -21818,6 +21818,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "SavedQueryDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -21832,7 +21833,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "SavedQueryDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -21886,8 +21886,8 @@ class LakehouseApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json',
-                    'application/json'
+                    'application/json',
+                    'application/problem+json'
                 ]
             )
 
@@ -21993,6 +21993,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "SubscriptionDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -22007,7 +22008,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "SubscriptionDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -22085,6 +22085,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "SubscriptionDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -22099,7 +22100,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "SubscriptionDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -22177,6 +22177,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': "SubscriptionDto",
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -22191,7 +22192,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': "SubscriptionDto",
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -22245,8 +22245,8 @@ class LakehouseApi:
         if 'Accept' not in _header_params:
             _header_params['Accept'] = self.api_client.select_header_accept(
                 [
-                    'application/problem+json',
-                    'application/json'
+                    'application/json',
+                    'application/problem+json'
                 ]
             )
 
@@ -22368,6 +22368,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': None,
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -22382,7 +22383,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': None,
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -22476,6 +22476,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': None,
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -22490,7 +22491,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': None,
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -22584,6 +22584,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': None,
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -22598,7 +22599,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': None,
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -22765,6 +22765,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': None,
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -22779,7 +22780,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': None,
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -22853,6 +22853,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': None,
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -22867,7 +22868,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': None,
         }
         response_data = self.api_client.call_api(
             *_param,
@@ -22941,6 +22941,7 @@ class LakehouseApi:
         )
 
         _response_types_map: Dict[str, Optional[str]] = {
+            '200': None,
             '400': "PublicApiProblemDetails",
             '401': "PublicApiProblemDetails",
             '403': "PublicApiProblemDetails",
@@ -22955,7 +22956,6 @@ class LakehouseApi:
             '502': "PublicApiProblemDetails",
             '503': "PublicApiProblemDetails",
             '504': "PublicApiProblemDetails",
-            '200': None,
         }
         response_data = self.api_client.call_api(
             *_param,

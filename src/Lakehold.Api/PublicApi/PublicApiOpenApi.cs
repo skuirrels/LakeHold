@@ -69,6 +69,24 @@ public static class PublicApiOpenApi
         RemoveRequired(document, "QueryRunDto", "memberId", "actorKind", "actorName", "origin");
     }
 
+    /// <summary>
+    /// Keeps <c>ExecuteRequest.effectiveLanguage</c> nullable, as every published client has it.
+    /// The property is computed and ignored on input, so the wire is unaffected either way; ASP.NET
+    /// Core 11 began reading its non-nullable return type, which would otherwise change the generated
+    /// Go, .NET, and Python models and remove the Go client's <c>SetEffectiveLanguageNil</c>.
+    /// </summary>
+    public static void PreserveExecuteRequestCompatibility(OpenApiDocument document)
+    {
+        ArgumentNullException.ThrowIfNull(document);
+        if (document.Components?.Schemas?.TryGetValue("ExecuteRequest", out var schema) == true
+            && schema is OpenApiSchema { Properties: { } properties }
+            && properties.TryGetValue("effectiveLanguage", out var property)
+            && property is OpenApiSchema { Type: { } type } language)
+        {
+            language.Type = type | JsonSchemaType.Null;
+        }
+    }
+
     private static void RemoveRequired(OpenApiDocument document, string schemaName, params string[] properties)
     {
         if (document.Components?.Schemas?.TryGetValue(schemaName, out var schema) != true
@@ -113,6 +131,45 @@ public static class PublicApiOpenApi
                     Schema = new OpenApiSchemaReference("PublicApiProblemDetails", document),
                 },
             };
+        }
+    }
+
+    /// <summary>
+    /// Documents a cursor-paginated list as the cursor envelope alone. The handler returns the bare
+    /// list, and <see cref="PublicApiPagination.WithCursorPagination{T}"/> declares the envelope that
+    /// its filter always substitutes on <c>/api/v1</c>. ASP.NET Core 10 let the declared response
+    /// replace the inferred one; 11 merges both into an <c>anyOf</c> of envelope and array, which no
+    /// public request can receive and which turns every generated list method into a union.
+    /// </summary>
+    public static void NormalizeCursorPageResponses(OpenApiDocument document)
+    {
+        ArgumentNullException.ThrowIfNull(document);
+        foreach (var content in document.Paths.Values
+                     .SelectMany(path => path.Operations is null
+                         ? Enumerable.Empty<OpenApiOperation>()
+                         : path.Operations.Values)
+                     .Where(operation => operation.Responses is not null)
+                     .SelectMany(operation => operation.Responses!)
+                     .Where(pair => pair.Key.StartsWith('2'))
+                     .Select(pair => pair.Value)
+                     .OfType<OpenApiResponse>()
+                     .Where(response => response.Content is not null)
+                     .SelectMany(response => response.Content!.Values)
+                     .OfType<OpenApiMediaType>())
+        {
+            if (content.Schema is not OpenApiSchema { AnyOf: { Count: > 1 } branches })
+            {
+                continue;
+            }
+
+            var envelopes = branches
+                .OfType<OpenApiSchemaReference>()
+                .Where(branch => branch.Reference.Id?.StartsWith("CursorPageOf", StringComparison.Ordinal) == true)
+                .ToArray();
+            if (envelopes.Length == 1)
+            {
+                content.Schema = envelopes[0];
+            }
         }
     }
 

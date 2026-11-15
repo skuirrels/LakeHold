@@ -27,7 +27,14 @@ its 1.5 line, so no DuckLake catalog or data-file migration accompanies the rele
   for the same reason. ASP.NET Core, authentication, OpenAPI, test hosting, and the
   `Microsoft.Extensions` packages move to 11.0.0. `Microsoft.AspNetCore.OpenApi` 11 brings
   OpenAPI.NET 3.11, whose response content is typed as `IOpenApiMediaType`; the public contract's
-  problem-response normaliser is updated for it, and the generated document is otherwise unchanged.
+  problem-response normaliser is updated for it. ASP.NET Core 11 also changes the document it
+  generates, and three changes are undone so the frozen v1 contract keeps its meaning: the document
+  is pinned to OpenAPI 3.1 instead of the new 3.2 default; a cursor-paginated list is documented as
+  its cursor envelope again rather than an `anyOf` of envelope and bare array, which `/api/v1` never
+  serves; and `ExecuteRequest.effectiveLanguage` stays nullable, as every published client has it.
+  What remains is cosmetic: the document reports `3.1.2`, and tags and responses are listed in a
+  different order. The SDKs are regenerated from it, and their models and method signatures are
+  unchanged.
   Also updated: OpenTelemetry 1.21.0, the MCP C# SDK 2.4.0, gRPC 2.85.0, Roslyn 5.12.0, Confluent
   2.16.0, and the test SDK 18.12.0. Quartz 4, xunit.runner.visualstudio 4, and the DuckDB 2 engine
   line are major versions left for their own change. Two .NET 11 analyzers, CA2026 and CA2027, are

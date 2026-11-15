@@ -1,4 +1,4 @@
-openapi: 3.1.1
+openapi: 3.1.2
 info:
   description: "Stable, versioned control-plane and lakehouse API for LakeHold. Send\
     \ machine credentials as a Bearer token and an Idempotency-Key on retryable mutations."
@@ -7,16 +7,29 @@ info:
 servers:
 - url: /
 tags:
-- name: Discovery
-- name: Operations
-- name: Lakehouse
-- name: System settings
 - name: Authentication
+- name: Discovery
+- name: Lakehouse
+- name: Operations
+- name: System settings
 paths:
   /api/v1/capabilities:
     get:
       operationId: GetApiCapabilities
       responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicApiCapabilities"
+          description: OK
+          headers:
+            X-Request-Id:
+              description: Server correlation identifier for support and diagnostics.
+              explode: false
+              schema:
+                type: string
+              style: simple
         "400":
           content:
             application/problem+json:
@@ -192,19 +205,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/PublicApiProblemDetails"
           description: Gateway Timeout
-          headers:
-            X-Request-Id:
-              description: Server correlation identifier for support and diagnostics.
-              explode: false
-              schema:
-                type: string
-              style: simple
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/PublicApiCapabilities"
-          description: OK
           headers:
             X-Request-Id:
               description: Server correlation identifier for support and diagnostics.
@@ -231,6 +231,19 @@ paths:
           type: string
         style: simple
       responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicApiOperationDto"
+          description: OK
+          headers:
+            X-Request-Id:
+              description: Server correlation identifier for support and diagnostics.
+              explode: false
+              schema:
+                type: string
+              style: simple
         "400":
           content:
             application/problem+json:
@@ -406,19 +419,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/PublicApiProblemDetails"
           description: Gateway Timeout
-          headers:
-            X-Request-Id:
-              description: Server correlation identifier for support and diagnostics.
-              explode: false
-              schema:
-                type: string
-              style: simple
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/PublicApiOperationDto"
-          description: OK
           headers:
             X-Request-Id:
               description: Server correlation identifier for support and diagnostics.
@@ -438,6 +438,19 @@ paths:
     get:
       operationId: get_api_v1_access
       responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccessDto"
+          description: OK
+          headers:
+            X-Request-Id:
+              description: Server correlation identifier for support and diagnostics.
+              explode: false
+              schema:
+                type: string
+              style: simple
         "400":
           content:
             application/problem+json:
@@ -613,19 +626,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/PublicApiProblemDetails"
           description: Gateway Timeout
-          headers:
-            X-Request-Id:
-              description: Server correlation identifier for support and diagnostics.
-              explode: false
-              schema:
-                type: string
-              style: simple
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/AccessDto"
-          description: OK
           headers:
             X-Request-Id:
               description: Server correlation identifier for support and diagnostics.
@@ -645,6 +645,21 @@ paths:
     get:
       operationId: get_api_v1_query_languages
       responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: "#/components/schemas/QueryLanguageDescriptor"
+                type: array
+          description: OK
+          headers:
+            X-Request-Id:
+              description: Server correlation identifier for support and diagnostics.
+              explode: false
+              schema:
+                type: string
+              style: simple
         "400":
           content:
             application/problem+json:
@@ -820,21 +835,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/PublicApiProblemDetails"
           description: Gateway Timeout
-          headers:
-            X-Request-Id:
-              description: Server correlation identifier for support and diagnostics.
-              explode: false
-              schema:
-                type: string
-              style: simple
-        "200":
-          content:
-            application/json:
-              schema:
-                items:
-                  $ref: "#/components/schemas/QueryLanguageDescriptor"
-                type: array
-          description: OK
           headers:
             X-Request-Id:
               description: Server correlation identifier for support and diagnostics.
@@ -876,6 +876,19 @@ paths:
           type: string
         style: form
       responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CursorPageOfScheduledRunDto"
+          description: OK
+          headers:
+            X-Request-Id:
+              description: Server correlation identifier for support and diagnostics.
+              explode: false
+              schema:
+                type: string
+              style: simple
         "400":
           content:
             application/problem+json:
@@ -1051,19 +1064,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/PublicApiProblemDetails"
           description: Gateway Timeout
-          headers:
-            X-Request-Id:
-              description: Server correlation identifier for support and diagnostics.
-              explode: false
-              schema:
-                type: string
-              style: simple
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/CursorPageOfScheduledRunDto"
-          description: OK
           headers:
             X-Request-Id:
               description: Server correlation identifier for support and diagnostics.
@@ -1106,6 +1106,19 @@ paths:
           type: string
         style: form
       responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CursorPageOfTenantDto"
+          description: OK
+          headers:
+            X-Request-Id:
+              description: Server correlation identifier for support and diagnostics.
+              explode: false
+              schema:
+                type: string
+              style: simple
         "400":
           content:
             application/problem+json:
@@ -1281,19 +1294,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/PublicApiProblemDetails"
           description: Gateway Timeout
-          headers:
-            X-Request-Id:
-              description: Server correlation identifier for support and diagnostics.
-              explode: false
-              schema:
-                type: string
-              style: simple
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/CursorPageOfTenantDto"
-          description: OK
           headers:
             X-Request-Id:
               description: Server correlation identifier for support and diagnostics.
@@ -1332,6 +1332,19 @@ paths:
               $ref: "#/components/schemas/CreateTenantRequest"
         required: true
       responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TenantDto"
+          description: Created
+          headers:
+            X-Request-Id:
+              description: Server correlation identifier for support and diagnostics.
+              explode: false
+              schema:
+                type: string
+              style: simple
         "400":
           content:
             application/problem+json:
@@ -1507,19 +1520,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/PublicApiProblemDetails"
           description: Gateway Timeout
-          headers:
-            X-Request-Id:
-              description: Server correlation identifier for support and diagnostics.
-              explode: false
-              schema:
-                type: string
-              style: simple
-        "201":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/TenantDto"
-          description: Created
           headers:
             X-Request-Id:
               description: Server correlation identifier for support and diagnostics.
@@ -1548,6 +1548,15 @@ paths:
           type: string
         style: simple
       responses:
+        "204":
+          description: No Content
+          headers:
+            X-Request-Id:
+              description: Server correlation identifier for support and diagnostics.
+              explode: false
+              schema:
+                type: string
+              style: simple
         "400":
           content:
             application/problem+json:
@@ -1723,15 +1732,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/PublicApiProblemDetails"
           description: Gateway Timeout
-          headers:
-            X-Request-Id:
-              description: Server correlation identifier for support and diagnostics.
-              explode: false
-              schema:
-                type: string
-              style: simple
-        "204":
-          description: No Content
           headers:
             X-Request-Id:
               description: Server correlation identifier for support and diagnostics.
@@ -1777,6 +1777,19 @@ paths:
               $ref: "#/components/schemas/CreateCatalogRequest"
         required: true
       responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CatalogDto"
+          description: Created
+          headers:
+            X-Request-Id:
+              description: Server correlation identifier for support and diagnostics.
+              explode: false
+              schema:
+                type: string
+              style: simple
         "400":
           content:
             application/problem+json:
@@ -1952,19 +1965,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/PublicApiProblemDetails"
           description: Gateway Timeout
-          headers:
-            X-Request-Id:
-              description: Server correlation identifier for support and diagnostics.
-              explode: false
-              schema:
-                type: string
-              style: simple
-        "201":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/CatalogDto"
-          description: Created
           headers:
             X-Request-Id:
               description: Server correlation identifier for support and diagnostics.
@@ -2000,6 +2000,15 @@ paths:
           type: string
         style: simple
       responses:
+        "204":
+          description: No Content
+          headers:
+            X-Request-Id:
+              description: Server correlation identifier for support and diagnostics.
+              explode: false
+              schema:
+                type: string
+              style: simple
         "400":
           content:
             application/problem+json:
@@ -2175,15 +2184,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/PublicApiProblemDetails"
           description: Gateway Timeout
-          headers:
-            X-Request-Id:
-              description: Server correlation identifier for support and diagnostics.
-              explode: false
-              schema:
-                type: string
-              style: simple
-        "204":
-          description: No Content
           headers:
             X-Request-Id:
               description: Server correlation identifier for support and diagnostics.
@@ -2232,6 +2232,19 @@ paths:
           type: string
         style: form
       responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CursorPageOfApiTokenDto"
+          description: OK
+          headers:
+            X-Request-Id:
+              description: Server correlation identifier for support and diagnostics.
+              explode: false
+              schema:
+                type: string
+              style: simple
         "400":
           content:
             application/problem+json:
@@ -2407,19 +2420,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/PublicApiProblemDetails"
           description: Gateway Timeout
-          headers:
-            X-Request-Id:
-              description: Server correlation identifier for support and diagnostics.
-              explode: false
-              schema:
-                type: string
-              style: simple
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/CursorPageOfApiTokenDto"
-          description: OK
           headers:
             X-Request-Id:
               description: Server correlation identifier for support and diagnostics.
@@ -2452,6 +2452,19 @@ paths:
               $ref: "#/components/schemas/CreateTokenRequest"
         required: true
       responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreatedTokenDto"
+          description: Created
+          headers:
+            X-Request-Id:
+              description: Server correlation identifier for support and diagnostics.
+              explode: false
+              schema:
+                type: string
+              style: simple
         "400":
           content:
             application/problem+json:
@@ -2627,19 +2640,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/PublicApiProblemDetails"
           description: Gateway Timeout
-          headers:
-            X-Request-Id:
-              description: Server correlation identifier for support and diagnostics.
-              explode: false
-              schema:
-                type: string
-              style: simple
-        "201":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/CreatedTokenDto"
-          description: Created
           headers:
             X-Request-Id:
               description: Server correlation identifier for support and diagnostics.
@@ -2677,6 +2677,15 @@ paths:
           type: integer
         style: simple
       responses:
+        "204":
+          description: No Content
+          headers:
+            X-Request-Id:
+              description: Server correlation identifier for support and diagnostics.
+              explode: false
+              schema:
+                type: string
+              style: simple
         "400":
           content:
             application/problem+json:
@@ -2852,15 +2861,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/PublicApiProblemDetails"
           description: Gateway Timeout
-          headers:
-            X-Request-Id:
-              description: Server correlation identifier for support and diagnostics.
-              explode: false
-              schema:
-                type: string
-              style: simple
-        "204":
-          description: No Content
           headers:
             X-Request-Id:
               description: Server correlation identifier for support and diagnostics.
@@ -2888,6 +2888,21 @@ paths:
           type: string
         style: simple
       responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: "#/components/schemas/TenantMemberDto"
+                type: array
+          description: OK
+          headers:
+            X-Request-Id:
+              description: Server correlation identifier for support and diagnostics.
+              explode: false
+              schema:
+                type: string
+              style: simple
         "400":
           content:
             application/problem+json:
@@ -3063,21 +3078,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/PublicApiProblemDetails"
           description: Gateway Timeout
-          headers:
-            X-Request-Id:
-              description: Server correlation identifier for support and diagnostics.
-              explode: false
-              schema:
-                type: string
-              style: simple
-        "200":
-          content:
-            application/json:
-              schema:
-                items:
-                  $ref: "#/components/schemas/TenantMemberDto"
-                type: array
-          description: OK
           headers:
             X-Request-Id:
               description: Server correlation identifier for support and diagnostics.
@@ -3111,6 +3111,19 @@ paths:
               $ref: "#/components/schemas/CreateTenantMemberRequest"
         required: true
       responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreatedTenantMemberDto"
+          description: OK
+          headers:
+            X-Request-Id:
+              description: Server correlation identifier for support and diagnostics.
+              explode: false
+              schema:
+                type: string
+              style: simple
         "400":
           content:
             application/problem+json:
@@ -3286,19 +3299,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/PublicApiProblemDetails"
           description: Gateway Timeout
-          headers:
-            X-Request-Id:
-              description: Server correlation identifier for support and diagnostics.
-              explode: false
-              schema:
-                type: string
-              style: simple
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/CreatedTenantMemberDto"
-          description: OK
           headers:
             X-Request-Id:
               description: Server correlation identifier for support and diagnostics.
@@ -3335,6 +3335,15 @@ paths:
           type: integer
         style: simple
       responses:
+        "204":
+          description: No Content
+          headers:
+            X-Request-Id:
+              description: Server correlation identifier for support and diagnostics.
+              explode: false
+              schema:
+                type: string
+              style: simple
         "400":
           content:
             application/problem+json:
@@ -3510,15 +3519,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/PublicApiProblemDetails"
           description: Gateway Timeout
-          headers:
-            X-Request-Id:
-              description: Server correlation identifier for support and diagnostics.
-              explode: false
-              schema:
-                type: string
-              style: simple
-        "204":
-          description: No Content
           headers:
             X-Request-Id:
               description: Server correlation identifier for support and diagnostics.
@@ -3558,6 +3558,19 @@ paths:
               $ref: "#/components/schemas/UpdateTenantMemberRequest"
         required: true
       responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TenantMemberDto"
+          description: OK
+          headers:
+            X-Request-Id:
+              description: Server correlation identifier for support and diagnostics.
+              explode: false
+              schema:
+                type: string
+              style: simple
         "400":
           content:
             application/problem+json:
@@ -3733,19 +3746,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/PublicApiProblemDetails"
           description: Gateway Timeout
-          headers:
-            X-Request-Id:
-              description: Server correlation identifier for support and diagnostics.
-              explode: false
-              schema:
-                type: string
-              style: simple
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/TenantMemberDto"
-          description: OK
           headers:
             X-Request-Id:
               description: Server correlation identifier for support and diagnostics.
@@ -3787,6 +3787,19 @@ paths:
               $ref: "#/components/schemas/ExecuteRequest"
         required: true
       responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QueryResponse"
+          description: OK
+          headers:
+            X-Request-Id:
+              description: Server correlation identifier for support and diagnostics.
+              explode: false
+              schema:
+                type: string
+              style: simple
         "400":
           content:
             application/problem+json:
@@ -3962,19 +3975,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/PublicApiProblemDetails"
           description: Gateway Timeout
-          headers:
-            X-Request-Id:
-              description: Server correlation identifier for support and diagnostics.
-              explode: false
-              schema:
-                type: string
-              style: simple
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/QueryResponse"
-          description: OK
           headers:
             X-Request-Id:
               description: Server correlation identifier for support and diagnostics.
@@ -4016,6 +4016,15 @@ paths:
               $ref: "#/components/schemas/ExecuteRequest"
         required: true
       responses:
+        "200":
+          description: OK
+          headers:
+            X-Request-Id:
+              description: Server correlation identifier for support and diagnostics.
+              explode: false
+              schema:
+                type: string
+              style: simple
         "400":
           content:
             application/problem+json:
@@ -4191,15 +4200,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/PublicApiProblemDetails"
           description: Gateway Timeout
-          headers:
-            X-Request-Id:
-              description: Server correlation identifier for support and diagnostics.
-              explode: false
-              schema:
-                type: string
-              style: simple
-        "200":
-          description: OK
           headers:
             X-Request-Id:
               description: Server correlation identifier for support and diagnostics.
@@ -4242,6 +4242,19 @@ paths:
           type: string
         style: simple
       responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QueryLanguageStarter"
+          description: OK
+          headers:
+            X-Request-Id:
+              description: Server correlation identifier for support and diagnostics.
+              explode: false
+              schema:
+                type: string
+              style: simple
         "400":
           content:
             application/problem+json:
@@ -4417,19 +4430,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/PublicApiProblemDetails"
           description: Gateway Timeout
-          headers:
-            X-Request-Id:
-              description: Server correlation identifier for support and diagnostics.
-              explode: false
-              schema:
-                type: string
-              style: simple
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/QueryLanguageStarter"
-          description: OK
           headers:
             X-Request-Id:
               description: Server correlation identifier for support and diagnostics.
@@ -4465,6 +4465,19 @@ paths:
           type: string
         style: simple
       responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TabularImportDto"
+          description: OK
+          headers:
+            X-Request-Id:
+              description: Server correlation identifier for support and diagnostics.
+              explode: false
+              schema:
+                type: string
+              style: simple
         "400":
           content:
             application/problem+json:
@@ -4640,19 +4653,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/PublicApiProblemDetails"
           description: Gateway Timeout
-          headers:
-            X-Request-Id:
-              description: Server correlation identifier for support and diagnostics.
-              explode: false
-              schema:
-                type: string
-              style: simple
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/TabularImportDto"
-          description: OK
           headers:
             X-Request-Id:
               description: Server correlation identifier for support and diagnostics.
@@ -4687,6 +4687,19 @@ paths:
           type: string
         style: simple
       responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TabularImportDto"
+          description: OK
+          headers:
+            X-Request-Id:
+              description: Server correlation identifier for support and diagnostics.
+              explode: false
+              schema:
+                type: string
+              style: simple
         "400":
           content:
             application/problem+json:
@@ -4862,19 +4875,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/PublicApiProblemDetails"
           description: Gateway Timeout
-          headers:
-            X-Request-Id:
-              description: Server correlation identifier for support and diagnostics.
-              explode: false
-              schema:
-                type: string
-              style: simple
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/TabularImportDto"
-          description: OK
           headers:
             X-Request-Id:
               description: Server correlation identifier for support and diagnostics.
@@ -4930,6 +4930,19 @@ paths:
           type: string
         style: form
       responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CursorPageOfSavedQueryDto"
+          description: OK
+          headers:
+            X-Request-Id:
+              description: Server correlation identifier for support and diagnostics.
+              explode: false
+              schema:
+                type: string
+              style: simple
         "400":
           content:
             application/problem+json:
@@ -5105,19 +5118,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/PublicApiProblemDetails"
           description: Gateway Timeout
-          headers:
-            X-Request-Id:
-              description: Server correlation identifier for support and diagnostics.
-              explode: false
-              schema:
-                type: string
-              style: simple
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/CursorPageOfSavedQueryDto"
-          description: OK
           headers:
             X-Request-Id:
               description: Server correlation identifier for support and diagnostics.
@@ -5169,6 +5169,19 @@ paths:
               $ref: "#/components/schemas/CreateSavedQueryRequest"
         required: true
       responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SavedQueryDto"
+          description: Created
+          headers:
+            X-Request-Id:
+              description: Server correlation identifier for support and diagnostics.
+              explode: false
+              schema:
+                type: string
+              style: simple
         "400":
           content:
             application/problem+json:
@@ -5344,19 +5357,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/PublicApiProblemDetails"
           description: Gateway Timeout
-          headers:
-            X-Request-Id:
-              description: Server correlation identifier for support and diagnostics.
-              explode: false
-              schema:
-                type: string
-              style: simple
-        "201":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/SavedQueryDto"
-          description: Created
           headers:
             X-Request-Id:
               description: Server correlation identifier for support and diagnostics.
@@ -5408,6 +5408,15 @@ paths:
           type: integer
         style: form
       responses:
+        "204":
+          description: No Content
+          headers:
+            X-Request-Id:
+              description: Server correlation identifier for support and diagnostics.
+              explode: false
+              schema:
+                type: string
+              style: simple
         "400":
           content:
             application/problem+json:
@@ -5583,15 +5592,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/PublicApiProblemDetails"
           description: Gateway Timeout
-          headers:
-            X-Request-Id:
-              description: Server correlation identifier for support and diagnostics.
-              explode: false
-              schema:
-                type: string
-              style: simple
-        "204":
-          description: No Content
           headers:
             X-Request-Id:
               description: Server correlation identifier for support and diagnostics.
@@ -5632,6 +5632,19 @@ paths:
           type: integer
         style: simple
       responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SavedQueryDto"
+          description: OK
+          headers:
+            X-Request-Id:
+              description: Server correlation identifier for support and diagnostics.
+              explode: false
+              schema:
+                type: string
+              style: simple
         "400":
           content:
             application/problem+json:
@@ -5807,19 +5820,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/PublicApiProblemDetails"
           description: Gateway Timeout
-          headers:
-            X-Request-Id:
-              description: Server correlation identifier for support and diagnostics.
-              explode: false
-              schema:
-                type: string
-              style: simple
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/SavedQueryDto"
-          description: OK
           headers:
             X-Request-Id:
               description: Server correlation identifier for support and diagnostics.
@@ -5867,6 +5867,19 @@ paths:
               $ref: "#/components/schemas/UpdateSavedQueryRequest"
         required: true
       responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SavedQueryDto"
+          description: OK
+          headers:
+            X-Request-Id:
+              description: Server correlation identifier for support and diagnostics.
+              explode: false
+              schema:
+                type: string
+              style: simple
         "400":
           content:
             application/problem+json:
@@ -6042,19 +6055,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/PublicApiProblemDetails"
           description: Gateway Timeout
-          headers:
-            X-Request-Id:
-              description: Server correlation identifier for support and diagnostics.
-              explode: false
-              schema:
-                type: string
-              style: simple
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/SavedQueryDto"
-          description: OK
           headers:
             X-Request-Id:
               description: Server correlation identifier for support and diagnostics.
@@ -6098,6 +6098,19 @@ paths:
           type: integer
         style: simple
       responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QueryResponse"
+          description: OK
+          headers:
+            X-Request-Id:
+              description: Server correlation identifier for support and diagnostics.
+              explode: false
+              schema:
+                type: string
+              style: simple
         "400":
           content:
             application/problem+json:
@@ -6273,19 +6286,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/PublicApiProblemDetails"
           description: Gateway Timeout
-          headers:
-            X-Request-Id:
-              description: Server correlation identifier for support and diagnostics.
-              explode: false
-              schema:
-                type: string
-              style: simple
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/QueryResponse"
-          description: OK
           headers:
             X-Request-Id:
               description: Server correlation identifier for support and diagnostics.
@@ -6346,6 +6346,19 @@ paths:
               $ref: "#/components/schemas/PublishSavedQueryRequest"
         required: true
       responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SavedQueryDto"
+          description: OK
+          headers:
+            X-Request-Id:
+              description: Server correlation identifier for support and diagnostics.
+              explode: false
+              schema:
+                type: string
+              style: simple
         "400":
           content:
             application/problem+json:
@@ -6521,19 +6534,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/PublicApiProblemDetails"
           description: Gateway Timeout
-          headers:
-            X-Request-Id:
-              description: Server correlation identifier for support and diagnostics.
-              explode: false
-              schema:
-                type: string
-              style: simple
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/SavedQueryDto"
-          description: OK
           headers:
             X-Request-Id:
               description: Server correlation identifier for support and diagnostics.
@@ -6597,6 +6597,19 @@ paths:
           type: string
         style: simple
       responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SavedQueryDto"
+          description: OK
+          headers:
+            X-Request-Id:
+              description: Server correlation identifier for support and diagnostics.
+              explode: false
+              schema:
+                type: string
+              style: simple
         "400":
           content:
             application/problem+json:
@@ -6772,19 +6785,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/PublicApiProblemDetails"
           description: Gateway Timeout
-          headers:
-            X-Request-Id:
-              description: Server correlation identifier for support and diagnostics.
-              explode: false
-              schema:
-                type: string
-              style: simple
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/SavedQueryDto"
-          description: OK
           headers:
             X-Request-Id:
               description: Server correlation identifier for support and diagnostics.
@@ -6840,6 +6840,19 @@ paths:
           type: string
         style: form
       responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CursorPageOfDataConnectorDto"
+          description: OK
+          headers:
+            X-Request-Id:
+              description: Server correlation identifier for support and diagnostics.
+              explode: false
+              schema:
+                type: string
+              style: simple
         "400":
           content:
             application/problem+json:
@@ -7015,19 +7028,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/PublicApiProblemDetails"
           description: Gateway Timeout
-          headers:
-            X-Request-Id:
-              description: Server correlation identifier for support and diagnostics.
-              explode: false
-              schema:
-                type: string
-              style: simple
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/CursorPageOfDataConnectorDto"
-          description: OK
           headers:
             X-Request-Id:
               description: Server correlation identifier for support and diagnostics.
@@ -7078,6 +7078,19 @@ paths:
               $ref: "#/components/schemas/DataConnectorDefinitionRequest"
         required: true
       responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataConnectorDto"
+          description: Created
+          headers:
+            X-Request-Id:
+              description: Server correlation identifier for support and diagnostics.
+              explode: false
+              schema:
+                type: string
+              style: simple
         "400":
           content:
             application/problem+json:
@@ -7253,19 +7266,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/PublicApiProblemDetails"
           description: Gateway Timeout
-          headers:
-            X-Request-Id:
-              description: Server correlation identifier for support and diagnostics.
-              explode: false
-              schema:
-                type: string
-              style: simple
-        "201":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/DataConnectorDto"
-          description: Created
           headers:
             X-Request-Id:
               description: Server correlation identifier for support and diagnostics.
@@ -7316,6 +7316,15 @@ paths:
           type: integer
         style: form
       responses:
+        "204":
+          description: No Content
+          headers:
+            X-Request-Id:
+              description: Server correlation identifier for support and diagnostics.
+              explode: false
+              schema:
+                type: string
+              style: simple
         "400":
           content:
             application/problem+json:
@@ -7491,15 +7500,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/PublicApiProblemDetails"
           description: Gateway Timeout
-          headers:
-            X-Request-Id:
-              description: Server correlation identifier for support and diagnostics.
-              explode: false
-              schema:
-                type: string
-              style: simple
-        "204":
-          description: No Content
           headers:
             X-Request-Id:
               description: Server correlation identifier for support and diagnostics.
@@ -7539,6 +7539,19 @@ paths:
           type: integer
         style: simple
       responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataConnectorDto"
+          description: OK
+          headers:
+            X-Request-Id:
+              description: Server correlation identifier for support and diagnostics.
+              explode: false
+              schema:
+                type: string
+              style: simple
         "400":
           content:
             application/problem+json:
@@ -7714,19 +7727,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/PublicApiProblemDetails"
           description: Gateway Timeout
-          headers:
-            X-Request-Id:
-              description: Server correlation identifier for support and diagnostics.
-              explode: false
-              schema:
-                type: string
-              style: simple
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/DataConnectorDto"
-          description: OK
           headers:
             X-Request-Id:
               description: Server correlation identifier for support and diagnostics.
@@ -7773,6 +7773,19 @@ paths:
               $ref: "#/components/schemas/UpdateDataConnectorRequest"
         required: true
       responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataConnectorDto"
+          description: OK
+          headers:
+            X-Request-Id:
+              description: Server correlation identifier for support and diagnostics.
+              explode: false
+              schema:
+                type: string
+              style: simple
         "400":
           content:
             application/problem+json:
@@ -7948,19 +7961,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/PublicApiProblemDetails"
           description: Gateway Timeout
-          headers:
-            X-Request-Id:
-              description: Server correlation identifier for support and diagnostics.
-              explode: false
-              schema:
-                type: string
-              style: simple
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/DataConnectorDto"
-          description: OK
           headers:
             X-Request-Id:
               description: Server correlation identifier for support and diagnostics.
@@ -8015,6 +8015,19 @@ paths:
           type: string
         style: simple
       responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataConnectorExecutionDto"
+          description: OK
+          headers:
+            X-Request-Id:
+              description: Server correlation identifier for support and diagnostics.
+              explode: false
+              schema:
+                type: string
+              style: simple
         "400":
           content:
             application/problem+json:
@@ -8190,19 +8203,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/PublicApiProblemDetails"
           description: Gateway Timeout
-          headers:
-            X-Request-Id:
-              description: Server correlation identifier for support and diagnostics.
-              explode: false
-              schema:
-                type: string
-              style: simple
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/DataConnectorExecutionDto"
-          description: OK
           headers:
             X-Request-Id:
               description: Server correlation identifier for support and diagnostics.
@@ -8265,6 +8265,19 @@ paths:
           type: string
         style: form
       responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CursorPageOfDataConnectorRunDto"
+          description: OK
+          headers:
+            X-Request-Id:
+              description: Server correlation identifier for support and diagnostics.
+              explode: false
+              schema:
+                type: string
+              style: simple
         "400":
           content:
             application/problem+json:
@@ -8440,19 +8453,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/PublicApiProblemDetails"
           description: Gateway Timeout
-          headers:
-            X-Request-Id:
-              description: Server correlation identifier for support and diagnostics.
-              explode: false
-              schema:
-                type: string
-              style: simple
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/CursorPageOfDataConnectorRunDto"
-          description: OK
           headers:
             X-Request-Id:
               description: Server correlation identifier for support and diagnostics.
@@ -8515,6 +8515,19 @@ paths:
           type: string
         style: form
       responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CursorPageOfDataConnectorRunDto"
+          description: OK
+          headers:
+            X-Request-Id:
+              description: Server correlation identifier for support and diagnostics.
+              explode: false
+              schema:
+                type: string
+              style: simple
         "400":
           content:
             application/problem+json:
@@ -8690,19 +8703,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/PublicApiProblemDetails"
           description: Gateway Timeout
-          headers:
-            X-Request-Id:
-              description: Server correlation identifier for support and diagnostics.
-              explode: false
-              schema:
-                type: string
-              style: simple
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/CursorPageOfDataConnectorRunDto"
-          description: OK
           headers:
             X-Request-Id:
               description: Server correlation identifier for support and diagnostics.
@@ -8762,6 +8762,19 @@ paths:
               $ref: "#/components/schemas/DataConnectorOperationRequest"
         required: true
       responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataConnectorDto"
+          description: OK
+          headers:
+            X-Request-Id:
+              description: Server correlation identifier for support and diagnostics.
+              explode: false
+              schema:
+                type: string
+              style: simple
         "400":
           content:
             application/problem+json:
@@ -8937,19 +8950,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/PublicApiProblemDetails"
           description: Gateway Timeout
-          headers:
-            X-Request-Id:
-              description: Server correlation identifier for support and diagnostics.
-              explode: false
-              schema:
-                type: string
-              style: simple
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/DataConnectorDto"
-          description: OK
           headers:
             X-Request-Id:
               description: Server correlation identifier for support and diagnostics.
@@ -9010,6 +9010,19 @@ paths:
               $ref: "#/components/schemas/DataConnectorOperationRequest"
         required: true
       responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataConnectorDto"
+          description: OK
+          headers:
+            X-Request-Id:
+              description: Server correlation identifier for support and diagnostics.
+              explode: false
+              schema:
+                type: string
+              style: simple
         "400":
           content:
             application/problem+json:
@@ -9185,19 +9198,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/PublicApiProblemDetails"
           description: Gateway Timeout
-          headers:
-            X-Request-Id:
-              description: Server correlation identifier for support and diagnostics.
-              explode: false
-              schema:
-                type: string
-              style: simple
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/DataConnectorDto"
-          description: OK
           headers:
             X-Request-Id:
               description: Server correlation identifier for support and diagnostics.
@@ -9258,6 +9258,19 @@ paths:
               $ref: "#/components/schemas/DataConnectorOperationRequest"
         required: true
       responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataConnectorExecutionDto"
+          description: OK
+          headers:
+            X-Request-Id:
+              description: Server correlation identifier for support and diagnostics.
+              explode: false
+              schema:
+                type: string
+              style: simple
         "400":
           content:
             application/problem+json:
@@ -9433,19 +9446,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/PublicApiProblemDetails"
           description: Gateway Timeout
-          headers:
-            X-Request-Id:
-              description: Server correlation identifier for support and diagnostics.
-              explode: false
-              schema:
-                type: string
-              style: simple
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/DataConnectorExecutionDto"
-          description: OK
           headers:
             X-Request-Id:
               description: Server correlation identifier for support and diagnostics.
@@ -9480,6 +9480,21 @@ paths:
           type: string
         style: simple
       responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: "#/components/schemas/SchemaDto"
+                type: array
+          description: OK
+          headers:
+            X-Request-Id:
+              description: Server correlation identifier for support and diagnostics.
+              explode: false
+              schema:
+                type: string
+              style: simple
         "400":
           content:
             application/problem+json:
@@ -9655,21 +9670,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/PublicApiProblemDetails"
           description: Gateway Timeout
-          headers:
-            X-Request-Id:
-              description: Server correlation identifier for support and diagnostics.
-              explode: false
-              schema:
-                type: string
-              style: simple
-        "200":
-          content:
-            application/json:
-              schema:
-                items:
-                  $ref: "#/components/schemas/SchemaDto"
-                type: array
-          description: OK
           headers:
             X-Request-Id:
               description: Server correlation identifier for support and diagnostics.
@@ -9739,6 +9739,19 @@ paths:
           type: string
         style: form
       responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CursorPageOfSnapshotDto"
+          description: OK
+          headers:
+            X-Request-Id:
+              description: Server correlation identifier for support and diagnostics.
+              explode: false
+              schema:
+                type: string
+              style: simple
         "400":
           content:
             application/problem+json:
@@ -9914,19 +9927,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/PublicApiProblemDetails"
           description: Gateway Timeout
-          headers:
-            X-Request-Id:
-              description: Server correlation identifier for support and diagnostics.
-              explode: false
-              schema:
-                type: string
-              style: simple
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/CursorPageOfSnapshotDto"
-          description: OK
           headers:
             X-Request-Id:
               description: Server correlation identifier for support and diagnostics.
@@ -9969,6 +9969,19 @@ paths:
           type: integer
         style: simple
       responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SnapshotDto"
+          description: OK
+          headers:
+            X-Request-Id:
+              description: Server correlation identifier for support and diagnostics.
+              explode: false
+              schema:
+                type: string
+              style: simple
         "400":
           content:
             application/problem+json:
@@ -10144,19 +10157,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/PublicApiProblemDetails"
           description: Gateway Timeout
-          headers:
-            X-Request-Id:
-              description: Server correlation identifier for support and diagnostics.
-              explode: false
-              schema:
-                type: string
-              style: simple
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/SnapshotDto"
-          description: OK
           headers:
             X-Request-Id:
               description: Server correlation identifier for support and diagnostics.
@@ -10223,6 +10223,19 @@ paths:
           type: integer
         style: form
       responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QueryResponse"
+          description: OK
+          headers:
+            X-Request-Id:
+              description: Server correlation identifier for support and diagnostics.
+              explode: false
+              schema:
+                type: string
+              style: simple
         "400":
           content:
             application/problem+json:
@@ -10398,19 +10411,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/PublicApiProblemDetails"
           description: Gateway Timeout
-          headers:
-            X-Request-Id:
-              description: Server correlation identifier for support and diagnostics.
-              explode: false
-              schema:
-                type: string
-              style: simple
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/QueryResponse"
-          description: OK
           headers:
             X-Request-Id:
               description: Server correlation identifier for support and diagnostics.
@@ -10471,6 +10471,19 @@ paths:
               $ref: "#/components/schemas/RestoreTableRequest"
         required: true
       responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TableRestoreDto"
+          description: OK
+          headers:
+            X-Request-Id:
+              description: Server correlation identifier for support and diagnostics.
+              explode: false
+              schema:
+                type: string
+              style: simple
         "400":
           content:
             application/problem+json:
@@ -10646,19 +10659,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/PublicApiProblemDetails"
           description: Gateway Timeout
-          headers:
-            X-Request-Id:
-              description: Server correlation identifier for support and diagnostics.
-              explode: false
-              schema:
-                type: string
-              style: simple
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/TableRestoreDto"
-          description: OK
           headers:
             X-Request-Id:
               description: Server correlation identifier for support and diagnostics.
@@ -10694,6 +10694,19 @@ paths:
           type: string
         style: simple
       responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CatalogStorageDto"
+          description: OK
+          headers:
+            X-Request-Id:
+              description: Server correlation identifier for support and diagnostics.
+              explode: false
+              schema:
+                type: string
+              style: simple
         "400":
           content:
             application/problem+json:
@@ -10869,19 +10882,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/PublicApiProblemDetails"
           description: Gateway Timeout
-          headers:
-            X-Request-Id:
-              description: Server correlation identifier for support and diagnostics.
-              explode: false
-              schema:
-                type: string
-              style: simple
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/CatalogStorageDto"
-          description: OK
           headers:
             X-Request-Id:
               description: Server correlation identifier for support and diagnostics.
@@ -10949,6 +10949,19 @@ paths:
           type: integer
         style: form
       responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TableFilesDto"
+          description: OK
+          headers:
+            X-Request-Id:
+              description: Server correlation identifier for support and diagnostics.
+              explode: false
+              schema:
+                type: string
+              style: simple
         "400":
           content:
             application/problem+json:
@@ -11124,19 +11137,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/PublicApiProblemDetails"
           description: Gateway Timeout
-          headers:
-            X-Request-Id:
-              description: Server correlation identifier for support and diagnostics.
-              explode: false
-              schema:
-                type: string
-              style: simple
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/TableFilesDto"
-          description: OK
           headers:
             X-Request-Id:
               description: Server correlation identifier for support and diagnostics.
@@ -11186,6 +11186,19 @@ paths:
           type: string
         style: form
       responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TableDetailDto"
+          description: OK
+          headers:
+            X-Request-Id:
+              description: Server correlation identifier for support and diagnostics.
+              explode: false
+              schema:
+                type: string
+              style: simple
         "400":
           content:
             application/problem+json:
@@ -11361,19 +11374,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/PublicApiProblemDetails"
           description: Gateway Timeout
-          headers:
-            X-Request-Id:
-              description: Server correlation identifier for support and diagnostics.
-              explode: false
-              schema:
-                type: string
-              style: simple
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/TableDetailDto"
-          description: OK
           headers:
             X-Request-Id:
               description: Server correlation identifier for support and diagnostics.
@@ -11431,6 +11431,19 @@ paths:
           type: integer
         style: form
       responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TableProfileDto"
+          description: OK
+          headers:
+            X-Request-Id:
+              description: Server correlation identifier for support and diagnostics.
+              explode: false
+              schema:
+                type: string
+              style: simple
         "400":
           content:
             application/problem+json:
@@ -11606,19 +11619,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/PublicApiProblemDetails"
           description: Gateway Timeout
-          headers:
-            X-Request-Id:
-              description: Server correlation identifier for support and diagnostics.
-              explode: false
-              schema:
-                type: string
-              style: simple
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/TableProfileDto"
-          description: OK
           headers:
             X-Request-Id:
               description: Server correlation identifier for support and diagnostics.
@@ -11692,6 +11692,19 @@ paths:
           type: integer
         style: form
       responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ColumnDistributionDto"
+          description: OK
+          headers:
+            X-Request-Id:
+              description: Server correlation identifier for support and diagnostics.
+              explode: false
+              schema:
+                type: string
+              style: simple
         "400":
           content:
             application/problem+json:
@@ -11867,19 +11880,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/PublicApiProblemDetails"
           description: Gateway Timeout
-          headers:
-            X-Request-Id:
-              description: Server correlation identifier for support and diagnostics.
-              explode: false
-              schema:
-                type: string
-              style: simple
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ColumnDistributionDto"
-          description: OK
           headers:
             X-Request-Id:
               description: Server correlation identifier for support and diagnostics.
@@ -11941,6 +11941,32 @@ paths:
           type: string
         style: simple
       responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MaintenanceDto"
+          description: OK
+          headers:
+            X-Request-Id:
+              description: Server correlation identifier for support and diagnostics.
+              explode: false
+              schema:
+                type: string
+              style: simple
+        "202":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicApiOperationDto"
+          description: Accepted
+          headers:
+            X-Request-Id:
+              description: Server correlation identifier for support and diagnostics.
+              explode: false
+              schema:
+                type: string
+              style: simple
         "400":
           content:
             application/problem+json:
@@ -12116,32 +12142,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/PublicApiProblemDetails"
           description: Gateway Timeout
-          headers:
-            X-Request-Id:
-              description: Server correlation identifier for support and diagnostics.
-              explode: false
-              schema:
-                type: string
-              style: simple
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/MaintenanceDto"
-          description: OK
-          headers:
-            X-Request-Id:
-              description: Server correlation identifier for support and diagnostics.
-              explode: false
-              schema:
-                type: string
-              style: simple
-        "202":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/PublicApiOperationDto"
-          description: Accepted
           headers:
             X-Request-Id:
               description: Server correlation identifier for support and diagnostics.
@@ -12190,6 +12190,19 @@ paths:
           type: string
         style: form
       responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CursorPageOfQueryRunDto"
+          description: OK
+          headers:
+            X-Request-Id:
+              description: Server correlation identifier for support and diagnostics.
+              explode: false
+              schema:
+                type: string
+              style: simple
         "400":
           content:
             application/problem+json:
@@ -12365,19 +12378,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/PublicApiProblemDetails"
           description: Gateway Timeout
-          headers:
-            X-Request-Id:
-              description: Server correlation identifier for support and diagnostics.
-              explode: false
-              schema:
-                type: string
-              style: simple
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/CursorPageOfQueryRunDto"
-          description: OK
           headers:
             X-Request-Id:
               description: Server correlation identifier for support and diagnostics.
@@ -12433,6 +12433,19 @@ paths:
           type: string
         style: form
       responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CursorPageOfBackupGenerationDto"
+          description: OK
+          headers:
+            X-Request-Id:
+              description: Server correlation identifier for support and diagnostics.
+              explode: false
+              schema:
+                type: string
+              style: simple
         "400":
           content:
             application/problem+json:
@@ -12608,19 +12621,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/PublicApiProblemDetails"
           description: Gateway Timeout
-          headers:
-            X-Request-Id:
-              description: Server correlation identifier for support and diagnostics.
-              explode: false
-              schema:
-                type: string
-              style: simple
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/CursorPageOfBackupGenerationDto"
-          description: OK
           headers:
             X-Request-Id:
               description: Server correlation identifier for support and diagnostics.
@@ -12673,6 +12673,19 @@ paths:
               $ref: "#/components/schemas/RestoreRequest"
         required: true
       responses:
+        "202":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicApiOperationDto"
+          description: Accepted
+          headers:
+            X-Request-Id:
+              description: Server correlation identifier for support and diagnostics.
+              explode: false
+              schema:
+                type: string
+              style: simple
         "400":
           content:
             application/problem+json:
@@ -12848,19 +12861,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/PublicApiProblemDetails"
           description: Gateway Timeout
-          headers:
-            X-Request-Id:
-              description: Server correlation identifier for support and diagnostics.
-              explode: false
-              schema:
-                type: string
-              style: simple
-        "202":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/PublicApiOperationDto"
-          description: Accepted
           headers:
             X-Request-Id:
               description: Server correlation identifier for support and diagnostics.
@@ -12913,6 +12913,19 @@ paths:
             schema:
               $ref: "#/components/schemas/EjectRequest"
       responses:
+        "202":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicApiOperationDto"
+          description: Accepted
+          headers:
+            X-Request-Id:
+              description: Server correlation identifier for support and diagnostics.
+              explode: false
+              schema:
+                type: string
+              style: simple
         "400":
           content:
             application/problem+json:
@@ -13088,19 +13101,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/PublicApiProblemDetails"
           description: Gateway Timeout
-          headers:
-            X-Request-Id:
-              description: Server correlation identifier for support and diagnostics.
-              explode: false
-              schema:
-                type: string
-              style: simple
-        "202":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/PublicApiOperationDto"
-          description: Accepted
           headers:
             X-Request-Id:
               description: Server correlation identifier for support and diagnostics.
@@ -13157,6 +13157,19 @@ paths:
           type: string
         style: form
       responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CursorPageOfEjectBundleDto"
+          description: OK
+          headers:
+            X-Request-Id:
+              description: Server correlation identifier for support and diagnostics.
+              explode: false
+              schema:
+                type: string
+              style: simple
         "400":
           content:
             application/problem+json:
@@ -13332,19 +13345,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/PublicApiProblemDetails"
           description: Gateway Timeout
-          headers:
-            X-Request-Id:
-              description: Server correlation identifier for support and diagnostics.
-              explode: false
-              schema:
-                type: string
-              style: simple
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/CursorPageOfEjectBundleDto"
-          description: OK
           headers:
             X-Request-Id:
               description: Server correlation identifier for support and diagnostics.
@@ -13426,6 +13426,19 @@ paths:
           type: string
         style: form
       responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChangePageDto"
+          description: OK
+          headers:
+            X-Request-Id:
+              description: Server correlation identifier for support and diagnostics.
+              explode: false
+              schema:
+                type: string
+              style: simple
         "400":
           content:
             application/problem+json:
@@ -13601,19 +13614,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/PublicApiProblemDetails"
           description: Gateway Timeout
-          headers:
-            X-Request-Id:
-              description: Server correlation identifier for support and diagnostics.
-              explode: false
-              schema:
-                type: string
-              style: simple
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ChangePageDto"
-          description: OK
           headers:
             X-Request-Id:
               description: Server correlation identifier for support and diagnostics.
@@ -13696,6 +13696,15 @@ paths:
           type: string
         style: form
       responses:
+        "200":
+          description: OK
+          headers:
+            X-Request-Id:
+              description: Server correlation identifier for support and diagnostics.
+              explode: false
+              schema:
+                type: string
+              style: simple
         "400":
           content:
             application/problem+json:
@@ -13871,15 +13880,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/PublicApiProblemDetails"
           description: Gateway Timeout
-          headers:
-            X-Request-Id:
-              description: Server correlation identifier for support and diagnostics.
-              explode: false
-              schema:
-                type: string
-              style: simple
-        "200":
-          description: OK
           headers:
             X-Request-Id:
               description: Server correlation identifier for support and diagnostics.
@@ -13952,6 +13952,19 @@ paths:
           type: string
         style: form
       responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChangePageDto"
+          description: OK
+          headers:
+            X-Request-Id:
+              description: Server correlation identifier for support and diagnostics.
+              explode: false
+              schema:
+                type: string
+              style: simple
         "400":
           content:
             application/problem+json:
@@ -14127,19 +14140,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/PublicApiProblemDetails"
           description: Gateway Timeout
-          headers:
-            X-Request-Id:
-              description: Server correlation identifier for support and diagnostics.
-              explode: false
-              schema:
-                type: string
-              style: simple
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ChangePageDto"
-          description: OK
           headers:
             X-Request-Id:
               description: Server correlation identifier for support and diagnostics.
@@ -14195,6 +14195,19 @@ paths:
           type: string
         style: form
       responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CursorPageOfSubscriptionDto"
+          description: OK
+          headers:
+            X-Request-Id:
+              description: Server correlation identifier for support and diagnostics.
+              explode: false
+              schema:
+                type: string
+              style: simple
         "400":
           content:
             application/problem+json:
@@ -14370,19 +14383,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/PublicApiProblemDetails"
           description: Gateway Timeout
-          headers:
-            X-Request-Id:
-              description: Server correlation identifier for support and diagnostics.
-              explode: false
-              schema:
-                type: string
-              style: simple
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/CursorPageOfSubscriptionDto"
-          description: OK
           headers:
             X-Request-Id:
               description: Server correlation identifier for support and diagnostics.
@@ -14434,6 +14434,19 @@ paths:
               $ref: "#/components/schemas/CreateSubscriptionRequest"
         required: true
       responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SubscriptionDto"
+          description: Created
+          headers:
+            X-Request-Id:
+              description: Server correlation identifier for support and diagnostics.
+              explode: false
+              schema:
+                type: string
+              style: simple
         "400":
           content:
             application/problem+json:
@@ -14609,19 +14622,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/PublicApiProblemDetails"
           description: Gateway Timeout
-          headers:
-            X-Request-Id:
-              description: Server correlation identifier for support and diagnostics.
-              explode: false
-              schema:
-                type: string
-              style: simple
-        "201":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/SubscriptionDto"
-          description: Created
           headers:
             X-Request-Id:
               description: Server correlation identifier for support and diagnostics.
@@ -14665,6 +14665,15 @@ paths:
           type: integer
         style: simple
       responses:
+        "204":
+          description: No Content
+          headers:
+            X-Request-Id:
+              description: Server correlation identifier for support and diagnostics.
+              explode: false
+              schema:
+                type: string
+              style: simple
         "400":
           content:
             application/problem+json:
@@ -14840,15 +14849,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/PublicApiProblemDetails"
           description: Gateway Timeout
-          headers:
-            X-Request-Id:
-              description: Server correlation identifier for support and diagnostics.
-              explode: false
-              schema:
-                type: string
-              style: simple
-        "204":
-          description: No Content
           headers:
             X-Request-Id:
               description: Server correlation identifier for support and diagnostics.
@@ -14895,6 +14895,19 @@ paths:
               $ref: "#/components/schemas/UpdateSubscriptionRequest"
         required: true
       responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SubscriptionDto"
+          description: OK
+          headers:
+            X-Request-Id:
+              description: Server correlation identifier for support and diagnostics.
+              explode: false
+              schema:
+                type: string
+              style: simple
         "400":
           content:
             application/problem+json:
@@ -15070,19 +15083,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/PublicApiProblemDetails"
           description: Gateway Timeout
-          headers:
-            X-Request-Id:
-              description: Server correlation identifier for support and diagnostics.
-              explode: false
-              schema:
-                type: string
-              style: simple
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/SubscriptionDto"
-          description: OK
           headers:
             X-Request-Id:
               description: Server correlation identifier for support and diagnostics.
@@ -15139,6 +15139,19 @@ paths:
           type: string
         style: form
       responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CursorPageOfCdcConsumerDto"
+          description: OK
+          headers:
+            X-Request-Id:
+              description: Server correlation identifier for support and diagnostics.
+              explode: false
+              schema:
+                type: string
+              style: simple
         "400":
           content:
             application/problem+json:
@@ -15314,19 +15327,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/PublicApiProblemDetails"
           description: Gateway Timeout
-          headers:
-            X-Request-Id:
-              description: Server correlation identifier for support and diagnostics.
-              explode: false
-              schema:
-                type: string
-              style: simple
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/CursorPageOfCdcConsumerDto"
-          description: OK
           headers:
             X-Request-Id:
               description: Server correlation identifier for support and diagnostics.
@@ -15378,6 +15378,32 @@ paths:
               $ref: "#/components/schemas/RegisterCdcConsumerRequest"
         required: true
       responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CdcConsumerDto"
+          description: OK
+          headers:
+            X-Request-Id:
+              description: Server correlation identifier for support and diagnostics.
+              explode: false
+              schema:
+                type: string
+              style: simple
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CdcConsumerDto"
+          description: Created
+          headers:
+            X-Request-Id:
+              description: Server correlation identifier for support and diagnostics.
+              explode: false
+              schema:
+                type: string
+              style: simple
         "400":
           content:
             application/problem+json:
@@ -15553,32 +15579,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/PublicApiProblemDetails"
           description: Gateway Timeout
-          headers:
-            X-Request-Id:
-              description: Server correlation identifier for support and diagnostics.
-              explode: false
-              schema:
-                type: string
-              style: simple
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/CdcConsumerDto"
-          description: OK
-          headers:
-            X-Request-Id:
-              description: Server correlation identifier for support and diagnostics.
-              explode: false
-              schema:
-                type: string
-              style: simple
-        "201":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/CdcConsumerDto"
-          description: Created
           headers:
             X-Request-Id:
               description: Server correlation identifier for support and diagnostics.
@@ -15628,6 +15628,19 @@ paths:
               $ref: "#/components/schemas/AdvanceCdcConsumerRequest"
         required: true
       responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CdcConsumerDto"
+          description: OK
+          headers:
+            X-Request-Id:
+              description: Server correlation identifier for support and diagnostics.
+              explode: false
+              schema:
+                type: string
+              style: simple
         "400":
           content:
             application/problem+json:
@@ -15803,19 +15816,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/PublicApiProblemDetails"
           description: Gateway Timeout
-          headers:
-            X-Request-Id:
-              description: Server correlation identifier for support and diagnostics.
-              explode: false
-              schema:
-                type: string
-              style: simple
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/CdcConsumerDto"
-          description: OK
           headers:
             X-Request-Id:
               description: Server correlation identifier for support and diagnostics.
@@ -15859,6 +15859,15 @@ paths:
           type: integer
         style: simple
       responses:
+        "204":
+          description: No Content
+          headers:
+            X-Request-Id:
+              description: Server correlation identifier for support and diagnostics.
+              explode: false
+              schema:
+                type: string
+              style: simple
         "400":
           content:
             application/problem+json:
@@ -16034,15 +16043,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/PublicApiProblemDetails"
           description: Gateway Timeout
-          headers:
-            X-Request-Id:
-              description: Server correlation identifier for support and diagnostics.
-              explode: false
-              schema:
-                type: string
-              style: simple
-        "204":
-          description: No Content
           headers:
             X-Request-Id:
               description: Server correlation identifier for support and diagnostics.
@@ -16061,6 +16061,19 @@ paths:
     get:
       operationId: get_api_v1_system_settings
       responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SystemSettingsDto"
+          description: OK
+          headers:
+            X-Request-Id:
+              description: Server correlation identifier for support and diagnostics.
+              explode: false
+              schema:
+                type: string
+              style: simple
         "400":
           content:
             application/problem+json:
@@ -16236,19 +16249,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/PublicApiProblemDetails"
           description: Gateway Timeout
-          headers:
-            X-Request-Id:
-              description: Server correlation identifier for support and diagnostics.
-              explode: false
-              schema:
-                type: string
-              style: simple
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/SystemSettingsDto"
-          description: OK
           headers:
             X-Request-Id:
               description: Server correlation identifier for support and diagnostics.
@@ -16273,6 +16273,19 @@ paths:
               $ref: "#/components/schemas/UpdateSystemSettingsRequest"
         required: true
       responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SystemSettingsDto"
+          description: OK
+          headers:
+            X-Request-Id:
+              description: Server correlation identifier for support and diagnostics.
+              explode: false
+              schema:
+                type: string
+              style: simple
         "400":
           content:
             application/problem+json:
@@ -16448,19 +16461,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/PublicApiProblemDetails"
           description: Gateway Timeout
-          headers:
-            X-Request-Id:
-              description: Server correlation identifier for support and diagnostics.
-              explode: false
-              schema:
-                type: string
-              style: simple
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/SystemSettingsDto"
-          description: OK
           headers:
             X-Request-Id:
               description: Server correlation identifier for support and diagnostics.
@@ -16481,6 +16481,19 @@ paths:
     get:
       operationId: get_api_v1_system_settings_storage
       responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SystemStorageDto"
+          description: OK
+          headers:
+            X-Request-Id:
+              description: Server correlation identifier for support and diagnostics.
+              explode: false
+              schema:
+                type: string
+              style: simple
         "400":
           content:
             application/problem+json:
@@ -16656,19 +16669,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/PublicApiProblemDetails"
           description: Gateway Timeout
-          headers:
-            X-Request-Id:
-              description: Server correlation identifier for support and diagnostics.
-              explode: false
-              schema:
-                type: string
-              style: simple
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/SystemStorageDto"
-          description: OK
           headers:
             X-Request-Id:
               description: Server correlation identifier for support and diagnostics.
@@ -16695,6 +16695,19 @@ paths:
               $ref: "#/components/schemas/ResolveStoragePathRequest"
         required: true
       responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResolvedStoragePathDto"
+          description: OK
+          headers:
+            X-Request-Id:
+              description: Server correlation identifier for support and diagnostics.
+              explode: false
+              schema:
+                type: string
+              style: simple
         "400":
           content:
             application/problem+json:
@@ -16870,19 +16883,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/PublicApiProblemDetails"
           description: Gateway Timeout
-          headers:
-            X-Request-Id:
-              description: Server correlation identifier for support and diagnostics.
-              explode: false
-              schema:
-                type: string
-              style: simple
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ResolvedStoragePathDto"
-          description: OK
           headers:
             X-Request-Id:
               description: Server correlation identifier for support and diagnostics.
