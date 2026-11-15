@@ -236,8 +236,8 @@ import { ThemeToggleComponent } from './theme-toggle.component';
             <h3>Choose MotherDuck when</h3>
             <ul>
               <li>
-                You need per-user accounts and row- or column-level permissions, administered from a
-                console.
+                You need row- or column-level permissions rather than roles that stop at the
+                catalog.
               </li>
               <li>You want zero operations and no infrastructure to own.</li>
               <li>You need elastic scale-out beyond a single node.</li>
@@ -279,7 +279,7 @@ export class LandingComponent {
     {
       status: 'Current connector platform',
       title: 'Managed ingestion foundation',
-      body: 'Bounded REST and gRPC full snapshots with schedules, quality contracts, target ownership, fenced publication, telemetry, and retained run evidence.',
+      body: 'Bounded REST and gRPC full snapshots plus PostgreSQL, HubSpot, and Kafka Avro incremental adapters, with schedules, checkpoints, quality contracts, target ownership, fenced publication, telemetry, and retained run evidence.',
     },
     {
       status: 'Partial',
@@ -335,7 +335,7 @@ export class LandingComponent {
       title: 'Authentication and tenant identity',
       body: 'Authentication cannot be switched off. API tokens are scoped to a tenant and optionally a single catalog, carrying an owner, editor, or reader role, and people sign in through your identity provider. The sole credential-less HTTP path is an explicitly configured reader for one demo catalog; MCP never accepts it. LakeHold federates authentication and owns authorization: what a signed-in person reaches comes from a membership record you administer in the product, so a provider re-asserting a stale role cannot undo a decision made here. The credential or demo identity names the tenant and the URL segment is validated against it rather than trusted. A reader’s selected catalog is attached read-only, and revoking a token closes the HTTP API and PostgreSQL wire endpoint together because both resolve against the same store.',
       caveat:
-        'Authorization stops at the catalog: a role, and optionally one catalog. There are no row or column policies, so anyone who can read a table reads all of it. A read-only selected-catalog attachment does not contain arbitrary SQL from process-visible files, URLs, secrets, or new attachments. Leaving Lakehold:Oidc:Audience empty disables audience validation and accepts every token that issuer minted — LakeHold warns at start-up, and you should treat it as an error.',
+        'Authorization stops at the catalog: a role, and optionally one catalog. There are no row or column policies, so anyone who can read a table reads all of it. A read-only selected-catalog attachment does not contain arbitrary SQL from process-visible files, URLs, secrets, or new attachments. Single sign-on fails closed: with an identity provider configured, LakeHold refuses to start until Lakehold:Oidc:Audience names this deployment, so a token minted for another application is never accepted.',
     },
     {
       tag: 'Portability',
@@ -420,7 +420,7 @@ export class LandingComponent {
       title: 'A client package with a typed change stream',
       body: 'The EF Core model already describes both your application and your lake. A LakeHold client would make that installable: migrations that define lake tables, results deserialised into your own entity types, and the change feed surfaced as ChangeEvent<T> with pre-image and post-image already paired into Before and After.',
       caveat:
-        'Today there is no client package — the .NET story is a property of the architecture and the provider, not something you can add to a csproj yet.',
+        'Today the first-party .NET SDK covers the versioned HTTP API, as source rather than a published package. EF Core-defined lake tables and a typed ChangeEvent<T> stream are not built yet.',
     },
     {
       tag: 'Assurance',
@@ -434,7 +434,7 @@ export class LandingComponent {
   protected readonly stats = [
     { value: '250k', label: 'Rows read back from bare Parquet' },
     { value: '30', label: 'Metadata tables backed up and restored' },
-    { value: '706', label: 'Backend and frontend checks in the full gate' },
+    { value: '1,070', label: 'Backend and frontend checks in the full gate' },
     { value: '0', label: 'Vendor services in the query path' },
     { value: 'Apache-2.0', label: 'Permissive open-source licence' },
   ];

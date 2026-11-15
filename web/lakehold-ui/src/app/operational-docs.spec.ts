@@ -114,12 +114,21 @@ describe('operational documentation', () => {
     );
   });
 
-  it('does not rewrite external, fragment, or non-Markdown links', () => {
+  it('does not rewrite external, fragment, or site-absolute links', () => {
     expect(resolveMarkdownHref('https://duckdb.org/docs', 'docs')).toBe('https://duckdb.org/docs');
     expect(resolveMarkdownHref('#supported-operating-profile', 'docs')).toBe(
       '#supported-operating-profile',
     );
     expect(resolveMarkdownHref('/workbench', 'docs')).toBe('/workbench');
+  });
+
+  it('sends relative links to non-Markdown repository files to their GitHub source', () => {
+    // Left relative, this resolved against lakehold.dev and fell through to the home page.
+    expect(
+      resolveMarkdownHref('../src/Lakehold.Api/Connectors/Protos/data_connector.proto', 'docs'),
+    ).toBe(
+      'https://github.com/skuirrels/LakeHold/blob/main/src/Lakehold.Api/Connectors/Protos/data_connector.proto',
+    );
   });
 
   it('keeps canonical documentation links portable on GitHub and native on the site', () => {

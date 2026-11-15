@@ -7,6 +7,29 @@ and LakeHold follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- **Re-running the demo seed no longer duplicates its rows.** The seed created each table with
+  `IF NOT EXISTS` and then inserted unconditionally, while the only guard was the control-plane
+  tenant row. A control plane that lost that row while the catalog survived on disk seeded again
+  and appended a second copy of every row, which is how the public demo came to hold 500,000 events
+  under 250,000 distinct ids. Each insert now runs only into an empty table. An already-doubled
+  catalog is not repaired by this change; it needs the duplicate rows removed, or the catalog
+  re-created, by its operator.
+- **A scheduled job can no longer be handed a session the idle sweep is about to dispose.** A
+  session's idle clock moved only when a statement ran, and the sweep acted on a snapshot. When a
+  flush and a backup started on the same second after a quiet spell, the flush's sweep disposed the
+  session the backup had just taken, and the backup failed with `Cannot access a disposed object`,
+  leaving that hour without a generation. Checking a session out now counts as using it, and the
+  sweep re-checks under the same lock as checkout before it removes anything.
+- **Repository links in the rendered documentation reach GitHub.** A relative link to a
+  non-Markdown file, such as the connector `.proto`, resolved against the website and fell through
+  to the home page. It now opens the file's source on GitHub, as Markdown links already did.
+- **The landing page matches the product again.** It said an empty `Lakehold:Oidc:Audience` only
+  produced a start-up warning, but start-up has refused that configuration since the audience
+  became required. It also understated the connector platform, said there was no .NET client at
+  all, and offered MotherDuck for per-user accounts that LakeHold now has.
+
 ## [2.6.1] - 2026-11-15
 
 Restores the development stack and the CI integration and browser suites, which could no longer pull
