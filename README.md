@@ -40,6 +40,7 @@ simpler story than the product site.
 | Time travel | Yes — query your data from an earlier point in time | Yes | No first-class equivalent | Yes, mature |
 | Verified, signed export | One call — row-count attested and signed | Manual export; nothing attests it | Manual export | Manual unload; nothing attests it |
 | Change data capture | Built in — typed feed + signed webhooks | Limited; not exposed directly | Kafka engine or external tooling | Yes — CDF / streams, mature |
+| Operational (OLTP) store | Planned — synced tables to your own Postgres | No; pair it with your own database | Separate managed Postgres; PeerDB CDC in | Databricks Lakebase; Snowflake Postgres |
 | Managed ingestion | REST/gRPC, PostgreSQL/HubSpot, and Kafka Avro with Confluent-compatible Registry; broad catalogue pending | Managed and partner connectors | Broad integrations and managed ClickPipes | Extensive first-party and partner connectors |
 | AI / MCP | Authenticated MCP; read tools + operator-gated writes | Managed MCP with sandboxed compute | Open-source and managed remote MCP | Managed AI and agent platforms with MCP |
 | BI tools (Power BI, Tableau) | Postgres wire protocol; Power BI blocked on type loading | Postgres endpoint; connector for older tools | Native connectors and JDBC/ODBC | First-class connectors everywhere |

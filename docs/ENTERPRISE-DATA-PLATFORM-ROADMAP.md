@@ -278,6 +278,31 @@ a published general-purpose SDK and must not be presented as one.
 - [ ] Per-connector resource and cost/usage reporting.
 - [ ] Release, upgrade, rollback, and incident runbooks for managed ingestion.
 
+### P1.7 operational serving — proposed, unstarted
+
+The lake can be read by an application only at analytical latency. The staged answer is an
+operational PostgreSQL store beside the lake, registered and governed as a catalog object and kept
+current from the change feed — specified in [`LAKEBASE-PLAN.md`](LAKEBASE-PLAN.md). Nothing below is
+built, and none of it changes what the engine serves: LakeHold does not become an OLTP database, it
+governs one.
+
+- [ ] Register an operational database as a tenant-scoped object holding a profile name and
+      placement, never a credential.
+- [ ] Seed a synced table at a named DuckLake snapshot, so the initial load needs no lock and leaves
+      no gap before the first incremental window.
+- [ ] Incremental synced tables from `ChangeFeed`: `LastPublishedSnapshot + 1` windows, per-key
+      collapse, and a single-transaction apply that commits the cursor with the rows.
+- [ ] Make a registered operational database eligible as a `DataConnector` source, so one
+      registration serves both directions.
+- [ ] Issue short-lived PostgreSQL credentials through the existing token machinery.
+- [ ] Template-copy and Neon branching of the operational database. Analytical branching is
+      specified separately in [`BRANCHING-PLAN.md`](BRANCHING-PLAN.md).
+- [ ] Workbench, MCP, and public API/SDK coverage for all of the above.
+
+This sits outside the P1a and P1b gates below. It is a new consumption surface rather than a
+completion of the ingestion or governance workstreams, and folding it into either would move a gate
+that is already waiting on unstarted work.
+
 ## Priority acceptance gates
 
 These are split into two tiers. A single list meant P1 could only close when every remaining

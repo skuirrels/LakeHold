@@ -107,6 +107,13 @@ integration.
   and ranked demand from the upstream trackers. It is the evidence behind the positioning and feature
   matrix in `docs/ARCHITECTURE.md`; that document states the position, this one says when it was last
   checked. Re-gather rather than amend when it ages, and never cite a claim from it without its date.
+- `docs/LAKEBASE-PLAN.md`: the phased proposal for an operational PostgreSQL store beside the lake —
+  registration as a governed catalog object, synced tables driven by `ChangeFeed`, branching of the
+  operational database, and credentials on demand. **Nothing in it is built.** Records why the serving direction is the
+  feature and why DuckDB must not become the OLTP engine, and states the one property the design
+  gains for free: a transactional target can commit the cursor with the rows, so a synced table is
+  exactly-once where webhook CDC is at-least-once. Read it before adding any operational-database
+  surface.
 - `docs/BRANCHING-PLAN.md`: the phased plan for zero-copy catalog branching — a branch is a child
   `LakeCatalog` whose metadata is a schema copy with inherited file paths made absolute, attached
   under the parent's name from a sibling `BranchRoot`; a live branch pins its fork snapshot against

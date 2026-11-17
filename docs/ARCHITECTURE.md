@@ -350,6 +350,7 @@ readable by Spark, Trino, or Snowflake.
 | Time travel / snapshots | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | CDC / change feeds | ⚠️ limited | ✅ CDF | ✅ streams | ⚠️ | ⚠️ | ✅ typed feed + webhooks |
 | CDC without a separate pipeline (no Debezium/Kafka) | ⚠️ | ❌ | ❌ | ❌ | ❌ | ✅ **unique** |
+| Operational (OLTP) store in the platform | ❌ | ✅ Lakebase | ✅ Postgres (Crunchy) | ❌ | ⚠️ your own Postgres | 🛠️ specified, unstarted |
 | Catalog branching (git-style) | ⚠️ zero-copy clone | ⚠️ | ❌ | ✅ Nessie | ✅ Nessie | 🛠️ roadmap |
 | Table maintenance controls | ✅ automatic | ✅ auto | ✅ auto | ✅ | ⚠️ manual | ✅ explicit, dry-run default |
 | Query external files (S3/Parquet/CSV) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ `httpfs` |
@@ -630,5 +631,9 @@ REST Catalog endpoint (USP 5), and add read-only share links.
 
 **Later** — continuous exit attestation (USP 4), embedded Duckling, read replicas for concurrent
 readers, a broad separately distributed connector ecosystem, semantic layer generated from the EF
-Core model, and row/column-level security. The staged EDP delivery gates live in
-`ENTERPRISE-DATA-PLATFORM-ROADMAP.md`.
+Core model, row/column-level security, and an operational PostgreSQL store beside the lake
+(`LAKEBASE-PLAN.md`) — synced tables driven by the change feed and governed by the same
+`TenantMember` decision as the catalog. That answers the matrix's operational-store row, currently
+the only cell where the honest answer is "pair it with a database we do not manage". Copy-on-write
+catalog branching is specified separately in `BRANCHING-PLAN.md`. The staged EDP delivery gates live
+in `ENTERPRISE-DATA-PLATFORM-ROADMAP.md`.

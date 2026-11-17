@@ -212,6 +212,31 @@ export const compareCapabilities: readonly CompareCapability[] = [
     ],
   },
   {
+    dimension: 'Operational (OLTP) store',
+    claim: 'Planned — synced tables to your own Postgres',
+    tone: 'weak',
+    evidence: [
+      {
+        lane: 'roadmap',
+        path: 'docs/LAKEBASE-PLAN.md',
+        marker: 'Status: not built. This document is the proposal.',
+        proves: 'The serving direction is a specified, phased proposal and is labelled as unbuilt.',
+      },
+      {
+        lane: 'declared-boundary',
+        path: 'docs/AVRO-AND-UPDATE-HEAVY-EDP.md',
+        marker: 'the operational database should remain the serving authority',
+        proves: 'LakeHold declares that it does not serve OLTP rather than implying that it does.',
+      },
+      {
+        lane: 'roadmap',
+        path: 'web/lakehold-ui/src/app/comparison.component.ts',
+        marker: 'Planned — synced tables to your own Postgres',
+        proves: 'The public matrix keeps the operational store labelled as planned, not shipped.',
+      },
+    ],
+  },
+  {
     dimension: 'Managed ingestion',
     claim:
       'REST/gRPC, PostgreSQL/HubSpot, and Kafka Avro with Confluent-compatible Registry; broad catalogue pending',
