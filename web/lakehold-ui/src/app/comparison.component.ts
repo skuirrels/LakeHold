@@ -115,6 +115,13 @@ export class ComparisonComponent {
       cloud: { text: 'Yes — CDF / streams, mature', tone: 'good' },
     },
     {
+      dimension: 'Operational (OLTP) store',
+      lakehold: { text: 'Planned — synced tables to your own Postgres', tone: 'weak' },
+      motherduck: { text: 'No; pair it with your own database', tone: 'weak' },
+      clickhouse: { text: 'Separate managed Postgres; PeerDB CDC in', tone: 'neutral' },
+      cloud: { text: 'Databricks Lakebase; Snowflake Postgres', tone: 'good' },
+    },
+    {
       dimension: 'Managed ingestion',
       lakehold: {
         text: 'REST/gRPC, PostgreSQL/HubSpot, and Kafka Avro with Confluent-compatible Registry; broad catalogue pending',
