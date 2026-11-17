@@ -7,6 +7,24 @@ and LakeHold follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.6.4] - 2026-11-17
+
+Publishes the phased plan for an operational PostgreSQL store beside the lake, and carries it on the
+comparison pages as planned. No code, configuration, data-format, or API change accompanies the
+release, and the operational store itself is not built.
+
+### Added
+
+- **`docs/LAKEBASE-PLAN.md` specifies an operational store beside the lake.** LakeHold registers,
+  governs, seeds, and synchronises an operational PostgreSQL database; it does not become an OLTP
+  engine, and application traffic does not pass through the API. Synced tables are kept current from
+  the change feed, and because the target is transactional the cursor commits with the rows, so a
+  synced table is exactly-once where webhook CDC is at-least-once. Analytical branching is left to
+  `docs/BRANCHING-PLAN.md`; this plan covers branching the operational database.
+- **The comparison matrix has an `Operational (OLTP) store` row, marked planned.** It appears on
+  `/compare` and in the README with an evidence contract the browser suite checks, beside a
+  `🛠️ specified, unstarted` cell in the architecture matrix and P1.7 in the enterprise roadmap.
+
 ## [2.6.3] - 2026-11-17
 
 Publishes the phased plan for zero-copy catalog branching. Documentation only: no code,
@@ -760,7 +778,8 @@ works the way every instruction says it does.
 - Production API and web container images for Linux amd64 and arm64, Compose deployment, health
   checks, telemetry, and a reproducible end-to-end test suite.
 
-[Unreleased]: https://github.com/skuirrels/LakeHold/compare/v2.6.3...HEAD
+[Unreleased]: https://github.com/skuirrels/LakeHold/compare/v2.6.4...HEAD
+[2.6.4]: https://github.com/skuirrels/LakeHold/compare/v2.6.3...v2.6.4
 [2.6.3]: https://github.com/skuirrels/LakeHold/compare/v2.6.2...v2.6.3
 [2.6.2]: https://github.com/skuirrels/LakeHold/compare/v2.6.1...v2.6.2
 [2.6.1]: https://github.com/skuirrels/LakeHold/compare/v2.6.0...v2.6.1
