@@ -290,6 +290,20 @@ The CodeMirror editor provides syntax highlighting, indentation, search, catalog
 completion, and `⌘⏎` (`Ctrl+Enter`) execution. SQL accepts arbitrary DuckDB/DuckLake statements;
 statements LakeHold does not specifically recognise fall back to the ordinary streaming path.
 
+Select part of the buffer and **Run selection** submits only that text, so a scratch buffer of
+several statements can be worked one at a time; diagnostics still point at the selected lines. While
+a statement runs, the Run button becomes **Cancel**, which abandons the request and stops the
+statement on the server. A change that had already committed before the cancellation arrived stays
+committed. If a run fails, the last good result stays below the error, dimmed and labelled
+**Previous result**, until the next success. Drag the bar between the editor and the results to
+resize them, or focus it and use the arrow keys; double-click puts it back.
+
+The result grid sorts by a column when you click its heading (again for descending, a third time for
+the order the query returned), with NULLs last either way. On a truncated result that sorts only the
+rows that came back, and the footer says so. The grid is one tab stop: arrow keys, Home/End, and
+Page Up/Down move between cells, Enter or `⌘C` (`Ctrl+C`) copies the active cell, and Enter on a
+heading sorts.
+
 When the optional planner is healthy, choose **C# LINQ** from the language selector. The Workbench
 loads a catalog-aware starter and keeps a separate buffer for each language. It accepts one
 side-effect-free query expression and shows compiler diagnostics at their source positions. The

@@ -193,7 +193,13 @@ describe('DataHistoryPanelComponent', () => {
 
     expect(text()).toContain('500 rows');
     expect(text()).toContain('truncated');
-    expect(fixture.nativeElement.querySelectorAll('lh-result-grid tbody tr')).toHaveLength(500);
+    // The grid renders only the rows in view, so count what it was given rather than its rows.
+    expect(
+      fixture.nativeElement.querySelector('lh-result-grid table').getAttribute('aria-rowcount'),
+    ).toBe('501');
+    expect(fixture.nativeElement.querySelector('lh-result-grid .result-footer').textContent).toContain(
+      '500 of 500 returned rows',
+    );
   });
 
   it('reports a historical read failure as a panel-local error', async () => {

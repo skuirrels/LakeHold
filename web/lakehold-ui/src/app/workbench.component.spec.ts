@@ -2,8 +2,10 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { provideZonelessChangeDetection } from '@angular/core';
 import { provideRouter } from '@angular/router';
-import { of, Subject } from 'rxjs';
+import { Observable, of, Subject } from 'rxjs';
+import { EditorView } from '@codemirror/view';
 import { ApiError, LakehouseService } from './lakehouse.service';
+import { QueryResponse } from './models';
 import { FakeLakehouseService, tableStorage } from './test-doubles';
 import { WorkbenchComponent } from './workbench.component';
 import { QueryEditorComponent } from './query-editor.component';
@@ -429,6 +431,256 @@ describe('WorkbenchComponent', () => {
     expect(
       (fixture.nativeElement.querySelector('.query-head button') as HTMLButtonElement).disabled,
     ).toBe(true);
+  });
+
+  describe('query loop', () => {
+    const rows: QueryResponse = {
+      columns: [{ name: 'country', dataType: 'VARCHAR', clrType: 'String' }],
+      rows: [['Denmark'], ['Sweden']],
+      truncated: false,
+      elapsedMilliseconds: 3,
+      rowsAffected: null,
+    };
+
+    function runButton(): HTMLButtonElement {
+      return fixture.nativeElement.querySelector('.editor-toolbar .run-button');
+    }
+
+    function editorView(): EditorView {
+      return EditorView.findFromDOM(fixture.nativeElement.querySelector('.cm-editor'))!;
+    }
+
+    function editorComponent(): QueryEditorComponent {
+      return fixture.debugElement.query(By.directive(QueryEditorComponent))
+        .componentInstance as QueryEditorComponent;
+    }
+
+    /** An execution that never answers, and records whether it was abandoned. */
+    function holdExecution(): { abandoned: boolean } {
+      const state = { abandoned: false };
+      api.execute = (...args: unknown[]) => {
+        api.calls.push({ method: 'execute', args });
+        return new Observable<QueryResponse>(() => () => {
+          state.abandoned = true;
+        });
+      };
+      return state;
+    }
+
+    function splitter(): HTMLElement {
+      return fixture.nativeElement.querySelector('.pane-splitter');
+    }
+
+    async function pressOnSplitter(key: string): Promise<void> {
+      splitter().dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }));
+      await fixture.whenStable();
+    }
+
+    beforeEach(() => localStorage.removeItem('lakehold.editorShare'));
+    afterEach(() => localStorage.removeItem('lakehold.editorShare'));
+
+    it('runs from Mod-Enter in the editor', async () => {
+      await mount();
+      setEditorValue('SELECT 42');
+      await fixture.whenStable();
+
+      const apple = /Mac|iPhone|iPad|iPod/.test(navigator.platform);
+      editorView().contentDOM.dispatchEvent(
+        new KeyboardEvent('keydown', {
+          key: 'Enter',
+          keyCode: 13,
+          metaKey: apple,
+          ctrlKey: !apple,
+          bubbles: true,
+          cancelable: true,
+        }),
+      );
+      await fixture.whenStable();
+
+      expect(api.lastArgs('execute')).toEqual(['demo', 'analytics', 'SELECT 42', 'sql']);
+      expect(editorView().state.doc.toString()).toBe('SELECT 42');
+    });
+
+    it('turns Run into Cancel while a statement runs, and cancelling abandons the request', async () => {
+      const execution = holdExecution();
+      await mount();
+      setEditorValue('SELECT 1');
+      await fixture.whenStable();
+
+      runButton().click();
+      await fixture.whenStable();
+      expect(runButton().textContent).toContain('Cancel');
+      expect(runButton().disabled).toBe(false);
+      expect(execution.abandoned).toBe(false);
+      expect(text()).toContain('Running the statement…');
+      expect(text()).not.toContain('Run a statement to see results.');
+
+      runButton().click();
+      await fixture.whenStable();
+      expect(execution.abandoned).toBe(true);
+      expect(runButton().textContent).toContain('Run');
+      expect(runButton().textContent).not.toContain('Cancel');
+      expect(text()).toContain('Query cancelled.');
+      expect(text()).not.toContain('stays committed');
+    });
+
+    it('does not cancel on the second click of a double-click on Run', async () => {
+      const execution = holdExecution();
+      await mount();
+      setEditorValue('SELECT 1');
+      await fixture.whenStable();
+
+      runButton().dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 1 }));
+      await fixture.whenStable();
+      runButton().dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 2 }));
+      await fixture.whenStable();
+
+      expect(execution.abandoned).toBe(false);
+      expect(runButton().textContent).toContain('Cancel');
+      expect(api.countOf('execute')).toBe(1);
+    });
+
+    it('warns that a cancelled write may already have committed', async () => {
+      holdExecution();
+      await mount();
+      setEditorValue('INSERT INTO main.events VALUES (1)');
+      await fixture.whenStable();
+
+      runButton().click();
+      await fixture.whenStable();
+      runButton().click();
+      await fixture.whenStable();
+
+      expect(text()).toContain('A change that had already committed stays committed.');
+    });
+
+    it('keeps the last result beside a failed run, labelled as the previous one', async () => {
+      api.queryResponse = rows;
+      await mount();
+      setEditorValue('SELECT country FROM main.places');
+      await fixture.whenStable();
+      runButton().click();
+      await fixture.whenStable();
+      expect(text()).toContain('Sweden');
+      expect(fixture.nativeElement.querySelector('.stale-result')).toBeNull();
+
+      api.failures.set('execute', 'syntax error at or near "SELCT"');
+      setEditorValue('SELCT country FROM main.places');
+      await fixture.whenStable();
+      runButton().click();
+      await fixture.whenStable();
+
+      expect(text()).toContain('syntax error');
+      expect(text()).toContain('Sweden');
+      expect(fixture.nativeElement.querySelector('.stale-result')?.textContent).toContain(
+        'Previous result',
+      );
+      expect(fixture.nativeElement.querySelector('lh-result-grid').classList).toContain('stale');
+
+      api.failures.delete('execute');
+      runButton().click();
+      await fixture.whenStable();
+      expect(fixture.nativeElement.querySelector('.stale-result')).toBeNull();
+      expect(fixture.nativeElement.querySelector('lh-result-grid').classList).not.toContain('stale');
+    });
+
+    it('runs only the selected statement and says so on the button', async () => {
+      await mount();
+      const source = 'SELECT 1;\nSELECT 2;';
+      setEditorValue(source);
+      await fixture.whenStable();
+      expect(runButton().textContent).not.toContain('selection');
+
+      const start = source.indexOf('SELECT 2');
+      editorView().dispatch({ selection: { anchor: start, head: source.length } });
+      await fixture.whenStable();
+      expect(runButton().textContent).toContain('Run selection');
+
+      runButton().click();
+      await fixture.whenStable();
+      expect(api.lastArgs('execute')).toEqual(['demo', 'analytics', 'SELECT 2;', 'sql']);
+    });
+
+    it('moves planner diagnostics to where the selected statement sits in the editor', async () => {
+      api.errors.set(
+        'execute',
+        new ApiError('Parser Error', 400, 'parse', false, [
+          {
+            severity: 'error',
+            code: 'parse',
+            message: 'unexpected token',
+            startLine: 1,
+            startColumn: 3,
+            endLine: 2,
+            endColumn: 4,
+          },
+        ]),
+      );
+      await mount();
+      const source = 'SELECT 1;\n\n  SELCT 2\n  FROM t;';
+      setEditorValue(source);
+      await fixture.whenStable();
+      const start = source.indexOf('SELCT');
+      editorView().dispatch({ selection: { anchor: start, head: source.length } });
+      await fixture.whenStable();
+
+      runButton().click();
+      await fixture.whenStable();
+
+      // The selection starts at line 3, column 3: the first line of a diagnostic moves right as
+      // well as down, and later lines only move down.
+      expect(editorComponent().diagnostics()).toEqual([
+        {
+          severity: 'error',
+          code: 'parse',
+          message: 'unexpected token',
+          startLine: 3,
+          startColumn: 5,
+          endLine: 4,
+          endColumn: 4,
+        },
+      ]);
+    });
+
+    it('resizes the editor from the keyboard and remembers the split', async () => {
+      await mount();
+      const pane = fixture.nativeElement.querySelector('.editor-pane') as HTMLElement;
+      expect(splitter().getAttribute('aria-valuenow')).toBe('38');
+      expect(pane.style.height).toBe('38%');
+
+      await pressOnSplitter('ArrowDown');
+      expect(splitter().getAttribute('aria-valuenow')).toBe('43');
+      expect(pane.style.height).toBe('43%');
+      expect(localStorage.getItem('lakehold.editorShare')).toBe('43');
+
+      await pressOnSplitter('Home');
+      expect(splitter().getAttribute('aria-valuenow')).toBe('15');
+      await pressOnSplitter('ArrowUp');
+      expect(splitter().getAttribute('aria-valuenow')).toBe('15');
+      await pressOnSplitter('End');
+      expect(splitter().getAttribute('aria-valuenow')).toBe('80');
+
+      splitter().dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+      await fixture.whenStable();
+      expect(splitter().getAttribute('aria-valuenow')).toBe('38');
+      expect(localStorage.getItem('lakehold.editorShare')).toBe('38');
+    });
+
+    it('restores a remembered split, clamps one out of range, and ignores garbage', async () => {
+      localStorage.setItem('lakehold.editorShare', '61');
+      await mount();
+      expect(splitter().getAttribute('aria-valuenow')).toBe('61');
+      fixture.destroy();
+
+      localStorage.setItem('lakehold.editorShare', '400');
+      await mount();
+      expect(splitter().getAttribute('aria-valuenow')).toBe('80');
+      fixture.destroy();
+
+      localStorage.setItem('lakehold.editorShare', 'tall');
+      await mount();
+      expect(splitter().getAttribute('aria-valuenow')).toBe('38');
+    });
   });
 
   describe('navigation shell', () => {

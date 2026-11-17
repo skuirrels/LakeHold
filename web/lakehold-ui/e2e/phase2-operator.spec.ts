@@ -68,7 +68,7 @@ test.describe('disposable operator simulation', () => {
         "CREATE TABLE phase2_events (id BIGINT, message VARCHAR); INSERT INTO phase2_events VALUES (1, 'created')",
       );
       await runSql(page, 'SELECT id, message FROM phase2_events ORDER BY id');
-      await expect(page.getByRole('cell', { name: 'created', exact: true })).toBeVisible();
+      await expect(page.getByRole('gridcell', { name: 'created', exact: true })).toBeVisible();
 
       await navigateTo(page, 'Query history');
       await expect(
