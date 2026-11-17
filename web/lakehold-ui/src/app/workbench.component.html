@@ -282,7 +282,7 @@
             </div>
           }
 
-          <section class="editor-pane">
+          <section class="editor-pane" [style.height.%]="editorShare()">
             <div class="editor-toolbar">
               <label class="language-picker"
                 ><span>Language</span
@@ -299,21 +299,37 @@
                 </select></label
               >
               <button
-                class="btn btn-primary"
+                class="btn run-button"
+                [class.btn-primary]="!running()"
+                [class.btn-cancel]="running()"
                 type="button"
-                [disabled]="running() || !ready() || !activeLanguageAvailable()"
-                (click)="run()"
+                [disabled]="!running() && (!ready() || !activeLanguageAvailable())"
+                [attr.aria-keyshortcuts]="running() ? null : 'Meta+Enter Control+Enter'"
+                (click)="runOrCancel($event)"
               >
-                {{ running() ? 'Running…' : 'Run' }} <span class="kbd">⌘⏎</span>
+                @if (running()) {
+                  <span class="run-spinner" aria-hidden="true"></span>Cancel
+                } @else {
+                  {{ editorHasSelection() ? 'Run selection' : 'Run' }}
+                  <span class="kbd" aria-hidden="true">⌘⏎</span>
+                }
               </button>
               @if (!activeLanguageAvailable()) {
                 <span class="tag warn-tag">{{ activeLanguageUnavailableMessage() }}</span>
               }
-              @if (summary(); as text) {
-                <span class="summary">{{ text }}</span>
-              }
-              @if (result()?.truncated) {
-                <span class="tag warn-tag">Row limit reached — showing a prefix of the result</span>
+              @if (running()) {
+                <span class="summary running-summary"
+                  >Running{{ runElapsed() ? ' · ' + runElapsed() : '…' }}</span
+                >
+              } @else if (!resultStale()) {
+                @if (summary(); as text) {
+                  <span class="summary">{{ text }}</span>
+                }
+                @if (result()?.truncated) {
+                  <span class="tag warn-tag"
+                    >Row limit reached — showing a prefix of the result</span
+                  >
+                }
               }
             </div>
             <lh-query-editor
@@ -323,9 +339,26 @@
               [diagnostics]="diagnostics()"
               [label]="(activeLanguage()?.displayName ?? 'Query') + ' editor'"
               (valueChange)="sql.set($event)"
-              (runQuery)="run()"
+              (selectionChange)="editorHasSelection.set($event)"
+              (runQuery)="run($event)"
             />
           </section>
+
+          <div
+            class="pane-splitter"
+            role="separator"
+            tabindex="0"
+            aria-orientation="horizontal"
+            aria-label="Resize the editor and results"
+            [attr.aria-valuenow]="editorShare()"
+            [attr.aria-valuetext]="'Editor ' + editorShare() + '% of the height'"
+            aria-valuemin="15"
+            aria-valuemax="80"
+            title="Drag to resize. Double-click to reset."
+            (pointerdown)="startEditorResize($event)"
+            (keydown)="resizeEditorWithKeyboard($event)"
+            (dblclick)="resetEditorShare()"
+          ></div>
 
           <section class="output-pane">
             <div class="tabs">
@@ -358,6 +391,9 @@
                   <pre>{{ message }}</pre>
                 </div>
               }
+              @if (runNotice(); as message) {
+                <div class="banner info-banner">{{ message }}</div>
+              }
               @if (notice(); as message) {
                 <div
                   class="banner"
@@ -385,9 +421,19 @@
                   </details>
                 }
                 @if (result()) {
-                  <lh-result-grid [result]="result()" />
-                } @else if (!error()) {
-                  <p class="placeholder">Run a statement to see results.</p>
+                  @if (resultStale()) {
+                    <p class="stale-result">
+                      <strong>Previous result</strong>
+                      @if (summary(); as text) {
+                        <span>{{ text }}</span>
+                      }
+                    </p>
+                  }
+                  <lh-result-grid [result]="result()" [class.stale]="resultStale()" />
+                } @else if (!error() && !runNotice()) {
+                  <p class="placeholder">
+                    {{ running() ? 'Running the statement…' : 'Run a statement to see results.' }}
+                  </p>
                 }
               } @else {
                 <ng-container *ngTemplateOutlet="historyList"></ng-container>

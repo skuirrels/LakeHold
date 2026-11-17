@@ -10,7 +10,7 @@ import {
 } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
 import { RouterLink } from '@angular/router';
-import { EMPTY, forkJoin, Observable, of, throwError } from 'rxjs';
+import { EMPTY, forkJoin, Observable, of, Subscription, throwError } from 'rxjs';
 import { catchError, switchMap } from 'rxjs/operators';
 import { AuthService } from './auth.service';
 import { BackupsPanelComponent } from './backups-panel.component';
@@ -45,7 +45,7 @@ import {
 } from './models';
 import { UsersComponent } from './users.component';
 import { ResultGridComponent } from './result-grid.component';
-import { QueryEditorComponent } from './query-editor.component';
+import { EditorRunRequest, QueryEditorComponent } from './query-editor.component';
 import { SavedQueriesPanelComponent } from './saved-queries-panel.component';
 import { SchedulePanelComponent } from './schedule-panel.component';
 import { StoragePanelComponent } from './storage-panel.component';
@@ -73,6 +73,56 @@ ORDER BY revenue DESC;`;
 const UNAVAILABLE_SUFFIX = '(unavailable)';
 
 type BottomTab = 'results' | 'history';
+
+/** The editor's share of the editor-and-results column, in percent, and its limits. */
+const EDITOR_SHARE_DEFAULT = 38;
+const EDITOR_SHARE_MIN = 15;
+const EDITOR_SHARE_MAX = 80;
+const EDITOR_SHARE_KEY = 'lakehold.editorShare';
+
+function clampShare(share: number): number {
+  return Math.round(Math.min(EDITOR_SHARE_MAX, Math.max(EDITOR_SHARE_MIN, share)));
+}
+
+/** The splitter position is a per-browser convenience; storage that is missing or refuses is fine. */
+function readEditorShare(): number {
+  try {
+    const stored = Number(globalThis.localStorage?.getItem(EDITOR_SHARE_KEY));
+    return stored ? clampShare(stored) : EDITOR_SHARE_DEFAULT;
+  } catch {
+    return EDITOR_SHARE_DEFAULT;
+  }
+}
+
+function storeEditorShare(share: number): void {
+  try {
+    globalThis.localStorage?.setItem(EDITOR_SHARE_KEY, String(share));
+  } catch {
+    // A private window or blocked storage only costs the position on the next visit.
+  }
+}
+
+/**
+ * Moves a diagnostic from the submitted text onto the editor.
+ *
+ * Only the first submitted line is indented by the start column; later lines start at column 1
+ * in both the submitted text and the editor.
+ */
+function shiftDiagnostic(
+  diagnostic: QueryDiagnostic,
+  origin: { line: number; column: number },
+): QueryDiagnostic {
+  const line = (value: number): number => value + origin.line - 1;
+  const column = (atLine: number, value: number): number =>
+    atLine === 1 ? value + origin.column - 1 : value;
+  return {
+    ...diagnostic,
+    startLine: line(diagnostic.startLine),
+    startColumn: column(diagnostic.startLine, diagnostic.startColumn),
+    endLine: line(diagnostic.endLine),
+    endColumn: column(diagnostic.endLine, diagnostic.endColumn),
+  };
+}
 
 /**
  * The SQL IDE.
@@ -126,6 +176,7 @@ export class WorkbenchComponent {
   private readonly navigationToggle = viewChild<ElementRef<HTMLButtonElement>>('navigationToggle');
   private readonly productNavigation = viewChild(WorkbenchNavigationComponent);
   private readonly contextPanel = viewChild<ElementRef<HTMLElement>>('contextPanel');
+  private readonly queryEditor = viewChild(QueryEditorComponent);
 
   /** Whether the credential popover is open, and the token being typed into it. */
   protected readonly credentialOpen = signal(false);
@@ -184,6 +235,32 @@ export class WorkbenchComponent {
       .map((candidate) => candidate.id),
   );
   protected readonly running = signal(false);
+  /** Whether the editor holds a selection, in which case Run submits only that. */
+  protected readonly editorHasSelection = signal(false);
+  /** When the current run started, and a clock that ticks while it runs, for the elapsed time. */
+  private readonly runStartedAt = signal<number | null>(null);
+  private readonly runClock = signal(0);
+  private runTimer: ReturnType<typeof setInterval> | null = null;
+  private runSubscription: Subscription | null = null;
+  /** Whether the running statement could commit, which decides what a cancellation can promise. */
+  private runMayWrite = false;
+  protected readonly runElapsed = computed(() => {
+    const started = this.runStartedAt();
+    const elapsed = started === null ? 0 : Math.max(0, this.runClock() - started);
+    return elapsed < 1000 ? null : `${(elapsed / 1000).toFixed(1)} s`;
+  });
+  /**
+   * Whether the result on screen belongs to an earlier run.
+   *
+   * A failed or cancelled run used to clear the grid, which threw away the rows the operator was
+   * reading at the moment they most needed them: to compare against, or to fix the query from. The
+   * last good result stays, labelled as the previous one, until a run succeeds.
+   */
+  protected readonly resultStale = signal(false);
+  /** Says a run was cancelled. Kept apart from `notice`, which reports operations that succeeded. */
+  protected readonly runNotice = signal<string | null>(null);
+  /** The editor's share of the editor-and-results column, in percent, set by the splitter. */
+  protected readonly editorShare = signal(readEditorShare());
   protected readonly result = signal<QueryResponse | null>(null);
   protected readonly error = signal<string | null>(null);
   protected readonly errorTitle = signal('Query failed');
@@ -354,6 +431,11 @@ export class WorkbenchComponent {
   constructor() {
     this.watchNavigationBreakpoint();
     this.loadBrowserSession();
+    this.destroyRef.onDestroy(() => {
+      // Leaving the Workbench mid-run abandons the statement, as Cancel would.
+      this.runSubscription?.unsubscribe();
+      this.stopRunClock();
+    });
   }
 
   private loadBrowserSession(): void {
@@ -651,20 +733,116 @@ export class WorkbenchComponent {
     this.refreshHistory();
   }
 
-  protected run(): void {
+  /**
+   * Runs the editor's selection, or its whole buffer when nothing is selected.
+   *
+   * The Run button reads the request from the editor at click time; ⌘⏎ inside the editor passes
+   * the one it built. Without an editor (it has not rendered yet) the buffer is the source.
+   */
+  protected run(request: EditorRunRequest | null = this.queryEditor()?.runRequest() ?? null): void {
     const tenant = this.tenantSlug();
     const catalog = this.catalogName();
-    const sql = this.sql().trim();
+    const source = request?.source ?? this.sql().trim();
     const language = this.language();
 
-    if (!tenant || !catalog || !sql || this.running() || !this.activeLanguageAvailable()) {
+    if (!tenant || !catalog || !source || this.running() || !this.activeLanguageAvailable()) {
       return;
     }
 
+    this.queryEditor()?.dismissCompletion();
+    // Only for wording a cancellation. A leading CTE can precede a write, so WITH is not a read.
+    this.runMayWrite =
+      language === 'sql' &&
+      !/^\s*(select|from|describe|show|explain|summarize|values|pragma|table)\b/i.test(source);
     this.executeRequest(
-      this.api.execute(tenant, catalog, sql, language),
-      language === 'sql' && /^\s*(create|drop|alter)\b/i.test(sql),
+      this.api.execute(tenant, catalog, source, language),
+      language === 'sql' && /^\s*(create|drop|alter)\b/i.test(source),
+      { line: request?.line ?? 1, column: request?.column ?? 1 },
     );
+  }
+
+  /** The Run button doubles as Cancel while a statement runs, so focus stays where it was. */
+  protected runOrCancel(event: MouseEvent): void {
+    if (!this.running()) {
+      this.run();
+    } else if (event.detail < 2) {
+      // The second click of a double-click on Run must not cancel the run the first one started.
+      this.cancelRun();
+    }
+  }
+
+  /**
+   * Abandons the running statement.
+   *
+   * Unsubscribing aborts the HTTP request; the API passes the request's cancellation token through
+   * the engine, so the statement stops on the server rather than running on unobserved. A write
+   * that committed before the cancellation arrived is not undone, and the notice says so.
+   */
+  protected cancelRun(): void {
+    if (!this.runSubscription) {
+      return;
+    }
+
+    this.runSubscription.unsubscribe();
+    this.runSubscription = null;
+    this.endRun();
+    this.resultStale.set(this.result() !== null);
+    this.runNotice.set(
+      this.runMayWrite
+        ? 'Query cancelled. A change that had already committed stays committed.'
+        : 'Query cancelled.',
+    );
+    this.refreshHistory();
+  }
+
+  /** Splitter: moves the boundary between the editor and the results with the pointer. */
+  protected startEditorResize(event: PointerEvent): void {
+    const handle = event.currentTarget as HTMLElement;
+    const pane = handle.previousElementSibling as HTMLElement | null;
+    const column = handle.parentElement;
+    if (!pane || !column || event.button !== 0) {
+      return;
+    }
+
+    event.preventDefault();
+    handle.setPointerCapture(event.pointerId);
+    const move = (moveEvent: PointerEvent): void => {
+      const top = pane.getBoundingClientRect().top;
+      this.editorShare.set(clampShare(((moveEvent.clientY - top) / column.clientHeight) * 100));
+    };
+    const stop = (): void => {
+      handle.removeEventListener('pointermove', move);
+      handle.removeEventListener('pointerup', stop);
+      handle.removeEventListener('pointercancel', stop);
+      storeEditorShare(this.editorShare());
+    };
+    handle.addEventListener('pointermove', move);
+    handle.addEventListener('pointerup', stop);
+    handle.addEventListener('pointercancel', stop);
+  }
+
+  /** Splitter: arrow keys move it in 5% steps, Home and End go to its limits. */
+  protected resizeEditorWithKeyboard(event: KeyboardEvent): void {
+    const steps: Record<string, number> = {
+      ArrowUp: this.editorShare() - 5,
+      ArrowDown: this.editorShare() + 5,
+      Home: EDITOR_SHARE_MIN,
+      End: EDITOR_SHARE_MAX,
+    };
+    const next = steps[event.key];
+    if (next === undefined) {
+      return;
+    }
+
+    event.preventDefault();
+    this.editorShare.set(clampShare(next));
+    storeEditorShare(this.editorShare());
+  }
+
+  /** Splitter: a double-click puts the boundary back where it started. */
+  protected resetEditorShare(): void {
+    this.editorShare.set(EDITOR_SHARE_DEFAULT);
+    storeEditorShare(EDITOR_SHARE_DEFAULT);
   }
 
   /** Refreshes every catalog surface invalidated by a newly imported table. */
@@ -687,7 +865,9 @@ export class WorkbenchComponent {
       return;
     }
 
-    this.executeRequest(this.api.executeSavedQuery(tenant, catalog, id), false);
+    // Saved queries are read-only definitions, so a cancelled one has nothing to have committed.
+    this.runMayWrite = false;
+    this.executeRequest(this.api.executeSavedQuery(tenant, catalog, id), false, null);
   }
 
   protected insertSql(snippet: string): void {
@@ -729,6 +909,7 @@ export class WorkbenchComponent {
       this.loadStarter(language, starter);
     }
     this.result.set(null);
+    this.resultStale.set(false);
     this.error.set(null);
     this.diagnostics.set([]);
   }
@@ -858,6 +1039,7 @@ export class WorkbenchComponent {
     if (destination !== 'workbench') {
       this.error.set(null);
       this.catalogError.set(null);
+      this.runNotice.set(null);
     }
 
     switch (destination) {
@@ -1030,31 +1212,77 @@ export class WorkbenchComponent {
     });
   }
 
-  private executeRequest(request: Observable<QueryResponse>, refreshSchema: boolean): void {
+  /**
+   * Runs one statement and owns its lifecycle: the elapsed clock, cancellation, and what the grid
+   * shows afterwards.
+   *
+   * `origin` is where the submitted source starts in the editor. Diagnostics are reported against
+   * the submitted text, so a run of a selection shifts them back onto the editor's lines. A saved
+   * query passes null: its source is not in the editor, so its diagnostics have nowhere to land.
+   */
+  private executeRequest(
+    request: Observable<QueryResponse>,
+    refreshSchema: boolean,
+    origin: { line: number; column: number } | null,
+  ): void {
     this.running.set(true);
     this.error.set(null);
     this.notice.set(null);
+    this.runNotice.set(null);
     this.tab.set('results');
     this.navigationDestination.set('workbench');
+    this.startRunClock();
 
-    request.subscribe({
+    const place = (diagnostics: QueryDiagnostic[] | undefined): QueryDiagnostic[] =>
+      origin ? (diagnostics ?? []).map((d) => shiftDiagnostic(d, origin)) : [];
+
+    const subscription = request.subscribe({
       next: (response) => {
+        this.runSubscription = null;
         this.result.set(response);
-        this.diagnostics.set(response.diagnostics ?? []);
-        this.running.set(false);
+        this.resultStale.set(false);
+        this.diagnostics.set(place(response.diagnostics));
+        this.endRun();
         this.refreshHistory();
         if (refreshSchema) {
           this.refreshCatalog();
         }
       },
       error: (err: Error) => {
-        this.diagnostics.set(err instanceof ApiError ? err.diagnostics : []);
+        this.runSubscription = null;
+        this.diagnostics.set(err instanceof ApiError ? place(err.diagnostics) : []);
         this.fail('Query failed', err.message);
-        this.result.set(null);
-        this.running.set(false);
+        this.resultStale.set(this.result() !== null);
+        this.endRun();
         this.refreshHistory();
       },
     });
+    // A request that answers synchronously has already finished, and its handlers have already
+    // cleared the field; keeping the closed subscription would leave Cancel something to cancel.
+    this.runSubscription = subscription.closed ? null : subscription;
+  }
+
+  private startRunClock(): void {
+    const now = Date.now();
+    this.runStartedAt.set(now);
+    this.runClock.set(now);
+    if (typeof window !== 'undefined') {
+      this.stopRunClock();
+      this.runTimer = setInterval(() => this.runClock.set(Date.now()), 100);
+    }
+  }
+
+  private stopRunClock(): void {
+    if (this.runTimer !== null) {
+      clearInterval(this.runTimer);
+      this.runTimer = null;
+    }
+  }
+
+  private endRun(): void {
+    this.running.set(false);
+    this.runStartedAt.set(null);
+    this.stopRunClock();
   }
 
   protected refreshHistory(): void {

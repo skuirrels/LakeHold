@@ -2,13 +2,59 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  effect,
+  ElementRef,
   input,
   OnChanges,
   signal,
+  viewChild,
 } from '@angular/core';
-import { Column, QueryResponse } from './models';
+import { Column, QueryResponse, Row } from './models';
 
-/** Searchable, exportable renderer for the bounded rows returned by one query. */
+/**
+ * Every body row is exactly this tall, which is what lets the grid render only the rows in view
+ * and stand in for the rest with two spacer rows of known height. The stylesheet pins the same
+ * figure; change both together.
+ */
+const ROW_HEIGHT = 28;
+/** Rows rendered beyond each edge of the viewport, so a fast scroll does not show bare spacer. */
+const OVERSCAN = 10;
+/** The viewport assumed before it has been measured, and wherever layout reports no height. */
+const FALLBACK_VIEWPORT = 640;
+/** Rows read to size the columns. Widths are fixed so they cannot jump as rows scroll in. */
+const WIDTH_SAMPLE = 500;
+const MIN_COLUMN_WIDTH = 72;
+const MAX_COLUMN_WIDTH = 420;
+/** Type badge, gap, cell padding, and sort mark beside a heading. */
+const HEADING_CHROME = 22 + 7 + 24 + 16;
+const CELL_PADDING = 24;
+
+let gridInstances = 0;
+
+interface GridRow {
+  readonly values: Row;
+  /** Position in the response, which is the row number shown whatever the sort. */
+  readonly index: number;
+}
+
+/** `row` is a position in the sorted, filtered rows, or -1 for the heading row. */
+interface ActiveCell {
+  readonly row: number;
+  readonly column: number;
+}
+
+interface SortOrder {
+  readonly index: number;
+  readonly direction: 'ascending' | 'descending';
+}
+
+/**
+ * Searchable, sortable, exportable renderer for the bounded rows returned by one query.
+ *
+ * It is an ARIA grid with a single tab stop: arrow keys move between cells, Enter copies a cell
+ * or sorts by a heading. Rows are virtualised, so a 10,000-row result renders a few dozen rows
+ * rather than tens of thousands of elements.
+ */
 @Component({
   selector: 'lh-result-grid',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -25,7 +71,7 @@ import { Column, QueryResponse } from './models';
                 type="search"
                 placeholder="Find in returned rows…"
                 [value]="filter()"
-                (input)="filter.set($any($event.target).value)"
+                (input)="search($any($event.target).value)"
               />
             </label>
             <div class="column-picker">
@@ -60,51 +106,110 @@ import { Column, QueryResponse } from './models';
           </div>
 
           @let columns = visibleColumns();
-          @let rows = visibleRows();
+          @let rows = sortedRows();
           @let align = alignRight();
-          <div class="grid-scroll">
-            <table>
+          @let widths = columnWidths();
+          @let slice = view();
+          <div class="grid-scroll" #scroller (scroll)="onScroll()">
+            <table
+              #table
+              role="grid"
+              tabindex="0"
+              aria-label="Query results"
+              [attr.aria-describedby]="hintId"
+              [attr.aria-rowcount]="rows.length + 1"
+              [attr.aria-colcount]="columns.length + 1"
+              [attr.aria-activedescendant]="activeCellId()"
+              [style.width.px]="tableWidth()"
+              (keydown)="onKeydown($event)"
+              (focus)="onFocus()"
+            >
+              <colgroup>
+                <col [style.width.px]="gutterWidth()" />
+                @for (entry of columns; track entry.index) {
+                  <col [style.width.px]="widths[entry.index]" />
+                }
+                <!-- Takes the width the columns do not need, so they keep the widths set above. -->
+                <col />
+              </colgroup>
               <thead>
-                <tr>
-                  <th class="gutter" scope="col">#</th>
-                  @for (entry of columns; track entry.index) {
-                    <th scope="col" [class.numeric]="align[entry.index]">
+                <tr aria-rowindex="1">
+                  <th class="gutter" scope="col" aria-colindex="1">
+                    <span aria-hidden="true">#</span><span class="visually-hidden">Row</span>
+                  </th>
+                  @for (entry of columns; track entry.index; let column = $index) {
+                    <th
+                      scope="col"
+                      [id]="cellId(-1, column)"
+                      [attr.aria-colindex]="column + 2"
+                      [attr.aria-sort]="ariaSort(entry.index)"
+                      [class.numeric]="align[entry.index]"
+                      [class.sorted]="sort()?.index === entry.index"
+                      [class.descending]="
+                        sort()?.index === entry.index && sort()?.direction === 'descending'
+                      "
+                      [class.active]="isActive(-1, column)"
+                      [title]="'Sort by ' + entry.column.name"
+                      (click)="onHeadingClick(column, entry.index)"
+                    >
                       <span class="column-heading"
                         ><span class="type-icon" aria-hidden="true">{{
                           typeIcon(entry.column, entry.index)
                         }}</span>
-                        <span
+                        <span class="column-label"
                           ><span class="col-name">{{ entry.column.name }}</span
                           ><span class="col-type">{{ entry.column.dataType }}</span></span
                         >
+                        <svg class="sort-mark" viewBox="0 0 10 10" aria-hidden="true">
+                          <path d="M2.5 6.25 5 3.75l2.5 2.5" />
+                        </svg>
                       </span>
                     </th>
                   }
+                  <th class="filler" aria-hidden="true"></th>
                 </tr>
               </thead>
               <tbody>
-                @for (row of rows; track row.index) {
-                  <tr>
-                    <td class="gutter">{{ row.index + 1 }}</td>
-                    @for (entry of columns; track entry.index) {
+                @if (slice.before > 0) {
+                  <tr class="spacer" aria-hidden="true">
+                    <td [attr.colspan]="columns.length + 2" [style.height.px]="slice.before"></td>
+                  </tr>
+                }
+                @for (row of slice.rows; track row.index; let offset = $index) {
+                  @let position = slice.first + offset;
+                  <tr [attr.aria-rowindex]="position + 2">
+                    <td class="gutter" role="rowheader" aria-colindex="1">{{ row.index + 1 }}</td>
+                    @for (entry of columns; track entry.index; let column = $index) {
                       @let cell = row.values[entry.index];
-                      <td [class.numeric]="align[entry.index]" [class.null]="cell === null">
-                        <button
-                          type="button"
-                          class="cell-copy"
-                          [title]="'Copy ' + entry.column.name"
-                          (click)="copyValue(cell)"
-                        >
-                          {{ render(cell) }}
-                        </button>
+                      <td
+                        class="cell"
+                        [id]="cellId(position, column)"
+                        [attr.aria-colindex]="column + 2"
+                        [class.numeric]="align[entry.index]"
+                        [class.null]="cell === null"
+                        [class.active]="isActive(position, column)"
+                        (click)="activate(position, column)"
+                        (dblclick)="copyValue(cell)"
+                      >
+                        {{ render(cell) }}
                       </td>
                     }
+                    <td class="filler" aria-hidden="true"></td>
                   </tr>
                 } @empty {
                   <tr>
-                    <td class="no-match" [attr.colspan]="columns.length + 1">
-                      No returned rows match this search.
+                    <td class="no-match" [attr.colspan]="columns.length + 2">
+                      {{
+                        data.rows.length === 0
+                          ? 'The query returned no rows.'
+                          : 'No returned rows match this search.'
+                      }}
                     </td>
+                  </tr>
+                }
+                @if (slice.after > 0) {
+                  <tr class="spacer" aria-hidden="true">
+                    <td [attr.colspan]="columns.length + 2" [style.height.px]="slice.after"></td>
                   </tr>
                 }
               </tbody>
@@ -118,7 +223,14 @@ import { Column, QueryResponse } from './models';
             <span>{{ data.elapsedMilliseconds.toFixed(1) }} ms</span>
             @if (data.truncated) {
               <span class="truncated">Row limit reached</span>
+              @if (sort()) {
+                <span>Sorted within the returned rows</span>
+              }
             }
+            <span class="key-hint" [id]="hintId"
+              >Arrow keys move between cells. Enter or double-click copies a cell; on a heading,
+              Enter sorts.</span
+            >
           </footer>
         </div>
       }
@@ -207,6 +319,7 @@ import { Column, QueryResponse } from './models';
       .grid-scroll {
         height: 100%;
         overflow: auto;
+        overscroll-behavior: contain;
       }
       .empty {
         padding: 18px;
@@ -214,12 +327,15 @@ import { Column, QueryResponse } from './models';
         font-size: 13px;
       }
       table {
+        table-layout: fixed;
         border-collapse: separate;
         border-spacing: 0;
-        width: max-content;
         min-width: 100%;
         font-family: var(--mono);
         font-size: 12px;
+      }
+      table:focus {
+        outline: none;
       }
       thead th {
         position: sticky;
@@ -230,14 +346,40 @@ import { Column, QueryResponse } from './models';
         padding: 6px 12px;
         text-align: left;
         white-space: nowrap;
+        overflow: hidden;
         vertical-align: bottom;
+        cursor: pointer;
+        user-select: none;
+      }
+      thead th:hover {
+        background: var(--surface-3);
+      }
+      thead th.gutter,
+      thead th.filler {
+        cursor: default;
+      }
+      thead th.filler:hover {
+        background: var(--surface-2);
+      }
+      th.filler,
+      tbody td.filler {
+        padding: 0;
       }
       .column-heading {
         display: flex;
         align-items: center;
         gap: 7px;
+        min-width: 0;
+      }
+      .numeric .column-heading {
+        justify-content: flex-end;
+      }
+      .column-label {
+        min-width: 0;
+        overflow: hidden;
       }
       .type-icon {
+        flex: none;
         min-width: 22px;
         height: 22px;
         display: inline-grid;
@@ -249,8 +391,10 @@ import { Column, QueryResponse } from './models';
       }
       .col-name {
         display: block;
+        overflow: hidden;
         color: var(--text);
         font-weight: 600;
+        text-overflow: ellipsis;
       }
       .col-type {
         display: block;
@@ -259,31 +403,61 @@ import { Column, QueryResponse } from './models';
         font-weight: 400;
         text-transform: lowercase;
       }
+      .sort-mark {
+        flex: none;
+        width: 10px;
+        height: 10px;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.4;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        color: var(--text-faint);
+        opacity: 0;
+        transition:
+          opacity 0.12s ease,
+          transform 0.15s ease;
+      }
+      thead th:hover .sort-mark {
+        opacity: 0.6;
+      }
+      thead th.sorted .sort-mark {
+        opacity: 1;
+        color: var(--accent);
+      }
+      thead th.descending .sort-mark {
+        transform: rotate(180deg);
+      }
+      /* 28px is ROW_HEIGHT; the virtual scroll depends on every body row being exactly this tall. */
+      tbody tr {
+        height: 28px;
+      }
       tbody td {
-        padding: 0;
+        box-sizing: border-box;
+        height: 28px;
+        padding: 0 12px;
+        line-height: 27px;
         border-bottom: 1px solid var(--border);
         white-space: nowrap;
-        max-width: 420px;
         overflow: hidden;
         text-overflow: ellipsis;
       }
-      tbody tr:hover td {
+      tbody tr.spacer td {
+        height: auto;
+        padding: 0;
+        border: 0;
+      }
+      tbody tr:not(.spacer):hover td {
         background: var(--surface-1);
       }
-      .cell-copy {
-        display: block;
-        width: 100%;
-        max-width: 420px;
-        padding: 4px 12px;
-        overflow: hidden;
-        color: inherit;
-        font: inherit;
-        text-align: inherit;
-        text-overflow: ellipsis;
-        white-space: nowrap;
+      .cell {
+        cursor: default;
       }
-      .cell-copy:hover {
-        color: var(--accent);
+      .active {
+        box-shadow: inset 0 0 0 1px var(--border-strong);
+      }
+      table:focus .active {
+        box-shadow: inset 0 0 0 2px var(--info);
       }
       .numeric {
         text-align: right;
@@ -294,8 +468,6 @@ import { Column, QueryResponse } from './models';
         font-style: italic;
       }
       .gutter {
-        width: 44px;
-        padding: 4px 10px;
         color: var(--text-faint);
         text-align: right;
         user-select: none;
@@ -304,13 +476,22 @@ import { Column, QueryResponse } from './models';
         left: 0;
         border-right: 1px solid var(--border);
       }
+      tbody td.gutter {
+        padding: 0 10px;
+        font-variant-numeric: tabular-nums;
+      }
       thead .gutter {
         z-index: 2;
       }
       .no-match {
         padding: 20px;
-        color: var(--text-faint);
+        color: var(--text-muted);
         text-align: center;
+      }
+      tbody td.no-match {
+        height: auto;
+        line-height: 1.5;
+        white-space: normal;
       }
       .result-footer {
         min-height: 34px;
@@ -325,6 +506,12 @@ import { Column, QueryResponse } from './models';
       }
       .truncated {
         color: var(--warn);
+      }
+      .key-hint {
+        margin-left: auto;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
       .visually-hidden {
         position: absolute;
@@ -345,6 +532,9 @@ import { Column, QueryResponse } from './models';
           min-width: 100%;
           max-width: none;
         }
+        .key-hint {
+          display: none;
+        }
       }
     `,
   ],
@@ -355,6 +545,16 @@ export class ResultGridComponent implements OnChanges {
   protected readonly hiddenColumns = signal(new Set<number>());
   protected readonly columnsOpen = signal(false);
   protected readonly notice = signal<string | null>(null);
+  protected readonly sort = signal<SortOrder | null>(null);
+  protected readonly active = signal<ActiveCell | null>(null);
+
+  private readonly instance = ++gridInstances;
+  protected readonly hintId = `lh-grid-${this.instance}-hint`;
+  private readonly scroller = viewChild<ElementRef<HTMLDivElement>>('scroller');
+  private readonly table = viewChild<ElementRef<HTMLTableElement>>('table');
+  private readonly scrollTop = signal(0);
+  private readonly viewport = signal(0);
+  private scrollFrame = 0;
 
   protected readonly alignRight = computed<boolean[]>(() => {
     const numeric = new Set([
@@ -378,30 +578,287 @@ export class ResultGridComponent implements OnChanges {
       .map((column, index) => ({ column, index }))
       .filter(({ index }) => !this.hiddenColumns().has(index)),
   );
-  protected readonly visibleRows = computed(() => {
+
+  /** Each row's rendered text, lower-cased once per result rather than once per keystroke. */
+  private readonly searchText = computed(() =>
+    (this.result()?.rows ?? []).map((values) =>
+      values
+        .map((value) => this.render(value))
+        .join('\u0000')
+        .toLowerCase(),
+    ),
+  );
+  private readonly filteredRows = computed<GridRow[]>(() => {
     const term = this.filter().trim().toLowerCase();
-    return (this.result()?.rows ?? [])
-      .map((values, index) => ({ values, index }))
-      .filter(
-        ({ values }) =>
-          !term || values.some((value) => this.render(value).toLowerCase().includes(term)),
-      );
+    const text = this.searchText();
+    const rows = (this.result()?.rows ?? []).map((values, index) => ({ values, index }));
+    return term ? rows.filter(({ index }) => text[index].includes(term)) : rows;
   });
 
+  /** The rows in display order. Nulls sort last in both directions; ties keep response order. */
+  protected readonly sortedRows = computed<GridRow[]>(() => {
+    const rows = this.filteredRows();
+    const order = this.sort();
+    if (!order) {
+      return rows;
+    }
+
+    const numeric = this.alignRight()[order.index] ?? false;
+    const factor = order.direction === 'descending' ? -1 : 1;
+    return [...rows].sort((left, right) => {
+      const a = left.values[order.index];
+      const b = right.values[order.index];
+      const aNull = a === null || a === undefined;
+      const bNull = b === null || b === undefined;
+      if (aNull || bNull) {
+        return aNull === bNull ? left.index - right.index : aNull ? 1 : -1;
+      }
+      return compareCells(a, b, numeric) * factor || left.index - right.index;
+    });
+  });
+
+  /** The slice of rows to render, with the heights of the rows above and below it. */
+  protected readonly view = computed(() => {
+    const rows = this.sortedRows();
+    const total = rows.length;
+    const viewport = this.viewport() || FALLBACK_VIEWPORT;
+    const first = Math.min(
+      Math.max(0, Math.floor(this.scrollTop() / ROW_HEIGHT) - OVERSCAN),
+      Math.max(0, total - 1),
+    );
+    const last = Math.min(total, first + Math.ceil(viewport / ROW_HEIGHT) + 1 + OVERSCAN * 2);
+    return {
+      first,
+      rows: rows.slice(first, last),
+      before: first * ROW_HEIGHT,
+      after: (total - last) * ROW_HEIGHT,
+    };
+  });
+
+  /**
+   * Column widths, fixed per result.
+   *
+   * A virtualised table cannot size columns from its content, because the content changes as it
+   * scrolls and the columns would jump. Widths come from the heading and a sample of rows instead,
+   * capped so one long value cannot push every other column off screen; longer values ellipsise.
+   */
+  protected readonly columnWidths = computed<number[]>(() => {
+    const data = this.result();
+    if (!data) {
+      return [];
+    }
+
+    const charWidth = monoCharWidth();
+    const sample = data.rows.slice(0, WIDTH_SAMPLE);
+    return data.columns.map((column, index) => {
+      const heading = Math.max(column.name.length, column.dataType.length) * charWidth;
+      let longest = 0;
+      for (const row of sample) {
+        longest = Math.max(longest, this.render(row[index]).length);
+      }
+      const width = Math.max(heading + HEADING_CHROME, longest * charWidth + CELL_PADDING);
+      return Math.round(Math.min(MAX_COLUMN_WIDTH, Math.max(MIN_COLUMN_WIDTH, width)));
+    });
+  });
+  protected readonly gutterWidth = computed(() =>
+    Math.max(44, Math.round(String(this.result()?.rows.length ?? 0).length * monoCharWidth() + 22)),
+  );
+  protected readonly tableWidth = computed(() => {
+    const widths = this.columnWidths();
+    return this.visibleColumns().reduce(
+      (total, { index }) => total + (widths[index] ?? MIN_COLUMN_WIDTH),
+      this.gutterWidth(),
+    );
+  });
+
+  /** The active cell's id, only while it is rendered: a reference to a missing id helps nobody. */
+  protected readonly activeCellId = computed(() => {
+    const cell = this.active();
+    if (!cell || cell.column >= this.visibleColumns().length) {
+      return null;
+    }
+    const visible = this.view();
+    if (
+      cell.row >= 0 &&
+      (cell.row < visible.first || cell.row >= visible.first + visible.rows.length)
+    ) {
+      return null;
+    }
+    return this.cellId(cell.row, cell.column);
+  });
+
+  constructor() {
+    // The viewport decides how many rows to render; follow it as the panes are resized.
+    effect((onCleanup) => {
+      const element = this.scroller()?.nativeElement;
+      if (!element) {
+        return;
+      }
+      this.viewport.set(element.clientHeight);
+      if (typeof ResizeObserver === 'undefined') {
+        return;
+      }
+      const observer = new ResizeObserver(() => this.viewport.set(element.clientHeight));
+      observer.observe(element);
+      onCleanup(() => observer.disconnect());
+    });
+  }
+
   ngOnChanges(): void {
-    // Search and column choices describe one result shape. Carrying them into the next execution
-    // can hide every row or the wrong positional column, especially when the query shape changes.
+    // Search, column, sort, and cursor choices describe one result shape. Carrying them into the
+    // next execution can hide every row or point at the wrong positional column, especially when
+    // the query shape changes.
     this.filter.set('');
     this.hiddenColumns.set(new Set<number>());
     this.columnsOpen.set(false);
     this.notice.set(null);
+    this.sort.set(null);
+    this.active.set(null);
+    this.scrollToTop();
+  }
+
+  protected search(term: string): void {
+    this.filter.set(term);
+    this.active.set(null);
+    this.scrollToTop();
   }
 
   protected toggleColumn(index: number): void {
     const next = new Set(this.hiddenColumns());
     if (!next.delete(index)) next.add(index);
     this.hiddenColumns.set(next);
+    this.active.set(null);
   }
+
+  protected cellId(row: number, column: number): string {
+    return `lh-grid-${this.instance}-${row < 0 ? 'h' : row}-${column}`;
+  }
+
+  protected isActive(row: number, column: number): boolean {
+    const cell = this.active();
+    return cell !== null && cell.row === row && cell.column === column;
+  }
+
+  protected ariaSort(index: number): 'ascending' | 'descending' | null {
+    const order = this.sort();
+    return order?.index === index ? order.direction : null;
+  }
+
+  /** Cycles a column through ascending, descending, and the response's own order. */
+  protected toggleSort(index: number): void {
+    const order = this.sort();
+    if (order?.index !== index) {
+      this.sort.set({ index, direction: 'ascending' });
+    } else if (order.direction === 'ascending') {
+      this.sort.set({ index, direction: 'descending' });
+    } else {
+      this.sort.set(null);
+    }
+  }
+
+  protected onHeadingClick(column: number, index: number): void {
+    this.activate(-1, column);
+    this.toggleSort(index);
+  }
+
+  protected activate(row: number, column: number): void {
+    this.active.set({ row, column });
+    this.table()?.nativeElement.focus({ preventScroll: true });
+  }
+
+  /** Tabbing into the grid lands on its first cell, so the arrow keys have somewhere to start. */
+  protected onFocus(): void {
+    if (!this.active()) {
+      this.active.set({ row: this.sortedRows().length ? 0 : -1, column: 0 });
+    }
+  }
+
+  protected onKeydown(event: KeyboardEvent): void {
+    const lastColumn = this.visibleColumns().length - 1;
+    if (lastColumn < 0) {
+      return;
+    }
+
+    const lastRow = this.sortedRows().length - 1;
+    const firstRow = lastRow >= 0 ? 0 : -1;
+    const current = this.active() ?? { row: firstRow, column: 0 };
+    const cell = { row: Math.min(current.row, lastRow), column: Math.min(current.column, lastColumn) };
+    const modifier = event.ctrlKey || event.metaKey;
+    const page = Math.max(1, Math.floor(this.bodyHeight() / ROW_HEIGHT) - 1);
+
+    let next: ActiveCell;
+    switch (event.key) {
+      case 'ArrowDown':
+        next = { ...cell, row: Math.min(cell.row + 1, lastRow) };
+        break;
+      case 'ArrowUp':
+        next = { ...cell, row: Math.max(cell.row - 1, -1) };
+        break;
+      case 'ArrowRight':
+        next = { ...cell, column: Math.min(cell.column + 1, lastColumn) };
+        break;
+      case 'ArrowLeft':
+        next = { ...cell, column: Math.max(cell.column - 1, 0) };
+        break;
+      case 'Home':
+        next = modifier ? { row: firstRow, column: 0 } : { ...cell, column: 0 };
+        break;
+      case 'End':
+        next = modifier ? { row: lastRow, column: lastColumn } : { ...cell, column: lastColumn };
+        break;
+      case 'PageDown':
+        next = { ...cell, row: Math.min(cell.row + page, lastRow) };
+        break;
+      case 'PageUp':
+        next = { ...cell, row: Math.max(cell.row - page, firstRow) };
+        break;
+      case 'Enter':
+      case ' ':
+        // ⌘⏎ is the workbench's Run shortcut; reading it as Enter would copy a cell instead.
+        if (modifier || event.altKey || event.shiftKey) {
+          return;
+        }
+        event.preventDefault();
+        if (cell.row < 0) {
+          this.toggleSort(this.visibleColumns()[cell.column].index);
+        } else if (event.key === 'Enter') {
+          void this.copyCell(cell);
+        }
+        return;
+      case 'c':
+      case 'C':
+        // Leave ⌘C alone when the operator has selected text themselves.
+        if (modifier && cell.row >= 0 && !hasTextSelection()) {
+          event.preventDefault();
+          void this.copyCell(cell);
+        }
+        return;
+      default:
+        return;
+    }
+
+    event.preventDefault();
+    this.active.set(next);
+    this.reveal(next);
+  }
+
+  protected onScroll(): void {
+    const element = this.scroller()?.nativeElement;
+    if (!element) {
+      return;
+    }
+    if (typeof requestAnimationFrame === 'undefined') {
+      this.scrollTop.set(element.scrollTop);
+      return;
+    }
+    if (!this.scrollFrame) {
+      this.scrollFrame = requestAnimationFrame(() => {
+        this.scrollFrame = 0;
+        this.scrollTop.set(element.scrollTop);
+      });
+    }
+  }
+
   protected typeIcon(column: Column, index: number): string {
     if (/date|time/i.test(column.dataType)) return '◷';
     if (/struct|map|list|array|json/i.test(column.dataType)) return '{}';
@@ -416,7 +873,7 @@ export class ResultGridComponent implements OnChanges {
     const columns = this.visibleColumns();
     const lines = [
       columns.map(({ column }) => column.name).join('\t'),
-      ...this.visibleRows().map(({ values }) =>
+      ...this.sortedRows().map(({ values }) =>
         columns.map(({ index }) => this.render(values[index])).join('\t'),
       ),
     ];
@@ -432,7 +889,7 @@ export class ResultGridComponent implements OnChanges {
     const columns = this.visibleColumns();
     const csv = [
       columns.map(({ column }) => csvCell(column.name)).join(','),
-      ...this.visibleRows().map(({ values }) =>
+      ...this.sortedRows().map(({ values }) =>
         columns.map(({ index }) => csvCell(values[index])).join(','),
       ),
     ].join('\r\n');
@@ -448,6 +905,74 @@ export class ResultGridComponent implements OnChanges {
     if (value === null || value === undefined) return 'NULL';
     return typeof value === 'object' ? JSON.stringify(value) : String(value);
   }
+
+  private async copyCell(cell: ActiveCell): Promise<void> {
+    const row = this.sortedRows()[cell.row];
+    const column = this.visibleColumns()[cell.column];
+    if (row && column) {
+      await this.copyValue(row.values[column.index]);
+    }
+  }
+
+  /** The height available to body rows: the viewport less the sticky heading. */
+  private bodyHeight(): number {
+    const heading = this.table()?.nativeElement.tHead?.offsetHeight ?? ROW_HEIGHT;
+    return Math.max(ROW_HEIGHT, (this.viewport() || FALLBACK_VIEWPORT) - heading);
+  }
+
+  /** Scrolls just enough to bring a cell into view below the sticky heading and beside the gutter. */
+  private reveal(cell: ActiveCell): void {
+    const scroller = this.scroller()?.nativeElement;
+    if (!scroller) {
+      return;
+    }
+
+    if (cell.row >= 0) {
+      const top = cell.row * ROW_HEIGHT;
+      const height = this.bodyHeight();
+      let scrollTop = scroller.scrollTop;
+      if (top < scrollTop) {
+        scrollTop = top;
+      } else if (top + ROW_HEIGHT > scrollTop + height) {
+        scrollTop = top + ROW_HEIGHT - height;
+      }
+      if (scrollTop !== scroller.scrollTop) {
+        scroller.scrollTop = scrollTop;
+        this.scrollTop.set(scrollTop);
+      }
+    }
+
+    // Horizontal position needs the cell rendered, which happens after this change is applied.
+    const align = (): void => {
+      const element = scroller.querySelector<HTMLElement>(`#${this.cellId(cell.row, cell.column)}`);
+      if (!element) {
+        return;
+      }
+      const gutter = this.gutterWidth();
+      const left = element.offsetLeft - gutter;
+      const right = element.offsetLeft + element.offsetWidth;
+      if (left < scroller.scrollLeft) {
+        scroller.scrollLeft = left;
+      } else if (right > scroller.scrollLeft + scroller.clientWidth) {
+        scroller.scrollLeft = right - scroller.clientWidth;
+      }
+    };
+    if (typeof requestAnimationFrame === 'undefined') {
+      align();
+    } else {
+      requestAnimationFrame(align);
+    }
+  }
+
+  private scrollToTop(): void {
+    this.scrollTop.set(0);
+    const element = this.scroller()?.nativeElement;
+    if (element) {
+      element.scrollTop = 0;
+      element.scrollLeft = 0;
+    }
+  }
+
   private async writeClipboard(value: string, message: string): Promise<void> {
     if (typeof navigator === 'undefined' || !navigator.clipboard?.writeText) {
       this.flash('Clipboard unavailable');
@@ -465,6 +990,64 @@ export class ResultGridComponent implements OnChanges {
     this.notice.set(message);
     if (typeof window !== 'undefined') window.setTimeout(() => this.notice.set(null), 1800);
   }
+}
+
+const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
+
+/**
+ * Orders two non-null cells.
+ *
+ * Integers beyond JavaScript's safe range arrive as strings so they survive transport, which
+ * means a numeric column can mix numbers and digit strings. Those compare as BigInt where both
+ * are whole; anything else numeric compares as a double, and text collates naturally.
+ */
+function compareCells(a: unknown, b: unknown, numeric: boolean): number {
+  if (numeric) {
+    const whole = /^-?\d+$/;
+    const aText = String(a);
+    const bText = String(b);
+    if (whole.test(aText) && whole.test(bText)) {
+      const difference = BigInt(aText) - BigInt(bText);
+      return difference === 0n ? 0 : difference < 0n ? -1 : 1;
+    }
+    const difference = Number(a) - Number(b);
+    if (!Number.isNaN(difference)) {
+      return Math.sign(difference);
+    }
+  }
+  if (typeof a === 'boolean' && typeof b === 'boolean') {
+    return Number(a) - Number(b);
+  }
+  const aText = typeof a === 'object' ? JSON.stringify(a) : String(a);
+  const bText = typeof b === 'object' ? JSON.stringify(b) : String(b);
+  return collator.compare(aText, bText);
+}
+
+function hasTextSelection(): boolean {
+  return typeof window !== 'undefined' && (window.getSelection()?.toString().length ?? 0) > 0;
+}
+
+let cachedCharWidth: number | null = null;
+
+/** The advance of one character in the grid's 12px monospace face, measured once per page. */
+function monoCharWidth(): number {
+  if (cachedCharWidth !== null) {
+    return cachedCharWidth;
+  }
+
+  let width = 0;
+  if (typeof document !== 'undefined' && document.body) {
+    const probe = document.createElement('span');
+    probe.style.cssText =
+      'position:absolute;visibility:hidden;white-space:pre;font:12px var(--mono);';
+    probe.textContent = '0'.repeat(20);
+    document.body.appendChild(probe);
+    width = probe.getBoundingClientRect().width / 20;
+    probe.remove();
+  }
+  // Layout-less environments report nothing; 0.6em is the common monospace advance.
+  cachedCharWidth = width > 0 ? width : 7.2;
+  return cachedCharWidth;
 }
 
 function csvCell(value: unknown): string {

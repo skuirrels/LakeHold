@@ -29,6 +29,21 @@ queries, managed connectors, query history, and navigation commands. Query resul
 find, column visibility, cell/row copy, CSV export, datatype cues, and a sticky returned-row/runtime
 footer using the existing bounded response metadata.
 
+The query loop itself: `⌘⏎` is bound at the highest CodeMirror precedence, because `basicSetup`
+binds the same key to *insert blank line* and an ordinary keymap never saw it. A non-empty selection
+runs on its own, with planner diagnostics shifted to where the selection starts. Run becomes Cancel
+while a statement is in flight; unsubscribing aborts the request and the endpoint's request-aborted
+token stops the statement, so a cancelled statement no longer holds the Duckling gate. A failed run
+keeps the last good result, dimmed and labelled, instead of blanking it. The editor/results boundary
+is a keyboard-operable splitter whose position is a per-browser convenience in `localStorage`.
+
+The result grid is an ARIA grid with one tab stop and an active cell (`aria-activedescendant`)
+rather than a button per cell. Rows are virtualised at a fixed 28px height, so a 10,000-row result
+renders a few dozen `tr` elements; column widths are computed once per result from the headings and
+a sample of rows, because content-sized columns would jump as rows scroll in. Headings sort within
+the returned rows, nulls last, with integers beyond 2^53 compared as `BigInt` since they arrive as
+strings.
+
 Administration is two destinations, split by the credential each answers to.
 
 **System Settings** is instance-scoped. It owns the runtime MCP controls (enabled, writes, row ceiling,
@@ -617,8 +632,9 @@ from the test runner, so it type-checks under the app config too; it is excluded
 | `eject-panel.component.spec.ts` | No dry run, the history flag, bundle expand/collapse, incomplete marked untrusted |
 | `schedule-panel.component.spec.ts` | Instance-wide run-log loading, scoped row rendering, success/failure states, and error-vs-empty truthfulness |
 | `token-administration.component.spec.ts` | Least-privilege defaults, exact public API request, one-time secret display, failure, and empty-workspace states |
-| `workbench.component.spec.ts` | First-run sign-in and tenant/catalog/token provisioning, focused navigation, catalog-scoped history, compact navigation, error isolation, dry-run then apply, and Data history integration |
-| `result-grid.component.spec.ts` | Local result filtering, duplicate-name column visibility, type alignment, bounded-result footer, and clipboard refusal |
+| `workbench.component.spec.ts` | First-run sign-in and tenant/catalog/token provisioning, focused navigation, catalog-scoped history, compact navigation, error isolation, dry-run then apply, Data history integration, and the query loop: `⌘⏎`, Run/Cancel (including a double-click not cancelling), the write-aware cancel notice, previous result beside a failure, run-selection, shifted diagnostics, and the splitter |
+| `query-editor.component.spec.ts` | `Mod-Enter` runs instead of inserting a line, the selection run request and its start position, and selection-change reporting |
+| `result-grid.component.spec.ts` | Local result filtering, duplicate-name column visibility, type alignment, bounded-result footer, clipboard refusal, virtualisation and scrolling, heading sort (BigInt strings, natural text, nulls last), and the grid keyboard model |
 | `workbench-search.component.spec.ts` | Table-column discovery, reusable-query opening, repeated-history identity, and dismissed-search reset |
 
 **Four assertions were mutation-tested** — a green test that cannot fail is worse than no test, because
@@ -629,6 +645,10 @@ That exercise **found a weak test of my own**. "Does not keep the secret" origin
 password field was gone after submitting — which passes whether or not the value was cleared, because
 submitting closes the form and removes the input either way. It now reopens the form and reads the
 field, and it fails when `secret.set('')` is removed.
+
+The query-loop work was held to the same rule. Twenty source mutations each fail at least one spec,
+among them moving the run keymap below `basicSetup`, dropping the unsubscribe from Cancel, rendering
+every row, sorting nulls with the direction, and comparing large integers as doubles.
 
 ### The routes
 

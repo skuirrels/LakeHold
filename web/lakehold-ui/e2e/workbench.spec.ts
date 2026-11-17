@@ -37,9 +37,9 @@ test.describe('workbench user journeys', () => {
     await page.getByRole('button', { name: /^Run/ }).click();
 
     await expect(page.getByRole('columnheader', { name: /answer/i })).toBeVisible();
-    await expect(page.getByRole('cell', { name: '42', exact: true })).toBeVisible();
-    await expect(page.getByRole('cell', { name: 'ready', exact: true })).toBeVisible();
-    await expect(page.getByRole('cell', { name: 'NULL', exact: true })).toBeVisible();
+    await expect(page.getByRole('gridcell', { name: '42', exact: true })).toBeVisible();
+    await expect(page.getByRole('gridcell', { name: 'ready', exact: true })).toBeVisible();
+    await expect(page.getByRole('gridcell', { name: 'NULL', exact: true })).toBeVisible();
     await expect(page.locator('.summary')).toContainText('1 row');
   });
 
@@ -230,7 +230,7 @@ test.describe('workbench user journeys', () => {
     await page.getByRole('button', { name: /^Run/ }).click();
     await expect(page.locator('.error-banner')).toBeHidden();
     await expect(page.getByRole('columnheader', { name: /recovered/i })).toBeVisible();
-    await expect(page.locator('tbody tr').getByRole('cell').nth(1)).toHaveText('1');
+    await expect(page.locator('tbody tr').getByRole('gridcell').first()).toHaveText('1');
   });
 });
 

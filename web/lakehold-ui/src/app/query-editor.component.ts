@@ -9,15 +9,34 @@ import {
   output,
   viewChild,
 } from '@angular/core';
-import { autocompletion, CompletionContext, CompletionResult } from '@codemirror/autocomplete';
+import {
+  autocompletion,
+  closeCompletion,
+  CompletionContext,
+  CompletionResult,
+} from '@codemirror/autocomplete';
 import { StreamLanguage } from '@codemirror/language';
 import { csharp } from '@codemirror/legacy-modes/mode/clike';
 import { Diagnostic, lintGutter, setDiagnostics } from '@codemirror/lint';
 import { sql as sqlLanguage } from '@codemirror/lang-sql';
-import { Compartment, EditorState } from '@codemirror/state';
-import { EditorView } from '@codemirror/view';
+import { Compartment, EditorState, Prec } from '@codemirror/state';
+import { EditorView, keymap } from '@codemirror/view';
 import { basicSetup } from 'codemirror';
 import { QueryDiagnostic, Schema } from './models';
+
+/**
+ * What a run submits: the selection when there is one, otherwise the whole buffer, trimmed.
+ *
+ * `line` and `column` are where `source` starts in the editor, 1-based. The planner reports
+ * diagnostics against the text it was sent, so a run of a selection that starts on line 9 has to
+ * move them down eight lines before they mark the right characters.
+ */
+export interface EditorRunRequest {
+  readonly source: string;
+  readonly line: number;
+  readonly column: number;
+  readonly selection: boolean;
+}
 
 /** CodeMirror boundary for Workbench editing; it has no API or execution dependencies. */
 @Component({
@@ -43,12 +62,15 @@ export class QueryEditorComponent implements AfterViewInit, OnDestroy {
   readonly diagnostics = input<QueryDiagnostic[]>([]);
   readonly label = input('Query editor');
   readonly valueChange = output<string>();
-  readonly runQuery = output<void>();
+  readonly runQuery = output<EditorRunRequest>();
+  /** Whether the editor holds a non-empty selection, so the Run button can say what it runs. */
+  readonly selectionChange = output<boolean>();
 
   private readonly host = viewChild.required<ElementRef<HTMLDivElement>>('host');
   private readonly languageCompartment = new Compartment();
   private readonly completionCompartment = new Compartment();
   private editor: EditorView | null = null;
+  private hadSelection = false;
 
   constructor() {
     effect(() => this.syncValue(this.value()));
@@ -64,6 +86,22 @@ export class QueryEditorComponent implements AfterViewInit, OnDestroy {
       state: EditorState.create({
         doc: this.value(),
         extensions: [
+          // basicSetup's default keymap binds Mod-Enter to insertBlankLine, and a keymap entry
+          // registered later at the same precedence never sees the key. Run has to outrank it, or
+          // the shortcut printed on the Run button edits the query instead of running it.
+          Prec.highest(
+            keymap.of([
+              {
+                key: 'Mod-Enter',
+                preventDefault: true,
+                run: (view) => {
+                  closeCompletion(view);
+                  this.runQuery.emit(runRequestFrom(view.state));
+                  return true;
+                },
+              },
+            ]),
+          ),
           basicSetup,
           lintGutter(),
           this.languageCompartment.of(this.languageExtension(this.language())),
@@ -73,16 +111,13 @@ export class QueryEditorComponent implements AfterViewInit, OnDestroy {
             if (update.docChanged) {
               this.valueChange.emit(update.state.doc.toString());
             }
-          }),
-          EditorView.domEventHandlers({
-            keydown: (event) => {
-              if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
-                event.preventDefault();
-                this.runQuery.emit();
-                return true;
+            if (update.selectionSet || update.docChanged) {
+              const selected = !update.state.selection.main.empty;
+              if (selected !== this.hadSelection) {
+                this.hadSelection = selected;
+                this.selectionChange.emit(selected);
               }
-              return false;
-            },
+            }
           }),
         ],
       }),
@@ -93,6 +128,25 @@ export class QueryEditorComponent implements AfterViewInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.editor?.destroy();
+  }
+
+  /**
+   * The text a run should submit, and where it starts.
+   *
+   * A non-empty main selection runs on its own, which is how a buffer of several statements is
+   * used one statement at a time. Leading and trailing whitespace is trimmed, and the start
+   * position moves past what was trimmed so diagnostics still land on the right characters.
+   * Null before the editor exists.
+   */
+  runRequest(): EditorRunRequest | null {
+    return this.editor ? runRequestFrom(this.editor.state) : null;
+  }
+
+  /** Closes an open completion list, which would otherwise sit over the editor after a run. */
+  dismissCompletion(): void {
+    if (this.editor) {
+      closeCompletion(this.editor);
+    }
   }
 
   private syncValue(value: string): void {
@@ -173,6 +227,16 @@ export class QueryEditorComponent implements AfterViewInit, OnDestroy {
       : [];
     return { from: word.from, options: [...catalog, ...operators], validFor: /^[\w.]*$/ };
   }
+}
+
+function runRequestFrom(state: EditorState): EditorRunRequest {
+  const range = state.selection.main;
+  const selection = !range.empty;
+  const from = selection ? range.from : 0;
+  const raw = state.sliceDoc(from, selection ? range.to : state.doc.length);
+  const start = from + (raw.length - raw.trimStart().length);
+  const line = state.doc.lineAt(start);
+  return { source: raw.trim(), line: line.number, column: start - line.from + 1, selection };
 }
 
 function pascal(value: string): string {
