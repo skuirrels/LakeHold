@@ -7,6 +7,24 @@ and LakeHold follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.6.3] - 2026-11-17
+
+Publishes the phased plan for zero-copy catalog branching. Documentation only: no code,
+configuration, data-format, or API change accompanies the release, and branching itself is not
+built. The capability matrix still marks it as roadmap.
+
+### Added
+
+- **`docs/BRANCHING-PLAN.md` specifies catalog branching.** A branch is a child catalog whose
+  metadata is a copy cut to the state live at the fork, reading the parent's Parquet by absolute
+  reference and writing only under a sibling `BranchRoot`. A live branch pins its fork snapshot
+  against parent expiry and refuses `expire` and `cleanup` itself. The diff is the change feed from
+  the fork, and the first merge is fast-forward and data-only. The plan records the engine spikes
+  that back each rule, run against DuckDB 1.5.5 with PostgreSQL metadata and S3-compatible storage,
+  including two that changed the design: statistics rows must be kept rather than rebuilt, because a
+  missing row restarts row ids and a narrowed one prunes live rows.
+- The repository map in `AGENT.md` points to the plan.
+
 ## [2.6.2] - 2026-11-15
 
 Fixes two runtime faults found reviewing the public demo, and brings the website back in line with
@@ -742,7 +760,8 @@ works the way every instruction says it does.
 - Production API and web container images for Linux amd64 and arm64, Compose deployment, health
   checks, telemetry, and a reproducible end-to-end test suite.
 
-[Unreleased]: https://github.com/skuirrels/LakeHold/compare/v2.6.2...HEAD
+[Unreleased]: https://github.com/skuirrels/LakeHold/compare/v2.6.3...HEAD
+[2.6.3]: https://github.com/skuirrels/LakeHold/compare/v2.6.2...v2.6.3
 [2.6.2]: https://github.com/skuirrels/LakeHold/compare/v2.6.1...v2.6.2
 [2.6.1]: https://github.com/skuirrels/LakeHold/compare/v2.6.0...v2.6.1
 [2.6.0]: https://github.com/skuirrels/LakeHold/compare/v2.5.1...v2.6.0
